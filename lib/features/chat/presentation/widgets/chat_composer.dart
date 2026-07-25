@@ -9,11 +9,19 @@ import 'package:drop/features/chat/presentation/chat_attachment_picker.dart';
 import 'package:drop/features/chat/presentation/chat_message_preview.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_attachment_sheet.dart';
 
-/// The message composer pinned at the bottom of a chat thread — a premium,
-/// iMessage/Telegram-style bar: a paperclip attachment button, a generously
-/// padded rounded input that grows with multiline text (1–6 lines), and a
-/// circular send button that animates in only when there is something to send
-/// (text or a staged attachment).
+/// The message composer pinned at the bottom of a chat thread.
+///
+/// **Design: iMessage.** A single hairline-outlined capsule with a *transparent
+/// interior* — the field is defined by its stroke, not by a filled slab. The
+/// controls recede so the text column dominates: the attachment `+` is a bare
+/// glyph (no disc, no background) on the leading edge, and the send control is
+/// a small 30pt disc tucked 4pt inside the trailing edge. Nothing floats
+/// outside the capsule; there is exactly one surface here.
+///
+/// Proportions are fixed and deliberate — the capsule is 38pt at rest with a
+/// fully-round 19pt radius, so a 30pt send disc clears its stroke by 4pt on
+/// every side. Focus brightens the stroke without thickening it (a width change
+/// makes the whole bar jump, which reads as cheap).
 ///
 /// [onSend] returns whether the send was accepted; the composer clears the
 /// input and any staged attachment only then, so a rejected send never loses
@@ -33,7 +41,7 @@ class ChatComposer extends StatefulWidget {
 
   /// Sends the composed message. Returns whether it was accepted.
   final Future<bool> Function(String text, ChatOutgoingAttachment? attachment)
-      onSend;
+  onSend;
 
   final bool sending;
 
@@ -42,7 +50,7 @@ class ChatComposer extends StatefulWidget {
   final Widget? header;
 
   /// Source for the paperclip button. Null → attachments are unavailable and
-  /// the paperclip is hidden (e.g. in tests, or an unsupported platform).
+  /// the `+` is hidden (e.g. in tests, or an unsupported platform).
   final ChatAttachmentSource? attachmentSource;
 
   @override
@@ -50,6 +58,14 @@ class ChatComposer extends StatefulWidget {
 }
 
 class _ChatComposerState extends State<ChatComposer> {
+  /// The capsule's resting height. A 30pt send disc + 4pt inset top and bottom
+  /// lands exactly here, so the disc is optically centred with no fudge factor.
+  static const double _capsuleHeight = 38;
+
+  /// Inset of the send disc from the capsule's stroke, on every side.
+  static const double _sendInset = 4;
+  static const double _sendDiameter = _capsuleHeight - (_sendInset * 2);
+
   final _controller = TextEditingController();
   late final FocusNode _node = FocusNode(onKeyEvent: _handleKey);
 
@@ -57,7 +73,7 @@ class _ChatComposerState extends State<ChatComposer> {
   bool _autofocused = false;
   bool _picking = false;
 
-  /// Whether the input holds focus — drives the pill's focus animation.
+  /// Whether the input holds focus — drives the stroke's brightening.
   bool _focused = false;
 
   /// The staged attachment awaiting send (preview shown above the input).
@@ -143,7 +159,7 @@ class _ChatComposerState extends State<ChatComposer> {
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     final showAttach = widget.attachmentSource != null;
     return Container(
-      padding: EdgeInsets.fromLTRB(10, 6, 10, 6 + safeBottom),
+      padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + safeBottom),
       decoration: BoxDecoration(
         color: AppColors.darkBg,
         border: Border(
@@ -156,7 +172,8 @@ class _ChatComposerState extends State<ChatComposer> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Reply banner + staged-attachment preview animate in above the pill.
+          // Reply banner + staged-attachment preview animate in above the
+          // capsule.
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
@@ -173,42 +190,49 @@ class _ChatComposerState extends State<ChatComposer> {
               ],
             ),
           ),
-          // ONE cohesive pill — the attachment (+) and send controls live
-          // INSIDE the field, not as detached satellites. The whole surface
-          // lifts on focus (brighter, heavier border). This is the composer
-          // redesign: a single iMessage/Telegram-grade input, not a TextField
-          // flanked by loose buttons.
           AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
-            constraints: const BoxConstraints(minHeight: 50),
+            constraints: const BoxConstraints(minHeight: _capsuleHeight),
             decoration: BoxDecoration(
-              color: AppColors.darkSurfaceElevated,
-              borderRadius: BorderRadius.circular(25),
+              // No fill. The stroke alone defines the field — this is the
+              // single biggest difference from a filled-slab composer, and
+              // what makes the bar read as light.
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(_capsuleHeight / 2),
+              // Brighten on focus, never thicken: a width change nudges every
+              // child by half a pixel and the whole bar shivers.
               border: Border.all(
-                color:
-                    _focused ? AppColors.textSecondary : AppColors.darkBorder,
-                width: _focused ? 1.5 : 1,
+                color: _focused ? AppColors.textTertiary : AppColors.darkBorder,
+                width: 1,
               ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // The `+` lives INSIDE the stroke as a bare glyph. It is never
+                // a detached satellite button — a loose +/field/send trio has
+                // been rejected repeatedly; there is exactly one surface here.
+                // Bottom-aligned so it tracks the last line as the field grows.
                 if (showAttach)
-                  _InlineIconButton(
+                  _GlyphButton(
                     icon: Icons.add_rounded,
                     onTap: _picking ? null : _pickAttachment,
                   ),
                 Expanded(
                   child: Padding(
-                    padding:
-                        EdgeInsets.only(left: showAttach ? 0 : 18, right: 4),
+                    // Generous lead-in when the glyph is absent; with the
+                    // glyph present it already provides the lead-in.
+                    padding: EdgeInsets.only(
+                      left: showAttach ? 2 : 16,
+                      right: 6,
+                    ),
                     child: TextField(
                       controller: _controller,
                       focusNode: _node,
                       minLines: 1,
                       maxLines: 6,
-                      style: AppTypography.body.copyWith(height: 1.35),
+                      style: AppTypography.body.copyWith(height: 1.3),
                       cursorColor: AppColors.primary,
                       keyboardType: TextInputType.multiline,
                       textCapitalization: TextCapitalization.sentences,
@@ -221,12 +245,13 @@ class _ChatComposerState extends State<ChatComposer> {
                           color: AppColors.textTertiary,
                           fontWeight: FontWeight.w400,
                         ),
-                        // The pill IS the AnimatedContainer above; the field
-                        // must draw no border of its own. Null out EVERY state
-                        // explicitly — setting only `border` still lets the
-                        // global inputDecorationTheme's focusedBorder leak
-                        // through on focus (a second bright outline around the
-                        // text, breaking the single-pill look).
+                        // The capsule IS the AnimatedContainer above; the
+                        // field must draw no border of its own. Null out
+                        // EVERY state explicitly — setting only `border`
+                        // still lets the global inputDecorationTheme's
+                        // focusedBorder leak through on focus, drawing a
+                        // second bright outline around the text and
+                        // breaking the single-capsule look.
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -235,15 +260,14 @@ class _ChatComposerState extends State<ChatComposer> {
                         disabledBorder: InputBorder.none,
                         filled: false,
                         isCollapsed: true,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 9),
                       ),
                       onSubmitted: _enterToSend ? null : (_) => _send(),
                     ),
                   ),
                 ),
-                // Send appears only with something to send, scaling in from the
-                // trailing edge inside the pill.
+                // Send animates in only with something to send, tucked
+                // inside the stroke.
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _controller,
                   builder: (context, value, _) {
@@ -255,14 +279,15 @@ class _ChatComposerState extends State<ChatComposer> {
                       alignment: Alignment.centerRight,
                       child: show
                           ? Padding(
-                              padding: const EdgeInsets.fromLTRB(2, 6, 6, 6),
+                              padding: const EdgeInsets.all(_sendInset),
                               child: _SendButton(
                                 active: canSend,
                                 sending: widget.sending,
+                                diameter: _sendDiameter,
                                 onTap: widget.sending ? null : _send,
                               ),
                             )
-                          : const SizedBox(width: 8, height: 50),
+                          : const SizedBox(width: 10, height: _capsuleHeight),
                     );
                   },
                 ),
@@ -319,8 +344,11 @@ class _PendingAttachmentPreview extends StatelessWidget {
                   color: AppColors.darkSurface,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.description_rounded,
-                    size: 20, color: AppColors.textSecondary),
+                child: const Icon(
+                  Icons.description_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
               ),
             const SizedBox(width: 10),
             Expanded(
@@ -332,15 +360,17 @@ class _PendingAttachmentPreview extends StatelessWidget {
                     attachment.originalFilename,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.bodySmall
-                        .copyWith(fontWeight: FontWeight.w600),
+                    style: AppTypography.bodySmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${attachment.format.value} · '
                     '${chatHumanBytes(attachment.bytes.length)}',
-                    style: AppTypography.caption
-                        .copyWith(color: AppColors.textTertiary),
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ),
@@ -393,12 +423,11 @@ class _TapScaleState extends State<_TapScale> {
   }
 }
 
-/// The attachment control that lives INSIDE the pill's leading edge — a
-/// borderless, bottom-aligned icon (no floating satellite disc), so the pill
-/// reads as one unit. Bottom-aligned via the row so it tracks the last text
-/// line as the field grows.
-class _InlineIconButton extends StatelessWidget {
-  const _InlineIconButton({required this.icon, required this.onTap});
+/// A bare icon affordance — no disc, no background, no border. Sized to a
+/// comfortable tap target while reading as a lone glyph, so it recedes beside
+/// the capsule instead of competing with it.
+class _GlyphButton extends StatelessWidget {
+  const _GlyphButton({required this.icon, required this.onTap});
   final IconData icon;
   final VoidCallback? onTap;
 
@@ -406,11 +435,10 @@ class _InlineIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return _TapScale(
       onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 50,
-        alignment: Alignment.center,
-        child: Icon(icon, size: 25, color: AppColors.textSecondary),
+      child: SizedBox(
+        width: 38,
+        height: _ChatComposerState._capsuleHeight,
+        child: Icon(icon, size: 26, color: AppColors.textSecondary),
       ),
     );
   }
@@ -420,11 +448,13 @@ class _SendButton extends StatelessWidget {
   const _SendButton({
     required this.active,
     required this.sending,
+    required this.diameter,
     required this.onTap,
   });
 
   final bool active;
   final bool sending;
+  final double diameter;
   final VoidCallback? onTap;
 
   @override
@@ -434,22 +464,23 @@ class _SendButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOutBack,
-        width: 38,
-        height: 38,
+        width: diameter,
+        height: diameter,
         decoration: BoxDecoration(
-          color: active ? AppColors.primary : AppColors.darkSurface,
+          color: active ? AppColors.primary : AppColors.darkSurfaceElevated,
           shape: BoxShape.circle,
-          border: active ? null : Border.all(color: AppColors.darkBorder),
         ),
         child: sending
             ? const Padding(
-                padding: EdgeInsets.all(11),
+                padding: EdgeInsets.all(8),
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.onPrimary),
+                  strokeWidth: 2,
+                  color: AppColors.onPrimary,
+                ),
               )
             : Icon(
                 Icons.arrow_upward_rounded,
-                size: 19,
+                size: 17,
                 color: active ? AppColors.onPrimary : AppColors.textTertiary,
               ),
       ),

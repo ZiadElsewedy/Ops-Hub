@@ -365,15 +365,33 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
     return Stack(
       children: [
-        ListView(
-          controller: _controller,
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.pagePadding,
-            AppSpacing.lg,
-            AppSpacing.pagePadding,
-            AppSpacing.lg,
+        // Opening a thread must land on the NEWEST message. A single
+        // jump-to-bottom on the first frame isn't enough: inline images have no
+        // known dimensions until they decode, so the content grows *after* that
+        // jump and the view is left stranded mid-history. `ScrollMetricsNotification`
+        // fires whenever the extent changes without the user scrolling — exactly
+        // that case — so re-pin to the new bottom while the reader is still
+        // there. Once they scroll up, `_atBottom` goes false and this stops, so
+        // it never yanks someone reading history.
+        NotificationListener<ScrollMetricsNotification>(
+          onNotification: (notification) {
+            final metrics = notification.metrics;
+            // Only act on a real gap, so re-pinning can't feed itself.
+            if (_atBottom && metrics.maxScrollExtent - metrics.pixels > 1) {
+              _scrollToBottom(animated: false);
+            }
+            return false;
+          },
+          child: ListView(
+            controller: _controller,
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding,
+              AppSpacing.lg,
+              AppSpacing.pagePadding,
+              AppSpacing.lg,
+            ),
+            children: children,
           ),
-          children: children,
         ),
         Positioned(
           left: 0,

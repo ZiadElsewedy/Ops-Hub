@@ -18,6 +18,34 @@ released — DROP ships from branches and has no version tags.
 
 ### 2026-07-24
 
+- **Chat final UX/UI polish pass (P16).** Presentation-only; no architecture,
+  API, or backend change.
+  - **Conversation options** — a three-dot AppBar menu on the thread:
+    Conversation info · Search in conversation · Mute (local, UI-ready — no
+    backend mute exists) · Clear chat history · Delete conversation. Both
+    destructive actions confirm first.
+  - **Conversation Info screen** (`conversation_info_screen.dart`) — avatar ·
+    name · position/role · branch (resolved from the Firebase directory +
+    `BranchCubit`), shared **media** / **documents** counts, and the same
+    actions. **Online/last-seen is deliberately omitted** — the backend exposes
+    no presence and DROP does not fabricate it.
+  - **In-conversation search** — AppBar search field, live (200 ms debounce),
+    monochrome tone-aware match highlighting inside bubbles, an emphasized
+    active match auto-scrolled into view, `n/total` counter with prev/next
+    (Enter = next), and a "No matching messages." bar.
+  - **Clear chat history** — `ChatConversationCubit.clearChatForMe()`: a bulk
+    delete-for-me over the loaded window via the **existing** per-message
+    endpoint, pooled 3-at-a-time (`mapPooled`). The counterpart keeps their
+    copy. Delete conversation reuses it, then pops.
+  - **Desktop** — right-click context menu on any message
+    (`showChatMessageContextMenu`: Reply · Copy · Forward *(UI placeholder)* ·
+    Delete for me / for everyone) sharing one action handler with the mobile
+    long-press sheet; pointer cursor on every tappable bubble.
+  - **Loading** — the inbox's generic spinner is now a shimmering
+    conversation-tile skeleton list.
+  - `AppSnackbar.info` + `context.showInfo` added (neutral notices);
+    `ChatThreadArgs` carries `counterpartExternalId` so Info can resolve
+    role/branch. +2 tests.
 - **Chat feature improvements (P15).** Six product upgrades, all additive; no
   UI-architecture, state-management, realtime, or backend-contract change.
   1. **Document preview** — tapping a document (PDF/DOC/DOCX/XLS/XLSX/PPT/PPTX/
