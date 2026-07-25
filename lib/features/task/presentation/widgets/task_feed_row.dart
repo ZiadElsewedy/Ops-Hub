@@ -243,9 +243,6 @@ class _AssigneeMini extends StatelessWidget {
     ),
     child: Icon(icon, size: 12, color: AppColors.textTertiary),
   );
-
-  static String _name(UserEntity u) =>
-      (u.displayName?.isNotEmpty ?? false) ? u.displayName! : u.email;
 }
 
 class _DueLabel extends StatelessWidget {

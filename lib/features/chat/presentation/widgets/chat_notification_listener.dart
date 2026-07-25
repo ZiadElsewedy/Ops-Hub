@@ -50,7 +50,9 @@ class ChatNotificationListener extends StatefulWidget {
 
 class _ChatNotificationListenerState extends State<ChatNotificationListener> {
   StreamSubscription<ChatIncomingMessage>? _sub;
-  Map<String, UserEntity> _directory = const {};
+  // Seed from the session cache so a banner shows the real sender name on the
+  // first render instead of a "Teammate" placeholder.
+  Map<String, UserEntity> _directory = AppDependencies.chatDirectorySnapshot;
 
   @override
   void initState() {

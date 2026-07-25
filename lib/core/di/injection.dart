@@ -261,15 +261,45 @@ class AppDependencies {
         currentUser: user,
       );
 
+  /// Session-cached chat directory (Firebase uid → user), so every widget that
+  /// resolves a chat name reads the SAME warm map instead of each doing its own
+  /// Firestore read on mount. Empty until the first load; cleared on sign-out.
+  static final Map<String, UserEntity> _chatDirectory = {};
+  static String? _chatDirectoryUid;
+
+  /// The cached chat directory as it stands right now — synchronous, so a widget
+  /// can seed real names on its FIRST build instead of rendering a "Teammate"
+  /// placeholder that only resolves after an async load (the flash the owner
+  /// reported). Empty on a cold start, before [loadChatDirectory] has run once.
+  static Map<String, UserEntity> get chatDirectorySnapshot => _chatDirectory;
+
   /// The [user]'s chat directory keyed by **Firebase uid**, so the chat UI can
   /// resolve a conversation's `counterpartExternalId` to a real name/avatar/
   /// role. Same set as the picker ([GetChatDirectory]) — so any thread renders
   /// a name rather than a raw id, whoever the counterpart is. Used by the inbox
-  /// + thread.
+  /// + thread + home widgets.
+  ///
+  /// Served from a session cache: a warm cache for the same user returns
+  /// immediately (the set changes rarely), so repeat mounts don't re-read or
+  /// re-flash. The cache is refreshed whenever the set is (re)loaded.
   static Future<Map<String, UserEntity>> loadChatDirectory(
       UserEntity? user) async {
+    if (_chatDirectory.isNotEmpty && _chatDirectoryUid == user?.uid) {
+      return _chatDirectory;
+    }
     final users = await _getChatDirectory(user);
-    return {for (final u in users) u.uid: u};
+    _chatDirectory
+      ..clear()
+      ..addEntries(users.map((u) => MapEntry(u.uid, u)));
+    _chatDirectoryUid = user?.uid;
+    return _chatDirectory;
+  }
+
+  /// Drops the cached directory — on sign-out, so the next user never resolves a
+  /// name against the previous user's directory.
+  static void clearChatDirectory() {
+    _chatDirectory.clear();
+    _chatDirectoryUid = null;
   }
 
   static late final AuthCubit authCubit;
@@ -531,6 +561,7 @@ class AppDependencies {
         // sign-out, so without this the next signed-in user would briefly see
         // the previous user's conversations before the network refresh lands.
         chatListCubit.reset();
+        clearChatDirectory();
       },
     );
 

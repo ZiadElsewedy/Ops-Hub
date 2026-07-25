@@ -35,7 +35,9 @@ class RecentMessagesCard extends StatefulWidget {
 }
 
 class _RecentMessagesCardState extends State<RecentMessagesCard> {
-  Map<String, UserEntity> _directory = const {};
+  // Seed from the session cache so real names render on the FIRST build when the
+  // directory is already warm — no "Teammate" placeholder flashing to the name.
+  Map<String, UserEntity> _directory = AppDependencies.chatDirectorySnapshot;
   final Map<String, ChatPreview> _previews = {};
   final Set<String> _fetching = {};
 

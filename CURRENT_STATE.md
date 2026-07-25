@@ -12,7 +12,7 @@
 | **Branch** | `feature/chat-nestjs` (from `feature/attendance-management`) |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
 | **Tests** | **1061 pass · 5 fail** across 155 files (~24s) — all 5 are pre-existing and reproduce on a clean tree (2 splash-centering + 3 notification-probe); see [Known issues](#known-issues). Cloud Functions: **34 pass**; NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
-| **Blocking release** | **Railway deploy of `drop-api feature/chat-backend` (`9c4cd2a` read-receipt fix + `33f526a` `/version`) — pushed but NOT live (`GET /version` 404 ~18min after push; auto-deploy is Railway-dashboard-controlled, no repo config to trigger it)** · Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA |
+| **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
 DROP is **feature-complete for its intended scope** and gated on deployment and QA,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drop/core/enums/task_status.dart';
+import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/checklist_item.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
@@ -72,7 +73,11 @@ void main() {
     expect(find.text('1 Jan · late'), findsNothing);
   });
 
-  testWidgets('shows the single assignee name', (tester) async {
+  testWidgets('shows the single assignee as an avatar (no name text)',
+      (tester) async {
+    // The compact feed row shows the assignee's avatar only — the name text was
+    // a fixed-width space hog that overflowed the row on a phone. The full name
+    // lives in the task detail; here the avatar's initials identify them.
     await tester.pumpWidget(
       host(
         TaskFeedRow(
@@ -88,7 +93,10 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Ziad'), findsOneWidget);
+    // The name is no longer rendered as its own row text…
+    expect(find.text('Ziad'), findsNothing);
+    // …but the assignee avatar is present (initials from the display name).
+    expect(find.byType(UserAvatar), findsOneWidget);
   });
 
   testWidgets('tapping fires onTap', (tester) async {

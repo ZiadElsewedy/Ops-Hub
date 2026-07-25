@@ -94,7 +94,16 @@ class RoleScaffold extends StatelessWidget {
           children: [
             const DropLogo(height: 22),
             const SizedBox(width: 10),
-            Text(title, style: AppTypography.h3),
+            // Flexible + ellipsis so the title never overflows when the action
+            // cluster squeezes the app bar on a narrow phone.
+            Flexible(
+              child: Text(
+                title,
+                style: AppTypography.h3,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -121,12 +130,9 @@ class RoleScaffold extends StatelessWidget {
             tooltip: 'Requests',
             onPressed: () => context.push(RouteNames.requests),
           ),
-          // Case Management — available to every role (the list self-scopes).
-          IconButton(
-            icon: const Icon(Icons.forum_outlined, color: AppColors.textSecondary),
-            tooltip: 'Cases',
-            onPressed: () => context.push(RouteNames.cases),
-          ),
+          // Cases moved to Settings → Workspace (it's a reference tool, not a
+          // daily-home action) to declutter the app bar, which was overflowing
+          // the title on the manager/admin roles.
           _NotificationBell(
             onPressed: () => context.push(RouteNames.notifications),
           ),

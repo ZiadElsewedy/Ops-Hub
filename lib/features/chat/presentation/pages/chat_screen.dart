@@ -43,7 +43,9 @@ class _ChatScreenState extends State<ChatScreen> {
   /// once per session. Requires the flat `users` read rule to be deployed;
   /// until then a non-admin's directory read is denied and rows fall back to a
   /// neutral label (see `_loadDirectory`).
-  Map<String, UserEntity> _directory = const {};
+  // Seed from the session cache so inbox rows render real names on first build
+  // (no "Teammate" placeholder flashing to the real name).
+  Map<String, UserEntity> _directory = AppDependencies.chatDirectorySnapshot;
 
   /// Conversation search (client-side, O(n) over the loaded list). [_searching]
   /// toggles the AppBar between the title and an expanding search field;
