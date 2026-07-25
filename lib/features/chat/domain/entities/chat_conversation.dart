@@ -48,6 +48,7 @@ class ChatConversationSummary {
     required this.createdAt,
     this.counterpartExternalId,
     this.lastMessageAt,
+    this.unreadCount = 0,
   });
 
   final String id;
@@ -66,6 +67,11 @@ class ChatConversationSummary {
   final DateTime createdAt;
   final DateTime? lastMessageAt;
 
+  /// Messages the requester has received in this conversation but not yet read,
+  /// as counted server-side. Seeds the inbox/nav unread badge so it is correct
+  /// on a cold start (the live socket only increments from here). 0 = none.
+  final int unreadCount;
+
   /// This row with a fresher [lastMessageAt] — how a live `message:new`
   /// bumps a conversation's activity without a REST round trip.
   ChatConversationSummary withLastMessageAt(DateTime at) =>
@@ -76,6 +82,7 @@ class ChatConversationSummary {
         participantIds: participantIds,
         createdAt: createdAt,
         lastMessageAt: at,
+        unreadCount: unreadCount,
       );
 }
 

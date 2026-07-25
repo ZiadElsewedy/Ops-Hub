@@ -126,6 +126,11 @@ class _ChatMessageListState extends State<ChatMessageList> {
   bool _atBottom = true;
   bool _showJump = false;
 
+  /// True while the reader is actively dragging the list. The open-on-newest
+  /// re-pin is suppressed during a drag so it never yanks a reader scrolling up
+  /// before they cross the "at bottom" threshold.
+  bool _userDragging = false;
+
   /// Attached to the active search-match bubble so it can be scrolled into view.
   final GlobalKey _activeMatchKey = GlobalKey();
 
@@ -259,21 +264,84 @@ class _ChatMessageListState extends State<ChatMessageList> {
       return _EmptyThread(counterpartName: widget.counterpartName);
     }
 
-    final msgs = widget.messages;
-    DateTime? lastDay;
-    final children = <Widget>[
-      if (widget.loadingOlder) const _OlderPageSpinner(),
+    // Precompute lightweight row specs (no widgets, no image fetches) so the
+    // grouping/date-separator/tail decisions — which need each row's neighbours
+    // — stay correct, while the actual bubbles (and their lazy image broker
+    // calls) are built on demand by ListView.builder for visible rows only.
+    final rows = _buildRows(widget.messages);
+
+    return Stack(
+      children: [
+        // Track user-initiated drags so the open-on-newest re-pin below never
+        // fights a reader scrolling up.
+        NotificationListener<ScrollNotification>(
+          onNotification: (n) {
+            if (n is ScrollStartNotification && n.dragDetails != null) {
+              _userDragging = true;
+            } else if (n is ScrollEndNotification) {
+              _userDragging = false;
+            }
+            return false;
+          },
+          // Opening a thread must land on the NEWEST message. A single
+          // jump-to-bottom on the first frame isn't enough: inline images have
+          // no known dimensions until they decode, so the content grows *after*
+          // that jump and the view is left stranded mid-history.
+          // ScrollMetricsNotification fires when the extent changes without a
+          // user scroll — re-pin to the new bottom, but ONLY while the reader is
+          // already at the bottom AND is not actively dragging (otherwise the
+          // re-pin yanks a reader who is scrolling up before they cross the
+          // "at bottom" threshold).
+          child: NotificationListener<ScrollMetricsNotification>(
+            onNotification: (notification) {
+              final metrics = notification.metrics;
+              if (_atBottom &&
+                  !_userDragging &&
+                  metrics.maxScrollExtent - metrics.pixels > 1) {
+                _scrollToBottom(animated: false);
+              }
+              return false;
+            },
+            child: ListView.builder(
+              controller: _controller,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pagePadding,
+                AppSpacing.lg,
+                AppSpacing.pagePadding,
+                AppSpacing.lg,
+              ),
+              itemCount: rows.length,
+              itemBuilder: (context, index) => _buildRow(rows[index]),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: AppSpacing.md,
+          child: _JumpToLatest(visible: _showJump, onTap: _scrollToBottom),
+        ),
+      ],
+    );
+  }
+
+  /// Flattens the message list into ordered row specs: a leading older-page
+  /// spinner when loading, date separators at day boundaries, and one spec per
+  /// message carrying its precomputed side/tail/reply-author. Cheap — no widget
+  /// construction here.
+  List<_RowSpec> _buildRows(List<ChatMessage> msgs) {
+    final rows = <_RowSpec>[
+      if (widget.loadingOlder) const _SpinnerRow(),
     ];
+    DateTime? lastDay;
     for (var i = 0; i < msgs.length; i++) {
       final m = msgs[i];
       final day = DateTime(m.createdAt.year, m.createdAt.month, m.createdAt.day);
-      final newDay = lastDay == null || day != lastDay;
-      if (newDay) {
-        children.add(_DateSeparator(day: day));
+      if (lastDay == null || day != lastDay) {
+        rows.add(_SeparatorRow(day));
         lastDay = day;
       }
       final mine = _isMine(m);
-      // Resolve the quoted message's author for the reply preview label.
       final rp = m.replyTo;
       final replyAuthorLabel = rp == null
           ? null
@@ -294,40 +362,67 @@ class _ChatMessageListState extends State<ChatMessageList> {
           next.createdAt.month == m.createdAt.month &&
           next.createdAt.day == m.createdAt.day;
       final isTail = next == null || _isMine(next) != mine || !nextSameDay;
-      // RepaintBoundary isolates each bubble: a list-wide rebuild (a new
-      // message, a read receipt, an upload-progress tick) or the swipe-to-reply
-      // translate then can't force every other bubble to re-rasterize.
-      final bubble = RepaintBoundary(
-        child: _Bubble(
-          message: m,
-          mine: mine,
-          isTail: isTail,
-          replyAuthorLabel: replyAuthorLabel,
-          deleting: m.id == widget.deletingMessageId,
-          highlightQuery: widget.highlightQuery,
-          isActiveMatch: widget.activeMatchId != null && m.id == widget.activeMatchId,
-          onLongPress: widget.onMessageLongPress == null
-              ? null
-              : () => widget.onMessageLongPress!(m, mine),
-          onRetry: widget.onRetry == null ? null : () => widget.onRetry!(m),
-          onImageTap:
-              widget.onImageTap == null ? null : () => widget.onImageTap!(m),
-          onDocumentTap: widget.onDocumentTap == null
-              ? null
-              : () => widget.onDocumentTap!(m),
-          onDocumentDownload: widget.onDocumentDownload == null
-              ? null
-              : () => widget.onDocumentDownload!(m),
-          imageUrlLoader: widget.imageUrlLoader == null
-              ? null
-              : () => widget.imageUrlLoader!(m),
-        ),
-      );
-      // Swipe-right to reply — never on a tombstone or an unsent local bubble.
-      final canSwipeReply = widget.onReply != null &&
-          !m.deletedForEveryone &&
-          !m.id.startsWith('local:');
-      children.add(
+      rows.add(_MessageRow(
+        message: m,
+        mine: mine,
+        isTail: isTail,
+        replyAuthorLabel: replyAuthorLabel,
+      ));
+    }
+    return rows;
+  }
+
+  /// Builds the widget for a single row spec. Called lazily by
+  /// [ListView.builder], so a bubble's image broker call / download only fires
+  /// when that row scrolls into view.
+  Widget _buildRow(_RowSpec row) {
+    switch (row) {
+      case _SpinnerRow():
+        return const _OlderPageSpinner();
+      case _SeparatorRow(:final day):
+        return _DateSeparator(day: day);
+      case _MessageRow(
+          :final message,
+          :final mine,
+          :final isTail,
+          :final replyAuthorLabel,
+        ):
+        final m = message;
+        final isActiveMatch =
+            widget.activeMatchId != null && m.id == widget.activeMatchId;
+        // RepaintBoundary isolates each bubble: a list-wide rebuild (a new
+        // message, a read receipt, an upload-progress tick) or the swipe-to-reply
+        // translate then can't force every other bubble to re-rasterize.
+        final bubble = RepaintBoundary(
+          child: _Bubble(
+            message: m,
+            mine: mine,
+            isTail: isTail,
+            replyAuthorLabel: replyAuthorLabel,
+            deleting: m.id == widget.deletingMessageId,
+            highlightQuery: widget.highlightQuery,
+            isActiveMatch: isActiveMatch,
+            onLongPress: widget.onMessageLongPress == null
+                ? null
+                : () => widget.onMessageLongPress!(m, mine),
+            onRetry: widget.onRetry == null ? null : () => widget.onRetry!(m),
+            onImageTap:
+                widget.onImageTap == null ? null : () => widget.onImageTap!(m),
+            onDocumentTap: widget.onDocumentTap == null
+                ? null
+                : () => widget.onDocumentTap!(m),
+            onDocumentDownload: widget.onDocumentDownload == null
+                ? null
+                : () => widget.onDocumentDownload!(m),
+            imageUrlLoader: widget.imageUrlLoader == null
+                ? null
+                : () => widget.imageUrlLoader!(m),
+          ),
+        );
+        // Swipe-right to reply — never on a tombstone or an unsent local bubble.
+        final canSwipeReply = widget.onReply != null &&
+            !m.deletedForEveryone &&
+            !m.id.startsWith('local:');
         // Keyed by message id so an element follows its message across
         // prepends/appends — the entrance animation then fires only for a
         // genuinely new bubble, never re-running on an existing one.
@@ -337,15 +432,12 @@ class _ChatMessageListState extends State<ChatMessageList> {
         // to the bubble, which collapses any `crossAxisAlignment` and was
         // pinning my own (swipe-enabled) messages to the left. Aligning the
         // whole item is robust across both the swipe and non-swipe paths.
-        KeyedSubtree(
+        return KeyedSubtree(
           key: ValueKey(m.id),
           child: Align(
             alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
             child: KeyedSubtree(
-              // The active search match carries the scroll-target key.
-              key: (widget.activeMatchId != null && m.id == widget.activeMatchId)
-                  ? _activeMatchKey
-                  : null,
+              key: isActiveMatch ? _activeMatchKey : null,
               child: GestureDetector(
                 behavior: HitTestBehavior.deferToChild,
                 onSecondaryTapDown: widget.onMessageSecondaryTap == null
@@ -359,49 +451,38 @@ class _ChatMessageListState extends State<ChatMessageList> {
               ),
             ),
           ),
-        ),
-      );
+        );
     }
-
-    return Stack(
-      children: [
-        // Opening a thread must land on the NEWEST message. A single
-        // jump-to-bottom on the first frame isn't enough: inline images have no
-        // known dimensions until they decode, so the content grows *after* that
-        // jump and the view is left stranded mid-history. `ScrollMetricsNotification`
-        // fires whenever the extent changes without the user scrolling — exactly
-        // that case — so re-pin to the new bottom while the reader is still
-        // there. Once they scroll up, `_atBottom` goes false and this stops, so
-        // it never yanks someone reading history.
-        NotificationListener<ScrollMetricsNotification>(
-          onNotification: (notification) {
-            final metrics = notification.metrics;
-            // Only act on a real gap, so re-pinning can't feed itself.
-            if (_atBottom && metrics.maxScrollExtent - metrics.pixels > 1) {
-              _scrollToBottom(animated: false);
-            }
-            return false;
-          },
-          child: ListView(
-            controller: _controller,
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.pagePadding,
-              AppSpacing.lg,
-              AppSpacing.pagePadding,
-              AppSpacing.lg,
-            ),
-            children: children,
-          ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: AppSpacing.md,
-          child: _JumpToLatest(visible: _showJump, onTap: _scrollToBottom),
-        ),
-      ],
-    );
   }
+}
+
+/// Ordered row descriptors for the lazy message list — a leading older-page
+/// spinner, day-boundary separators, and per-message rows with their
+/// precomputed side/tail/reply-author (grouping decisions that need neighbours).
+sealed class _RowSpec {
+  const _RowSpec();
+}
+
+class _SpinnerRow extends _RowSpec {
+  const _SpinnerRow();
+}
+
+class _SeparatorRow extends _RowSpec {
+  const _SeparatorRow(this.day);
+  final DateTime day;
+}
+
+class _MessageRow extends _RowSpec {
+  const _MessageRow({
+    required this.message,
+    required this.mine,
+    required this.isTail,
+    required this.replyAuthorLabel,
+  });
+  final ChatMessage message;
+  final bool mine;
+  final bool isTail;
+  final String? replyAuthorLabel;
 }
 
 class _OlderPageSpinner extends StatelessWidget {

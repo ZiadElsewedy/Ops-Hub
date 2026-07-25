@@ -29,9 +29,19 @@ import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
 /// to [ChatListCubit.incoming]; ensures the inbox is loaded once authenticated
 /// so the shared socket is connected and events actually flow.
 class ChatNotificationListener extends StatefulWidget {
-  const ChatNotificationListener({super.key, required this.child});
+  const ChatNotificationListener({
+    super.key,
+    required this.child,
+    required this.router,
+  });
 
   final Widget child;
+
+  /// The app router. This widget is mounted in `MaterialApp.router`'s `builder`,
+  /// which sits **above** the `GoRouter` in the tree, so `context.push` here
+  /// throws "No GoRouter found in context". Navigating through the router
+  /// instance directly is the only correct path from above the router.
+  final GoRouter router;
 
   @override
   State<ChatNotificationListener> createState() =>
@@ -121,7 +131,7 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener> {
     final counterpart = summary?.counterpartExternalId == null
         ? null
         : _directory[summary!.counterpartExternalId];
-    context.push(
+    widget.router.push(
       RouteNames.chatConversation(conversationId),
       extra: summary == null
           ? null

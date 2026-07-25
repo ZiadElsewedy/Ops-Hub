@@ -137,6 +137,10 @@ class ChatListCubit extends Cubit<ChatListState> {
       final page = await _getConversations();
       _conversations = page.items;
       _nextCursor = page.nextCursor;
+      // Seed the unread badges from the server's authoritative counts so they
+      // are correct after a cold start / account switch — the live socket only
+      // ever *increments* from here, and opening a conversation clears it.
+      _seedUnread(page.items, replace: true);
       _hasLoaded = true;
       _refreshing = false;
       _emitLoaded();
@@ -161,6 +165,28 @@ class ChatListCubit extends Cubit<ChatListState> {
   }
 
   Future<void> refresh() => load(forceRefresh: true);
+
+  /// Drops all in-memory inbox state back to first-run, for account switching
+  /// on a shared device. This cubit is an app-wide singleton that outlives a
+  /// sign-out, so without this the next user would briefly see the previous
+  /// user's conversations (and `load()` would even early-return on the stale
+  /// `_hasLoaded`, never refreshing). Called from the pre-sign-out hook
+  /// alongside the durable cache wipe so the next session always lands on the
+  /// signed-in user's own data.
+  void reset() {
+    _conversations = const [];
+    _nextCursor = null;
+    _hasLoaded = false;
+    _loading = false;
+    _refreshing = false;
+    _loadingMore = false;
+    _starting = false;
+    _previews.clear();
+    _previewMessageIds.clear();
+    _lastSeenSeq.clear();
+    _unread.clear();
+    if (!isClosed) emit(const ChatListState.initial());
+  }
 
   /// Populates [_conversations] from the durable cache for an instant cold-start
   /// paint. Returns whether anything was painted. Never throws — a cache miss or
@@ -187,6 +213,23 @@ class ChatListCubit extends Cubit<ChatListState> {
       if (c.id == conversationId) return c;
     }
     return null;
+  }
+
+  /// Seeds [_unread] from the server-computed `unreadCount` on each summary.
+  /// [replace] = true (a full load/refresh) rebuilds the map from scratch so it
+  /// mirrors the server exactly; false (pagination append) only fills the new
+  /// rows. A zero count clears any stale entry. This is what makes the badge
+  /// survive a cold start — the socket path only increments live deltas.
+  void _seedUnread(Iterable<ChatConversationSummary> summaries,
+      {required bool replace}) {
+    if (replace) _unread.clear();
+    for (final c in summaries) {
+      if (c.unreadCount > 0) {
+        _unread[c.id] = c.unreadCount;
+      } else {
+        _unread.remove(c.id);
+      }
+    }
   }
 
   /// Clears the unread badge for [conversationId] — called when the user
@@ -296,11 +339,12 @@ class ChatListCubit extends Cubit<ChatListState> {
     try {
       final page = await _getConversations(cursor: cursor);
       final known = {for (final c in _conversations) c.id};
-      _conversations = [
-        ..._conversations,
-        ...page.items.where((c) => !known.contains(c.id)),
-      ];
+      final fresh =
+          page.items.where((c) => !known.contains(c.id)).toList(growable: false);
+      _conversations = [..._conversations, ...fresh];
       _nextCursor = page.nextCursor;
+      // Seed unread for the newly appended rows only (don't disturb existing).
+      _seedUnread(fresh, replace: false);
     } on Failure catch (e) {
       emit(ChatListState.error(e.message));
     } catch (e) {

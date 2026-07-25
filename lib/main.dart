@@ -387,8 +387,10 @@ class App extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           // Above the router so a new chat message can raise an in-app banner
           // from any screen (suppressed for the conversation on screen).
-          builder: (context, child) =>
-              ChatNotificationListener(child: child ?? const SizedBox.shrink()),
+          builder: (context, child) => ChatNotificationListener(
+            router: router,
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     );

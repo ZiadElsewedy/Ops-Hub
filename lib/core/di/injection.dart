@@ -527,6 +527,10 @@ class AppDependencies {
       onPreSignOut: () async {
         await notificationService.forgetUser();
         await clearChatCache();
+        // Reset the app-wide inbox cubit's in-memory state too: it outlives the
+        // sign-out, so without this the next signed-in user would briefly see
+        // the previous user's conversations before the network refresh lands.
+        chatListCubit.reset();
       },
     );
 

@@ -80,7 +80,12 @@ class TaskFeedRow extends StatelessWidget {
                 const SizedBox(width: 8),
 
                 // ── title ──
-                Expanded(
+                // Flexible (not Expanded) so it shares the row's free space with
+                // the branch chip and both ellipsize under pressure — a fixed
+                // Expanded title starved by fixed-width meta was overflowing the
+                // row on a phone.
+                Flexible(
+                  flex: 3,
                   child: Text(
                     task.title,
                     style: AppTypography.label.copyWith(
@@ -95,9 +100,12 @@ class TaskFeedRow extends StatelessWidget {
 
                 // ── trailing meta (branch · High · assignee · due) ──
                 if ((branchName ?? '').isNotEmpty) ...[
-                  _Chip(
-                    icon: Icons.store_mall_directory_outlined,
-                    label: branchName!,
+                  Flexible(
+                    flex: 2,
+                    child: _Chip(
+                      icon: Icons.store_mall_directory_outlined,
+                      label: branchName!,
+                    ),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -178,8 +186,9 @@ class _Chip extends StatelessWidget {
         children: [
           Icon(icon, size: 13, color: AppColors.textSecondary),
           const SizedBox(width: 5),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 120),
+          // Flexible so a long branch name ellipsizes to whatever width the
+          // parent Flexible grants, instead of forcing the row wider.
+          Flexible(
             child: Text(
               label,
               maxLines: 1,
@@ -215,24 +224,10 @@ class _AssigneeMini extends StatelessWidget {
       return _glyph(Icons.person_add_alt_1_outlined);
     }
     if (resolved.length == 1) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          UserAvatar.fromUser(resolved.first, size: 22),
-          const SizedBox(width: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 90),
-            child: Text(
-              _name(resolved.first),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      );
+      // Avatar only — the name text was a fixed-width space hog that starved
+      // the title/branch on a phone and caused the row to overflow. The avatar
+      // identifies the assignee here; the full name shows in the task detail.
+      return UserAvatar.fromUser(resolved.first, size: 22);
     }
     if (resolved.isNotEmpty) return AvatarStack(users: resolved, size: 22);
     return _glyph(Icons.groups_outlined);

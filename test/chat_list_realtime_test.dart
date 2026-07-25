@@ -25,6 +25,16 @@ ChatConversationSummary _summary(String id, {DateTime? lastMessageAt}) =>
       lastMessageAt: lastMessageAt ?? DateTime(2026, 7, 22, 9),
     );
 
+ChatConversationSummary _summaryUnread(String id, {required int unread}) =>
+    ChatConversationSummary(
+      id: id,
+      counterpartUserId: 'user-$id',
+      participantIds: ['me', 'user-$id'],
+      createdAt: DateTime(2026, 7, 20),
+      lastMessageAt: DateTime(2026, 7, 22, 9),
+      unreadCount: unread,
+    );
+
 ChatMessage _live(String conversationId, String id, int seq, String body) =>
     ChatMessage(
       id: id,
@@ -362,5 +372,54 @@ void main() {
 
     expect(find.text('Bring keys'), findsOneWidget); // live preview
     expect(find.text('2'), findsOneWidget); // unread badge
+  });
+
+  test(
+      'unread badge is seeded from the server-computed unreadCount on load '
+      '(survives a cold start)', () async {
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+        onList: ({String? cursor}) async => ChatConversationPage(items: [
+          _summaryUnread('a', unread: 4),
+          _summaryUnread('b', unread: 0),
+        ]),
+      ),
+      rt,
+    );
+
+    await cubit.load();
+
+    final loaded = _loadedOf(cubit);
+    expect(loaded.unreadCounts['a'], 4);
+    expect(loaded.unreadCounts.containsKey('b'), isFalse);
+    expect(cubit.totalUnread, 4);
+    await cubit.close();
+  });
+
+  test('reset() drops all in-memory inbox state for account switching',
+      () async {
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+        onList: ({String? cursor}) async =>
+            ChatConversationPage(items: [_summaryUnread('a', unread: 2)]),
+      ),
+      rt,
+    );
+
+    await cubit.load();
+    expect(cubit.totalUnread, 2);
+    expect(_loadedOf(cubit).conversations, isNotEmpty);
+
+    cubit.reset();
+
+    expect(cubit.totalUnread, 0);
+    expect(
+      cubit.state.maybeMap(initial: (_) => true, orElse: () => false),
+      isTrue,
+      reason: 'reset returns the cubit to first-run',
+    );
+    await cubit.close();
   });
 }

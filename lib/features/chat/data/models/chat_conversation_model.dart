@@ -44,6 +44,7 @@ class ChatConversationModel {
         participantIds: _stringList(json['participantIds']),
         createdAt: DateTime.parse(json['createdAt'] as String),
         lastMessageAt: _optionalDate(json['lastMessageAt']),
+        unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
       );
 
   /// A page — `ConversationListResponseDto` (`{items, nextCursor}`).
