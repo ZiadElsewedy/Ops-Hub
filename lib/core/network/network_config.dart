@@ -4,19 +4,17 @@ import 'package:drop/core/config/app_environment.dart';
 ///
 /// This stays the **single source of truth** for the base URL used by both the
 /// REST `ApiClient` and the Socket.IO namespace — one value wires the whole
-/// backend. The value itself now comes from the typed [AppEnvironment], which
-/// resolves it from the compile-time `API_BASE_URL` define (see
-/// `config/<env>.json` + `--dart-define-from-file`). Selecting an environment
-/// therefore never requires editing source:
+/// backend. The value comes from the typed [AppEnvironment], which resolves it
+/// purely from the **build mode** — no dart-defines, no config files, no manual
+/// switching:
 ///
-/// ```bash
-/// flutter run       --dart-define-from-file=config/local.json
-/// flutter run       --dart-define-from-file=config/staging.json
-/// flutter build apk --dart-define-from-file=config/production.json
+/// ```text
+///   flutter run              → Development → http://localhost:3000
+///   flutter build … --release → Production → Railway (HTTPS)
 /// ```
 ///
-/// A **release build with no `API_BASE_URL` fails fast** (see [AppEnvironment]);
-/// debug/profile still default to `localhost` for convenience.
+/// A release binary is **locked** to Railway and can never resolve to localhost
+/// (see [AppEnvironment]).
 class NetworkConfig {
   NetworkConfig._();
 

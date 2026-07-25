@@ -65,7 +65,10 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 
 **Chat (NestJS backend)** — a NEW staff-chat feature (distinct from Cases, which
 stays on Firebase untouched), backed by an external, already-verified NestJS API.
-Base URL comes from `--dart-define=API_BASE_URL` (default `http://localhost:3000`).
+Base URL is chosen **automatically by build mode** (`lib/core/config/app_environment.dart`):
+Debug/Profile → `http://localhost:3000`, Release → Railway (`https://drop-api-production.up.railway.app`).
+No dart-defines; a release binary is locked to Railway and can never resolve to localhost.
+Optional dev-only LAN override: `--dart-define=DEV_API_BASE_URL=http://<lan-ip>:3000`.
 
 | Phase | State |
 | --- | --- |

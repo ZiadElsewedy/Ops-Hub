@@ -1,33 +1,31 @@
 {
-  // Named per-environment launch profiles. Each injects a committed config file
-  // via --dart-define-from-file, so switching Local / Staging / Production never
-  // requires editing source. Add more profiles by pointing at another config/*.json.
+  // The backend is chosen automatically by build mode (see
+  // lib/core/config/app_environment.dart), so there are no per-environment
+  // launch profiles and no dart-defines to remember:
+  //
+  //   Debug   (these configs / `flutter run`)      → Development → localhost
+  //   Release (`flutter build … --release`)         → Production  → Railway
+  //
+  // To test a debug build on a physical device against your Mac's LAN backend,
+  // use the "DROP (device on LAN)" config below and edit the IP.
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "DROP Local",
+      "name": "DROP (Development)",
       "request": "launch",
-      "type": "dart",
-      "toolArgs": ["--dart-define-from-file", "config/local.json"]
+      "type": "dart"
     },
     {
-      "name": "DROP Staging",
+      "name": "DROP (device on LAN)",
       "request": "launch",
       "type": "dart",
-      "toolArgs": ["--dart-define-from-file", "config/staging.json"]
+      "toolArgs": ["--dart-define=DEV_API_BASE_URL=http://192.168.1.8:3000"]
     },
     {
-      "name": "DROP Production",
+      "name": "DROP (Production, release)",
       "request": "launch",
       "type": "dart",
-      "toolArgs": ["--dart-define-from-file", "config/production.json"]
-    },
-    {
-      "name": "DROP Production (release mode)",
-      "request": "launch",
-      "type": "dart",
-      "flutterMode": "release",
-      "toolArgs": ["--dart-define-from-file", "config/production.json"]
+      "flutterMode": "release"
     }
   ]
 }

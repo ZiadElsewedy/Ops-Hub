@@ -1,39 +1,46 @@
-# Environment configuration
+# Environments
 
-Each file here is the **single declarative source of truth** for one backend
-environment. They carry no secrets (a base URL is public), so they are
-committed. Selecting an environment is choosing a file — never editing source.
+There are exactly **two** environments, and the app picks one **automatically
+from the build mode**. There is nothing to configure, no dart-defines to
+remember, and no files to edit per build.
 
-| File              | `APP_ENV`    | Backend                                         |
-| ----------------- | ------------ | ----------------------------------------------- |
-| `local.json`      | `local`      | `http://localhost:3000`                         |
-| `staging.json`    | `staging`    | `https://drop-api-staging.up.railway.app` (TBD) |
-| `production.json` | `production` | `https://drop-api-production.up.railway.app`    |
+| Build                              | Environment | Backend                                      |
+| ---------------------------------- | ----------- | -------------------------------------------- |
+| `flutter run` (Debug/Profile)      | Development | `http://localhost:3000`                      |
+| `flutter build … --release`        | Production  | `https://drop-api-production.up.railway.app` |
 
-The keys are injected as compile-time dart-defines and read by
-`lib/core/config/app_environment.dart` (`API_BASE_URL`, `APP_ENV`).
+The single source of truth is [`lib/core/config/app_environment.dart`](../lib/core/config/app_environment.dart).
+A **release binary is locked to Railway** — no dart-define or config file can
+point it at localhost or an emulator IP.
 
-## Run
-
-```bash
-flutter run --dart-define-from-file=config/local.json        # local backend
-flutter run --dart-define-from-file=config/staging.json      # staging
-flutter run --dart-define-from-file=config/production.json   # Railway production
-```
-
-In VS Code, use the **DROP Local / DROP Staging / DROP Production** launch
-profiles (`.vscode/launch.json`) — same thing, one click.
-
-## Build / CI / release
-
-Release artifacts **must** pass the production config; a release build with no
-`API_BASE_URL` fails fast by design (no silent localhost).
+## Development
 
 ```bash
-flutter build apk    --release --dart-define-from-file=config/production.json
-flutter build appbundle --release --dart-define-from-file=config/production.json
-flutter build ipa    --release --dart-define-from-file=config/production.json
+flutter run
 ```
 
-CI should invoke the same commands. A bare `flutter build ... --release`
-(without the config) is intentionally a hard error at startup.
+Uses the local backend. Hot reload works as usual.
+
+**Physical device on the LAN** (optional) — point a *debug* build at your Mac's
+local backend by IP. This define is ignored in release, so it can never leak
+into production:
+
+```bash
+flutter run --dart-define=DEV_API_BASE_URL=http://192.168.1.8:3000
+```
+
+## Production
+
+```bash
+flutter build apk --release
+flutter build appbundle --release
+flutter build ipa --release      # or: flutter build ios --release
+```
+
+Every release artifact targets Railway automatically. Install it once and open
+the app normally — no `flutter run`, no debug server, no manual switching.
+
+## Changing the production host
+
+Edit the one constant `_productionBaseUrl` in
+[`lib/core/config/app_environment.dart`](../lib/core/config/app_environment.dart).

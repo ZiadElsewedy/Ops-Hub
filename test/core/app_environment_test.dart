@@ -1,15 +1,17 @@
 import 'package:drop/core/config/app_environment.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Verifies the environment resolution plumbing. Runs green with a plain
-/// `flutter test` (no defines → debug localhost fallback) and asserts the
-/// injected target when run with a config file, e.g.:
+/// The environment is a pure function of the **build mode**:
 ///
-///   flutter test test/core/app_environment_test.dart \
-///     --dart-define-from-file=config/production.json
+///   Debug/Profile → Development → localhost
+///   Release       → Production  → Railway (HTTPS)
+///
+/// `flutter test` always runs in debug, so [AppEnvironment.current] resolves to
+/// Development here. The Development URL can be overridden for physical-device
+/// LAN testing via `--dart-define=DEV_API_BASE_URL=...`.
 void main() {
-  const injectedEnv = String.fromEnvironment('APP_ENV');
-  const injectedUrl = String.fromEnvironment('API_BASE_URL');
+  const devOverride = String.fromEnvironment('DEV_API_BASE_URL');
 
   test('resolves a non-empty backend origin with no trailing slash', () {
     final env = AppEnvironment.current;
@@ -17,29 +19,29 @@ void main() {
     expect(env.apiBaseUrl.endsWith('/'), isFalse);
   });
 
-  test('uses the injected API_BASE_URL when provided', () {
-    if (injectedUrl.isEmpty) {
-      // No config file: debug builds fall back to localhost.
-      expect(AppEnvironment.current.apiBaseUrl, 'http://localhost:3000');
-      return;
-    }
-    final expected = injectedUrl.replaceAll(RegExp(r'/$'), '');
-    expect(AppEnvironment.current.apiBaseUrl, expected);
+  test('tests run in Development (debug mode → local backend)', () {
+    // Guard the invariant the tests rely on.
+    expect(kReleaseMode, isFalse);
+
+    final env = AppEnvironment.current;
+    expect(env.type, AppEnvironmentType.development);
+    expect(env.isDevelopment, isTrue);
+    expect(env.isProduction, isFalse);
+    expect(env.buildMode, anyOf('Debug', 'Profile'));
   });
 
-  test('maps APP_ENV to the typed environment', () {
+  test('Development uses localhost, or the DEV_API_BASE_URL override', () {
     final env = AppEnvironment.current;
-    switch (injectedEnv) {
-      case 'production':
-        expect(env.type, AppEnvironmentType.production);
-        expect(env.isProduction, isTrue);
-      case 'staging':
-        expect(env.type, AppEnvironmentType.staging);
-        expect(env.isProduction, isFalse);
-      default:
-        // 'local' or unset both resolve to local.
-        expect(env.type, AppEnvironmentType.local);
-        expect(env.isProduction, isFalse);
+    if (devOverride.isEmpty) {
+      expect(env.apiBaseUrl, 'http://localhost:3000');
+    } else {
+      expect(env.apiBaseUrl, devOverride.replaceAll(RegExp(r'/$'), ''));
     }
+  });
+
+  test('the startup banner reports environment, build mode, and URL', () {
+    final banner = AppEnvironment.current.startupBanner;
+    expect(banner, contains('Development'));
+    expect(banner, contains(AppEnvironment.current.apiBaseUrl));
   });
 }

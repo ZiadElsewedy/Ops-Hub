@@ -141,11 +141,11 @@ class _LaunchAppState extends State<LaunchApp> {
 }
 
 Future<GoRouter> _initializeRuntime() async {
-  // ⚠️ TEMPORARY DEBUG — confirm which backend this build actually targets.
-  // Remove alongside the rest of the NET-PROBE logging after the 401 probe.
-  debugPrint('🌍[NET-PROBE] Environment: ${AppEnvironment.current.name}');
-  debugPrint(
-      '🌍[NET-PROBE] API Base URL: ${AppEnvironment.current.apiBaseUrl}');
+  // Startup banner — states which backend this build targets. The URL is a pure
+  // function of build mode (see AppEnvironment), so this is the ground truth:
+  // "Development / Debug / localhost" for `flutter run`, "Production / Release /
+  // Railway" for any release artifact.
+  debugPrint(AppEnvironment.current.startupBanner);
 
   if (Firebase.apps.isEmpty) {
     await AppLog.time(

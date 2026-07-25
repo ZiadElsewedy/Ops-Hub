@@ -16,6 +16,22 @@ released — DROP ships from branches and has no version tags.
 
 ## Unreleased
 
+### 2026-07-26
+
+- **Environment system rebuilt around build mode — no dart-defines, no manual
+  switching.** The backend URL is now a pure function of how the binary was
+  compiled (`lib/core/config/app_environment.dart`): Debug/Profile →
+  `http://localhost:3000`, Release → Railway (`https://drop-api-production.up.railway.app`).
+  A release artifact is **locked** to Railway — the URL is a hardcoded `const`
+  and no define or config file can point it at localhost or an emulator IP.
+  Removed the `config/{local,staging,production}.json` dart-define files and the
+  `API_BASE_URL`/`APP_ENV` defines; the `staging` environment is gone (two
+  environments only: Development, Production). Optional dev-only LAN override
+  `--dart-define=DEV_API_BASE_URL=...` (ignored in release). `.vscode/launch.json`
+  simplified; iOS `Info.plist` gains a **localhost-only** ATS exception (release
+  unaffected — it only ever uses HTTPS). Startup logs a one-line banner with
+  Environment · Build Mode · API Base URL.
+
 ### 2026-07-25
 
 - **Code-quality & refactoring sprint (behavior-preserving; no UI/logic change).**
