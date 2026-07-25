@@ -45,12 +45,6 @@ class ProfileEntity with _$ProfileEntity {
     DateTime? createdAt,
     DateTime? updatedAt,
 
-    // ─── Social (counters — backend not yet implemented) ────────
-    @Default(0) int followersCount,
-    @Default(0) int followingCount,
-    @Default(0) int postsCount,
-    @Default(0) int likesCount,
-
     // ─── Presence ───────────────────────────────────────────────
     @Default(false) bool isOnline,
     DateTime? lastSeen,

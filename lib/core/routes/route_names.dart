@@ -44,6 +44,25 @@ class RouteNames {
   /// The concrete case-detail path for [caseId].
   static String caseDetail(String caseId) => '/case/$caseId';
 
+  // ─── Direct chat (NestJS backend) ───────────────────────────────
+  // Shared by every role — access is participant-scoped server-side (Bearer
+  // token; a non-participant sees "not found"), so these sit outside the
+  // role-area guards. `/chat` is the inbox; the conversation pattern is its
+  // stable deep-link path (thread UI lands in a later phase).
+  static const String chat = '/chat';
+
+  /// The new-conversation teammate picker. A static child of `/chat`; it is
+  /// registered before the `:conversationId` pattern so it is never captured
+  /// as a conversation id.
+  static const String chatNew = '/chat/new';
+
+  /// The single-conversation pattern (`/chat/:conversationId`).
+  static const String chatConversationPattern = '/chat/:conversationId';
+
+  /// The concrete conversation path for [conversationId].
+  static String chatConversation(String conversationId) =>
+      '/chat/$conversationId';
+
   // ─── Operations Requests (in-the-moment approvals) ─────────────
   // Shared by every role (like cases) — the list self-scopes by role (admin:
   // all · manager: branch · employee: own) and Firestore rules enforce access,

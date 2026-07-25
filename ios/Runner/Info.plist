@@ -37,6 +37,24 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- App Transport Security. Public traffic (Railway production) MUST use
+	     HTTPS — arbitrary loads stay disabled. The only relaxation is for the
+	     LOCAL network so `flutter run` in Development can reach the dev backend
+	     at http://localhost:3000 (iOS Simulator) or a LAN IP (physical device).
+	     Release only ever contacts Railway over HTTPS, so this cannot weaken it. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>D R O P needs access to your camera so you can take a profile picture and capture task proof.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

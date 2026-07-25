@@ -39,6 +39,11 @@ dependencies:
   # Navigation
   go_router: ^14.2.0
 
+  # Networking — authenticated HTTP for the external NestJS API (chat backend).
+  # The single HTTP seam is `core/network/api_client.dart`; nothing else may
+  # import dio directly.
+  dio: ^5.7.0
+
   # Firebase
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
@@ -53,6 +58,8 @@ dependencies:
 
   # Media
   image_picker: ^1.1.2
+  # Document attachments in chat (images use image_picker's camera/gallery).
+  file_picker: ^8.1.6
   # In-app crop / rotate / flip / aspect editor (mobile only — gated off on
   # desktop/web via `supportsImageEditing`).
   image_cropper: ^9.0.0
@@ -62,8 +69,6 @@ dependencies:
   # desktop/web via `supportsVideoCompression`).
   video_compress: ^3.1.4
 
-  # Storage
-  flutter_secure_storage: ^9.2.2
   # Observability — crash-report persistence (Application Support dir).
   path_provider: ^2.1.4
 
@@ -71,6 +76,19 @@ dependencies:
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
   lottie: ^3.4.0
+  socket_io_client: ^3.1.6
+
+  # Offline chat cache — Drift (SQLite). The chat feature's LocalDataSource
+  # persists conversations/messages/reply+attachment metadata for instant open
+  # and offline reads. Pinned to the 2.20.x line so `drift_dev`'s analyzer
+  # constraint stays compatible with `freezed 2.5.x` (newer drift pulls
+  # analyzer 7+, which freezed 2.5 does not allow). Never cache image BYTES —
+  # URLs and metadata only. Confined to `features/chat/data/local/`.
+  drift: 2.26.0
+  sqlite3_flutter_libs: ^0.5.24
+  # Filesystem path joining for the Drift database file (chat cache).
+  path: ^1.9.0
+  open_filex: ^4.7.0
 
 dev_dependencies:
   flutter_test:
@@ -82,6 +100,9 @@ dev_dependencies:
   build_runner: ^2.4.12
   freezed: ^2.5.7
   json_serializable: ^6.8.0
+  # Drift table/database codegen. Pinned to match the `drift` runtime version
+  # and the analyzer 7 line the rest of the codegen stack already uses.
+  drift_dev: 2.26.0
 
   # App Icon
   flutter_launcher_icons: ^0.14.3

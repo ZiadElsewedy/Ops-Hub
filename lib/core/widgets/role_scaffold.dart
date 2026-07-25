@@ -20,8 +20,10 @@ import 'package:drop/features/notifications/presentation/cubit/notification_stat
 ///   sidebar, so here we only render the dashboard under a clean
 ///   [AdaptiveScaffold] page header. No app bar, no bottom nav.
 /// * **Mobile / tablet** → the original chrome: a compact app bar
-///   (notification bell + tappable avatar → profile) and the DROP bottom
-///   navigation bar (Home · Tasks · Schedule · Profile).
+///   (notification bell + tappable avatar → the More/Settings hub, which holds
+///   Profile · Change Password · Sign Out) and the DROP bottom navigation bar
+///   (Home · Tasks · Schedule · Chat). Chat opens the conversation inbox; the
+///   list self-scopes and access is enforced server-side.
 class RoleScaffold extends StatelessWidget {
   const RoleScaffold({super.key, required this.title, required this.child});
 
@@ -45,9 +47,9 @@ class RoleScaffold extends StatelessWidget {
       label: 'Schedule',
     ),
     AppNavItem(
-      icon: Icons.person_outline_rounded,
-      activeIcon: Icons.person_rounded,
-      label: 'Profile',
+      icon: Icons.chat_bubble_outline_rounded,
+      activeIcon: Icons.chat_bubble_rounded,
+      label: 'Chat',
     ),
   ];
 
@@ -62,7 +64,9 @@ class RoleScaffold extends StatelessWidget {
       case 2:
         context.push(RouteNames.scheduleForRole(role));
       case 3:
-        context.push(RouteNames.profile);
+        // The conversation inbox (not a specific thread). Role-agnostic — the
+        // list self-scopes and the backend enforces participant access.
+        context.push(RouteNames.chat);
     }
   }
 
@@ -90,7 +94,16 @@ class RoleScaffold extends StatelessWidget {
           children: [
             const DropLogo(height: 22),
             const SizedBox(width: 10),
-            Text(title, style: AppTypography.h3),
+            // Flexible + ellipsis so the title never overflows when the action
+            // cluster squeezes the app bar on a narrow phone.
+            Flexible(
+              child: Text(
+                title,
+                style: AppTypography.h3,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -117,19 +130,19 @@ class RoleScaffold extends StatelessWidget {
             tooltip: 'Requests',
             onPressed: () => context.push(RouteNames.requests),
           ),
-          // Case Management — available to every role (the list self-scopes).
-          IconButton(
-            icon: const Icon(Icons.forum_outlined, color: AppColors.textSecondary),
-            tooltip: 'Cases',
-            onPressed: () => context.push(RouteNames.cases),
-          ),
+          // Cases moved to Settings → Workspace (it's a reference tool, not a
+          // daily-home action) to declutter the app bar, which was overflowing
+          // the title on the manager/admin roles.
           _NotificationBell(
             onPressed: () => context.push(RouteNames.notifications),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 16, left: 4),
             child: GestureDetector(
-              onTap: () => context.push(RouteNames.profile),
+              // The account hub (More/Settings) — Profile now lives here
+              // alongside Change Password and Sign Out, since the bottom nav's
+              // fourth slot became Chat.
+              onTap: () => context.push(RouteNames.settings),
               child: user != null
                   ? UserAvatar.fromUser(user,
                       size: 36,

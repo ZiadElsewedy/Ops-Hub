@@ -16,6 +16,406 @@ released — DROP ships from branches and has no version tags.
 
 ## Unreleased
 
+### 2026-07-26
+
+- **Environment system rebuilt around build mode — no dart-defines, no manual
+  switching.** The backend URL is now a pure function of how the binary was
+  compiled (`lib/core/config/app_environment.dart`): Debug/Profile →
+  `http://localhost:3000`, Release → Railway (`https://drop-api-production.up.railway.app`).
+  A release artifact is **locked** to Railway — the URL is a hardcoded `const`
+  and no define or config file can point it at localhost or an emulator IP.
+  Removed the `config/{local,staging,production}.json` dart-define files and the
+  `API_BASE_URL`/`APP_ENV` defines; the `staging` environment is gone (two
+  environments only: Development, Production). Optional dev-only LAN override
+  `--dart-define=DEV_API_BASE_URL=...` (ignored in release). `.vscode/launch.json`
+  simplified; iOS `Info.plist` gains a **localhost-only** ATS exception (release
+  unaffected — it only ever uses HTTPS). Startup logs a one-line banner with
+  Environment · Build Mode · API Base URL.
+
+### 2026-07-25
+
+- **Code-quality & refactoring sprint (behavior-preserving; no UI/logic change).**
+  Baseline held throughout: `flutter analyze` = 1 info; `flutter test` moved from
+  1061 pass / 5 fail to **1066 pass / 2 fail** (the 2 remaining are the pre-existing
+  splash-centering failures).
+  - **Dead code removed.** Deleted the temporary `core/network/debug_auth_probe.dart`
+    + its two `AuthCubit` call sites (self-labeled "DO NOT COMMIT"; the 401 chat
+    investigation it served is done) — this also greened the 3
+    `notification_tap_flow_probe` tests, which had failed only because the probe
+    touched `FirebaseAuth.instance` in a Firebase-less test. Removed the 4 unused
+    legacy social counters from `ProfileEntity`/`ProfileModel` and the unread
+    `savedAudiencesCollection` constant.
+  - **Logging consolidated onto `AppLog`.** Converted `developer.log` → `AppLog` in
+    15 feature files (cubits + datasources) so their failures reach the crash-report
+    breadcrumb ring. Left 4 sites intentionally: `main.dart` + `notification_service`
+    (deliberate FCM diagnostics for the open iOS-push issue) and the two
+    `domain/usecases/` notify events (kept pure — must not import Flutter-coupled
+    `AppLog`).
+  - **Unused dependency removed.** Dropped `flutter_secure_storage` (^9.2.2) — zero
+    references app-wide; updated the PROJECT_CONTEXT tech-stack table to match.
+  - **Reclassified as *not* safe refactors:** the "duplicate" confirm dialogs
+    (chat/automation) deliberately use `darkSurfaceElevated` + distinct radii vs.
+    `showConfirmDialog`'s `darkSurface`/r20 — consolidating would change pixels, so
+    they were left as-is per the no-UI-change / owner-sign-off rule.
+
+### 2026-07-24
+
+- **Chat final UX/UI polish pass (P16).** Presentation-only; no architecture,
+  API, or backend change.
+  - **Conversation options** — a three-dot AppBar menu on the thread:
+    Conversation info · Search in conversation · Mute (local, UI-ready — no
+    backend mute exists) · Clear chat history · Delete conversation. Both
+    destructive actions confirm first.
+  - **Conversation Info screen** (`conversation_info_screen.dart`) — avatar ·
+    name · position/role · branch (resolved from the Firebase directory +
+    `BranchCubit`), shared **media** / **documents** counts, and the same
+    actions. **Online/last-seen is deliberately omitted** — the backend exposes
+    no presence and DROP does not fabricate it.
+  - **In-conversation search** — AppBar search field, live (200 ms debounce),
+    monochrome tone-aware match highlighting inside bubbles, an emphasized
+    active match auto-scrolled into view, `n/total` counter with prev/next
+    (Enter = next), and a "No matching messages." bar.
+  - **Clear chat history** — `ChatConversationCubit.clearChatForMe()`: a bulk
+    delete-for-me over the loaded window via the **existing** per-message
+    endpoint, pooled 3-at-a-time (`mapPooled`). The counterpart keeps their
+    copy. Delete conversation reuses it, then pops.
+  - **Desktop** — right-click context menu on any message
+    (`showChatMessageContextMenu`: Reply · Copy · Forward *(UI placeholder)* ·
+    Delete for me / for everyone) sharing one action handler with the mobile
+    long-press sheet; pointer cursor on every tappable bubble.
+  - **Loading** — the inbox's generic spinner is now a shimmering
+    conversation-tile skeleton list.
+  - `AppSnackbar.info` + `context.showInfo` added (neutral notices);
+    `ChatThreadArgs` carries `counterpartExternalId` so Info can resolve
+    role/branch. +2 tests.
+- **Chat feature improvements (P15).** Six product upgrades, all additive; no
+  UI-architecture, state-management, realtime, or backend-contract change.
+  1. **Document preview** — tapping a document (PDF/DOC/DOCX/XLS/XLSX/PPT/PPTX/
+     TXT) downloads it to an on-disk cache (dedup by attachment id — no repeat
+     downloads) and opens it with the platform default app (`open_filex` on
+     mobile; the OS opener via `Process` on desktop). Loading indicator +
+     friendly error snackbar with **Retry**. New `ChatDocumentService`; bytes
+     live in the OS temp dir, never the Drift cache. (An in-app PDF *renderer*
+     was intentionally deferred — bundling a native PDF engine is build-risky and
+     unverifiable here; the spec's "platform default" path is used.)
+  2. **Conversation search** — a search icon in the inbox AppBar expands to a
+     live, debounced (220 ms) search over counterpart name/role + last message,
+     O(n) client-side; scroll preserved (PageStorageKey); "No conversations
+     found." empty state.
+  3. **Unread badge** — the desktop sidebar Chat row shows the live total unread
+     (`ChatListCubit.totalUnread`), hidden at zero, reactive.
+  4. **Recent Messages dashboard widget** — `RecentMessagesCard` (avatar · name ·
+     last message · time · unread), capped at 5, tap opens the thread, "No recent
+     conversations" empty state; added to the employee + manager homes.
+  5. **In-app notifications** — a new message raises a tappable banner from any
+     screen (`ChatNotificationListener` over a new `ChatListCubit.incoming`
+     stream), suppressed for the conversation on screen (tracked via
+     `AppDependencies.activeChatConversation`); tapping opens it. Works on
+     desktop too; a true OS-level local notification (native plugin + per-platform
+     setup) is out of scope.
+  6. **Document bubble redesign** — compact card with a format-specific icon and
+     a `PDF • 577 KB` meta line; desktop hover reveals **Open**/**Download**.
+  `open_filex` added. `AppSnackbar.error/success` gained an optional action
+  (retry). +5 tests; full suite 1059 pass / 5 pre-existing fail; analyze clean.
+  **Not device-verified this session** (`pod install` needed for open_filex).
+- **Chat offline cache — Drift/SQLite (P14).** A production-grade local cache
+  under `features/chat/data/local/` gives the thread and inbox WhatsApp/Telegram
+  behaviour: instant open (incl. cold start), offline reads, and background
+  sync. `drift`/`sqlite3_flutter_libs` added (pinned 2.26.0 to keep `drift_dev`'s
+  analyzer on the freezed-compatible line). `ChatDatabase` (3 tables:
+  conversations · messages with **reply + attachment metadata** flattened in ·
+  a durable send outbox) + `ChatLocalDataSource` own all row↔entity mapping,
+  conflict-safe upserts (idempotent by id, ordered by server `seq`), cache
+  pagination, and invalidation. **No image/attachment BYTES are ever persisted**
+  — metadata + on-demand brokered URLs only. `ChatRepositoryImpl` gains an
+  *optional* local datasource (null ⇒ the exact REST-only original, so all
+  existing fakes/tests are untouched): read-through / write-through, offline
+  fallback to cache when the network is unreachable, cache-first back-pagination
+  via a `local:<seq>` cursor, and a text-send outbox (enqueue-before-POST,
+  drain-on-ack). `ChatThreadCache` became two-tier (in-memory hot + durable
+  Drift) so re-open survives a restart and realtime-delivered messages persist
+  through the existing `_emit → put` path. Cubit changes are additive only:
+  cold-restore-from-disk, keep local bubbles across a refresh, adopt the durable
+  outbox and auto-retry failed sends on load + reconnect. Cache is wiped on
+  sign-out (`AppDependencies.clearChatCache`, via the pre-sign-out hook).
+  **No UI, composer, realtime, or backend-contract change.** +15 tests
+  (`chat_offline_cache_test.dart`); full suite 1053 pass / 5 pre-existing fail.
+- **Chat P0 image-send fix + production-readiness pass.**
+  - **Image sending fixed (root cause proven, backend).** `drop-api`: the
+    NestJS/Express default JSON body limit is 100 KB, but chat sends attachment
+    bytes as base64 in the JSON body and the attachment domain allows 25 MiB —
+    so every real photo was 413'd *before* validation/storage. Proven against
+    Railway prod (300 KB body → 413, tiny → 401). Fix: take over body parsing
+    and size the JSON limit to the configured attachment cap + base64 overhead
+    (`main.ts`); `express` declared as a direct dep. Verified locally
+    (300 KB/5 MB → 401, 40 MB → 413). Committed on `drop-api` (`746a804`);
+    **needs a Railway deploy** to take effect in production.
+  - **No internal IDs in the UI (P1):** removed the user-id line from the New
+    Chat card; `chatCounterpartLabel` no longer embeds a UUID fragment (was
+    "Teammate 019F8F") — it's a neutral id-free "Teammate"; Message Info drops
+    Message/Conversation/Reference IDs and Sequence. Only avatar · name · role
+    surface anywhere.
+  - **Delivery status (P2):** WhatsApp pattern — clock (sending) → double **grey**
+    check (delivered) → double **green** check (read). Owner override of the
+    prior monochrome-ticks ruling.
+  - **Composer redesigned (P3):** a single cohesive pill with the attachment `+`
+    and send controls *inside* the field (no detached satellite buttons),
+    focus-animated border, bottom-aligned controls that track multiline growth.
+    Fixed a theme-border leak (the global `inputDecorationTheme.focusedBorder`
+    drew a second outline around the text) by nulling every `*Border` state on
+    the field — the pill now reads as one unit.
+
+- **Chat UX overhaul — inbox, previews, composer, attachment sheet
+  (uncommitted, presentation-only).** No backend/contract/cubit/repo changes.
+  - **Empty conversations are now hidden** (WhatsApp/Telegram behavior): the
+    inbox filters out never-messaged conversations (no `lastMessageAt` and no
+    live preview). Returning from a thread re-pulls the list so your *own* first
+    message surfaces (the socket never echoes your sends back to you).
+  - **Real last-message previews** replace the "Tap to open"/"No messages yet"
+    placeholders: resolved from the live socket preview → in-memory thread cache
+    → a one-item history fetch (reusing `LoadChatHistory`), formatted as the
+    body / "Photo" / file name / "You: …". New `ChatPreview` + `chatMessage
+    PreviewText` in `chat_format.dart`; `AppDependencies.latestChatMessage`.
+  - **Redesigned inbox tile**: 56px avatar, name + right-aligned time, real
+    preview + unread badge, subtle role, iOS-style press highlight (no ripple),
+    inset hairline separators.
+  - **Attachment sheet** rebuilt premium (icon-chip rows with labels/subtitles).
+    Videos intentionally omitted — the API accepts no video attachment format,
+    so it would need a backend/contract change to work.
+  - **Composer** press-scale feedback on the `+` and send buttons.
+
+- **Chat directory rules DEPLOYED + card polish.** The flat `users` read rule
+  (`allow read: if isSignedIn()`, ADR-012) was **deployed to production**
+  (`bazic-d9ad7`) — this is what actually makes company-wide chat work at
+  runtime. **Root cause of the "Teammate 019F8F" placeholder** (audited, not
+  guessed): the client resolves counterpart names via a Firestore directory
+  (`getAllUsers`), but the flat rule was undeployed, so a non-admin's unfiltered
+  `users` query was denied, the directory stayed empty, and every counterpart
+  fell back to a label built from the backend's internal UUID. The logged-in
+  user was an *employee*; an admin never hit it. Backend was never implicated —
+  `counterpartExternalId` (the counterpart's Firebase uid) is correctly returned.
+  Presentation: the teammate picker card now shows the **user id** (with photo ·
+  name · role, nothing private beyond that); the inbox fallback avatar is now an
+  **initials chip** instead of the generic grey person glyph (`UserAvatar`
+  already did initials — only the tile's unresolved branch used the icon).
+
+- **Chat mobile UI refinement (uncommitted).** Presentation-only; no backend
+  or contract change. **Fixed own-message alignment** — my messages were
+  rendering on the left. Root cause: `_SwipeToReply` wraps a confirmed bubble in
+  a `Stack`, which shrink-wraps and pins to `topStart`, collapsing the bubble
+  Column's `crossAxisAlignment`; swipe-enabled (sent) messages aligned left
+  while `local:`/tombstone bubbles aligned right. Side is now set by an `Align`
+  at the list-item level, robust in both paths. Grouping keys on side/ownership
+  instead of raw `senderId` (folds optimistic bubbles into my run; a side change
+  always forces a tail + gap so two people's runs never merge). Softer bubble
+  radii (20 + 6pt tail), roomier padding, tighter within-group spacing, wider
+  max width. **Composer** gains an animated focus state (border brightens and
+  thickens on focus), a 24pt pill, and refined padding. Delivery ticks unchanged
+  (monochrome, per the design ruling). Verified on the iPhone 17 simulator.
+
+- **Changed — chat's participant directory is now flat (uncommitted).**
+  [ADR-012](docs/decisions/ADR-012-chat-directory-is-flat.md). Every
+  authenticated user may message every other **active** user; the directory
+  carries **no branch and no role predicate** in any layer.
+  `GetChatDirectory` is a single unfiltered `getAllUsers` read whose only
+  filters are self-exclusion and `isActive` — the latter applied in the use case,
+  not as a query predicate, so a legacy doc missing the field keeps
+  `UserEntity`'s `true` default instead of being silently dropped. One source of
+  truth, shared by the picker and the inbox's name/avatar resolution.
+  `AuthRepository.getUsersByRole` (added earlier the same day) is **removed** —
+  it existed only to reconstruct "everyone" out of scoped reads.
+  **`firestore.rules` — NEEDS DEPLOY:** `users` read is now `if isSignedIn()`,
+  replacing the owner · admin · same-branch disjunction, which a flat directory
+  subsumes entirely. Compensation stays private (owner + admin subdoc) and all
+  writes are unchanged. Until deployed, the chat directory fails for non-admins.
+
+  This supersedes the earlier fix the same day, which kept branch scoping and
+  special-cased admins via a role read. The bug it fixed: an admin's picker was
+  empty and staff never saw admins, because **admins are provisioned branchless**
+  (`create_account_screen._needsBranch` — the role is global), so a
+  `where('branchId', ==, …)` read returned nothing for an admin and could never
+  contain one for anyone else. Confirmed against live data (1 branchless admin,
+  8 employees over 2 branches, 1 manager). The NestJS backend was never
+  implicated — it has **no role or branch concept at all**, and conversation
+  creation only rejects self-chat.
+
+- **Chat V1 polish (uncommitted).** Premium composer (paperclip + attachment
+  sheet, reactive circular send, staged-attachment preview). Reply via
+  WhatsApp swipe-right (`_SwipeToReply`, haptic + spring-back) and the
+  long-press menu (Reply · Copy · Message info · Delete); quoted preview in
+  bubble + composer banner. Attachments (Camera/Gallery/Documents) behind a
+  `ChatAttachmentSource` seam over `image_picker` + new `file_picker` dep, with
+  preview-before-send, premium file cards, and a full-screen `ImageViewerScreen`.
+  New Message-info screen (backend fields only). **Optimistic send** — instant
+  `SENDING` bubble, background POST, replace-on-success / `FAILED`+tap-to-retry.
+  Instant re-open via in-memory `ChatThreadCache` + skeleton cold-load. All
+  presentation/cubit; REST stays the only write path. New iOS dep needs
+  `pod install`. Not yet device-verified.
+- **Chat V1 UX polish (uncommitted).** Hero transition into the full-screen
+  image viewer; **inline thumbnails for received images** (lazy brokered-URL
+  fetch, fixed-footprint placeholder); date-separator pill (Today/Yesterday/
+  date — already Today/Yesterday-aware); real **upload-progress ring** for
+  attachments (dio `onSendProgress` threaded through repo→usecase→cubit, a new
+  client-only `ChatMessage.uploadProgress`, throttled to whole-percent);
+  `RepaintBoundary` per bubble so progress ticks / read receipts / the swipe
+  translate don't re-rasterize the whole thread. No backend/contract change.
+- **Chat ordering correctness fix (uncommitted).** `_replaceLocal` now drops the
+  optimistic placeholder and re-inserts the confirmed message by its authoritative
+  `seq` (`_insertBySeq`) instead of reusing the placeholder's slot — so rapid/
+  concurrent sends, realtime interleavings, and retries always render in server
+  order and self-heal. +3 ordering tests in `chat_realtime_sync_test.dart`.
+
+### 2026-07-23
+
+- **Chat: real profiles, premium composer/thread, and LAN dev networking
+  (Phase 10).**
+  - **Real conversation identities.** `GET /conversations` now returns each
+    row's `counterpartExternalId` (the counterpart's Firebase uid), resolved
+    server-side via a new read-only `USER_DIRECTORY` port (reverse of the
+    identity resolver: internal UUID → provider subject, one batched query).
+    The Flutter inbox loads the branch directory (`GetUsersByBranch`) and renders
+    the teammate's real **avatar · name · role**; the thread header shows the
+    counterpart's avatar + name. Backend internal UUIDs are never shown.
+  - **Premium composer.** Rounded 46px pill, generous padding, multiline growth,
+    a circular send button that reactively lights up when there's text (taps
+    always route through the send guard so it's never a dead target).
+  - **Premium thread.** Consecutive same-sender messages group (timestamp only
+    on the run's tail, tight spacing, tail corner only there) and a warmer empty
+    state.
+  - **LAN dev networking.** Backend binds `0.0.0.0:3000`; a debug-only Android
+    manifest enables cleartext HTTP; one
+    `--dart-define=API_BASE_URL=http://<mac-lan-ip>:3000` points REST **and**
+    Socket.IO at the same backend from both the iOS Simulator and a physical
+    Android device (localhost never works from a real Android device). No
+    production hardcoding — release keeps cleartext off.
+  - **Real error surfaced.** `ApiClient` logs the underlying transport error
+    (connection refused / host unreachable / status + body) before mapping it,
+    and `ChatListCubit` logs the failure — ending the silent loading→error loop.
+  - +2 widget tests (title resolution); backend suite still green.
+
+### 2026-07-22
+
+- **Chat: new-conversation entry flow (Phase 9).** Empty-state "Start Chat" CTA
+  + an always-present inbox FAB open a `/chat/new` teammate picker
+  (`NewChatScreen`/`NewChatView` + `NewChatCubit` over the existing
+  `GetUsersByBranch`): own-branch teammates, search, current user excluded,
+  each row avatar · name · role. Selecting a teammate calls `StartConversation`
+  and `pushReplacement`s to the thread (Back → inbox); the server's idempotent
+  get-or-create means picking someone you already chat with opens the existing
+  thread, never a duplicate. **Backend (`drop-api`) contract change:**
+  `POST /conversations` `targetUserId` is now the teammate's Firebase uid
+  (external subject) — a client never holds another user's internal UUID — which
+  the use case resolves to the internal participant via the existing identity
+  resolver (get-or-create, so a teammate who's never opened chat is provisioned
+  on demand); self-start stays a 400. `ChatListCubit.startChatWith` refreshes the
+  inbox after starting so the row carries the server's real counterpart id.
+  Verified live end-to-end; backend suite still 84 green. +6 widget tests.
+
+- **Chat WebSocket "auth" failure root-caused — a DB migration gap, not a token
+  bug.** The reported `socket auth rejected: Invalid or expired authentication
+  token` was traced end-to-end: the Flutter client attaches the Firebase ID
+  token correctly (`setAuth({token})` → handshake `auth.token`), the gateway
+  reads it, and the verifier accepts a valid token (confirmed by minting a real
+  token and calling `verifyIdToken` directly). The real cause was three unapplied
+  chat migrations — critically `20260720130000_add_app_user` — so identity
+  resolution threw *after* `verifyToken`, surfacing as a socket reject and REST
+  500s on Chat. `prisma migrate deploy` fixed it; the socket then connects and
+  authenticates cleanly. No client or gateway auth code changed.
+
+- **Chat promoted to a primary navigation destination.** The mobile bottom
+  nav's fourth tab changed from **Profile** to **Chat** (`chat_bubble` icon →
+  `/chat` inbox, never a specific thread); Home/Tasks/Schedule are unchanged.
+  Profile moved into the existing **Settings** hub (which already holds Profile ·
+  Change Password · Sign Out), now reached by the app-bar avatar. Chat was also
+  added to the desktop sidebar for every role (beside Cases). No Chat icon
+  existed in the app bar, so none was removed; the app bar's Cases (forum) icon
+  is a separate feature and stays. GoRouter/ShellRoute architecture and all deep
+  links are unchanged. +3 nav widget tests.
+
+- **Chat inbox realtime (Phase 8).** The conversation list now stays live off
+  the *same* socket (no second service): the `ChatRealtime` port gains
+  `attachInbox`/`detachInbox` — inbox-level interest that keeps
+  `ChatSocketService`'s connection alive with **no room join**, since the
+  server's auto-joined personal `user:{id}` room already delivers
+  `message:new` for every conversation. `ChatListCubit` (optional additive
+  `realtime` seam, attached on first load) applies live messages as: row
+  bumped to the top with fresh `lastMessageAt`, a client-held last-message
+  preview, and a client-counted unread badge (the backend pushes no counts;
+  opening a conversation clears its badge via the new `clearUnread`, wired to
+  tile tap). Events are deduped by per-conversation `seq`; a message for a
+  conversation outside the loaded window triggers a full refresh rather than
+  a client-invented row; a reconnect re-pulls page one (reconciliation —
+  pagination resets by design, the documented refresh contract); a live
+  delete-for-everyone tombstones the previewed line. The loaded state gains
+  `previews` + `unreadCounts` maps feeding the tile's Phase-4 override slots.
+  +8 tests.
+
+- **Chat message deletion UI (Phase 7).** Long-press on a bubble opens a
+  bottom-sheet context menu (`chat_message_actions.dart`, house sheet chrome)
+  with Cases-style confirmation dialogs, driving the already-existing
+  `DeleteChatMessageForMe` / `DeleteChatMessageForEveryone` use cases (now
+  DI-registered and wired into `ChatConversationCubit`). *Delete for me* is
+  always offered (sent, received, and tombstoned messages alike — per the
+  backend contract); *Delete for everyone* is offered only on the caller's own
+  non-deleted messages — an identity fact the bubbles already render, while
+  the actual rules (original sender only, 1-hour window,
+  `delete-for-everyone.policy.ts`) stay entirely server-enforced and a 403
+  surfaces the server's own message as a snackbar. New loaded-state field
+  `deletingMessageId` dims the in-flight bubble and serializes deletes.
+  Delete-for-me removes the row; delete-for-everyone swaps in the server's
+  tombstone; the live `message:deleted` / `message:deleted-for-me` socket
+  events (parsed since Phase 6) are now applied — tombstone-in-place with the
+  mirrored `"This message was deleted"` placeholder, and cross-session hide.
+  +9 tests (7 widget + 2 realtime).
+
+- **Chat realtime over Socket.IO (Phase 6).** Protocol taken verbatim from the
+  `drop-api` gateway (`chat/realtime/interface/socket/`): namespace `/chat`,
+  Firebase ID token in the handshake `auth.token`, `conversation:join`/`leave`
+  acked `{ok, error?}`, server events `message:new` (REST-shaped message,
+  sender excluded) / `message:read` / `message:deleted` /
+  `message:deleted-for-me`, auth rejection via `connection:error` + server
+  disconnect, rooms cleared on every disconnect. New `ChatRealtime` domain
+  port + `ChatSocketService` (`socket_io_client ^3.1.6`; the only file allowed
+  to import it): socket lives only while threads are joined, reconnection is
+  self-owned (each attempt rebuilds the socket with a fresh token; exponential
+  backoff capped at 30s; force-refresh after an auth reject), rooms re-joined
+  on reconnect. `ChatConversationCubit` gains an optional `realtime` seam —
+  live messages insert by `seq` (deduped), read receipts upgrade status to
+  READ, and a reconnect triggers a newest-page REST reconcile. REST remains
+  the only write path and the source of truth; without a socket the thread
+  behaves exactly as before. +9 tests (cubit sync + wire-payload parsing).
+
+- **Chat Conversation (thread) UI (Phase 5).** The `/chat/:conversationId`
+  placeholder became the real thread: `ChatConversationScreen` builds a
+  per-thread `ChatConversationCubit` (DI factory) around the shared
+  `ChatConversationView` — `ChatMessageList` (bottom-anchored left/right
+  bubbles, date separators, relative timestamps, tombstone + attachment-chip
+  rendering, Cases' "New messages" jump pill, top scroll-back pagination with
+  preserved scroll offset, post-frame visible→`markVisibleRead`) + a text-only
+  `ChatComposer` (send spinner, clears only on success so a failed send never
+  loses typed text, desktop autofocus + Enter-to-send). REST only — new
+  messages arrive on open until the socket phase. +7 widget tests.
+
+- **Chat Conversation List UI (Phase 4).** New `/chat` inbox over the existing
+  `ChatListCubit`: `ChatScreen` (loading / branded empty / full-screen retry /
+  loaded, pull-to-refresh, scroll-driven cursor pagination, transient errors as
+  snackbars) + `ChatConversationTile` (avatar placeholder · counterpart label ·
+  preview line · relative time · monochrome unread pill, with
+  `title`/`preview`/`unreadCount` override slots for when the backend exposes
+  them). Row tap pushes the new `/chat/:conversationId` route → a placeholder
+  `ChatConversationScreen` (thread UI is the next phase). `ChatListCubit`
+  provided app-wide beside `CaseListCubit`. +11 widget tests; also cleared 10
+  chat-layer analyzer style infos (`dart fix`).
+
+- **Networking foundation for the upcoming Chat feature (NestJS backend) —
+  Phase 1.** New single HTTP seam `core/network/` (`ApiClient` on `dio` +
+  `NetworkConfig` base URL via `--dart-define=API_BASE_URL`): Firebase stays the
+  identity provider — every request carries the caller's Firebase ID token, with
+  one force-refresh-and-replay on a 401 — and all HTTP failures map to the
+  existing `ServerException`/`AuthException`/`ConflictException` vocabulary.
+  Registered in `AppDependencies.init()`; **no feature consumes it yet** (cases
+  and all other features stay on Firebase, UI untouched). +9 unit tests.
+
 ### 2026-07-19
 
 - **Recurring shift tasks now end at their real shift deadline.** Every generated

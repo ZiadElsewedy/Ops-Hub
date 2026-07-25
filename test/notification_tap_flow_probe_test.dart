@@ -55,6 +55,8 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<List<UserEntity>> getUsersByBranch(String branchId) async => [user];
   @override
+  Future<List<UserEntity>> getAllUsers() async => [user];
+  @override
   Future<UserEntity> signInWithEmail(
           {required String email, required String password}) async =>
       user;

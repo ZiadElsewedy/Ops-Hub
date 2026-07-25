@@ -73,10 +73,21 @@ service cloud.firestore {
     // Admin: read/write everything — role, branch, (de)activation, position,
     //   employment status, password-reset flag.
     match /users/{uid} {
-      allow read: if isOwner(uid)
-        || isAdmin()
-        || (selfBranch() != ''
-            && resource.data.get('branchId', '') == selfBranch());
+      // READ IS FLAT: any signed-in user may read any user document. DROP is a
+      // small internal roster and every member is directory-visible to every
+      // other — chat's access model (anyone may message anyone) is the same
+      // model, so it needs no rule of its own. This deliberately REPLACES the
+      // former owner/admin/same-branch disjunction: those clauses were all
+      // subsumed, and the branch clause specifically could never reach an admin
+      // (admins are provisioned branchless, since the role is global), which is
+      // what made admins unreachable in chat.
+      //
+      // Scope of what this exposes: profile + role/branch/employment fields on
+      // the user doc. Salary and payment details are NOT here — they live in
+      // `users/{uid}/private/compensation`, still owner+admin only (below).
+      // WRITE is unchanged and stays tight: admin-only, plus the owner's own
+      // non-privileged fields.
+      allow read: if isSignedIn();
 
       // No client may create a user document — the only creation path is the
       // admin-only `createUserAccount` Cloud Function (Admin SDK).

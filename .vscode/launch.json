@@ -1,25 +1,31 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "DROP",
-            "request": "launch",
-            "type": "dart"
-        },
-        {
-            "name": "DROP (profile mode)",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "profile"
-        },
-        {
-            "name": "DROP (release mode)",
-            "request": "launch",
-            "type": "dart",
-            "flutterMode": "release"
-        },
-    ]
+  // The backend is chosen automatically by build mode (see
+  // lib/core/config/app_environment.dart), so there are no per-environment
+  // launch profiles and no dart-defines to remember:
+  //
+  //   Debug   (these configs / `flutter run`)      → Development → localhost
+  //   Release (`flutter build … --release`)         → Production  → Railway
+  //
+  // To test a debug build on a physical device against your Mac's LAN backend,
+  // use the "DROP (device on LAN)" config below and edit the IP.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "DROP (Development)",
+      "request": "launch",
+      "type": "dart"
+    },
+    {
+      "name": "DROP (device on LAN)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": ["--dart-define=DEV_API_BASE_URL=http://192.168.1.8:3000"]
+    },
+    {
+      "name": "DROP (Production, release)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release"
+    }
+  ]
 }

@@ -51,6 +51,16 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<List<UserEntity>> getAllUsers() async {
+    try {
+      final models = await _userRemote.getAllUsers();
+      return models.map((m) => m.toEntity()).toList();
+    } on AuthException catch (e) {
+      throw AuthFailure(e.message);
+    }
+  }
+
+  @override
   Stream<UserEntity?> watchUser(String uid) =>
       _userRemote.watchUser(uid).map((model) => model?.toEntity());
 

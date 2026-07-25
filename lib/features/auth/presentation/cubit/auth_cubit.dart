@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/errors/failures.dart';
 import 'package:drop/features/auth/domain/usecases/sign_in_with_email.dart';
@@ -8,6 +9,7 @@ import 'package:drop/features/auth/domain/usecases/forgot_password.dart';
 import 'package:drop/features/auth/domain/usecases/change_password.dart';
 import 'package:drop/features/auth/domain/repositories/auth_repository.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
+// ⚠️ TEMPORARY DEBUG IMPORT — remove with the 401 investigation.
 import 'auth_state.dart';
 
 /// Shown when a signed-in account has been deactivated by an admin. DROP is

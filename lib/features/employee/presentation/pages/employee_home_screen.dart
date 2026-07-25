@@ -21,6 +21,7 @@ import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:drop/features/chat/presentation/widgets/recent_messages_card.dart';
 import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
@@ -145,6 +146,19 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                     directory: snap.directory,
                   );
                 },
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pagePadding,
+                AppSpacing.xl,
+                AppSpacing.pagePadding,
+                0,
+              ),
+              child: EntranceFade(
+                delay: staggerDelay(4),
+                child: const RecentMessagesCard(),
               ),
             ),
 

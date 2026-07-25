@@ -13,6 +13,10 @@ abstract class AuthRepository {
   Future<UserEntity?> getUser(String uid);
   Future<List<UserEntity>> getUsersByBranch(String branchId);
 
+  /// Every user, unfiltered — the chat directory's source (flat access model:
+  /// anyone may message anyone). Branch-scoped features use [getUsersByBranch].
+  Future<List<UserEntity>> getAllUsers();
+
   /// Live stream of a user's document — emits on every change so callers react to
   /// role/access changes (e.g. an admin disabling the account) in real time.
   Stream<UserEntity?> watchUser(String uid);

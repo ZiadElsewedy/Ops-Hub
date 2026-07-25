@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drop/core/constants/app_constants.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/attachment_type.dart';
 import 'package:drop/core/enums/case_status.dart';
 import 'package:drop/core/errors/exceptions.dart';
@@ -96,11 +96,8 @@ class CaseRemoteDataSourceImpl implements CaseRemoteDataSource {
 
   @override
   Future<List<CaseModel>> getMyCases(String uid) async {
-    developer.log(
-      '[CASES] query start: collectionGroup("$_reporterSub")'
-      '.where(createdByUserId == $uid)',
-      name: 'CASES',
-    );
+    AppLog.call('cases', 'getMyCases',
+        details: 'collectionGroup("$_reporterSub").where(createdByUserId == $uid)');
     try {
       // The case doc carries no creator uid (privacy split), so the owner's list
       // comes from the private `reporter` subdocs (collectionGroup), then a
@@ -109,10 +106,8 @@ class CaseRemoteDataSourceImpl implements CaseRemoteDataSource {
           .collectionGroup(_reporterSub)
           .where('createdByUserId', isEqualTo: uid)
           .get();
-      developer.log(
-        '[CASES] collectionGroup ok: ${identitySnap.docs.length} identity doc(s)',
-        name: 'CASES',
-      );
+      AppLog.success('cases',
+          'collectionGroup ok: ${identitySnap.docs.length} identity doc(s)');
       final caseIds = <String>{
         for (final d in identitySnap.docs)
           // `reporter` was also used by the retired `reports` collection, and a
@@ -131,10 +126,8 @@ class CaseRemoteDataSourceImpl implements CaseRemoteDataSource {
       }));
       return cases.whereType<CaseModel>().toList();
     } on FirebaseException catch (e, st) {
-      developer.log('[CASES] exception code: ${e.code}', name: 'CASES');
-      developer.log('[CASES] exception message: ${e.message}', name: 'CASES');
-      developer.log('[CASES] exception stackTrace',
-          name: 'CASES', error: e, stackTrace: st);
+      AppLog.error('cases',
+          'getMyCases failed: code=${e.code} message=${e.message}', e, st);
       throw ServerException(
           '[${e.code}] ${e.message ?? 'Failed to load your cases.'}');
     }

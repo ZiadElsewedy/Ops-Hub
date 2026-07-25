@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/attendance_correction_kind.dart';
 import 'package:drop/core/enums/attendance_status.dart';
 import 'package:drop/core/enums/leave_type.dart';
@@ -174,8 +174,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         _syncTimer();
       },
       onError: (Object e, StackTrace st) {
-        developer.log('[ATTENDANCE] history stream error: $e',
-            name: 'ATTENDANCE', error: e, stackTrace: st);
+        AppLog.error('attendance', 'history stream error', e, st);
         emit(const AttendanceState.error('Failed to load attendance.'));
       },
     );
@@ -187,11 +186,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       (corrections) {
         _myCorrections = corrections;
       },
-      onError: (Object e, StackTrace st) => developer.log(
-          '[ATTENDANCE] corrections stream error: $e',
-          name: 'ATTENDANCE',
-          error: e,
-          stackTrace: st),
+      onError: (Object e, StackTrace st) =>
+          AppLog.error('attendance', 'corrections stream error', e, st),
     );
   }
 
@@ -251,8 +247,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
             attendanceDocId(uid: user.uid, date: todayDate, shift: target),
       );
     } catch (e, st) {
-      developer.log('[ATTENDANCE] resolveContext failed: $e',
-          name: 'ATTENDANCE', error: e, stackTrace: st);
+      AppLog.error('attendance', 'resolveContext failed', e, st);
       _ctx = _TodayContext(todayDate: todayDate);
     }
   }
@@ -266,8 +261,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         if (b.id == branchId) return b.geofence;
       }
     } catch (e, st) {
-      developer.log('[ATTENDANCE] geofence resolve failed: $e',
-          name: 'ATTENDANCE', error: e, stackTrace: st);
+      AppLog.error('attendance', 'geofence resolve failed', e, st);
     }
     return null;
   }

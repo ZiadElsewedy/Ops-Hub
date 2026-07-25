@@ -61,6 +61,25 @@ class SettingsPage extends StatelessWidget {
 
                 const SizedBox(height: AppSpacing.xxl),
 
+                // ── Workspace ──
+                // Cases lives here (not in the crowded home app bar) — it's a
+                // reference tool, not a daily-home action.
+                const _SectionHeader(label: 'Workspace'),
+                const SizedBox(height: AppSpacing.md),
+                _SettingsGroup(
+                  children: [
+                    _SettingsRow(
+                      icon: Icons.forum_outlined,
+                      label: 'Cases',
+                      isFirst: true,
+                      isLast: true,
+                      onTap: () => context.push(RouteNames.cases),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.xxl),
+
                 // ── About ──
                 const _SectionHeader(label: 'About'),
                 const SizedBox(height: AppSpacing.md),

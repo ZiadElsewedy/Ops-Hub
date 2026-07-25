@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/enums/case_category.dart';
@@ -109,11 +108,11 @@ class CaseListCubit extends Cubit<CaseListState> {
     await _scopeSub?.cancel();
     _scopeSub = null;
 
-    developer.log(
-      '[CASES] load: role=${user.role.value}, uid=${user.uid}, '
-      'branch=${user.branchId ?? '-'}',
-      name: 'CASES',
-    );
+    AppLog.call('cases', 'load', meta: {
+      'role': user.role.value,
+      'uid': user.uid,
+      'branch': user.branchId ?? '-',
+    });
     if (user.role.isAdmin) {
       _subscribeScope(_repository.watchAllCases());
     } else if (user.role.isManager) {
@@ -134,8 +133,7 @@ class CaseListCubit extends Cubit<CaseListState> {
         _emitMerged();
       },
       onError: (Object error, StackTrace st) {
-        developer.log('[CASES] stream exception: $error',
-            name: 'CASES', error: error, stackTrace: st);
+        AppLog.error('cases', 'stream exception', error, st);
         emit(const CaseListState.error('Failed to load cases. Please try again.'));
       },
     );
@@ -146,8 +144,7 @@ class CaseListCubit extends Cubit<CaseListState> {
       _mineCases = await _repository.getMyCases(user.uid);
       _emitMerged();
     } catch (e, st) {
-      developer.log('[CASES] getMyCases failed: $e',
-          name: 'CASES', error: e, stackTrace: st);
+      AppLog.error('cases', 'getMyCases failed', e, st);
       if (user.role.isEmployee && _mineCases.isEmpty) {
         emit(const CaseListState.error('Failed to load your cases.'));
       }

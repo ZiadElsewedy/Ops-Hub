@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/errors/failures.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
@@ -72,8 +72,7 @@ class BranchOperationsCubit extends Cubit<BranchOperationsState> {
       _schedule = await _scheduleRepository.getSchedule(
           branchId, ScheduleWeek.currentWeekStart());
     } catch (e, st) {
-      developer.log('BranchOperations: context load failed',
-          name: 'operations', error: e, stackTrace: st);
+      AppLog.error('operations', 'context load failed', e, st);
       emit(BranchOperationsState.error(_message(e)));
       return;
     }
@@ -85,8 +84,7 @@ class BranchOperationsCubit extends Cubit<BranchOperationsState> {
         _emitLoaded();
       },
       onError: (Object e, StackTrace st) {
-        developer.log('BranchOperations: task stream error',
-            name: 'operations', error: e, stackTrace: st);
+        AppLog.error('operations', 'task stream error', e, st);
         // Only surface if we never got a first snapshot; otherwise keep the
         // last good cockpit visible (mirrors TaskCubit).
         if (!_hasTasks) emit(BranchOperationsState.error(_message(e)));

@@ -105,7 +105,7 @@ claims; role and branch are read from the caller's own `users/{uid}` doc.
 
 | Collection | Read | Create | Update | Delete |
 | --- | --- | --- | --- | --- |
-| `users/{uid}` | owner · admin · same-branch member | **false** — `createUserAccount` only | admin (all) · owner (profile + first-login flags + fcmToken; **privileged fields frozen**) | **false** — deactivate via `isActive` |
+| `users/{uid}` | **any signed-in user** — flat directory ([ADR-012](../decisions/ADR-012-chat-directory-is-flat.md)); chat is org-wide, so branch/role read scoping was removed. Compensation is unaffected (private subdoc, next row) | **false** — `createUserAccount` only | admin (all) · owner (profile + first-login flags + fcmToken; **privileged fields frozen**) | **false** — deactivate via `isActive` |
 | `users/{uid}/private/{doc}` | owner · admin | admin · owner (`compensation`/`paymentNumber` only) | admin · owner (`paymentNumber` diff only) | false |
 | `tasks/{id}` | branch-reachable · assignee · shift-task-in-my-branch | branch-reachable (never `missed` / `missedAt`) | branch-reachable (approved locked except admin reopen; missed locked) **or** assignee (can't reassign / move branch / forge review / set terminal; `activityLog` non-decreasing) | branch-reachable & neither approved nor missed |
 | `attendance/{id}` | own · own-branch manager · admin | own | own (clock fields) · manager/admin | false |

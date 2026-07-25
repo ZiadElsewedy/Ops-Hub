@@ -8,6 +8,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
+import 'package:drop/features/chat/presentation/widgets/recent_messages_card.dart';
 import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
@@ -56,6 +57,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
               orElse: () => const _LoadingSkeleton(),
             ),
           ),
+          const SizedBox(height: AppSpacing.xl),
+          const RecentMessagesCard(),
           const SizedBox(height: AppSpacing.xl),
           const SectionHeader('Active tasks'),
           const SizedBox(height: AppSpacing.md),

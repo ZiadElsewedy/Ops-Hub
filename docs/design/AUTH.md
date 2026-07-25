@@ -72,8 +72,13 @@ AuthRemoteDataSource   UserRemoteDataSource
 
 `AuthRepositoryImpl` holds **two** datasources and maps `UserModel ⇄ UserEntity`.
 Contract: `signInWithEmail` · `signOut` · `getUser` · `getUsersByBranch` ·
-`watchUser` · `sendPasswordResetEmail` · `changePassword`, plus the self-flag setters
-`setMustChangePassword` / `setProfileCompleted`.
+`getAllUsers` · `watchUser` · `sendPasswordResetEmail` · `changePassword`, plus
+the self-flag setters `setMustChangePassword` / `setProfileCompleted`.
+
+`getUsersByBranch` serves the branch-scoped features (task assignee, roster,
+schedule). `getAllUsers` is the unfiltered read backing the **chat directory**,
+whose access model is flat — anyone may message anyone
+([ADR-012](../decisions/ADR-012-chat-directory-is-flat.md)).
 
 `AuthState`: initial · loading(AuthAction) · authenticated(UserEntity) ·
 unauthenticated · passwordResetSent · passwordChanged · error.

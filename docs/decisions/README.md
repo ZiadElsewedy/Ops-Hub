@@ -18,6 +18,8 @@ probably already weighed. Reversing one is fine; doing it *unknowingly* is not.
 | [ADR-008](ADR-008-requests-are-approvals.md) | Requests are approvals, not tickets | Accepted |
 | [ADR-009](ADR-009-no-analytics-pipeline.md) | No analytics pipeline | Accepted |
 | [ADR-010](ADR-010-lean-over-enterprise.md) | Lean internal tool, not enterprise SaaS | Accepted |
+| [ADR-011](ADR-011-automation-observability.md) | Automation execution observability (scoped carve-out of ADR-009/010) | Accepted |
+| [ADR-012](ADR-012-chat-directory-is-flat.md) | Chat is not org-scoped: a flat participant directory | Accepted |
 
 ## Writing a new one
 

@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/attendance_correction_kind.dart';
 import 'package:drop/core/enums/attendance_status.dart';
 import 'package:drop/core/enums/request_status.dart';
@@ -96,8 +96,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
       }
       await _scope(target);
     } catch (e, st) {
-      developer.log('[ATTENDANCE-ADMIN] load failed: $e',
-          name: 'ATTENDANCE', error: e, stackTrace: st);
+      AppLog.error('attendance-admin', 'load failed', e, st);
       emit(const AttendanceAdminState.error('Failed to load attendance.'));
     }
   }
@@ -127,8 +126,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
         _records = records;
         _emit();
       },
-      onError: (Object e) => developer.log('[ATTENDANCE-ADMIN] records: $e',
-          name: 'ATTENDANCE', error: e),
+      onError: (Object e) => AppLog.error('attendance-admin', 'records', e),
     );
     _correctionsSub =
         _repository.watchBranchPendingCorrections(branchId).listen(
@@ -136,8 +134,8 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
         _corrections = corrections;
         _emit();
       },
-      onError: (Object e) => developer.log('[ATTENDANCE-ADMIN] corrections: $e',
-          name: 'ATTENDANCE', error: e),
+      onError: (Object e) =>
+          AppLog.error('attendance-admin', 'corrections', e),
     );
     _startTick();
     _emit();
@@ -203,8 +201,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
         config: _config,
       );
     } catch (e, st) {
-      developer.log('[ATTENDANCE-ADMIN] decide failed: $e',
-          name: 'ATTENDANCE', error: e, stackTrace: st);
+      AppLog.error('attendance-admin', 'decide failed', e, st);
       emit(const AttendanceAdminState.error('Failed to save the decision.'));
     } finally {
       _deciding = false;
@@ -346,8 +343,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
       emit(AttendanceAdminState.error(e.message));
       return false;
     } catch (e, st) {
-      developer.log('[ATTENDANCE-ADMIN] excuse failed: $e',
-          name: 'ATTENDANCE', error: e, stackTrace: st);
+      AppLog.error('attendance-admin', 'excuse failed', e, st);
       emit(const AttendanceAdminState.error('Failed to excuse the shift.'));
       return false;
     } finally {
@@ -430,8 +426,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
       emit(AttendanceAdminState.error(e.message));
       return false;
     } catch (e, st) {
-      developer.log('[ATTENDANCE-ADMIN] resolve failed: $e',
-          name: 'ATTENDANCE', error: e, stackTrace: st);
+      AppLog.error('attendance-admin', 'resolve failed', e, st);
       emit(const AttendanceAdminState.error('Failed to save the record.'));
       return false;
     } finally {

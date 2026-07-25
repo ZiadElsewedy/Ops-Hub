@@ -40,6 +40,10 @@ import 'package:drop/features/notifications/presentation/pages/notifications_scr
 import 'package:drop/features/cases/presentation/pages/cases_screen.dart';
 import 'package:drop/features/cases/presentation/pages/create_case_screen.dart';
 import 'package:drop/features/cases/presentation/pages/case_conversation_screen.dart';
+import 'package:drop/features/chat/presentation/pages/chat_screen.dart';
+import 'package:drop/features/chat/presentation/pages/chat_conversation_screen.dart';
+import 'package:drop/features/chat/presentation/chat_thread_args.dart';
+import 'package:drop/features/chat/presentation/pages/new_chat_screen.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/presentation/pages/attendance_screen.dart';
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
@@ -274,6 +278,35 @@ GoRouter createRouter(
               state,
               CaseConversationScreen(
                 caseId: state.pathParameters['caseId'] ?? '',
+              ),
+            ),
+          ),
+          // ─── Direct chat (NestJS backend) ────────────────────────────────────
+          // Shared by every role; access is participant-scoped server-side, so no
+          // role guard. The conversation pattern lives under the same `/chat`
+          // prefix — go_router matches the static `/chat` path before the
+          // parameterised child, so the inbox is never captured.
+          GoRoute(
+            path: RouteNames.chat,
+            pageBuilder: (context, state) =>
+                _slideTransition(state, const ChatScreen()),
+          ),
+          // Static `/chat/new` MUST precede the `:conversationId` pattern so it
+          // is matched as the picker, never captured as a conversation id.
+          GoRoute(
+            path: RouteNames.chatNew,
+            pageBuilder: (context, state) =>
+                _slideTransition(state, const NewChatScreen()),
+          ),
+          GoRoute(
+            path: RouteNames.chatConversationPattern,
+            pageBuilder: (context, state) => _slideTransition(
+              state,
+              ChatConversationScreen(
+                conversationId: state.pathParameters['conversationId'] ?? '',
+                args: state.extra is ChatThreadArgs
+                    ? state.extra as ChatThreadArgs
+                    : null,
               ),
             ),
           ),

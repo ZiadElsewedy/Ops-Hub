@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/audit_event_type.dart';
 import 'package:drop/core/enums/request_status.dart';
 import 'package:drop/core/errors/failures.dart';
@@ -66,8 +66,7 @@ class RequestDetailCubit extends Cubit<RequestDetailState> {
         _emit();
       },
       onError: (Object e, StackTrace st) {
-        developer.log('[REQUESTS] watchRequest error: $e',
-            name: 'REQUESTS', error: e, stackTrace: st);
+        AppLog.error('requests', 'watchRequest error', e, st);
         emit(const RequestDetailState.error('Failed to load the request.'));
         _emit();
       },
@@ -78,8 +77,7 @@ class RequestDetailCubit extends Cubit<RequestDetailState> {
         _emit();
       },
       onError: (Object e, StackTrace st) {
-        developer.log('[REQUESTS] watchEvents error: $e',
-            name: 'REQUESTS', error: e, stackTrace: st);
+        AppLog.error('requests', 'watchEvents error', e, st);
       },
     );
   }

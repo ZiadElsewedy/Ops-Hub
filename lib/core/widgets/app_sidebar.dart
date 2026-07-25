@@ -11,12 +11,17 @@ class SidebarItem {
     required this.activeIcon,
     required this.label,
     required this.route,
+    this.trailingBuilder,
   });
 
   final IconData icon;
   final IconData activeIcon;
   final String label;
   final String route;
+
+  /// Optional live trailing widget (e.g. an unread badge). Built per-frame so it
+  /// can react to a cubit. Kept generic so `core/` never hardcodes a feature.
+  final WidgetBuilder? trailingBuilder;
 }
 
 /// An optionally-titled group of destinations.
@@ -240,6 +245,8 @@ class _SidebarRowState extends State<_SidebarRow> {
                     ),
                   ),
                 ),
+                if (widget.item.trailingBuilder != null)
+                  widget.item.trailingBuilder!(context),
                 if (widget.shortcutHint != null)
                   AnimatedOpacity(
                     duration: const Duration(milliseconds: 150),

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/enums/audit_event_type.dart';
@@ -75,11 +74,11 @@ class RequestsListCubit extends Cubit<RequestsListState> {
     await _sub?.cancel();
     _sub = null;
 
-    developer.log(
-      '[REQUESTS] load: role=${user.role.value}, uid=${user.uid}, '
-      'branch=${user.branchId ?? '-'}',
-      name: 'REQUESTS',
-    );
+    AppLog.call('requests', 'load', meta: {
+      'role': user.role.value,
+      'uid': user.uid,
+      'branch': user.branchId ?? '-',
+    });
 
     final Stream<List<RequestEntity>> stream;
     if (user.role.isAdmin) {
@@ -96,8 +95,7 @@ class RequestsListCubit extends Cubit<RequestsListState> {
     _sub = stream.listen(
       (requests) => _emitLoaded(requests),
       onError: (Object error, StackTrace st) {
-        developer.log('[REQUESTS] stream error: $error',
-            name: 'REQUESTS', error: error, stackTrace: st);
+        AppLog.error('requests', 'stream error', error, st);
         emit(const RequestsListState.error(
             'Failed to load requests. Please try again.'));
       },

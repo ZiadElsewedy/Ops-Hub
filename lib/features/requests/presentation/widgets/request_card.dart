@@ -223,7 +223,15 @@ class _MetaText extends StatelessWidget {
       children: [
         Icon(icon, size: 12, color: c),
         const SizedBox(width: 4),
-        Text(text, style: AppTypography.labelSmall.copyWith(color: c)),
+        // Cap + ellipsize so a very long requester/branch name can't overflow
+        // its line in the parent Wrap (min-size Row doesn't ellipsize on its own).
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 220),
+          child: Text(text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.labelSmall.copyWith(color: c)),
+        ),
       ],
     );
   }

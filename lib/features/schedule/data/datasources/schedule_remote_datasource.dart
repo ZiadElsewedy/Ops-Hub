@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:drop/core/constants/app_constants.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/leave_type.dart';
 import 'package:drop/core/enums/schedule_day.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
@@ -431,12 +431,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
         'scheduleId': scheduleId,
       });
     } on FirebaseFunctionsException catch (e, st) {
-      developer.log(
-        'approveSwap callable failed: code=${e.code} message=${e.message}',
-        name: 'schedule',
-        error: e,
-        stackTrace: st,
-      );
+      AppLog.error('schedule',
+          'approveSwap callable failed: code=${e.code} message=${e.message}',
+          e, st);
       throw ServerException(_friendlyFunctionsError(e));
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to approve the swap.');

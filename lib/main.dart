@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drop/core/config/app_environment.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/observability/crash_reporter.dart';
 import 'package:drop/core/routes/app_router.dart';
@@ -17,6 +18,7 @@ import 'package:drop/core/services/usage_tracker.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/theme/app_theme.dart';
+import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/auth/presentation/pages/splash_page.dart';
@@ -139,6 +141,12 @@ class _LaunchAppState extends State<LaunchApp> {
 }
 
 Future<GoRouter> _initializeRuntime() async {
+  // Startup banner — states which backend this build targets. The URL is a pure
+  // function of build mode (see AppEnvironment), so this is the ground truth:
+  // "Development / Debug / localhost" for `flutter run`, "Production / Release /
+  // Railway" for any release artifact.
+  debugPrint(AppEnvironment.current.startupBanner);
+
   if (Firebase.apps.isEmpty) {
     await AppLog.time(
       'boot',
@@ -361,6 +369,7 @@ class App extends StatelessWidget {
         BlocProvider.value(value: AppDependencies.broadcastScheduleCubit),
         BlocProvider.value(value: AppDependencies.notificationCubit),
         BlocProvider.value(value: AppDependencies.caseListCubit),
+        BlocProvider.value(value: AppDependencies.chatListCubit),
         BlocProvider.value(value: AppDependencies.requestsListCubit),
         BlocProvider.value(value: AppDependencies.attendanceCubit),
         BlocProvider.value(value: AppDependencies.attendanceAdminCubit),
@@ -376,6 +385,12 @@ class App extends StatelessWidget {
           scaffoldMessengerKey: _messengerKey,
           routerConfig: router,
           debugShowCheckedModeBanner: false,
+          // Above the router so a new chat message can raise an in-app banner
+          // from any screen (suppressed for the conversation on screen).
+          builder: (context, child) => ChatNotificationListener(
+            router: router,
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     );

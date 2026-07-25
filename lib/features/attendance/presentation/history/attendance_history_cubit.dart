@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/attendance_status_filter.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/features/attendance/domain/attendance_analytics.dart';
@@ -176,8 +176,7 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
   }
 
   void _onStreamError(Object e, StackTrace st) {
-    developer.log('[ATTENDANCE] history stream error: $e',
-        name: 'ATTENDANCE', error: e, stackTrace: st);
+    AppLog.error('attendance', 'history stream error', e, st);
     if (!isClosed) {
       emit(const AttendanceHistoryState.error('Failed to load attendance.'));
     }

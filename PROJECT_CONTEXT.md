@@ -75,13 +75,15 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | State | `flutter_bloc` — **Cubits only** | [ADR-002](docs/decisions/ADR-002-cubit-only.md) |
 | Navigation | `go_router` | Auth-aware redirects + role guards |
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
+| Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
+| Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Caches metadata/URLs, **never image bytes** |
 | Server logic | Cloud Functions (Node.js, `functions/`) | 21 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS unconfigured — see CURRENT_STATE |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
 | Serialization | `json_serializable` | |
 | Media | `image_picker` · `image_cropper` · `video_compress` | Mobile-gated |
+| Open documents | `open_filex` | Chat document attachments → platform default app (desktop via OS `Process`); confined to `features/chat/` |
 | Location | `geolocator` | Attendance GPS |
-| Secure storage | `flutter_secure_storage` | |
 | Codegen | `build_runner` | |
 
 **Platforms:** iOS · Android · macOS. Desktop is a first-class target, not an
@@ -145,7 +147,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 
 ## 4. Module map
 
-17 features in `lib/features/`. Detail lives in the linked design doc — not here.
+18 features in `lib/features/`. Detail lives in the linked design doc — not here.
 
 | Module | Owns | Design doc |
 | --- | --- | --- |
@@ -156,6 +158,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `requests` | Employee → manager yes/no approvals | [REQUESTS](docs/design/REQUESTS.md) |
 | `cases` | Private employee ↔ manager/admin conversations | [CASES](docs/design/CASES.md) |
+| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync); REST is the source of truth) | — |
 | `communications` | Broadcasts, templates, schedules, reminders | [COMMUNICATIONS](docs/design/COMMUNICATIONS.md) |
 | `notifications` | Notification inbox + deep-link resolver | [NOTIFICATIONS](docs/design/NOTIFICATIONS.md) |
 | `operations` | Branch Operations cockpit: workload, KPI drills | [TASKS](docs/design/TASKS.md) |
@@ -180,9 +183,10 @@ features' cubits.
 | `errors/` | `exceptions.dart` (data) · `failures.dart` (domain) |
 | `extensions/` | `context_extensions` (currentUser/role) · `firestore_extensions` (`map.date`) |
 | `media/` | `MediaUploadService` — the **single** Storage seam for all attachments |
+| `network/` | `ApiClient` — the single authenticated HTTP seam for the NestJS chat API (+ `NetworkConfig`). Consumed only by `features/chat/` |
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
-| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (43 routes) |
+| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (45 routes) |
 | `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` |
@@ -200,6 +204,9 @@ Reuse these. Do not re-implement or duplicate them.
 | --- | --- |
 | Any `DateTime` → string | `core/utils/app_date_formatter.dart` |
 | Any Storage upload | `core/media/media_upload_service.dart` |
+| Any NestJS API call | `core/network/api_client.dart` (never import `dio` elsewhere) |
+| Chat realtime (socket) | `features/chat/data/realtime/chat_socket_service.dart` (never import `socket_io_client` elsewhere; consume the `ChatRealtime` port) |
+| Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Metadata/URLs only, **never image bytes** |
 | Task status → colour | `core/widgets/status_badge.dart` (`taskStatusColor`) |
 | Structured logging | `core/utils/app_logger.dart` (`AppLog`) |
 | Shift slot timing | `schedule/domain/shift_window.dart` |
@@ -381,7 +388,19 @@ Mirrored in `firestore.rules` — the client is never the enforcement point.
 | --- | --- |
 | **admin** | Global. Not restricted by `branchId`. Can do everything a manager can, everywhere. |
 | **manager** | Exactly one branch; limited to `resource.branchId == manager.branchId`. |
-| **employee** | Own assigned data and profile. **Read-only exception:** any branch member may *read* other `users` in their own branch (the schedule needs it). Writes to user docs stay admin-only. |
+| **employee** | Own assigned data and profile. **Read-only exception:** any signed-in user may *read* any `users` doc (flat directory — see below). Writes to user docs stay admin-only. |
+
+> **An admin has no `branchId`.** The role is global, so account provisioning
+> deliberately omits the branch (`create_account_screen._needsBranch`). It follows
+> that **no `where('branchId', ...)` query can ever return an admin, or return
+> anything at all *for* an admin** — a branch read is not a directory.
+>
+> **Exception — `users` READS are flat** ([ADR-012](docs/decisions/ADR-012-chat-directory-is-flat.md)):
+> any signed-in user may read any user document, because chat's directory is
+> org-wide (anyone may message anyone). The table above still governs every other
+> collection, and still governs all `users` **writes**. Chat's directory is
+> `GetChatDirectory` — one unfiltered read, filtered only by self-exclusion and
+> `isActive`. Do not re-introduce branch or role scoping into it.
 
 - Parse roles with `UserRole.fromString`, which **defaults unknown/missing to
   `employee`** so a bad document can never escalate privileges. Use the

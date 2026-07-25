@@ -36,4 +36,5 @@ extension AuthContextX on BuildContext {
 extension MessagesContextX on BuildContext {
   void showSuccess(String message) => AppSnackbar.success(this, message);
   void showError(String message) => AppSnackbar.error(this, message);
+  void showInfo(String message) => AppSnackbar.info(this, message);
 }

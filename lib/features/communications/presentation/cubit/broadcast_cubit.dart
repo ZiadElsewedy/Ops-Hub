@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/broadcast_audience.dart';
 import 'package:drop/core/errors/failures.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
@@ -62,8 +62,7 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     try {
       return await _repository.getBroadcast(id);
     } catch (e, st) {
-      developer.log('Broadcast: fetchById failed',
-          name: 'communications', error: e, stackTrace: st);
+      AppLog.error('communications', 'fetchById failed', e, st);
       return null;
     }
   }
@@ -82,8 +81,7 @@ class BroadcastCubit extends Cubit<BroadcastState> {
         emit(BroadcastState.loaded(broadcasts, sending: _sending));
       },
       onError: (Object e, StackTrace st) {
-        developer.log('Broadcast: feed stream error',
-            name: 'communications', error: e, stackTrace: st);
+        AppLog.error('communications', 'feed stream error', e, st);
         // Only surface if no first snapshot arrived; otherwise keep the last
         // good feed visible (mirrors TaskCubit / BranchOperationsCubit).
         if (!_hasSnapshot) emit(BroadcastState.error(_message(e)));

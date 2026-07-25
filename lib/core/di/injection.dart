@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:drop/core/media/media_upload_service.dart';
+import 'package:drop/core/network/api_client.dart';
+import 'package:drop/core/network/network_config.dart';
 import 'package:drop/core/services/case_seen_store.dart';
 import 'package:drop/core/services/notification_service.dart';
 import 'package:drop/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -115,9 +118,189 @@ import 'package:drop/features/audit/data/repositories/audit_repository_impl.dart
 import 'package:drop/features/audit/domain/repositories/audit_repository.dart';
 import 'package:drop/features/audit/domain/services/event_tracking_service.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart' show UserEntity;
+import 'package:drop/features/chat/data/datasources/chat_remote_datasource.dart';
+import 'package:drop/features/chat/data/local/chat_database.dart';
+import 'package:drop/features/chat/data/local/chat_local_datasource.dart';
+import 'package:drop/features/chat/data/realtime/chat_socket_service.dart';
+import 'package:drop/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:drop/features/chat/domain/chat_realtime.dart';
+import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:drop/features/chat/domain/usecases/delete_chat_message_for_everyone.dart';
+import 'package:drop/features/chat/domain/usecases/delete_chat_message_for_me.dart';
+import 'package:drop/features/chat/domain/entities/chat_message.dart';
+import 'package:drop/features/chat/domain/usecases/get_chat_attachment_url.dart';
+import 'package:drop/features/chat/domain/usecases/get_chat_directory.dart';
+import 'package:drop/features/chat/domain/usecases/get_conversation.dart';
+import 'package:drop/features/chat/domain/usecases/get_cached_conversations.dart';
+import 'package:drop/features/chat/domain/usecases/get_conversations.dart';
+import 'package:drop/features/chat/domain/usecases/load_chat_history.dart';
+import 'package:drop/features/chat/domain/usecases/mark_chat_read.dart';
+import 'package:drop/features/chat/domain/usecases/send_chat_message.dart';
+import 'package:drop/features/chat/domain/usecases/start_conversation.dart';
+import 'package:drop/features/chat/presentation/chat_attachment_picker.dart';
+import 'package:drop/features/chat/presentation/chat_thread_cache.dart';
+import 'package:drop/features/chat/presentation/cubit/chat_conversation_cubit.dart';
+import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:drop/features/chat/presentation/cubit/new_chat_cubit.dart';
 
 class AppDependencies {
   AppDependencies._();
+
+  /// The authenticated HTTP seam for the external NestJS API (chat backend).
+  /// Built in [init]; consumed by the chat feature's datasource.
+  static late final ApiClient apiClient;
+
+  /// Direct (1:1) chat — domain + data layers over the NestJS API (Phase 2).
+  static late final ChatRepository chatRepository;
+
+  /// Direct chat — the realtime channel (Socket.IO). Read-only delivery; all
+  /// writes stay on [chatRepository]. Lazily connected while any thread cubit
+  /// has its conversation joined.
+  static late final ChatRealtime chatRealtime;
+
+  /// Direct chat — the inbox list cubit (singleton, app-wide), mirroring
+  /// [caseListCubit]'s role for Cases.
+  static late final ChatListCubit chatListCubit;
+
+  /// The conversation the user is currently viewing (its id), or null. Set by
+  /// the open thread screen and read by the in-app notification listener so a
+  /// message for the on-screen conversation never raises a redundant banner.
+  static final ValueNotifier<String?> activeChatConversation =
+      ValueNotifier<String?>(null);
+
+  // Direct chat — read/write use cases, kept so a fresh per-thread
+  // [ChatConversationCubit] can be built on demand (one per opened thread).
+  static late final GetConversation _getChatConversation;
+  static late final DeleteChatMessageForMe _deleteChatMessageForMe;
+  static late final DeleteChatMessageForEveryone _deleteChatMessageForEveryone;
+  static late final LoadChatHistory _loadChatHistory;
+  static late final SendChatMessage _sendChatMessage;
+  static late final MarkChatRead _markChatRead;
+  static late final GetChatAttachmentUrl _getChatAttachmentUrl;
+
+  /// Builds a fresh thread cubit for [conversationId] (owned + disposed by its
+  /// `BlocProvider`; re-created when the opened conversation changes).
+  /// [counterpartUserId] — the other participant's backend-internal id — is
+  /// passed when known (list rows carry it) so own-message alignment works
+  /// before the first send.
+  static ChatConversationCubit createChatConversationCubit(
+    String conversationId, {
+    String? counterpartUserId,
+  }) =>
+      ChatConversationCubit(
+        getConversation: _getChatConversation,
+        loadHistory: _loadChatHistory,
+        sendMessage: _sendChatMessage,
+        markRead: _markChatRead,
+        deleteForMe: _deleteChatMessageForMe,
+        deleteForEveryone: _deleteChatMessageForEveryone,
+        conversationId: conversationId,
+        counterpartUserId: counterpartUserId,
+        realtime: chatRealtime,
+        cache: _chatThreadCache,
+        getAttachmentUrl: _getChatAttachmentUrl,
+      );
+
+  /// Cache of opened threads — lets a re-opened conversation paint its last
+  /// messages instantly while it refreshes in the background. Constructed
+  /// eagerly (static helpers reference it before [init] runs in tests); its
+  /// durable Drift tier is attached during [init] so the instant open survives
+  /// a full app restart.
+  static final ChatThreadCache _chatThreadCache = ChatThreadCache();
+
+  /// The Drift-backed offline cache for chat (conversations, messages,
+  /// reply/attachment metadata, send outbox). The single durable seam; wired
+  /// into both [chatRepository] and [_chatThreadCache].
+  static late final ChatLocalDataSource _chatLocalDataSource;
+
+  /// Wipes the chat offline cache (both tiers) — the cache-invalidation hook,
+  /// called on sign-out so a shared device never leaks one user's conversations
+  /// to the next. Best-effort: a failure is swallowed (nothing to recover).
+  static Future<void> clearChatCache() async {
+    _chatThreadCache.clear();
+    try {
+      await _chatLocalDataSource.clearAll();
+    } catch (_) {/* cache clear is best-effort */}
+  }
+
+  /// The newest message of [conversationId], for an inbox last-message preview.
+  /// Prefers the in-memory thread snapshot (instant, covers threads touched
+  /// this session — including the caller's own sends, which the socket never
+  /// echoes back); otherwise a one-item history fetch. Presentation-only
+  /// enrichment (the list endpoint carries no body); null on failure or an
+  /// empty thread. Reuses the existing [LoadChatHistory] use case — no new
+  /// contract.
+  static Future<ChatMessage?> latestChatMessage(String conversationId) async {
+    final cached = _chatThreadCache.get(conversationId);
+    if (cached != null && cached.messages.isNotEmpty) {
+      return cached.messages.last;
+    }
+    try {
+      final page =
+          await _loadChatHistory(conversationId: conversationId, limit: 1);
+      if (page.items.isEmpty) return null;
+      return page.items.reduce((a, b) => a.seq >= b.seq ? a : b);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Attachment source for the chat composer (camera/gallery/documents).
+  static final ChatAttachmentSource chatAttachmentSource =
+      ChatAttachmentPicker();
+
+  /// Chat directory use case — who the caller may message (set in [init] once
+  /// the auth repository exists). Shared by the picker and the inbox so both
+  /// resolve the same people.
+  static late final GetChatDirectory _getChatDirectory;
+
+  /// Builds a fresh new-conversation picker cubit for [user], excluding [user]
+  /// themselves. Owned + disposed by its `BlocProvider`.
+  static NewChatCubit createNewChatCubit(UserEntity? user) => NewChatCubit(
+        getChatDirectory: _getChatDirectory,
+        currentUser: user,
+      );
+
+  /// Session-cached chat directory (Firebase uid → user), so every widget that
+  /// resolves a chat name reads the SAME warm map instead of each doing its own
+  /// Firestore read on mount. Empty until the first load; cleared on sign-out.
+  static final Map<String, UserEntity> _chatDirectory = {};
+  static String? _chatDirectoryUid;
+
+  /// The cached chat directory as it stands right now — synchronous, so a widget
+  /// can seed real names on its FIRST build instead of rendering a "Teammate"
+  /// placeholder that only resolves after an async load (the flash the owner
+  /// reported). Empty on a cold start, before [loadChatDirectory] has run once.
+  static Map<String, UserEntity> get chatDirectorySnapshot => _chatDirectory;
+
+  /// The [user]'s chat directory keyed by **Firebase uid**, so the chat UI can
+  /// resolve a conversation's `counterpartExternalId` to a real name/avatar/
+  /// role. Same set as the picker ([GetChatDirectory]) — so any thread renders
+  /// a name rather than a raw id, whoever the counterpart is. Used by the inbox
+  /// + thread + home widgets.
+  ///
+  /// Served from a session cache: a warm cache for the same user returns
+  /// immediately (the set changes rarely), so repeat mounts don't re-read or
+  /// re-flash. The cache is refreshed whenever the set is (re)loaded.
+  static Future<Map<String, UserEntity>> loadChatDirectory(
+      UserEntity? user) async {
+    if (_chatDirectory.isNotEmpty && _chatDirectoryUid == user?.uid) {
+      return _chatDirectory;
+    }
+    final users = await _getChatDirectory(user);
+    _chatDirectory
+      ..clear()
+      ..addEntries(users.map((u) => MapEntry(u.uid, u)));
+    _chatDirectoryUid = user?.uid;
+    return _chatDirectory;
+  }
+
+  /// Drops the cached directory — on sign-out, so the next user never resolves a
+  /// name against the previous user's directory.
+  static void clearChatDirectory() {
+    _chatDirectory.clear();
+    _chatDirectoryUid = null;
+  }
 
   static late final AuthCubit authCubit;
   static late final ProfileCubit profileCubit;
@@ -264,6 +447,49 @@ class AppDependencies {
   static late final AuditRepository auditRepository;
 
   static void init() {
+    // ─── NestJS API foundation (chat backend · Phase 1) ─────────
+    // Firebase stays the identity provider: every request carries the caller's
+    // Firebase ID token (cached by the SDK; force-refreshed once on a 401).
+    // Signed out → null → the request goes out bare and the server rejects it.
+    Future<String?> nestTokenProvider({bool forceRefresh = false}) async =>
+        FirebaseAuth.instance.currentUser?.getIdToken(forceRefresh);
+    apiClient = ApiClient(
+      baseUrl: NetworkConfig.apiBaseUrl,
+      tokenProvider: nestTokenProvider,
+    );
+
+    // Realtime channel (Socket.IO `/chat` namespace) — same identity, same
+    // base URL. Connects lazily on the first joined conversation and drops
+    // the socket when none remain; REST stays the source of truth.
+    chatRealtime = ChatSocketService(
+      baseUrl: NetworkConfig.apiBaseUrl,
+      tokenProvider: nestTokenProvider,
+    );
+
+    // Direct chat. One remote datasource over the shared ApiClient + one Drift
+    // local datasource (the offline cache); the repository orchestrates both.
+    // The list cubit is an app-wide singleton and thread cubits are built per
+    // opened conversation (see createChatConversationCubit).
+    _chatLocalDataSource = ChatLocalDataSourceImpl(ChatDatabase.open());
+    _chatThreadCache.attachLocal(_chatLocalDataSource);
+    chatRepository = ChatRepositoryImpl(
+      ChatRemoteDataSourceImpl(apiClient),
+      _chatLocalDataSource,
+    );
+    _getChatConversation = GetConversation(chatRepository);
+    _deleteChatMessageForMe = DeleteChatMessageForMe(chatRepository);
+    _deleteChatMessageForEveryone = DeleteChatMessageForEveryone(chatRepository);
+    _loadChatHistory = LoadChatHistory(chatRepository);
+    _sendChatMessage = SendChatMessage(chatRepository);
+    _markChatRead = MarkChatRead(chatRepository);
+    _getChatAttachmentUrl = GetChatAttachmentUrl(chatRepository);
+    chatListCubit = ChatListCubit(
+      getConversations: GetConversations(chatRepository),
+      startConversation: StartConversation(chatRepository),
+      getCachedConversations: GetCachedConversations(chatRepository),
+      realtime: chatRealtime,
+    );
+
     final authRemoteDataSource = AuthRemoteDataSourceImpl(FirebaseAuth.instance);
     final userRemoteDataSource = UserRemoteDataSourceImpl(FirebaseFirestore.instance);
     final profileRemoteDataSource = ProfileRemoteDataSourceImpl(
@@ -281,6 +507,10 @@ class AppDependencies {
 
     final AuthRepository authRepository =
         AuthRepositoryImpl(authRemoteDataSource, userRemoteDataSource);
+
+    // Chat directory (every active user but the caller — flat, no branch/role)
+    // — the picker and the inbox share it.
+    _getChatDirectory = GetChatDirectory(authRepository);
 
     final ProfileRepository profileRepository =
         ProfileRepositoryImpl(profileRemoteDataSource, authRemoteDataSource);
@@ -322,7 +552,17 @@ class AppDependencies {
       // authenticated), so the signed-out account stops receiving this device's
       // pushes. `notificationService` is a `late final` static assigned later in
       // init(); the closure is invoked only at sign-out, long after it's set.
-      onPreSignOut: () => notificationService.forgetUser(),
+      // Also wipe the chat offline cache so a shared device never leaks one
+      // user's conversations to the next (cache invalidation).
+      onPreSignOut: () async {
+        await notificationService.forgetUser();
+        await clearChatCache();
+        // Reset the app-wide inbox cubit's in-memory state too: it outlives the
+        // sign-out, so without this the next signed-in user would briefly see
+        // the previous user's conversations before the network refresh lands.
+        chatListCubit.reset();
+        clearChatDirectory();
+      },
     );
 
     profileCubit = ProfileCubit(

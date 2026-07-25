@@ -6,6 +6,13 @@ abstract class UserRemoteDataSource {
   Future<UserModel?> getUser(String uid);
   Future<List<UserModel>> getUsersByBranch(String branchId);
 
+  /// Every user document, unfiltered. Backs the **chat directory**, whose access
+  /// model is deliberately flat: anyone signed in may message anyone else, so
+  /// there is no branch or role predicate to push into the query. Rules permit
+  /// this read for any signed-in user; the caller applies whatever presentation
+  /// filtering it needs (see `GetChatDirectory`).
+  Future<List<UserModel>> getAllUsers();
+
   /// Live stream of a user's document — used to detect role/access changes in
   /// real time (e.g. an admin disabling the account mid-session) without polling.
   Stream<UserModel?> watchUser(String uid);
@@ -54,6 +61,19 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
           .toList();
     } on FirebaseException catch (e) {
       throw AuthException(e.message ?? 'Failed to load branch members.');
+    }
+  }
+
+  @override
+  Future<List<UserModel>> getAllUsers() async {
+    try {
+      final snap = await _users.get();
+      return snap.docs
+          .where((d) => d.data().isNotEmpty)
+          .map((d) => UserModel.fromMap(d.data()))
+          .toList();
+    } on FirebaseException catch (e) {
+      throw AuthException(e.message ?? 'Failed to load users.');
     }
   }
 
