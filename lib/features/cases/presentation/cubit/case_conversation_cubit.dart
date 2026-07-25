@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/case_status.dart';
 import 'package:drop/core/errors/failures.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
@@ -58,8 +58,7 @@ class CaseConversationCubit extends Cubit<CaseConversationState> {
         _emit();
       },
       onError: (Object e, StackTrace st) {
-        developer.log('[CASES] watchCase error: $e',
-            name: 'CASES', error: e, stackTrace: st);
+        AppLog.error('cases', 'watchCase error', e, st);
         emit(const CaseConversationState.error('Failed to load the case.'));
         _emit();
       },
@@ -70,8 +69,7 @@ class CaseConversationCubit extends Cubit<CaseConversationState> {
         _emit();
       },
       onError: (Object e, StackTrace st) {
-        developer.log('[CASES] watchMessages error: $e',
-            name: 'CASES', error: e, stackTrace: st);
+        AppLog.error('cases', 'watchMessages error', e, st);
       },
     );
   }

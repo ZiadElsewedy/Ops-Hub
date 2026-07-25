@@ -1,8 +1,7 @@
-import 'dart:developer' as developer;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:drop/core/constants/app_constants.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/features/communications/data/models/broadcast_model.dart';
 
@@ -69,12 +68,9 @@ class BroadcastRemoteDataSourceImpl implements BroadcastRemoteDataSource {
         deliveredCount: (data['deliveredCount'] as num?)?.toInt(),
       );
     } on FirebaseFunctionsException catch (e, st) {
-      developer.log(
-        'sendBroadcast callable failed: code=${e.code} message=${e.message}',
-        name: 'communications',
-        error: e,
-        stackTrace: st,
-      );
+      AppLog.error('communications',
+          'sendBroadcast callable failed: code=${e.code} message=${e.message}',
+          e, st);
       throw ServerException(_friendlyFunctionsError(e));
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to send broadcast.');
@@ -138,8 +134,7 @@ class BroadcastRemoteDataSourceImpl implements BroadcastRemoteDataSource {
     } on FirebaseException catch (e, st) {
       // A permission-denied here means the caller can't read this broadcast
       // (not a recipient) — treat as "unavailable", never a crash.
-      developer.log('getBroadcast failed: ${e.code}',
-          name: 'communications', error: e, stackTrace: st);
+      AppLog.error('communications', 'getBroadcast failed: ${e.code}', e, st);
       return null;
     }
   }

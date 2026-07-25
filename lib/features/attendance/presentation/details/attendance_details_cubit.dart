@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
@@ -59,8 +59,7 @@ class AttendanceDetailsCubit extends Cubit<AttendanceDetailsState> {
         // record == null but we have a seed → keep the seed on screen.
       },
       onError: (Object e, StackTrace st) {
-        developer.log('[ATTENDANCE] details record stream error: $e',
-            name: 'ATTENDANCE', error: e, stackTrace: st);
+        AppLog.error('attendance', 'details record stream error', e, st);
         if (_record == null && !isClosed) {
           emit(const AttendanceDetailsState.error(
               'Couldn\'t open this attendance record.'));
@@ -75,11 +74,8 @@ class AttendanceDetailsCubit extends Cubit<AttendanceDetailsState> {
         _events = events;
         _emit();
       },
-      onError: (Object e, StackTrace st) => developer.log(
-          '[ATTENDANCE] details events stream error: $e',
-          name: 'ATTENDANCE',
-          error: e,
-          stackTrace: st),
+      onError: (Object e, StackTrace st) =>
+          AppLog.error('attendance', 'details events stream error', e, st),
     );
 
     _correctionsSub = _repository.watchRecordCorrections(recordId).listen(
@@ -87,11 +83,8 @@ class AttendanceDetailsCubit extends Cubit<AttendanceDetailsState> {
         _corrections = corrections;
         _emit();
       },
-      onError: (Object e, StackTrace st) => developer.log(
-          '[ATTENDANCE] details corrections stream error: $e',
-          name: 'ATTENDANCE',
-          error: e,
-          stackTrace: st),
+      onError: (Object e, StackTrace st) =>
+          AppLog.error('attendance', 'details corrections stream error', e, st),
     );
   }
 

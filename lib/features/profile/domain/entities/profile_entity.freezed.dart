@@ -49,11 +49,6 @@ mixin _$ProfileEntity {
   String get accountStatus => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt =>
-      throw _privateConstructorUsedError; // ─── Social (counters — backend not yet implemented) ────────
-  int get followersCount => throw _privateConstructorUsedError;
-  int get followingCount => throw _privateConstructorUsedError;
-  int get postsCount => throw _privateConstructorUsedError;
-  int get likesCount =>
       throw _privateConstructorUsedError; // ─── Presence ───────────────────────────────────────────────
   bool get isOnline => throw _privateConstructorUsedError;
   DateTime? get lastSeen =>
@@ -98,10 +93,6 @@ abstract class $ProfileEntityCopyWith<$Res> {
     String accountStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
-    int followersCount,
-    int followingCount,
-    int postsCount,
-    int likesCount,
     bool isOnline,
     DateTime? lastSeen,
     bool isProfilePublic,
@@ -146,10 +137,6 @@ class _$ProfileEntityCopyWithImpl<$Res, $Val extends ProfileEntity>
     Object? accountStatus = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
-    Object? followersCount = null,
-    Object? followingCount = null,
-    Object? postsCount = null,
-    Object? likesCount = null,
     Object? isOnline = null,
     Object? lastSeen = freezed,
     Object? isProfilePublic = null,
@@ -242,22 +229,6 @@ class _$ProfileEntityCopyWithImpl<$Res, $Val extends ProfileEntity>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
-            followersCount: null == followersCount
-                ? _value.followersCount
-                : followersCount // ignore: cast_nullable_to_non_nullable
-                      as int,
-            followingCount: null == followingCount
-                ? _value.followingCount
-                : followingCount // ignore: cast_nullable_to_non_nullable
-                      as int,
-            postsCount: null == postsCount
-                ? _value.postsCount
-                : postsCount // ignore: cast_nullable_to_non_nullable
-                      as int,
-            likesCount: null == likesCount
-                ? _value.likesCount
-                : likesCount // ignore: cast_nullable_to_non_nullable
-                      as int,
             isOnline: null == isOnline
                 ? _value.isOnline
                 : isOnline // ignore: cast_nullable_to_non_nullable
@@ -315,10 +286,6 @@ abstract class _$$ProfileEntityImplCopyWith<$Res>
     String accountStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
-    int followersCount,
-    int followingCount,
-    int postsCount,
-    int likesCount,
     bool isOnline,
     DateTime? lastSeen,
     bool isProfilePublic,
@@ -362,10 +329,6 @@ class __$$ProfileEntityImplCopyWithImpl<$Res>
     Object? accountStatus = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
-    Object? followersCount = null,
-    Object? followingCount = null,
-    Object? postsCount = null,
-    Object? likesCount = null,
     Object? isOnline = null,
     Object? lastSeen = freezed,
     Object? isProfilePublic = null,
@@ -458,22 +421,6 @@ class __$$ProfileEntityImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
-        followersCount: null == followersCount
-            ? _value.followersCount
-            : followersCount // ignore: cast_nullable_to_non_nullable
-                  as int,
-        followingCount: null == followingCount
-            ? _value.followingCount
-            : followingCount // ignore: cast_nullable_to_non_nullable
-                  as int,
-        postsCount: null == postsCount
-            ? _value.postsCount
-            : postsCount // ignore: cast_nullable_to_non_nullable
-                  as int,
-        likesCount: null == likesCount
-            ? _value.likesCount
-            : likesCount // ignore: cast_nullable_to_non_nullable
-                  as int,
         isOnline: null == isOnline
             ? _value.isOnline
             : isOnline // ignore: cast_nullable_to_non_nullable
@@ -524,10 +471,6 @@ class _$ProfileEntityImpl extends _ProfileEntity {
     this.accountStatus = 'active',
     this.createdAt,
     this.updatedAt,
-    this.followersCount = 0,
-    this.followingCount = 0,
-    this.postsCount = 0,
-    this.likesCount = 0,
     this.isOnline = false,
     this.lastSeen,
     this.isProfilePublic = true,
@@ -591,19 +534,6 @@ class _$ProfileEntityImpl extends _ProfileEntity {
   final DateTime? createdAt;
   @override
   final DateTime? updatedAt;
-  // ─── Social (counters — backend not yet implemented) ────────
-  @override
-  @JsonKey()
-  final int followersCount;
-  @override
-  @JsonKey()
-  final int followingCount;
-  @override
-  @JsonKey()
-  final int postsCount;
-  @override
-  @JsonKey()
-  final int likesCount;
   // ─── Presence ───────────────────────────────────────────────
   @override
   @JsonKey()
@@ -623,7 +553,7 @@ class _$ProfileEntityImpl extends _ProfileEntity {
 
   @override
   String toString() {
-    return 'ProfileEntity(uid: $uid, email: $email, phoneNumber: $phoneNumber, authProvider: $authProvider, fullName: $fullName, username: $username, profileImage: $profileImage, coverImage: $coverImage, bio: $bio, gender: $gender, birthDate: $birthDate, country: $country, city: $city, website: $website, address: $address, emergencyContact: $emergencyContact, paymentNumber: $paymentNumber, isVerified: $isVerified, accountStatus: $accountStatus, createdAt: $createdAt, updatedAt: $updatedAt, followersCount: $followersCount, followingCount: $followingCount, postsCount: $postsCount, likesCount: $likesCount, isOnline: $isOnline, lastSeen: $lastSeen, isProfilePublic: $isProfilePublic, allowMessages: $allowMessages, allowNotifications: $allowNotifications)';
+    return 'ProfileEntity(uid: $uid, email: $email, phoneNumber: $phoneNumber, authProvider: $authProvider, fullName: $fullName, username: $username, profileImage: $profileImage, coverImage: $coverImage, bio: $bio, gender: $gender, birthDate: $birthDate, country: $country, city: $city, website: $website, address: $address, emergencyContact: $emergencyContact, paymentNumber: $paymentNumber, isVerified: $isVerified, accountStatus: $accountStatus, createdAt: $createdAt, updatedAt: $updatedAt, isOnline: $isOnline, lastSeen: $lastSeen, isProfilePublic: $isProfilePublic, allowMessages: $allowMessages, allowNotifications: $allowNotifications)';
   }
 
   @override
@@ -665,14 +595,6 @@ class _$ProfileEntityImpl extends _ProfileEntity {
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
                 other.updatedAt == updatedAt) &&
-            (identical(other.followersCount, followersCount) ||
-                other.followersCount == followersCount) &&
-            (identical(other.followingCount, followingCount) ||
-                other.followingCount == followingCount) &&
-            (identical(other.postsCount, postsCount) ||
-                other.postsCount == postsCount) &&
-            (identical(other.likesCount, likesCount) ||
-                other.likesCount == likesCount) &&
             (identical(other.isOnline, isOnline) ||
                 other.isOnline == isOnline) &&
             (identical(other.lastSeen, lastSeen) ||
@@ -709,10 +631,6 @@ class _$ProfileEntityImpl extends _ProfileEntity {
     accountStatus,
     createdAt,
     updatedAt,
-    followersCount,
-    followingCount,
-    postsCount,
-    likesCount,
     isOnline,
     lastSeen,
     isProfilePublic,
@@ -752,10 +670,6 @@ abstract class _ProfileEntity extends ProfileEntity {
     final String accountStatus,
     final DateTime? createdAt,
     final DateTime? updatedAt,
-    final int followersCount,
-    final int followingCount,
-    final int postsCount,
-    final int likesCount,
     final bool isOnline,
     final DateTime? lastSeen,
     final bool isProfilePublic,
@@ -813,15 +727,7 @@ abstract class _ProfileEntity extends ProfileEntity {
   @override
   DateTime? get createdAt;
   @override
-  DateTime? get updatedAt; // ─── Social (counters — backend not yet implemented) ────────
-  @override
-  int get followersCount;
-  @override
-  int get followingCount;
-  @override
-  int get postsCount;
-  @override
-  int get likesCount; // ─── Presence ───────────────────────────────────────────────
+  DateTime? get updatedAt; // ─── Presence ───────────────────────────────────────────────
   @override
   bool get isOnline;
   @override

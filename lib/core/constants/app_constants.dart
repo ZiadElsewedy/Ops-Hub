@@ -54,6 +54,5 @@ class AppConstants {
   static const String broadcastTemplatesCollection = 'broadcastTemplates';
   static const String broadcastSchedulesCollection = 'broadcastSchedules';
   static const String reminderConfigCollection = 'reminderConfig';
-  static const String savedAudiencesCollection = 'savedAudiences';
   static const String taskRemindersCollection = 'taskReminders';
 }

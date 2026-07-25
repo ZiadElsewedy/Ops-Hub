@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/errors/failures.dart';
@@ -100,8 +99,7 @@ class NotificationCubit extends Cubit<NotificationState> {
         _pageCompleter = null;
       },
       onError: (Object e, StackTrace st) {
-        developer.log('Notification feed stream error',
-            name: 'notifications', error: e, stackTrace: st);
+        AppLog.error('notifications', 'feed stream error', e, st);
         if (!_hasSnapshot) emit(NotificationState.error(_message(e)));
         _pageCompleter?.complete();
         _pageCompleter = null;
@@ -125,8 +123,7 @@ class NotificationCubit extends Cubit<NotificationState> {
       await _markRead(id);
       // The stream re-emits with the updated readAt — no optimistic write needed.
     } catch (e, st) {
-      developer.log('markRead failed',
-          name: 'notifications', error: e, stackTrace: st);
+      AppLog.error('notifications', 'markRead failed', e, st);
     }
   }
 
@@ -136,8 +133,7 @@ class NotificationCubit extends Cubit<NotificationState> {
     try {
       await _repository.markAllRead(uid);
     } catch (e, st) {
-      developer.log('markAllRead failed',
-          name: 'notifications', error: e, stackTrace: st);
+      AppLog.error('notifications', 'markAllRead failed', e, st);
     }
   }
 
@@ -146,8 +142,7 @@ class NotificationCubit extends Cubit<NotificationState> {
     try {
       await _repository.delete(id);
     } catch (e, st) {
-      developer.log('delete failed',
-          name: 'notifications', error: e, stackTrace: st);
+      AppLog.error('notifications', 'delete failed', e, st);
     }
   }
 
@@ -156,8 +151,7 @@ class NotificationCubit extends Cubit<NotificationState> {
     try {
       await _repository.setArchived(id, archived);
     } catch (e, st) {
-      developer.log('setArchived failed',
-          name: 'notifications', error: e, stackTrace: st);
+      AppLog.error('notifications', 'setArchived failed', e, st);
     }
   }
 
@@ -176,8 +170,7 @@ class NotificationCubit extends Cubit<NotificationState> {
     try {
       await _repository.setPinned(id, pinned);
     } catch (e, st) {
-      developer.log('setPinned failed',
-          name: 'notifications', error: e, stackTrace: st);
+      AppLog.error('notifications', 'setPinned failed', e, st);
     }
   }
 

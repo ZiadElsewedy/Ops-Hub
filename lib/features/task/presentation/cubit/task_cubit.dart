@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/utils/app_logger.dart';
@@ -232,12 +231,8 @@ class TaskCubit extends Cubit<TaskState> {
         // index surfaces here as `failed-precondition`). The UI message stays
         // friendly.
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
-            'Task stream "$sourceKey" failed',
-            name: 'TaskCubit',
-            error: error,
-            stackTrace: stackTrace,
-          );
+          AppLog.error('task', 'Task stream "$sourceKey" failed', error,
+              stackTrace);
           emit(
             const TaskState.error('Failed to load tasks. Please try again.'),
           );

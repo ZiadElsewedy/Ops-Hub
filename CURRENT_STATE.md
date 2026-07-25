@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `feature/chat-nestjs` (from `feature/attendance-management`) |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1061 pass · 5 fail** across 155 files (~24s) — all 5 are pre-existing and reproduce on a clean tree (2 splash-centering + 3 notification-probe); see [Known issues](#known-issues). Cloud Functions: **34 pass**; NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1066 pass · 2 fail** across 155 files (~24s) — the 2 remaining are the pre-existing splash-centering failures; the 3 notification-probe failures were fixed 2026-07-25 by removing the temporary auth debug probe. See [Known issues](#known-issues). Cloud Functions: **34 pass**; NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -166,16 +166,15 @@ phases and committed; what remains is deployment and on-device verification.
 The remaining `use_null_aware_elements` info is the pre-existing test-style lint
 in `task_submission_gate_test.dart`. It is not an Automation Center finding.
 
-### Failing tests (5)
+### Failing tests (2)
 
-All five reproduce with the working tree stashed — none is caused by current work.
+Both reproduce with the working tree stashed — neither is caused by current work.
 
-`test/notification_tap_flow_probe_test.dart` — all three cases fail with
-`[core/no-app] No Firebase App '[DEFAULT]'`. `AuthCubit.restoreSession` calls
-`debugLogFirebaseAuth` (`core/network/debug_auth_probe.dart`, the temporary chat
-debug logging from `dbe15fb`), which touches `FirebaseAuth.instance` in a test
-with no initialized Firebase. The probe should no-op when Firebase isn't
-initialized, or be removed with the rest of the temporary logging.
+> The three `notification_tap_flow_probe_test.dart` failures were **fixed
+> 2026-07-25** by deleting the temporary `debug_auth_probe.dart` and its two
+> `AuthCubit` call sites (the 401 chat investigation it served is long done). That
+> probe touched `FirebaseAuth.instance` during `restoreSession` in a Firebase-less
+> test; removing it is dead-code cleanup that also greened those cases.
 
 `test/splash_centering_test.dart` — both cases fail. The splash lockup's optical
 centering is off: the combined logo→bar bounding box centre sits at **375.5** where
@@ -226,21 +225,19 @@ handled as a separate backend/security task before the rules deploy.
 
 - **Light theme** exists in `AppTheme.light` but is not wired up — the app is
   hardcoded to dark in `main.dart`.
-- **Legacy social fields** (`followersCount` / `followingCount` / `postsCount` /
-  `likesCount`) linger on `ProfileEntity`, unused. Safe to delete.
 - **Account deletion** removes the Auth user but leaves `users/{uid}` in Firestore.
   Needs an `auth.user().onDelete` function.
 - ~~**`automationRuns` telemetry has no reader.**~~ Resolved 2026-07-18: it is now
   an enriched execution record with a client read layer under
   [ADR-011](docs/decisions/ADR-011-automation-observability.md), which names the
   ADR-009 decision it changes (operational observability in scope; analytics not).
-- **44 `developer.log` calls across 17 files bypass `AppLog`** (was 35/10 — drifting).
-  Their output is *not* captured in the breadcrumb ring, so those events are missing
-  from crash reports — a real observability gap, given `AppLog` claims to be the
-  single entry point. Each site needs a scope/category judgment, so it's a staged
-  consistency pass, not a sweep. (`print()` calls: 0.)
-- **`savedAudiences`** is declared in `app_constants.dart` with no reads and no rules.
-  Delete or implement.
+- **`developer.log` bypassing `AppLog`** — the 15 feature files (cubits · datasources)
+  were converted to `AppLog` on 2026-07-25, so their failures now reach the crash-report
+  breadcrumb ring. Four sites intentionally remain on `developer.log`: `main.dart` and
+  `core/services/notification_service.dart` (deliberate FCM diagnostics for the open
+  iOS-push issue — fuzzy category mapping, left for a separate judgment pass), and
+  `notify_task_event.dart` / `notify_swap_event.dart` (pure `domain/usecases/` — must
+  not import the Flutter-coupled `AppLog`). (`print()` calls: 0.)
 - **Non-realtime lists** — tasks are fully streamed; schedule/branch/admin/swap
   lists reload after mutation + pull-to-refresh.
 - **Stats aggregate client-side.** If data grows, move to Firestore `count()`.
@@ -334,7 +331,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1061 pass, 5 fail (pre-existing: 2 splash + 3 notif-probe)
+flutter test                             # expect: 1066 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 34 pass
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 45
 ls lib/features | wc -l                  # expect: 18

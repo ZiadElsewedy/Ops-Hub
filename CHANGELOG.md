@@ -16,6 +16,32 @@ released — DROP ships from branches and has no version tags.
 
 ## Unreleased
 
+### 2026-07-25
+
+- **Code-quality & refactoring sprint (behavior-preserving; no UI/logic change).**
+  Baseline held throughout: `flutter analyze` = 1 info; `flutter test` moved from
+  1061 pass / 5 fail to **1066 pass / 2 fail** (the 2 remaining are the pre-existing
+  splash-centering failures).
+  - **Dead code removed.** Deleted the temporary `core/network/debug_auth_probe.dart`
+    + its two `AuthCubit` call sites (self-labeled "DO NOT COMMIT"; the 401 chat
+    investigation it served is done) — this also greened the 3
+    `notification_tap_flow_probe` tests, which had failed only because the probe
+    touched `FirebaseAuth.instance` in a Firebase-less test. Removed the 4 unused
+    legacy social counters from `ProfileEntity`/`ProfileModel` and the unread
+    `savedAudiencesCollection` constant.
+  - **Logging consolidated onto `AppLog`.** Converted `developer.log` → `AppLog` in
+    15 feature files (cubits + datasources) so their failures reach the crash-report
+    breadcrumb ring. Left 4 sites intentionally: `main.dart` + `notification_service`
+    (deliberate FCM diagnostics for the open iOS-push issue) and the two
+    `domain/usecases/` notify events (kept pure — must not import Flutter-coupled
+    `AppLog`).
+  - **Unused dependency removed.** Dropped `flutter_secure_storage` (^9.2.2) — zero
+    references app-wide; updated the PROJECT_CONTEXT tech-stack table to match.
+  - **Reclassified as *not* safe refactors:** the "duplicate" confirm dialogs
+    (chat/automation) deliberately use `darkSurfaceElevated` + distinct radii vs.
+    `showConfirmDialog`'s `darkSurface`/r20 — consolidating would change pixels, so
+    they were left as-is per the no-UI-change / owner-sign-off rule.
+
 ### 2026-07-24
 
 - **Chat final UX/UI polish pass (P16).** Presentation-only; no architecture,

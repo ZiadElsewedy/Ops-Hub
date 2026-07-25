@@ -84,7 +84,6 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Media | `image_picker` · `image_cropper` · `video_compress` | Mobile-gated |
 | Open documents | `open_filex` | Chat document attachments → platform default app (desktop via OS `Process`); confined to `features/chat/` |
 | Location | `geolocator` | Attendance GPS |
-| Secure storage | `flutter_secure_storage` | |
 | Codegen | `build_runner` | |
 
 **Platforms:** iOS · Android · macOS. Desktop is a first-class target, not an
