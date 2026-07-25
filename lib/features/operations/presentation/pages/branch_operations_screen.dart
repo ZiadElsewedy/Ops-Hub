@@ -839,9 +839,14 @@ class _SectionLabel extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(text,
-            style: AppTypography.caption
-                .copyWith(color: AppColors.textSecondary, letterSpacing: 0.6)),
+        Expanded(
+          child: Text(text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondary, letterSpacing: 0.6)),
+        ),
+        const SizedBox(width: AppSpacing.sm),
         const Text('overload first', style: AppTypography.caption),
       ],
     );
