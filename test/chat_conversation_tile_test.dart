@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drop/core/enums/user_role.dart';
+import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
 import 'package:drop/features/chat/presentation/chat_format.dart';
@@ -32,29 +33,33 @@ void main() {
     role: UserRole.manager,
   );
 
-  Widget host(ChatConversationSummary c,
-          {UserEntity? counterpart,
-          String? title,
-          String? preview,
-          int? unreadCount}) =>
-      MaterialApp(
-        home: Scaffold(
-          body: ChatConversationTile(
-            conversation: c,
-            counterpart: counterpart,
-            title: title,
-            preview: preview,
-            unreadCount: unreadCount,
-            onTap: () {},
-          ),
-        ),
-      );
+  Widget host(
+    ChatConversationSummary c, {
+    UserEntity? counterpart,
+    String? title,
+    String? preview,
+    int? unreadCount,
+  }) => MaterialApp(
+    home: Scaffold(
+      body: ChatConversationTile(
+        conversation: c,
+        counterpart: counterpart,
+        title: title,
+        preview: preview,
+        unreadCount: unreadCount,
+        onTap: () {},
+      ),
+    ),
+  );
 
-  testWidgets('renders the deterministic counterpart label as the title',
-      (tester) async {
+  testWidgets('renders the deterministic counterpart label as the title', (
+    tester,
+  ) async {
     await tester.pumpWidget(host(active));
-    expect(find.text(chatCounterpartLabel(active.counterpartUserId)),
-        findsOneWidget);
+    expect(
+      find.text(chatCounterpartLabel(active.counterpartUserId)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a provided title overrides the fallback label', (tester) async {
@@ -62,18 +67,22 @@ void main() {
     expect(find.text('Sara K.'), findsOneWidget);
   });
 
-  testWidgets('resolves the real name + role from the counterpart profile',
-      (tester) async {
+  testWidgets('resolves the real name + role from the counterpart profile', (
+    tester,
+  ) async {
     await tester.pumpWidget(host(active, counterpart: sara));
     expect(find.text('Sara Khaled'), findsOneWidget); // real name, not id
     expect(find.text('Store Manager'), findsOneWidget); // role
     // The backend id / fallback tag is never shown.
-    expect(find.text(chatCounterpartLabel(active.counterpartUserId)),
-        findsNothing);
+    expect(
+      find.text(chatCounterpartLabel(active.counterpartUserId)),
+      findsNothing,
+    );
   });
 
-  testWidgets('never renders a "no messages"/"tap to open" placeholder',
-      (tester) async {
+  testWidgets('never renders a "no messages"/"tap to open" placeholder', (
+    tester,
+  ) async {
     // Empty conversations are hidden from the inbox upstream; the tile itself
     // must not emit any placeholder preview line (premium requirement).
     await tester.pumpWidget(host(empty));
@@ -86,13 +95,21 @@ void main() {
     expect(find.text('See you at 5'), findsOneWidget);
   });
 
-  testWidgets('unread badge shows the count and bolds the title',
-      (tester) async {
+  testWidgets('unread badge shows the count and preserves title hierarchy', (
+    tester,
+  ) async {
     await tester.pumpWidget(host(active, unreadCount: 3));
     expect(find.text('3'), findsOneWidget);
     final title = tester.widget<Text>(
-        find.text(chatCounterpartLabel(active.counterpartUserId)));
-    expect(title.style?.fontWeight, FontWeight.w700);
+      find.text(chatCounterpartLabel(active.counterpartUserId)),
+    );
+    expect(title.style?.fontSize, 16);
+    expect(title.style?.fontWeight, FontWeight.w600);
+    expect(title.style?.color, AppColors.textPrimary);
+    expect(
+      tester.getSize(find.byKey(const Key('chat-unread-badge'))),
+      const Size(20, 20),
+    );
   });
 
   testWidgets('no badge when the count is absent or zero', (tester) async {

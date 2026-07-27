@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/theme/app_radius.dart';
+import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/drop_logo.dart';
 
@@ -95,14 +97,19 @@ class AppSidebar extends StatelessWidget {
             // Brand header — the real DROP artwork. Keep persistent desktop
             // chrome static so idle navigation never burns the UI thread.
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl,
+                AppSpacing.xl,
+                AppSpacing.xl,
+                AppSpacing.lg,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const DropLogo(height: 30),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                     child: Text(
                       'OPERATIONS',
                       style: AppTypography.caption.copyWith(
@@ -115,7 +122,7 @@ class AppSidebar extends StatelessWidget {
                   if (onCollapse != null) ...[
                     const Spacer(),
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 1),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                       child: _SidebarCollapseButton(onTap: onCollapse!),
                     ),
                   ],
@@ -124,12 +131,22 @@ class AppSidebar extends StatelessWidget {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
                 children: [
                   for (final section in sections) ...[
                     if (section.title != null)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 18, 12, 8),
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          AppSpacing.xl,
+                          AppSpacing.md,
+                          AppSpacing.sm,
+                        ),
                         child: Text(
                           section.title!.toUpperCase(),
                           style: AppTypography.caption.copyWith(
@@ -154,7 +171,10 @@ class AppSidebar extends StatelessWidget {
             ),
             if (footer != null) ...[
               const Divider(height: 1, color: AppColors.darkBorder),
-              Padding(padding: const EdgeInsets.all(12), child: footer!),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: footer!,
+              ),
             ],
           ],
         ),
@@ -188,78 +208,95 @@ class _SidebarRowState extends State<_SidebarRow> {
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final duration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 200);
     final Color fg = selected
         ? AppColors.textPrimary
         : (_hovered ? AppColors.textPrimary : AppColors.textSecondary);
     final Color bg = selected
-        ? AppColors.accentSurface
-        : (_hovered ? const Color(0x12FFFFFF) : AppColors.transparent);
+        ? AppColors.primarySurface.withValues(alpha: 0.10)
+        : (_hovered
+              ? AppColors.primarySurface.withValues(alpha: 0.055)
+              : AppColors.transparent);
+    final borderColor = selected
+        ? AppColors.primarySurface.withValues(alpha: 0.16)
+        : (_hovered
+              ? AppColors.primarySurface.withValues(alpha: 0.09)
+              : AppColors.transparent);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: selected ? AppColors.accentBorder : AppColors.transparent,
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: 'Navigate to ${widget.item.label}',
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            child: AnimatedContainer(
+              duration: duration,
+              curve: Curves.easeOutCubic,
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: AppRadius.mdAll,
+                border: Border.all(color: borderColor),
               ),
-            ),
-            child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 3,
-                  height: selected ? 18 : 0,
-                  decoration: BoxDecoration(
-                    color: AppColors.accent,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  selected ? widget.item.activeIcon : widget.item.icon,
-                  size: 19,
-                  color: selected ? AppColors.accent : fg,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.label.copyWith(
-                      color: fg,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              child: Row(
+                children: [
+                  AnimatedContainer(
+                    duration: duration,
+                    width: 2,
+                    height: selected ? AppSpacing.lg : 0,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.72),
+                      borderRadius: AppRadius.fullAll,
                     ),
                   ),
-                ),
-                if (widget.item.trailingBuilder != null)
-                  widget.item.trailingBuilder!(context),
-                if (widget.shortcutHint != null)
-                  AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    opacity: _hovered ? 1 : 0,
+                  const SizedBox(width: AppSpacing.sm),
+                  Icon(
+                    selected ? widget.item.activeIcon : widget.item.icon,
+                    size: 19,
+                    color: selected ? AppColors.accent : fg,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
                     child: Text(
-                      widget.shortcutHint!,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textTertiary,
-                        letterSpacing: 0.5,
+                      widget.item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.label.copyWith(
+                        color: fg,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                       ),
                     ),
                   ),
-              ],
+                  if (widget.item.trailingBuilder != null)
+                    widget.item.trailingBuilder!(context),
+                  if (widget.shortcutHint != null)
+                    AnimatedOpacity(
+                      duration: duration,
+                      opacity: _hovered ? 1 : 0,
+                      child: Text(
+                        widget.shortcutHint!,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textTertiary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -284,6 +321,8 @@ class _SidebarCollapseButtonState extends State<_SidebarCollapseButton> {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return Semantics(
       button: true,
       label: 'Hide sidebar',
@@ -297,18 +336,24 @@ class _SidebarCollapseButtonState extends State<_SidebarCollapseButton> {
             behavior: HitTestBehavior.opaque,
             onTap: widget.onTap,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
+              duration: reduceMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
               width: 28,
               height: 28,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: _hovered ? const Color(0x12FFFFFF) : AppColors.transparent,
-                borderRadius: BorderRadius.circular(8),
+                color: _hovered
+                    ? AppColors.primarySurface.withValues(alpha: 0.055)
+                    : AppColors.transparent,
+                borderRadius: AppRadius.smAll,
               ),
               child: Icon(
                 Icons.menu_open_rounded,
                 size: 18,
-                color: _hovered ? AppColors.textPrimary : AppColors.textTertiary,
+                color: _hovered
+                    ? AppColors.textPrimary
+                    : AppColors.textTertiary,
               ),
             ),
           ),

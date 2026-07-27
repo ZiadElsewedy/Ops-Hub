@@ -7,9 +7,12 @@ import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/theme/app_radius.dart';
+import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_sidebar.dart';
 import 'package:drop/core/widgets/command_palette.dart';
+import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
@@ -91,125 +94,134 @@ class AppShell extends StatefulWidget {
     switch (role) {
       case UserRole.admin:
         return [
-          const SidebarSection(items: [
-            SidebarItem(
-              icon: Icons.dashboard_outlined,
-              activeIcon: Icons.dashboard_rounded,
-              label: 'Dashboard',
-              route: RouteNames.adminDashboard,
-            ),
-            SidebarItem(
-              icon: Icons.fact_check_outlined,
-              activeIcon: Icons.fact_check_rounded,
-              label: 'Tasks',
-              route: RouteNames.adminTasks,
-            ),
-            SidebarItem(
-              icon: Icons.calendar_view_week_outlined,
-              activeIcon: Icons.calendar_view_week_rounded,
-              label: 'Schedule',
-              route: RouteNames.adminSchedule,
-            ),
-            SidebarItem(
-              icon: Icons.fingerprint_rounded,
-              activeIcon: Icons.fingerprint_rounded,
-              label: 'Attendance',
-              route: RouteNames.adminAttendance,
-            ),
-            communications,
-            chat,
-            cases,
-            requests,
-            notifications,
-          ]),
-          const SidebarSection(title: 'Administration', items: [
-            SidebarItem(
-              icon: Icons.analytics_outlined,
-              activeIcon: Icons.analytics_rounded,
-              label: 'Analytics',
-              route: RouteNames.adminAnalytics,
-            ),
-            SidebarItem(
-              icon: Icons.store_outlined,
-              activeIcon: Icons.store_rounded,
-              label: 'Branches',
-              route: RouteNames.adminBranches,
-            ),
-            SidebarItem(
-              icon: Icons.badge_outlined,
-              activeIcon: Icons.badge_rounded,
-              label: 'Managers',
-              route: RouteNames.adminManagers,
-            ),
-            SidebarItem(
-              icon: Icons.people_outline_rounded,
-              activeIcon: Icons.people_rounded,
-              label: 'Employees',
-              route: RouteNames.adminEmployees,
-            ),
-          ]),
+          const SidebarSection(
+            items: [
+              SidebarItem(
+                icon: Icons.dashboard_outlined,
+                activeIcon: Icons.dashboard_rounded,
+                label: 'Dashboard',
+                route: RouteNames.adminDashboard,
+              ),
+              SidebarItem(
+                icon: Icons.fact_check_outlined,
+                activeIcon: Icons.fact_check_rounded,
+                label: 'Tasks',
+                route: RouteNames.adminTasks,
+              ),
+              SidebarItem(
+                icon: Icons.calendar_view_week_outlined,
+                activeIcon: Icons.calendar_view_week_rounded,
+                label: 'Schedule',
+                route: RouteNames.adminSchedule,
+              ),
+              SidebarItem(
+                icon: Icons.fingerprint_rounded,
+                activeIcon: Icons.fingerprint_rounded,
+                label: 'Attendance',
+                route: RouteNames.adminAttendance,
+              ),
+              communications,
+              chat,
+              cases,
+              requests,
+              notifications,
+            ],
+          ),
+          const SidebarSection(
+            title: 'Administration',
+            items: [
+              SidebarItem(
+                icon: Icons.analytics_outlined,
+                activeIcon: Icons.analytics_rounded,
+                label: 'Analytics',
+                route: RouteNames.adminAnalytics,
+              ),
+              SidebarItem(
+                icon: Icons.store_outlined,
+                activeIcon: Icons.store_rounded,
+                label: 'Branches',
+                route: RouteNames.adminBranches,
+              ),
+              SidebarItem(
+                icon: Icons.badge_outlined,
+                activeIcon: Icons.badge_rounded,
+                label: 'Managers',
+                route: RouteNames.adminManagers,
+              ),
+              SidebarItem(
+                icon: Icons.people_outline_rounded,
+                activeIcon: Icons.people_rounded,
+                label: 'Employees',
+                route: RouteNames.adminEmployees,
+              ),
+            ],
+          ),
         ];
       case UserRole.manager:
         return [
-          const SidebarSection(items: [
-            SidebarItem(
-              icon: Icons.dashboard_outlined,
-              activeIcon: Icons.dashboard_rounded,
-              label: 'Dashboard',
-              route: RouteNames.managerHome,
-            ),
-            SidebarItem(
-              icon: Icons.fact_check_outlined,
-              activeIcon: Icons.fact_check_rounded,
-              label: 'Operations',
-              route: RouteNames.managerTasks,
-            ),
-            SidebarItem(
-              icon: Icons.calendar_view_week_outlined,
-              activeIcon: Icons.calendar_view_week_rounded,
-              label: 'Schedule',
-              route: RouteNames.managerSchedule,
-            ),
-            SidebarItem(
-              icon: Icons.fingerprint_rounded,
-              activeIcon: Icons.fingerprint_rounded,
-              label: 'Attendance',
-              route: RouteNames.attendanceReview,
-            ),
-            communications,
-            chat,
-            cases,
-            requests,
-            notifications,
-          ]),
+          const SidebarSection(
+            items: [
+              SidebarItem(
+                icon: Icons.dashboard_outlined,
+                activeIcon: Icons.dashboard_rounded,
+                label: 'Dashboard',
+                route: RouteNames.managerHome,
+              ),
+              SidebarItem(
+                icon: Icons.fact_check_outlined,
+                activeIcon: Icons.fact_check_rounded,
+                label: 'Operations',
+                route: RouteNames.managerTasks,
+              ),
+              SidebarItem(
+                icon: Icons.calendar_view_week_outlined,
+                activeIcon: Icons.calendar_view_week_rounded,
+                label: 'Schedule',
+                route: RouteNames.managerSchedule,
+              ),
+              SidebarItem(
+                icon: Icons.fingerprint_rounded,
+                activeIcon: Icons.fingerprint_rounded,
+                label: 'Attendance',
+                route: RouteNames.attendanceReview,
+              ),
+              communications,
+              chat,
+              cases,
+              requests,
+              notifications,
+            ],
+          ),
         ];
       case UserRole.employee:
         return [
-          const SidebarSection(items: [
-            SidebarItem(
-              icon: Icons.home_outlined,
-              activeIcon: Icons.home_rounded,
-              label: 'Home',
-              route: RouteNames.home,
-            ),
-            SidebarItem(
-              icon: Icons.fact_check_outlined,
-              activeIcon: Icons.fact_check_rounded,
-              label: 'My Tasks',
-              route: RouteNames.myTasks,
-            ),
-            SidebarItem(
-              icon: Icons.calendar_view_week_outlined,
-              activeIcon: Icons.calendar_view_week_rounded,
-              label: 'My Schedule',
-              route: RouteNames.mySchedule,
-            ),
-            attendance,
-            chat,
-            cases,
-            requests,
-            notifications,
-          ]),
+          const SidebarSection(
+            items: [
+              SidebarItem(
+                icon: Icons.home_outlined,
+                activeIcon: Icons.home_rounded,
+                label: 'Home',
+                route: RouteNames.home,
+              ),
+              SidebarItem(
+                icon: Icons.fact_check_outlined,
+                activeIcon: Icons.fact_check_rounded,
+                label: 'My Tasks',
+                route: RouteNames.myTasks,
+              ),
+              SidebarItem(
+                icon: Icons.calendar_view_week_outlined,
+                activeIcon: Icons.calendar_view_week_rounded,
+                label: 'My Schedule',
+                route: RouteNames.mySchedule,
+              ),
+              attendance,
+              chat,
+              cases,
+              requests,
+              notifications,
+            ],
+          ),
         ];
     }
   }
@@ -249,9 +261,11 @@ class _AppShellState extends State<AppShell> {
     // text, so they're safe while typing.
     return CallbackShortcuts(
       bindings: {
-        for (var i = 0;
-            i < destinations.length && i < AppShell._digitKeys.length;
-            i++)
+        for (
+          var i = 0;
+          i < destinations.length && i < AppShell._digitKeys.length;
+          i++
+        )
           SingleActivator(AppShell._digitKeys[i], meta: true): () {
             final route = destinations[i].route;
             if (route != location) context.go(route);
@@ -322,8 +336,8 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-/// Pinned sidebar footer: unread-aware avatar + name + role, tappable → profile.
-class _SidebarUserFooter extends StatefulWidget {
+/// Pinned sidebar footer: a compact glass profile card, tappable → profile.
+class _SidebarUserFooter extends StatelessWidget {
   const _SidebarUserFooter({
     required this.user,
     required this.role,
@@ -335,60 +349,56 @@ class _SidebarUserFooter extends StatefulWidget {
   final VoidCallback onTap;
 
   @override
-  State<_SidebarUserFooter> createState() => _SidebarUserFooterState();
-}
-
-class _SidebarUserFooterState extends State<_SidebarUserFooter> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    final user = widget.user;
     final name = (user.displayName?.isNotEmpty ?? false)
         ? user.displayName!
         : 'Profile';
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: _hovered ? const Color(0x12FFFFFF) : AppColors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              UserAvatar.fromUser(user, size: 36),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.label,
+    return Semantics(
+      button: true,
+      label: 'Open profile for $name',
+      child: GlassContainer(
+        onTap: onTap,
+        elevated: false,
+        borderRadius: AppRadius.lgAll,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            UserAvatar.fromUser(user, size: 36),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.label.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                    Text(
-                      widget.role.name.toUpperCase(),
-                      style: AppTypography.caption.copyWith(
-                        letterSpacing: 1,
-                        color: AppColors.textTertiary,
-                      ),
+                  ),
+                  Text(
+                    role.name.toUpperCase(),
+                    style: AppTypography.caption.copyWith(
+                      letterSpacing: 1,
+                      color: AppColors.textQuaternary,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const _FooterBell(),
-            ],
-          ),
+            ),
+            const _FooterBell(),
+            const SizedBox(width: AppSpacing.xs),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: AppColors.textTertiary,
+            ),
+          ],
         ),
       ),
     );
@@ -418,23 +428,51 @@ class _ChatUnreadBadge extends StatelessWidget {
       bloc: cubit,
       builder: (context, _) {
         final unread = cubit!.totalUnread;
-        if (unread <= 0) return const SizedBox.shrink();
-        return Container(
-          margin: const EdgeInsets.only(left: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          constraints: const BoxConstraints(minWidth: 18),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.accent,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Text(
-            unread > 99 ? '99+' : '$unread',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.onAccent,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
+        final reduceMotion =
+            MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+        final duration = reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 200);
+        final singleDigit = unread < 10;
+        return Semantics(
+          excludeSemantics: unread <= 0,
+          label: '$unread unread messages',
+          child: AnimatedSwitcher(
+            duration: duration,
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.86, end: 1).animate(animation),
+                child: child,
+              ),
             ),
+            child: unread <= 0
+                ? const SizedBox(key: ValueKey('chat-unread-empty'))
+                : Container(
+                    key: ValueKey(unread),
+                    margin: const EdgeInsets.only(left: AppSpacing.sm),
+                    width: singleDigit ? 18 : null,
+                    height: 18,
+                    constraints: const BoxConstraints(minWidth: 18),
+                    padding: singleDigit
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      shape: singleDigit ? BoxShape.circle : BoxShape.rectangle,
+                      borderRadius: singleDigit ? null : AppRadius.fullAll,
+                    ),
+                    child: Text(
+                      unread > 99 ? '99+' : '$unread',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.onAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
           ),
         );
       },
@@ -532,8 +570,9 @@ class _FocusRestoreHandleState extends State<_FocusRestoreHandle> {
   @override
   Widget build(BuildContext context) {
     return AnimatedOpacity(
-      duration:
-          widget.animate ? const Duration(milliseconds: 200) : Duration.zero,
+      duration: widget.animate
+          ? const Duration(milliseconds: 200)
+          : Duration.zero,
       opacity: widget.visible ? 1 : 0,
       child: IgnorePointer(
         ignoring: !widget.visible,

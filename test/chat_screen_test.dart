@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/app_empty_state.dart';
+import 'package:drop/core/widgets/app_search_field.dart';
 import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
 import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
 import 'package:drop/features/chat/domain/entities/chat_message.dart';
@@ -26,7 +27,7 @@ class _FakeChatRepository implements ChatRepository {
   _FakeChatRepository(this.onGetConversations);
 
   final Future<ChatConversationPage> Function({int? limit, String? cursor})
-      onGetConversations;
+  onGetConversations;
 
   @override
   Future<ChatConversationPage> getConversations({int? limit, String? cursor}) =>
@@ -48,69 +49,65 @@ class _FakeChatRepository implements ChatRepository {
     ChatOutgoingAttachment? attachment,
     String? replyToMessageId,
     void Function(int sent, int total)? onSendProgress,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<ChatMessagePage> getMessageHistory({
     required String conversationId,
     int? limit,
     String? cursor,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<ChatReadReceipt> markMessagesRead({
     required String conversationId,
     required BigInt upToSeq,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> deleteMessageForMe({
     required String conversationId,
     required String messageId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<ChatMessage> deleteMessageForEveryone({
     required String conversationId,
     required String messageId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<ChatAttachmentDownload> getAttachmentDownloadUrl({
     required String conversationId,
     required String messageId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 ChatConversationSummary _summary(String id) => ChatConversationSummary(
-      id: id,
-      counterpartUserId: 'user-$id',
-      participantIds: ['me', 'user-$id'],
-      createdAt: DateTime(2026, 7, 20),
-      lastMessageAt: DateTime(2026, 7, 22, 10),
-    );
+  id: id,
+  counterpartUserId: 'user-$id',
+  participantIds: ['me', 'user-$id'],
+  createdAt: DateTime(2026, 7, 20),
+  lastMessageAt: DateTime(2026, 7, 22, 10),
+);
 
 void main() {
   ChatListCubit cubit(_FakeChatRepository repo) => ChatListCubit(
-        getConversations: GetConversations(repo),
-        startConversation: StartConversation(repo),
-      );
+    getConversations: GetConversations(repo),
+    startConversation: StartConversation(repo),
+  );
 
   Widget host(ChatListCubit c) => MaterialApp(
-        home: BlocProvider.value(value: c, child: const ChatScreen()),
-      );
+    home: BlocProvider.value(value: c, child: const ChatScreen()),
+  );
 
   testWidgets('loads and renders the conversation list', (tester) async {
-    final c = cubit(_FakeChatRepository(
-      ({int? limit, String? cursor}) async =>
-          ChatConversationPage(items: [_summary('a'), _summary('b')]),
-    ));
+    final c = cubit(
+      _FakeChatRepository(
+        ({int? limit, String? cursor}) async =>
+            ChatConversationPage(items: [_summary('a'), _summary('b')]),
+      ),
+    );
     await tester.pumpWidget(host(c));
     await tester.pump(); // post-frame load
     await tester.pump(); // resolve the page future
@@ -121,27 +118,67 @@ void main() {
     await c.close();
   });
 
-  testWidgets('an empty page renders the branded empty state', (tester) async {
-    final c = cubit(_FakeChatRepository(
-      ({int? limit, String? cursor}) async =>
-          const ChatConversationPage(items: []),
-    ));
+  testWidgets('an empty page renders the icon-led no-selection state', (
+    tester,
+  ) async {
+    final c = cubit(
+      _FakeChatRepository(
+        ({int? limit, String? cursor}) async =>
+            const ChatConversationPage(items: []),
+      ),
+    );
     await tester.pumpWidget(host(c));
     await tester.pump();
     await tester.pump();
-    expect(find.byType(DropEmptyState), findsOneWidget);
-    expect(find.text('No conversations yet'), findsOneWidget);
+    expect(find.byType(AppEmptyState), findsOneWidget);
+    expect(find.text('No conversation selected'), findsOneWidget);
+    expect(
+      find.text('Choose a conversation to start messaging.'),
+      findsOneWidget,
+    );
     await c.close();
   });
 
-  testWidgets('a first-load failure renders the full-screen retry',
-      (tester) async {
+  testWidgets('desktop header keeps a compact persistent search field', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final c = cubit(
+      _FakeChatRepository(
+        ({int? limit, String? cursor}) async =>
+            ChatConversationPage(items: [_summary('a')]),
+      ),
+    );
+    await tester.pumpWidget(host(c));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(AppSearchField), findsOneWidget);
+    expect(find.text('Search conversations...'), findsOneWidget);
+    expect(
+      tester.widget<AppSearchField>(find.byType(AppSearchField)).height,
+      40,
+    );
+    final title = tester.widget<Text>(find.text('Chat'));
+    expect(title.style?.fontSize, 22);
+    await c.close();
+  });
+
+  testWidgets('a first-load failure renders the full-screen retry', (
+    tester,
+  ) async {
     var calls = 0;
-    final c = cubit(_FakeChatRepository(({int? limit, String? cursor}) async {
-      calls++;
-      if (calls == 1) throw const ServerFailure('Chat is unreachable.');
-      return ChatConversationPage(items: [_summary('a')]);
-    }));
+    final c = cubit(
+      _FakeChatRepository(({int? limit, String? cursor}) async {
+        calls++;
+        if (calls == 1) throw const ServerFailure('Chat is unreachable.');
+        return ChatConversationPage(items: [_summary('a')]);
+      }),
+    );
     await tester.pumpWidget(host(c));
     await tester.pump();
     await tester.pump();
@@ -157,18 +194,24 @@ void main() {
 
   testWidgets('pull-to-refresh re-pulls page one', (tester) async {
     var calls = 0;
-    final c = cubit(_FakeChatRepository(({int? limit, String? cursor}) async {
-      calls++;
-      return ChatConversationPage(
-          items: [for (var i = 0; i < calls; i++) _summary('r$i')]);
-    }));
+    final c = cubit(
+      _FakeChatRepository(({int? limit, String? cursor}) async {
+        calls++;
+        return ChatConversationPage(
+          items: [for (var i = 0; i < calls; i++) _summary('r$i')],
+        );
+      }),
+    );
     await tester.pumpWidget(host(c));
     await tester.pump();
     await tester.pump();
     expect(find.byType(ChatConversationTile), findsOneWidget);
 
     await tester.fling(
-        find.byType(ChatConversationTile).first, const Offset(0, 300), 1000);
+      find.byType(ChatConversationTile).first,
+      const Offset(0, 300),
+      1000,
+    );
     await tester.pumpAndSettle();
     expect(calls, 2);
     expect(find.byType(ChatConversationTile), findsNWidgets(2));

@@ -77,7 +77,7 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
 | Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
 | Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Caches metadata/URLs, **never image bytes** |
-| Server logic | Cloud Functions (Node.js, `functions/`) | 21 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
+| Server logic | Cloud Functions (Node.js, `functions/`) | 23 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS unconfigured — see CURRENT_STATE |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
 | Serialization | `json_serializable` | |
@@ -124,8 +124,9 @@ wires every datasource, repository, use case, and cubit **by hand** — no DI pa
 
 - **App-wide cubits** are provided in `main.dart` via `MultiBlocProvider`:
   `auth` · `profile` · `task` · `branch` · `adminUsers` · `statistics` · `schedule` ·
-  `shiftSwap` · `branchOperations` · `broadcast` · `notification` · `caseList` ·
-  `requestsList` · `attendance`.
+  `shiftSwap` · `branchOperations` · `broadcast` · `broadcastTemplate` ·
+  `broadcastSchedule` · `notification` · `caseList` · `chatList` ·
+  `requestsList` · `attendance` · `attendanceAdmin`.
 - **Per-entity cubits** are built on demand by `AppDependencies.create*` —
   `createCaseConversationCubit`, `createRequestDetailCubit`.
 
@@ -186,14 +187,16 @@ features' cubits.
 | `network/` | `ApiClient` — the single authenticated HTTP seam for the NestJS chat API (+ `NetworkConfig`). Consumed only by `features/chat/` |
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
-| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (45 routes) |
+| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (46 routes) |
 | `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
 
-**`core/` must never import a feature.** Apply feature-specific behaviour at the
-call site through an exposed hook (e.g. `AttentionTile.radius`), not inside the
+**`core/` is feature-neutral except `app_shell.dart`, the existing
+composition-boundary widget that reads auth/chat/notification state to render
+authenticated desktop chrome.** Apply feature-specific behaviour at the call
+site through an exposed hook (e.g. `AttentionTile.radius`), not inside a generic
 primitive.
 
 ### Single-source seams

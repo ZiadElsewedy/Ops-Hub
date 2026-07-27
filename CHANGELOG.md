@@ -18,6 +18,16 @@ released — DROP ships from branches and has no version tags.
 
 ### 2026-07-27
 
+- **Chat List macOS polish (P18; presentation-only).** `/chat` now uses a
+  compact opt-in desktop header with a persistent native dark search field
+  (`Search conversations...`), tighter 56px-avatar rows, 16/600 names,
+  one-line previews, inset dividers, soft hover/selection, circular unread
+  badges, and an icon-led `No conversation selected` empty state. Desktop chrome
+  now has calmer selected navigation rows, a compact circular Chat badge, and a
+  low-depth profile card. Reused `AppSearchField` for compact,
+  focus/reduced-motion-aware geometry; routes, cubits, API/backend, and data
+  behavior are unchanged.
+
 - **Fixed iOS Simulator builds failing with "Unable to find a destination
   matching the provided destination specifier."** Removed the non-standard
   `SUPPORTED_PLATFORMS = iphoneos;` line from the Runner project's **Release**

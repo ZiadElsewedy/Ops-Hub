@@ -26,22 +26,37 @@ import 'package:drop/features/chat/presentation/widgets/chat_conversation_tile.d
 // ─── Fakes ─────────────────────────────────────────────────────────────
 
 UserEntity _me() => const UserEntity(
-      uid: 'me-fb', email: 'me@drop.test', displayName: 'Me',
-      authProvider: 'password', branchId: 'b1');
+  uid: 'me-fb',
+  email: 'me@drop.test',
+  displayName: 'Me',
+  authProvider: 'password',
+  branchId: 'b1',
+);
 
-UserEntity _teammate(String uid, String name,
-        {UserRole role = UserRole.employee,
-        String branchId = 'b1',
-        bool isActive = true}) =>
-    UserEntity(
-      uid: uid, email: '$uid@drop.test', displayName: name,
-      authProvider: 'password', branchId: branchId, role: role,
-      isActive: isActive);
+UserEntity _teammate(
+  String uid,
+  String name, {
+  UserRole role = UserRole.employee,
+  String branchId = 'b1',
+  bool isActive = true,
+}) => UserEntity(
+  uid: uid,
+  email: '$uid@drop.test',
+  displayName: name,
+  authProvider: 'password',
+  branchId: branchId,
+  role: role,
+  isActive: isActive,
+);
 
 /// An admin: branchless, exactly as `createUserAccount` provisions them.
 UserEntity _admin(String uid, String name) => UserEntity(
-      uid: uid, email: '$uid@drop.test', displayName: name,
-      authProvider: 'password', role: UserRole.admin);
+  uid: uid,
+  email: '$uid@drop.test',
+  displayName: name,
+  authProvider: 'password',
+  role: UserRole.admin,
+);
 
 UserEntity _adminMe() => _admin('me-fb', 'Me');
 
@@ -97,10 +112,7 @@ class _FakeChatRepository implements ChatRepository {
   Future<List<ChatConversationSummary>> getCachedConversations() async =>
       const [];
 
-  _FakeChatRepository({
-    required this.onStart,
-    this.pages = const [],
-  });
+  _FakeChatRepository({required this.onStart, this.pages = const []});
 
   final ChatConversation Function(String targetRef) onStart;
   final List<ChatConversationPage> pages;
@@ -114,7 +126,10 @@ class _FakeChatRepository implements ChatRepository {
   }
 
   @override
-  Future<ChatConversationPage> getConversations({int? limit, String? cursor}) async {
+  Future<ChatConversationPage> getConversations({
+    int? limit,
+    String? cursor,
+  }) async {
     final page = pages.isEmpty
         ? const ChatConversationPage(items: [])
         : pages[_listCall < pages.length ? _listCall : pages.length - 1];
@@ -126,40 +141,46 @@ class _FakeChatRepository implements ChatRepository {
   Future<ChatConversation> getConversation(String id) =>
       throw UnimplementedError();
   @override
-  Future<ChatMessagePage> getMessageHistory(
-          {required String conversationId, int? limit, String? cursor}) =>
-      throw UnimplementedError();
+  Future<ChatMessagePage> getMessageHistory({
+    required String conversationId,
+    int? limit,
+    String? cursor,
+  }) => throw UnimplementedError();
   @override
-  Future<ChatMessage> sendMessage(
-          {required String conversationId,
-          required String idempotencyKey,
-          String? content,
-          ChatOutgoingAttachment? attachment,
-          String? replyToMessageId,
-          void Function(int sent, int total)? onSendProgress}) =>
-      throw UnimplementedError();
+  Future<ChatMessage> sendMessage({
+    required String conversationId,
+    required String idempotencyKey,
+    String? content,
+    ChatOutgoingAttachment? attachment,
+    String? replyToMessageId,
+    void Function(int sent, int total)? onSendProgress,
+  }) => throw UnimplementedError();
   @override
-  Future<ChatReadReceipt> markMessagesRead(
-          {required String conversationId, required BigInt upToSeq}) =>
-      throw UnimplementedError();
+  Future<ChatReadReceipt> markMessagesRead({
+    required String conversationId,
+    required BigInt upToSeq,
+  }) => throw UnimplementedError();
   @override
-  Future<void> deleteMessageForMe(
-          {required String conversationId, required String messageId}) =>
-      throw UnimplementedError();
+  Future<void> deleteMessageForMe({
+    required String conversationId,
+    required String messageId,
+  }) => throw UnimplementedError();
   @override
-  Future<ChatMessage> deleteMessageForEveryone(
-          {required String conversationId, required String messageId}) =>
-      throw UnimplementedError();
+  Future<ChatMessage> deleteMessageForEveryone({
+    required String conversationId,
+    required String messageId,
+  }) => throw UnimplementedError();
   @override
-  Future<ChatAttachmentDownload> getAttachmentDownloadUrl(
-          {required String conversationId, required String messageId}) =>
-      throw UnimplementedError();
+  Future<ChatAttachmentDownload> getAttachmentDownloadUrl({
+    required String conversationId,
+    required String messageId,
+  }) => throw UnimplementedError();
 }
 
 ChatListCubit _listCubit(_FakeChatRepository repo) => ChatListCubit(
-      getConversations: GetConversations(repo),
-      startConversation: StartConversation(repo),
-    );
+  getConversations: GetConversations(repo),
+  startConversation: StartConversation(repo),
+);
 
 void main() {
   group('inbox entry points', () {
@@ -169,13 +190,15 @@ void main() {
         pages: const [ChatConversationPage(items: [])],
       );
       final list = _listCubit(repo);
-      await tester.pumpWidget(MaterialApp(
-        home: BlocProvider.value(value: list, child: const ChatScreen()),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider.value(value: list, child: const ChatScreen()),
+        ),
+      );
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('No conversations yet'), findsOneWidget);
+      expect(find.text('No conversation selected'), findsOneWidget);
       final cta = find.widgetWithText(PremiumButton, 'Start Chat');
       expect(cta, findsOneWidget);
       await list.close();
@@ -184,25 +207,35 @@ void main() {
     testWidgets('FAB is present even when conversations exist', (tester) async {
       final repo = _FakeChatRepository(
         onStart: (_) => _conversation('c1', 'x'),
-        pages: [ChatConversationPage(items: [_summary('c1', 'u-int')])],
+        pages: [
+          ChatConversationPage(items: [_summary('c1', 'u-int')]),
+        ],
       );
       final list = _listCubit(repo);
-      await tester.pumpWidget(MaterialApp(
-        home: BlocProvider.value(value: list, child: const ChatScreen()),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider.value(value: list, child: const ChatScreen()),
+        ),
+      );
       await tester.pump();
       await tester.pump();
 
       expect(find.byType(ChatConversationTile), findsOneWidget); // has convos
-      expect(find.widgetWithText(FloatingActionButton, 'New Chat'),
-          findsOneWidget); // FAB still there
+      expect(
+        find.widgetWithText(FloatingActionButton, 'New Chat'),
+        findsOneWidget,
+      ); // FAB still there
       await list.close();
     });
   });
 
   group('teammate picker', () {
-    Widget host(ChatListCubit list, _FakeAuthRepository auth,
-        {required void Function(String) onNavigate, UserEntity? me}) {
+    Widget host(
+      ChatListCubit list,
+      _FakeAuthRepository auth, {
+      required void Function(String) onNavigate,
+      UserEntity? me,
+    }) {
       final router = GoRouter(
         initialLocation: '/picker',
         routes: [
@@ -234,14 +267,17 @@ void main() {
       return MaterialApp.router(routerConfig: router);
     }
 
-    testWidgets('lists teammates (excludes current user) with name and role',
-        (tester) async {
+    testWidgets('lists teammates (excludes current user) with name and role', (
+      tester,
+    ) async {
       final auth = _FakeAuthRepository([
         _me(),
         _teammate('u-sara', 'Sara K', role: UserRole.manager),
         _teammate('u-omar', 'Omar N'),
       ]);
-      final repo = _FakeChatRepository(onStart: (_) => _conversation('c1', 'x'));
+      final repo = _FakeChatRepository(
+        onStart: (_) => _conversation('c1', 'x'),
+      );
       final list = _listCubit(repo);
       await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
       await tester.pump();
@@ -259,8 +295,9 @@ void main() {
         _teammate('u-sara', 'Sara K'),
         _teammate('u-omar', 'Omar N'),
       ]);
-      final list =
-          _listCubit(_FakeChatRepository(onStart: (_) => _conversation('c1', 'x')));
+      final list = _listCubit(
+        _FakeChatRepository(onStart: (_) => _conversation('c1', 'x')),
+      );
       await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
       await tester.pump();
       await tester.pump();
@@ -272,74 +309,83 @@ void main() {
       await list.close();
     });
 
-    testWidgets('selecting a teammate creates a new conversation and navigates',
-        (tester) async {
-      final auth = _FakeAuthRepository([_teammate('u-omar', 'Omar N')]);
-      final repo = _FakeChatRepository(
-        onStart: (ref) => _conversation('c-new', 'omar-int'),
-        // After start, the refresh returns the new conversation summary.
-        pages: [
-          const ChatConversationPage(items: []), // initial list load
-          ChatConversationPage(items: [_summary('c-new', 'omar-int')]),
-        ],
-      );
-      final list = _listCubit(repo);
-      String? navigatedTo;
-      await tester.pumpWidget(
-          host(list, auth, onNavigate: (id) => navigatedTo = id));
-      await tester.pump();
-      await tester.pump();
+    testWidgets(
+      'selecting a teammate creates a new conversation and navigates',
+      (tester) async {
+        final auth = _FakeAuthRepository([_teammate('u-omar', 'Omar N')]);
+        final repo = _FakeChatRepository(
+          onStart: (ref) => _conversation('c-new', 'omar-int'),
+          // After start, the refresh returns the new conversation summary.
+          pages: [
+            const ChatConversationPage(items: []), // initial list load
+            ChatConversationPage(items: [_summary('c-new', 'omar-int')]),
+          ],
+        );
+        final list = _listCubit(repo);
+        String? navigatedTo;
+        await tester.pumpWidget(
+          host(list, auth, onNavigate: (id) => navigatedTo = id),
+        );
+        await tester.pump();
+        await tester.pump();
 
-      await tester.tap(find.text('Omar N'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Omar N'));
+        await tester.pumpAndSettle();
 
-      expect(repo.startedWith, ['u-omar']); // called StartConversation with uid
-      expect(navigatedTo, 'c-new'); // navigated to the conversation
-      expect(find.text('THREAD c-new'), findsOneWidget);
-      await list.close();
-    });
+        expect(repo.startedWith, [
+          'u-omar',
+        ]); // called StartConversation with uid
+        expect(navigatedTo, 'c-new'); // navigated to the conversation
+        expect(find.text('THREAD c-new'), findsOneWidget);
+        await list.close();
+      },
+    );
 
     testWidgets(
-        'selecting a teammate you already chat with opens the existing thread',
-        (tester) async {
-      final auth = _FakeAuthRepository([_teammate('u-omar', 'Omar N')]);
-      // Server is idempotent: start returns the SAME existing conversation id.
-      final repo = _FakeChatRepository(
-        onStart: (_) => _conversation('c-existing', 'omar-int'),
-        pages: [
-          ChatConversationPage(items: [_summary('c-existing', 'omar-int')]),
-          ChatConversationPage(items: [_summary('c-existing', 'omar-int')]),
-        ],
-      );
-      final list = _listCubit(repo);
-      String? navigatedTo;
-      await tester.pumpWidget(
-          host(list, auth, onNavigate: (id) => navigatedTo = id));
-      await tester.pump();
-      await tester.pump();
+      'selecting a teammate you already chat with opens the existing thread',
+      (tester) async {
+        final auth = _FakeAuthRepository([_teammate('u-omar', 'Omar N')]);
+        // Server is idempotent: start returns the SAME existing conversation id.
+        final repo = _FakeChatRepository(
+          onStart: (_) => _conversation('c-existing', 'omar-int'),
+          pages: [
+            ChatConversationPage(items: [_summary('c-existing', 'omar-int')]),
+            ChatConversationPage(items: [_summary('c-existing', 'omar-int')]),
+          ],
+        );
+        final list = _listCubit(repo);
+        String? navigatedTo;
+        await tester.pumpWidget(
+          host(list, auth, onNavigate: (id) => navigatedTo = id),
+        );
+        await tester.pump();
+        await tester.pump();
 
-      await tester.tap(find.text('Omar N'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Omar N'));
+        await tester.pumpAndSettle();
 
-      expect(repo.startedWith, ['u-omar']);
-      expect(navigatedTo, 'c-existing'); // opened existing, not a duplicate
-      await list.close();
-    });
+        expect(repo.startedWith, ['u-omar']);
+        expect(navigatedTo, 'c-existing'); // opened existing, not a duplicate
+        await list.close();
+      },
+    );
 
     // ─── Flat access model ─────────────────────────────────────────────
     // Chat is not org-scoped: every active user may message every other one.
     // No branch predicate, no role predicate, in any layer.
 
-    testWidgets('staff see every role, including admins and other branches',
-        (tester) async {
+    testWidgets('staff see every role, including admins and other branches', (
+      tester,
+    ) async {
       final auth = _FakeAuthRepository([
         _me(), // branch b1
         _teammate('u-omar', 'Omar N'), // branch b1
         _teammate('u-sara', 'Sara K', role: UserRole.manager, branchId: 'b2'),
         _admin('u-dina', 'Dina A'), // branchless
       ]);
-      final list =
-          _listCubit(_FakeChatRepository(onStart: (_) => _conversation('c1', 'x')));
+      final list = _listCubit(
+        _FakeChatRepository(onStart: (_) => _conversation('c1', 'x')),
+      );
       await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
       await tester.pump();
       await tester.pump();
@@ -360,10 +406,12 @@ void main() {
         _teammate('u-omar', 'Omar N'),
         _teammate('u-sara', 'Sara K', role: UserRole.manager, branchId: 'b2'),
       ]);
-      final list =
-          _listCubit(_FakeChatRepository(onStart: (_) => _conversation('c1', 'x')));
+      final list = _listCubit(
+        _FakeChatRepository(onStart: (_) => _conversation('c1', 'x')),
+      );
       await tester.pumpWidget(
-          host(list, auth, onNavigate: (_) {}, me: _adminMe()));
+        host(list, auth, onNavigate: (_) {}, me: _adminMe()),
+      );
       await tester.pump();
       await tester.pump();
 
@@ -379,8 +427,9 @@ void main() {
         _teammate('u-omar', 'Omar N'),
         _teammate('u-gone', 'Gone Person', isActive: false),
       ]);
-      final list =
-          _listCubit(_FakeChatRepository(onStart: (_) => _conversation('c1', 'x')));
+      final list = _listCubit(
+        _FakeChatRepository(onStart: (_) => _conversation('c1', 'x')),
+      );
       await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
       await tester.pump();
       await tester.pump();
@@ -390,15 +439,20 @@ void main() {
       await list.close();
     });
 
-    testWidgets('a legacy doc with no isActive field is treated as active',
-        (tester) async {
+    testWidgets('a legacy doc with no isActive field is treated as active', (
+      tester,
+    ) async {
       // UserEntity defaults isActive to true, so the filter must not drop it.
       const legacy = UserEntity(
-          uid: 'u-legacy', email: 'legacy@drop.test', displayName: 'Legacy P',
-          authProvider: 'password');
+        uid: 'u-legacy',
+        email: 'legacy@drop.test',
+        displayName: 'Legacy P',
+        authProvider: 'password',
+      );
       final auth = _FakeAuthRepository([legacy]);
-      final list =
-          _listCubit(_FakeChatRepository(onStart: (_) => _conversation('c1', 'x')));
+      final list = _listCubit(
+        _FakeChatRepository(onStart: (_) => _conversation('c1', 'x')),
+      );
       await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
       await tester.pump();
       await tester.pump();

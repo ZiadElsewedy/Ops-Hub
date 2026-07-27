@@ -5,13 +5,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
+import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/app_empty_state.dart';
+import 'package:drop/core/widgets/app_search_field.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
@@ -24,7 +25,7 @@ import 'package:drop/features/chat/presentation/widgets/chat_conversation_tile.d
 
 /// Direct-chat inbox — the caller's conversations, most-recent-activity first
 /// (server-ordered; the cubit never re-sorts). Mirrors the Cases mobile inbox
-/// shape: full-screen first-load spinner, branded empty state, full-screen
+/// shape: full-screen first-load spinner, icon-led empty state, full-screen
 /// retry on a data-less failure, pull-to-refresh, and a scroll-driven older
 /// page (the NestJS list is cursor-paginated, unlike Cases).
 ///
@@ -47,13 +48,14 @@ class _ChatScreenState extends State<ChatScreen> {
   // (no "Teammate" placeholder flashing to the real name).
   Map<String, UserEntity> _directory = AppDependencies.chatDirectorySnapshot;
 
-  /// Conversation search (client-side, O(n) over the loaded list). [_searching]
-  /// toggles the AppBar between the title and an expanding search field;
-  /// [_query] is the debounced needle (name / last message / role).
+  /// Conversation search is client-side, O(n) over the loaded list. Desktop
+  /// keeps the field visible in the compact header; narrow layouts retain the
+  /// existing title-to-search transition. [_query] is the debounced needle
+  /// (name / last message / role).
   bool _searching = false;
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocus = FocusNode();
+  final FocusNode _mobileSearchFocus = FocusNode();
   Timer? _debounce;
 
   @override
@@ -69,7 +71,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
-    _searchFocus.dispose();
+    _mobileSearchFocus.dispose();
     super.dispose();
   }
 
@@ -83,8 +85,9 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
     if (_searching) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _searchFocus.requestFocus());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _mobileSearchFocus.requestFocus(),
+      );
     }
   }
 
@@ -105,17 +108,19 @@ class _ChatScreenState extends State<ChatScreen> {
   ) {
     final needle = _query.toLowerCase();
     if (needle.isEmpty) return conversations;
-    return conversations.where((c) {
-      final user = _counterpartFor(c);
-      final name = user == null
-          ? ''
-          : chatDisplayName(user, fallbackId: c.counterpartUserId);
-      final role = user == null ? '' : chatRoleLabel(user.role);
-      final preview = _previewLine(c, socketPreviews) ?? '';
-      return name.toLowerCase().contains(needle) ||
-          role.toLowerCase().contains(needle) ||
-          preview.toLowerCase().contains(needle);
-    }).toList(growable: false);
+    return conversations
+        .where((c) {
+          final user = _counterpartFor(c);
+          final name = user == null
+              ? ''
+              : chatDisplayName(user, fallbackId: c.counterpartUserId);
+          final role = user == null ? '' : chatRoleLabel(user.role);
+          final preview = _previewLine(c, socketPreviews) ?? '';
+          return name.toLowerCase().contains(needle) ||
+              role.toLowerCase().contains(needle) ||
+              preview.toLowerCase().contains(needle);
+        })
+        .toList(growable: false);
   }
 
   Future<void> _loadDirectory() async {
@@ -147,12 +152,15 @@ class _ChatScreenState extends State<ChatScreen> {
   /// has a real message. "Has a message" = the server set `lastMessageAt`, or a
   /// live socket preview has arrived this session.
   List<ChatConversationSummary> _visible(
-      List<ChatConversationSummary> conversations,
-      Map<String, String> socketPreviews) {
+    List<ChatConversationSummary> conversations,
+    Map<String, String> socketPreviews,
+  ) {
     return conversations
-        .where((c) =>
-            c.lastMessageAt != null ||
-            (socketPreviews[c.id]?.isNotEmpty ?? false))
+        .where(
+          (c) =>
+              c.lastMessageAt != null ||
+              (socketPreviews[c.id]?.isNotEmpty ?? false),
+        )
         .toList(growable: false);
   }
 
@@ -160,7 +168,9 @@ class _ChatScreenState extends State<ChatScreen> {
   /// no "You:") wins; otherwise the resolved last message (which may be mine →
   /// "You: …"). Null while still resolving.
   String? _previewLine(
-      ChatConversationSummary c, Map<String, String> socketPreviews) {
+    ChatConversationSummary c,
+    Map<String, String> socketPreviews,
+  ) {
     final socket = socketPreviews[c.id];
     if (socket != null && socket.isNotEmpty) return socket;
     return _previews[c.id]?.line;
@@ -170,8 +180,10 @@ class _ChatScreenState extends State<ChatScreen> {
   /// preview and hasn't been resolved yet. One fetch per conversation; the
   /// thread cache makes most instant (including my own sends, which the socket
   /// never echoes back to me).
-  void _resolvePreviews(List<ChatConversationSummary> visible,
-      Map<String, String> socketPreviews) {
+  void _resolvePreviews(
+    List<ChatConversationSummary> visible,
+    Map<String, String> socketPreviews,
+  ) {
     for (final c in visible) {
       if (socketPreviews[c.id]?.isNotEmpty ?? false) continue;
       if (_previews.containsKey(c.id) || _previewFetching.contains(c.id)) {
@@ -180,16 +192,20 @@ class _ChatScreenState extends State<ChatScreen> {
       _previewFetching.add(c.id);
       // Derive "mine" per conversation: my internal id is the participant that
       // is not the counterpart. No global "me" needed.
-      final myId = c.participantIds
-          .firstWhere((p) => p != c.counterpartUserId, orElse: () => '');
+      final myId = c.participantIds.firstWhere(
+        (p) => p != c.counterpartUserId,
+        orElse: () => '',
+      );
       AppDependencies.latestChatMessage(c.id).then((message) {
         if (!mounted) return;
         _previewFetching.remove(c.id);
         if (message == null) return;
-        setState(() => _previews[c.id] = ChatPreview(
-              chatMessagePreviewText(message),
-              mine: myId.isNotEmpty && message.senderId == myId,
-            ));
+        setState(
+          () => _previews[c.id] = ChatPreview(
+            chatMessagePreviewText(message),
+            mine: myId.isNotEmpty && message.senderId == myId,
+          ),
+        );
       });
     }
   }
@@ -203,43 +219,63 @@ class _ChatScreenState extends State<ChatScreen> {
     listCubit.clearUnread(c.id);
     context
         .push(
-      RouteNames.chatConversation(c.id),
-      extra: ChatThreadArgs(
-        counterpartUserId: c.counterpartUserId,
-        counterpartExternalId: c.counterpartExternalId,
-        counterpartName: counterpart == null
-            ? null
-            : chatDisplayName(counterpart, fallbackId: c.counterpartUserId),
-        counterpartPhotoUrl: counterpart?.photoUrl,
-      ),
-    )
+          RouteNames.chatConversation(c.id),
+          extra: ChatThreadArgs(
+            counterpartUserId: c.counterpartUserId,
+            counterpartExternalId: c.counterpartExternalId,
+            counterpartName: counterpart == null
+                ? null
+                : chatDisplayName(counterpart, fallbackId: c.counterpartUserId),
+            counterpartPhotoUrl: counterpart?.photoUrl,
+          ),
+        )
         .then((_) {
-      if (!mounted) return;
-      _previews.remove(c.id);
-      listCubit.refresh();
-    });
+          if (!mounted) return;
+          _previews.remove(c.id);
+          listCubit.refresh();
+        });
   }
 
   @override
   Widget build(BuildContext context) {
+    final desktop = context.isDesktop;
     return AdaptiveScaffold(
       title: 'Chat',
-      subtitle: _searching ? null : 'Direct messages with your team',
-      titleWidget: _searching
-          ? _ChatSearchField(
+      subtitle: desktop || !_searching
+          ? 'Direct messages with your team'
+          : null,
+      titleWidget: !desktop && _searching
+          ? AppSearchField(
+              hint: 'Search conversations...',
               controller: _searchController,
-              focusNode: _searchFocus,
+              focusNode: _mobileSearchFocus,
+              height: 40,
               onChanged: _onSearchChanged,
             )
           : null,
-      actions: [
-        IconButton(
-          tooltip: _searching ? 'Close search' : 'Search conversations',
-          icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded,
-              color: AppColors.textSecondary),
-          onPressed: _toggleSearch,
-        ),
-      ],
+      actions: desktop
+          ? [
+              SizedBox(
+                width: 272,
+                child: AppSearchField(
+                  hint: 'Search conversations...',
+                  controller: _searchController,
+                  height: 40,
+                  onChanged: _onSearchChanged,
+                ),
+              ),
+            ]
+          : [
+              IconButton(
+                tooltip: _searching ? 'Close search' : 'Search conversations',
+                icon: Icon(
+                  _searching ? Icons.close_rounded : Icons.search_rounded,
+                  color: AppColors.textSecondary,
+                ),
+                onPressed: _toggleSearch,
+              ),
+            ],
+      compactDesktopHeader: true,
       // Always-available entry to the teammate picker (even with conversations
       // present); the empty state also offers it as a primary CTA.
       floatingActionButton: FloatingActionButton.extended(
@@ -276,37 +312,46 @@ class _ChatScreenState extends State<ChatScreen> {
               message: message,
               onRetry: () => context.read<ChatListCubit>().refresh(),
             ),
-            loaded: (conversations, refreshing, loadingMore, hasMore, _,
-                previews, unreadCounts) {
-              // Hide empty (never-messaged) conversations, then resolve real
-              // previews for what remains (post-frame — never setState in build).
-              final visible = _visible(conversations, previews);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _resolvePreviews(visible, previews);
-              });
-              // Apply the search filter on top (empty query → everything).
-              final filtered = _applySearch(visible, previews);
-              return RefreshIndicator(
-                onRefresh: () => context.read<ChatListCubit>().refresh(),
-                color: AppColors.primary,
-                child: visible.isEmpty
-                    ? DropEmptyState(
-                        title: 'No conversations yet',
-                        message:
-                            'Direct messages with your teammates will appear here.',
-                        action: PremiumButton(
-                          label: 'Start Chat',
-                          icon: Icons.chat_bubble_outline_rounded,
-                          style: PremiumButtonStyle.filled,
-                          onPressed: () =>
-                              context.push(RouteNames.chatNew).then((_) {
-                            if (context.mounted) {
-                              context.read<ChatListCubit>().refresh();
-                            }
-                          }),
-                        ),
-                      )
-                    : filtered.isEmpty
+            loaded:
+                (
+                  conversations,
+                  refreshing,
+                  loadingMore,
+                  hasMore,
+                  _,
+                  previews,
+                  unreadCounts,
+                ) {
+                  // Hide empty (never-messaged) conversations, then resolve real
+                  // previews for what remains (post-frame — never setState in build).
+                  final visible = _visible(conversations, previews);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _resolvePreviews(visible, previews);
+                  });
+                  // Apply the search filter on top (empty query → everything).
+                  final filtered = _applySearch(visible, previews);
+                  return RefreshIndicator(
+                    onRefresh: () => context.read<ChatListCubit>().refresh(),
+                    color: AppColors.primary,
+                    child: visible.isEmpty
+                        ? AppEmptyState(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            title: 'No conversation selected',
+                            message:
+                                'Choose a conversation to start messaging.',
+                            action: PremiumButton(
+                              label: 'Start Chat',
+                              icon: Icons.chat_bubble_outline_rounded,
+                              style: PremiumButtonStyle.filled,
+                              onPressed: () =>
+                                  context.push(RouteNames.chatNew).then((_) {
+                                    if (context.mounted) {
+                                      context.read<ChatListCubit>().refresh();
+                                    }
+                                  }),
+                            ),
+                          )
+                        : filtered.isEmpty
                         ? const _NoSearchResults()
                         : _ConversationList(
                             conversations: filtered,
@@ -317,8 +362,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             previewOf: (c) => _previewLine(c, previews),
                             onOpen: _openConversation,
                           ),
-              );
-            },
+                  );
+                },
           );
         },
       ),
@@ -353,6 +398,10 @@ class _ConversationList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dividerInset =
+        context.pagePadding +
+        ChatConversationTile.avatarSize +
+        ChatConversationTile.avatarGap;
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         // Near the bottom → pull the next (older-activity) page. The cubit
@@ -366,16 +415,20 @@ class _ConversationList extends StatelessWidget {
         // Preserves scroll offset across search toggles / rebuilds.
         key: const PageStorageKey('chat_inbox_list'),
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(top: 6, bottom: AppSpacing.huge),
+        padding: const EdgeInsets.only(
+          top: AppSpacing.sm,
+          bottom: AppSpacing.huge,
+        ),
         itemCount: conversations.length + (loadingMore ? 1 : 0),
         // Hairline inset past the avatar (WhatsApp/iMessage rhythm) — subtle,
         // never a heavy full-width rule.
         separatorBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(left: 90),
+          padding: EdgeInsets.only(left: dividerInset),
           child: Divider(
-              height: 0.5,
-              thickness: 0.5,
-              color: AppColors.darkBorder.withValues(alpha: 0.6)),
+            height: 0.5,
+            thickness: 0.5,
+            color: AppColors.darkBorder.withValues(alpha: 0.6),
+          ),
         ),
         itemBuilder: (context, index) {
           if (index == conversations.length) return const _PageSpinnerRow();
@@ -398,16 +451,18 @@ class _PageSpinnerRow extends StatelessWidget {
   const _PageSpinnerRow();
   @override
   Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppColors.primary),
-          ),
+    padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+    child: Center(
+      child: SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppColors.primary,
         ),
-      );
+      ),
+    ),
+  );
 }
 
 /// Skeleton inbox — a handful of shimmering conversation-tile placeholders,
@@ -418,22 +473,35 @@ class _Loading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dividerInset =
+        context.pagePadding +
+        ChatConversationTile.avatarSize +
+        ChatConversationTile.avatarGap;
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 8,
-      separatorBuilder: (_, _) => const Padding(
-        padding: EdgeInsets.only(left: 90),
-        child: Divider(height: 0.5, thickness: 0.5, color: AppColors.darkBorder),
+      separatorBuilder: (_, _) => Padding(
+        padding: EdgeInsets.only(left: dividerInset),
+        child: const Divider(
+          height: 0.5,
+          thickness: 0.5,
+          color: AppColors.darkBorder,
+        ),
       ),
       itemBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pagePadding, vertical: 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: context.pagePadding,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
             const Skeleton(
-                width: 52, height: 52, borderRadius: BorderRadius.all(Radius.circular(26))),
-            const SizedBox(width: AppSpacing.md),
+              width: ChatConversationTile.avatarSize,
+              height: ChatConversationTile.avatarSize,
+              borderRadius: BorderRadius.all(Radius.circular(28)),
+            ),
+            const SizedBox(width: ChatConversationTile.avatarGap),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,7 +512,7 @@ class _Loading extends StatelessWidget {
                     height: 13,
                     borderRadius: BorderRadius.circular(5),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Skeleton(
                     width: 200 + (index % 2) * 40,
                     height: 11,
@@ -460,40 +528,6 @@ class _Loading extends StatelessWidget {
   }
 }
 
-/// The AppBar search field shown while searching — monochrome, borderless, with
-/// a clear affordance. Filtering happens live (debounced) as the user types.
-class _ChatSearchField extends StatelessWidget {
-  const _ChatSearchField({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      focusNode: focusNode,
-      onChanged: onChanged,
-      textInputAction: TextInputAction.search,
-      style: AppTypography.body,
-      cursorColor: AppColors.primary,
-      decoration: const InputDecoration(
-        hintText: 'Search conversations',
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        isDense: true,
-        contentPadding: EdgeInsets.zero,
-      ),
-    );
-  }
-}
-
 /// Empty state for a search that matched nothing (distinct from the "no
 /// conversations yet" first-run state). Scrollable so pull-to-refresh still
 /// works over it.
@@ -502,7 +536,8 @@ class _NoSearchResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DropEmptyState(
+    return const AppEmptyState(
+      icon: Icons.search_off_rounded,
       title: 'No conversations found.',
       message: 'Try a different name or message.',
     );
@@ -522,8 +557,11 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                color: AppColors.textTertiary, size: 40),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.textTertiary,
+              size: 40,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.lg),
