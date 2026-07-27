@@ -18,6 +18,20 @@ released — DROP ships from branches and has no version tags.
 
 ### 2026-07-27
 
+- **Employees directory density pass (P19; presentation-only).** `/admin/employees`
+  now has a compact desktop header with live employee/active/branch counts and a
+  header-level Create Employee CTA (the desktop FAB is gone; mobile keeps it),
+  one horizontal search/filter/sort/view toolbar, and lazy list/natural-height
+  two-column rendering for large directories (no fixed card-height overflow).
+  Employee cards now pair a softer 48px avatar and
+  compact access badge with inline Completed/Pending/Rate/Late metrics, keeping
+  only Details and Edit visible; Change Branch, Position, Reset Password, and
+  Activate/Deactivate remain available in the ellipsis and desktop context menus.
+  Existing routes, cubits, repositories, action sheets, and `isActive` access
+  semantics are unchanged; the design remains monochrome apart from semantic
+  status colors. Added focused widget coverage for the compact card and overflow
+  behavior.
+
 - **Chat List macOS polish (P18; presentation-only).** `/chat` now uses a
   compact opt-in desktop header with a persistent native dark search field
   (`Search conversations...`), tighter 56px-avatar rows, 16/600 names,

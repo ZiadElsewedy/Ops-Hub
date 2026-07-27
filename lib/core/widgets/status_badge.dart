@@ -13,10 +13,16 @@ import 'package:drop/core/theme/app_typography.dart';
 /// the colour + label mapping lives in exactly one place, or the default
 /// constructor for an ad-hoc label/colour.
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({super.key, required this.label, required this.color});
+  const StatusBadge({
+    super.key,
+    required this.label,
+    required this.color,
+    this.compact = false,
+  });
 
   final String label;
   final Color color;
+  final bool compact;
 
   factory StatusBadge.task(TaskStatus status) =>
       StatusBadge(label: _taskLabel(status), color: _taskColor(status));
@@ -24,10 +30,12 @@ class StatusBadge extends StatelessWidget {
   factory StatusBadge.swap(SwapStatus status) =>
       StatusBadge(label: _swapLabel(status), color: _swapColor(status));
 
-  factory StatusBadge.active(bool isActive) => StatusBadge(
-    label: isActive ? 'Active' : 'Inactive',
-    color: isActive ? AppColors.success : AppColors.error,
-  );
+  factory StatusBadge.active(bool isActive, {bool compact = false}) =>
+      StatusBadge(
+        label: isActive ? 'Active' : 'Inactive',
+        color: isActive ? AppColors.success : AppColors.error,
+        compact: compact,
+      );
 
   factory StatusBadge.attendance(AttendanceStatus status) =>
       StatusBadge(label: status.label, color: attendanceStatusColor(status));
@@ -35,7 +43,10 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 3 : 4,
+      ),
       decoration: BoxDecoration(
         color: color.withAlpha(38),
         borderRadius: BorderRadius.circular(20),
