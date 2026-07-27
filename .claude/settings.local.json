@@ -28,7 +28,9 @@
       "Bash(git checkout *)",
       "Bash(rm -f macos/Podfile.lock)",
       "Bash(python3 -)",
-      "Bash(grep -n \"branches/{branchId}\\\\` \\(Phase 5\\)\\\\*\\\\* is admin-write\" PROJECT_CONTEXT.md)"
+      "Bash(grep -n \"branches/{branchId}\\\\` \\(Phase 5\\)\\\\*\\\\* is admin-write\" PROJECT_CONTEXT.md)",
+      "Bash(xcrun simctl *)",
+      "Bash(xcodebuild -showsdks)"
     ]
   }
 }

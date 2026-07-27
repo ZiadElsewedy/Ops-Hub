@@ -16,6 +16,24 @@ released — DROP ships from branches and has no version tags.
 
 ## Unreleased
 
+### 2026-07-27
+
+- **Fixed iOS Simulator builds failing with "Unable to find a destination
+  matching the provided destination specifier."** Removed the non-standard
+  `SUPPORTED_PLATFORMS = iphoneos;` line from the Runner project's **Release**
+  and **Profile** build configs in `ios/Runner.xcodeproj/project.pbxproj` (the
+  stock Flutter template never sets it). Because scheme destination-eligibility
+  is computed via the project's `defaultConfigurationName = Release`, that line
+  stripped iOS Simulator from the Runner scheme's eligible destinations for
+  **every** invocation — including `flutter run` (Debug) and even
+  `generic/platform=iOS Simulator` — while `xcodebuild -showdestinations` still
+  listed the simulator (it enumerates real devices rather than filtering by the
+  scheme). Verified with `flutter build ios --debug --simulator` → built
+  `Runner.app`. (Separate red herring in the original report: the hardcoded
+  destination UUID `…E8506BD8CD12` did not match the live device
+  `…E8506BD8C012` — always let Flutter pick the device instead of pinning a
+  stale UUID.)
+
 ### 2026-07-26
 
 - **Environment system rebuilt around build mode — no dart-defines, no manual
