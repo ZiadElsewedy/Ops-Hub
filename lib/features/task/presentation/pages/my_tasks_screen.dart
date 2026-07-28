@@ -256,16 +256,15 @@ class _DoneTasksTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final done = tasks
-        .where(
-          (t) =>
-              t.status == TaskStatus.approved || t.status == TaskStatus.missed,
-        )
-        .toList();
+    // Every closed outcome belongs here — approved, missed, and cancelled. A
+    // cancelled task disappearing entirely would leave the employee wondering
+    // where their work went (they are told about it — spec §9.2).
+    final done = tasks.where((t) => t.status.isTerminal).toList();
 
     if (done.isEmpty) {
       return const TaskEmptyState(
-        message: "No closed tasks yet.\nApproved and missed tasks appear here.",
+        message:
+            "No closed tasks yet.\nApproved, missed and cancelled tasks appear here.",
       );
     }
 
@@ -573,6 +572,9 @@ class _StatusDot extends StatelessWidget {
       TaskStatus.approved => AppColors.success,
       TaskStatus.rejected => AppColors.error,
       TaskStatus.missed => AppColors.error,
+      // Cancelled is neither success nor failure (spec §8) — neutral, and
+      // deliberately not the error red that Missed wears.
+      TaskStatus.cancelled => AppColors.textSecondary,
       _ => AppColors.textTertiary,
     };
     return Container(

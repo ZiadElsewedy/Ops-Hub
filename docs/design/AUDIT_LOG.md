@@ -116,6 +116,9 @@ cursor for pagination. Soft-deleted records are excluded unless
 task.assigned   → { title, assignmentType, priority, shift?, assignedTo? }
 task.approved   → { title, reviewNotes? }
 task.completed  → { title, attachments }
+task.cancelled  → { title, reason, note?, cancelledFrom }
+task.reported_incorrect → { title, note }
+task.terminal_corrected → { title, correctedFrom, note? }
 task.photo_uploaded → { title, count, storagePaths }
 request.created → { requestType }
 ```
@@ -214,8 +217,14 @@ param (nullable so existing tests keep compiling), store it, and pass
 
 **LIVE** (wired this pass):
 `task.assigned` · `task.started` · `task.completed` · `task.approved` ·
-`task.rejected` · `task.rework_requested` · `task.photo_uploaded` ·
-`request.created` · `request.approved` · `request.rejected`.
+`task.rejected` · `task.rework_requested` · `task.cancelled` ·
+`task.reported_incorrect` · `task.report_dismissed` ·
+`task.terminal_corrected` · `task.photo_uploaded` · `request.created` ·
+`request.approved` · `request.rejected`.
+
+> `task.cancelled` carries the mandatory `reason` code, so "how often is this
+> routine cancelled, and why" is answerable from the audit trail alone — the
+> quality signal the Automated Tasks spec (§10.3) relies on.
 
 **Declared, ready for their producer** (each = one `trackEvent` call):
 `shift_swap.requested|approved|rejected` (→ `ShiftSwapCubit`) ·

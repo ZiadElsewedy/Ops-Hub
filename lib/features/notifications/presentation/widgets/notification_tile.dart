@@ -128,6 +128,14 @@ class NotificationTile extends StatelessWidget {
     switch (type) {
       case NotificationType.taskAssigned:
         return ('Task', AppColors.textSecondary);
+      // A cancellation is a business decision, not a failure — it stays neutral
+      // so it never reads like the Missed beside it (Automated Tasks spec §8).
+      case NotificationType.taskCancelled:
+        return ('Task', AppColors.textSecondary);
+      case NotificationType.taskMissed:
+        return ('Task', AppColors.error);
+      case NotificationType.taskReportedIncorrect:
+        return ('Task', AppColors.warning);
       case NotificationType.taskSubmitted:
       case NotificationType.taskApproved:
       case NotificationType.taskRejected:
@@ -184,6 +192,12 @@ class NotificationTile extends StatelessWidget {
         return Icons.check_circle_outline_rounded;
       case NotificationType.taskRejected:
         return Icons.cancel_outlined;
+      case NotificationType.taskCancelled:
+        return Icons.block_rounded;
+      case NotificationType.taskMissed:
+        return Icons.event_busy_rounded;
+      case NotificationType.taskReportedIncorrect:
+        return Icons.flag_outlined;
       case NotificationType.taskReminder:
         return Icons.alarm_rounded;
       case NotificationType.taskOverdue:

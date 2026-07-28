@@ -182,6 +182,47 @@ service cloud.firestore {
         && selfBranch() != ''
         && resource.data.get('branchId', '') == selfBranch();
     }
+    // Cancellation (Automated Tasks spec §5.5). The reason is a MANDATORY,
+    // structured code from a fixed picklist — free text alone cannot be counted,
+    // and an optional reason would turn Cancel into a laundering hatch for work
+    // that was simply not done. Mirrors `TaskCancelReason`'s wire ids, which are
+    // frozen: the label may be reworded, the stored id never changes.
+    function isCancelReason(code) {
+      return code in ['duplicate', 'wrong_generated', 'no_longer_needed',
+                      'shift_cancelled', 'management_decision'];
+    }
+    // The cancellation record is written exactly once, by the transition INTO
+    // `cancelled`, and is immutable thereafter (§5.5) — so reporting by reason
+    // stays historically honest. Outside that transition every field must be
+    // byte-identical to what is already stored.
+    function cancelRecordUnchanged() {
+      return request.resource.data.get('cancelReason', '')
+               == resource.data.get('cancelReason', '')
+        && request.resource.data.get('cancelledAt', null)
+               == resource.data.get('cancelledAt', null)
+        && request.resource.data.get('cancelledBy', '')
+               == resource.data.get('cancelledBy', '')
+        && request.resource.data.get('cancelNote', '')
+               == resource.data.get('cancelNote', '');
+    }
+    // An employee's "this task is wrong" report (spec §5.2). They may FILE one
+    // under their own uid — never under someone else's, and never over an open
+    // report — but only a manager/admin may clear it, because clearing is the
+    // decision, and the decision belongs to management.
+    function filesOwnIncorrectReport() {
+      return resource.data.get('reportedIncorrectBy', '') == ''
+        && request.resource.data.get('reportedIncorrectBy', '') == request.auth.uid
+        && request.resource.data.get('reportedIncorrectAt', null) != null;
+    }
+    function incorrectReportUnchanged() {
+      return request.resource.data.get('reportedIncorrectBy', '')
+               == resource.data.get('reportedIncorrectBy', '')
+        && request.resource.data.get('reportedIncorrectAt', null)
+               == resource.data.get('reportedIncorrectAt', null)
+        && request.resource.data.get('reportedIncorrectNote', '')
+               == resource.data.get('reportedIncorrectNote', '');
+    }
+
     match /tasks/{taskId} {
       allow read: if canReachBranch(resource.data.get('branchId', ''))
         || isTaskAssignee()
@@ -190,9 +231,15 @@ service cloud.firestore {
       // `missed` is a server-owned terminal outcome for expired recurring
       // shift tasks. A client may never forge it (or its timestamp) on create;
       // the Admin-SDK expiry sweep is the sole writer and bypasses these rules.
+      // `cancelled` is equally un-forgeable at birth: a task is cancelled by an
+      // explicit, audited transition out of pending/started — never created
+      // already-void, which would fabricate a decision nobody took.
       allow create: if canReachBranch(request.resource.data.get('branchId', ''))
         && request.resource.data.get('status', 'pending') != 'missed'
-        && request.resource.data.get('missedAt', null) == null;
+        && request.resource.data.get('missedAt', null) == null
+        && request.resource.data.get('status', 'pending') != 'cancelled'
+        && request.resource.data.get('cancelledAt', null) == null
+        && request.resource.data.get('cancelReason', '') == '';
 
       // An APPROVED task is a locked, reviewed record. A manager/admin may not
       // edit / reassign / re-status it in place; the ONLY change permitted on an
@@ -200,10 +247,42 @@ service cloud.firestore {
       // (back into the workflow) so a mistaken approval is recoverable. The
       // review transition INTO approved is unaffected (the stored status is then
       // `waitingReview`, so this guard passes).
-      allow update: if resource.data.get('status', 'pending') != 'missed'
+      //
+      // A CANCELLED task is likewise terminal and frozen — "terminal is
+      // terminal" (spec §3.5). No client may write it at all; the admin
+      // correction that returns a terminal to Pending (§6.4) is a later phase
+      // and will be granted here explicitly when it lands, not by accident now.
+      // Moving INTO cancelled is a manager/admin decision (branch-scoped by
+      // `canReachBranch`, so an employee can never take it — §5.1), reachable
+      // from `pending` or `started` ONLY: a submitted task must be reviewed,
+      // never voided (§5.4). It must carry a picklist reason and a timestamp.
+      //
+      // The ONE exception to both freezes is the **admin terminal correction**
+      // (§6.4): a mistimed or fat-fingered terminal would otherwise be a
+      // permanent lie in the reporting, so an admin — and only an admin — may
+      // return a `missed`/`cancelled` task to `pending`, which requires clearing
+      // every trace of the outcome being undone. It is audited client-side as
+      // `task.terminal_corrected`; deliberately narrow so it stays a safety
+      // valve rather than a routine escape hatch.
+      allow update: if (isAdmin()
+          && resource.data.get('status', 'pending') in ['missed', 'cancelled']
+          && request.resource.data.get('status', 'pending') == 'pending'
+          && request.resource.data.get('missedAt', null) == null
+          && request.resource.data.get('cancelledAt', null) == null
+          && request.resource.data.get('cancelledBy', '') == ''
+          && request.resource.data.get('cancelReason', '') == '')
+        || (resource.data.get('status', 'pending') != 'missed'
         && request.resource.data.get('status', 'pending') != 'missed'
         && request.resource.data.get('missedAt', null)
              == resource.data.get('missedAt', null)
+        && resource.data.get('status', 'pending') != 'cancelled'
+        && (request.resource.data.get('status', 'pending') != 'cancelled'
+          || (canReachBranch(resource.data.get('branchId', ''))
+              && resource.data.get('status', 'pending') in ['pending', 'started']
+              && isCancelReason(request.resource.data.get('cancelReason', ''))
+              && request.resource.data.get('cancelledAt', null) != null))
+        && (request.resource.data.get('status', 'pending') == 'cancelled'
+          || cancelRecordUnchanged())
         && ((canReachBranch(resource.data.get('branchId', ''))
               && (resource.data.get('status', 'pending') != 'approved'
                   || (isAdmin()
@@ -218,6 +297,17 @@ service cloud.firestore {
                  == resource.data.get('createdBy', '')
             && request.resource.data.get('status', 'pending') != 'approved'
             && request.resource.data.get('status', 'pending') != 'rejected'
+            // Employees may NEVER cancel (spec §5.1) — the decision belongs to
+            // management. Their release valve is reporting a task as incorrect,
+            // which routes to a manager who decides. Redundant with the
+            // `canReachBranch` gate above; stated here so the employee branch
+            // reads as a complete, self-contained list of what they may do.
+            && request.resource.data.get('status', 'pending') != 'cancelled'
+            // An employee may FILE an incorrect-task report under their own uid
+            // (spec §5.2) — the release valve — but may never forge one for
+            // someone else, overwrite an open report, or clear one. Clearing is
+            // the manager's decision.
+            && (filesOwnIncorrectReport() || incorrectReportUnchanged())
             // employees can't forge review attribution…
             && request.resource.data.get('approvedBy', '')
                  == resource.data.get('approvedBy', '')
@@ -244,13 +334,16 @@ service cloud.firestore {
             // rules can't diff array contents, but preventing shrink closes the
             // "erase history" path; entry contents stay observable in the log.
               && request.resource.data.get('activityLog', []).size()
-                   >= resource.data.get('activityLog', []).size()));
+                   >= resource.data.get('activityLog', []).size())));
 
-      // Approved and missed tasks can't be deleted. This preserves both the
-      // reviewed record and the deadline-expiry evidence in history.
+      // Approved, missed and cancelled tasks can't be deleted. This preserves
+      // the reviewed record, the deadline-expiry evidence, AND the cancellation
+      // trail — a cancel that could be deleted afterwards would erase exactly
+      // the reason-code history that makes cancellation auditable (§10.3).
       allow delete: if canReachBranch(resource.data.get('branchId', ''))
         && resource.data.get('status', 'pending') != 'approved'
-        && resource.data.get('status', 'pending') != 'missed';
+        && resource.data.get('status', 'pending') != 'missed'
+        && resource.data.get('status', 'pending') != 'cancelled';
     }
 
     // ── Task templates (stabilization) ─────────────────────────────

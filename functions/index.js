@@ -72,7 +72,9 @@ const ATTENDANCE_MAX_SESSION_MINUTES = 16 * 60;
 // The pure auto-close decision (unit-tested in test/auto_close.test.js).
 const { isAutoCloseDue } = require("./attendance_auto_close");
 const {
+  isTerminalTaskStatus,
   resolveRecurringTaskWindow,
+  selectMissedNotifyTargets,
   shouldAutoEndRecurringTask,
 } = require("./recurring_task_deadline");
 const {
@@ -1019,6 +1021,10 @@ exports.claimFcmToken = onDocumentUpdated(`${USERS}/{uid}`, async (event) => {
  */
 const CLIENT_NOTIFICATION_TYPES = new Set([
   "taskAssigned", "taskRework", "taskSubmitted", "taskApproved", "taskRejected",
+  // A manager/admin cancels client-side, so the cancel notice is client-sent;
+  // an employee files a report-incorrect the same way. `taskMissed` is
+  // deliberately ABSENT — the sweep is its only writer (Admin SDK).
+  "taskCancelled", "taskReportedIncorrect",
   "swapRequested", "swapAccepted", "swapApproved", "swapRejected",
 ]);
 const NOTIFICATION_PAYLOAD_KEYS = ["taskId", "route", "revisionNumber", "swapId"];
@@ -1786,6 +1792,12 @@ exports.generateShiftTaskInstances = onSchedule(
             // instance without a deadline before the server run reached it.
             // Repair only missing window fields, transactionally, and never
             // overwrite a window already persisted for the occurrence.
+            //
+            // A TERMINAL instance is never touched — "no retry, regeneration or
+            // repair may recreate, reopen, or overwrite it" (spec §4.4). Giving
+            // an already-cancelled (or approved / missed) task a fresh deadline
+            // would put a closed record back on the auto-end sweep's radar and
+            // rewrite history nobody asked to change.
             let windowBackfilled = false;
             await db.runTransaction(async (tx) => {
               const existing = await tx.get(ref);
@@ -1794,7 +1806,8 @@ exports.generateShiftTaskInstances = onSchedule(
               if (
                 existingTask.sourceTemplateId !== doc.id ||
                 existingTask.assignmentType !== "shift" ||
-                existingTask.deadline != null
+                existingTask.deadline != null ||
+                isTerminalTaskStatus(existingTask.status)
               ) {
                 return;
               }
@@ -2098,6 +2111,66 @@ exports.generateShiftTaskInstances = onSchedule(
  * one batch per 15-minute tick, while each candidate is revalidated in a
  * transaction so a simultaneous employee submission always wins safely.
  */
+/**
+ * Tells a human that a generated shift task was auto-closed as **Missed**
+ * (Automated Tasks spec §9.1).
+ *
+ * Routed to the branch's active managers, or to admins when the branch has none
+ * (see `selectMissedNotifyTargets` for why that is a fallback, not an addition).
+ * Ids are **deterministic** (`taskmissed_{taskId}_{uid}`), so a retried sweep or
+ * an overlapping run can never produce a second notice for the same miss.
+ *
+ * Best-effort: a notification failure must never undo the transition that has
+ * already committed — the task is genuinely missed either way.
+ */
+async function notifyTaskMissed(taskId, ended) {
+  const branchId = String(ended.branchId || "");
+  try {
+    const [managerSnap, adminSnap] = await Promise.all([
+      branchId
+        ? db.collection(USERS)
+            .where("branchId", "==", branchId)
+            .where("role", "==", "manager")
+            .get()
+        : Promise.resolve({ docs: [] }),
+      db.collection(USERS).where("role", "==", "admin").get(),
+    ]);
+    const active = (snap) => snap.docs
+      .filter((d) => (d.data() || {}).isActive !== false)
+      .map((d) => d.id);
+
+    const targets = selectMissedNotifyTargets({
+      managers: active(managerSnap),
+      admins: active(adminSnap),
+    });
+    if (targets.length === 0) return;
+
+    const batch = db.batch();
+    for (const uid of targets) {
+      const ref = db.collection(NOTIFICATIONS).doc(`taskmissed_${taskId}_${uid}`);
+      batch.set(ref, {
+        id: ref.id,
+        recipientUid: uid,
+        senderUid: "system",
+        type: "taskMissed",
+        title: "Task Missed",
+        body: ended.title
+          ? `${ended.title} — the shift ended before it was done`
+          : "A shift task ended before it was done",
+        readAt: null,
+        payload: { taskId, route: "task_details" },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  } catch (err) {
+    logger.warn("missed-task notification failed", {
+      taskId,
+      error: String(err),
+    });
+  }
+}
+
 exports.autoEndRecurringShiftTasks = onSchedule(
   { schedule: "every 15 minutes", maxInstances: 1, retryCount: 0, timeoutSeconds: 300 },
   async () => {
@@ -2163,6 +2236,7 @@ exports.autoEndRecurringShiftTasks = onSchedule(
             branchId: String(task.branchId || ""),
             deadline: task.deadline || null,
             templateId: String(task.sourceTemplateId || ""),
+            title: String(task.title || ""),
           };
         });
       } catch (transitionErr) {
@@ -2184,6 +2258,10 @@ exports.autoEndRecurringShiftTasks = onSchedule(
         deadline: ended.deadline,
         templateId: ended.templateId,
       });
+      // A task that fails automatically must be visible to a HUMAN (spec §9.1).
+      // Before this, the sweep closed work silently and the only trace was the
+      // audit log — which nobody watches.
+      await notifyTaskMissed(doc.id, ended);
     }
 
     logger.info("recurring task auto-end complete", {

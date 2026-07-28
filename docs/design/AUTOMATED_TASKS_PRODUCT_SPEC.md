@@ -35,13 +35,18 @@ becomes closed (Approved / Missed / Cancelled), and how each is reported.
                  │           │          │              │
                  │           │          │              └── reject ─► Started   (rework)
                  │           │          │
-                 │           │          └── (shift deadline) ─► Missed ●   (shift tasks only)
-                 │           └───────── (shift deadline) ─► Missed ●
+                 │           │          └── (shift end + grace) ─► Missed ●   (shift tasks only)
+                 │           └───────── (shift end + grace) ─► Missed ●
                  │
                  └── manager cancel (+reason) from Pending or Started ─► Cancelled ●
 
    ● = terminal
    "Late" is a derived visual overlay on any active, past-deadline task — NOT a state.
+
+   Timeline of a shift task's deadline:
+     shift end ───────────── 30 min ─────────────► Missed evaluated
+        │                                                │
+        └─ task reads LATE from here (visual only)       └─ terminal, and only here
 ```
 
 **Reading the diagram:** Cancelled is an **early exit** taken from `Pending` or
@@ -59,7 +64,7 @@ outcome — it is unavailable once a task reaches Waiting Review.
 | **Waiting Review** | Employee submitted; awaiting decision | Employee | No |
 | **Approved** | Work accepted | Manager/Admin | **Yes** |
 | **Rejected** | Sent back for rework → returns to Started | Manager/Admin | No (loops) |
-| **Missed** | Shift window closed on unfinished work | System (automatic) | **Yes** |
+| **Missed** | Shift window closed on unfinished work, and the 30-minute grace expired (§3.6) | System (automatic) | **Yes** |
 | **Cancelled** | Business decision: will not be done | Manager/Admin | **Yes** |
 
 ### Allowed transitions
@@ -68,7 +73,7 @@ outcome — it is unavailable once a task reaches Waiting Review.
 - `Started → Waiting Review` (employee)
 - `Waiting Review → Approved | Rejected` (manager/admin)
 - `Rejected → Started` (rework)
-- `Pending → Missed`, `Started → Missed` (system, shift tasks only, at deadline)
+- `Pending → Missed`, `Started → Missed` (system, shift tasks only, at shift end **+ 30 min grace**)
 - `Pending → Cancelled`, `Started → Cancelled` (manager/admin, reason required)
 - `Approved | Missed | Cancelled → Pending` **admin-only correction** (§6.4)
 
@@ -87,7 +92,8 @@ outcome — it is unavailable once a task reaches Waiting Review.
 1. **Late (Overdue) is a derived visual only**, never a workflow state. It means
    "active task past its expected deadline, still expected to be done." It
    applies to any active task with a deadline. It disappears the instant the task
-   reaches a terminal state.
+   reaches a terminal state. It is **not** affected by the grace period (§3.6) —
+   a task reads Late from its deadline, grace or no grace.
 2. **Missed is terminal, automatic, and exclusive to Automated Shift Tasks.** A
    manual or per-task recurring task **never** becomes Missed automatically.
 3. **Cancelled is terminal, manual, and universal** — available on every task
@@ -95,6 +101,43 @@ outcome — it is unavailable once a task reaches Waiting Review.
 4. **A task in Waiting Review cannot be Cancelled.** It is reviewed normally.
 5. **Terminal is terminal.** Once Approved, Missed, or Cancelled, a task leaves
    all active queues. The only way back is the admin correction (§6.4).
+6. **Grace period — a fixed, global 30 minutes** (ruled 2026-07-28; supersedes
+   the V1 zero-grace position previously held open in §12.1). A shift task is
+   evaluated for Missed **30 minutes after its resolved shift end**, not at the
+   shift end itself.
+
+   The rule and its boundaries:
+
+   - **Grace is a tolerance on the close, not a new deadline.** The task's due
+     time is unchanged; nothing about the schedule, the reminders or the sort
+     order moves.
+   - **Late still fires at the original deadline.** The employee sees the urgency
+     immediately (§3.1); they are simply not *recorded as failed* until the
+     tolerance expires. There is still no notification on Late (§9.4).
+   - **30 minutes exactly, everywhere.** Not per branch, not per template, not
+     per shift, not admin-editable. It is a constant, and changing it is a
+     product decision with an ADR — never a setting.
+   - **No "Completed Late" state.** Work finished inside grace is simply
+     completed and reviewed normally. Lateness is *measured* from the recorded
+     timestamps (§10.4), never *stated* as a status.
+
+   *Justification:* the sweep that closes expired tasks runs on a fixed interval,
+   so a zero-grace rule was never actually zero — it granted a random tolerance
+   of up to one sweep interval, and two employees finishing at the same minute
+   could get opposite records. Making the tolerance explicit replaces an
+   invisible, non-reproducible rule with a deterministic one. It also removes the
+   outcome this model most needed to avoid: an employee who stays to finish and
+   an employee who walks away receiving the *identical* record. Because shifts
+   overlap (the next crew is already on the floor at shift end), work completed
+   inside grace is genuinely completed work, not a fiction. 30 minutes is longer
+   than the sweep interval — so the sweep's cadence stops being the de facto rule
+   — long enough to cover finishing and submitting proof, and far too short to
+   absorb another shift's work.
+
+   *Cost, accepted knowingly:* the cliff moves, it does not disappear — a task
+   finished at grace+1 minute is still Missed. And completion rates computed
+   after this rule are **not comparable** to figures from before it; the change
+   is a baseline reset, not an improvement.
 
 ---
 
@@ -235,9 +278,8 @@ Four categories, kept **independent**. No report may ever merge any two.
 1. **Headline KPI — Completion rate** = Approved ÷ (Approved + Missed). It must be
    **ungameable by cancellation** — hence Cancelled is excluded.
 2. **Missed feeds branch performance scorecards.** It is the real failure signal.
-   *Gate:* scorecard wiring must not go live until the grace decision (§12) is
-   consciously ruled — until then, Missed may over-report failure at shift
-   boundaries.
+   *Gate: CLEARED 2026-07-28* — the grace decision is ruled (§3.6), so Missed no
+   longer over-reports failure at shift boundaries and may carry weight.
 3. **Cancellation volume by reason code is a secondary KPI.** Each cancel is
    legitimate; a *cluster* is a smell — repeated "No Longer Needed" means a
    routine that should be paused; repeated "Wrong Task Generated" means a
@@ -267,19 +309,28 @@ Four categories, kept **independent**. No report may ever merge any two.
    mistaken terminals.
 8. **Stores never close** (business constraint) — so no closed-day handling
    exists, by design.
+9. **A fixed, global 30-minute grace before Missed** (§3.6) — deliberately *not*
+   configurable. A per-branch grace would be a dial that moves the headline KPI,
+   held by the person the KPI evaluates, and would make two branches' completion
+   rates stop meaning the same thing. The variation that genuinely exists in this
+   business (seasonal trading hours) is already expressed where it belongs — in
+   the shift hours themselves — and a grace measured in minutes-after-shift-end
+   follows those automatically.
+10. **Lateness is measured, never stated** — the timestamps we already record
+    answer "was this finished after its deadline, and by how much" without a
+    fourth outcome. This is why there is no *Completed Late* state (§3.6, §10.4).
 
 ---
 
 ## 12. Product decisions we intentionally POSTPONED
 
-1. **Grace period / "Completed Late" outcome.** V1 ships **zero grace**: a shift
-   task unfinished at the exact shift end becomes Missed. This is a *conscious*
-   acceptance, not an oversight — it keeps V1 simple. The known cost: an employee
-   finishing minutes after shift end is recorded Missed while the store is open.
-   Revisit before Missed carries heavy weight in performance reviews.
-2. **Single-timezone assumption.** V1 assumes all stores share one timezone. If
-   the estate ever spans timezones, the "today"/deadline boundary must be
-   revisited before that expansion — it is a hard prerequisite, not a nicety.
+1. ~~**Grace period / "Completed Late" outcome.**~~ **RULED 2026-07-28 — see
+   §3.6.** A fixed, global 30-minute grace; no Completed-Late state; no
+   configurability. This item is closed; do not re-open it as an open question.
+2. **Single-timezone assumption.** The business operates in **Egypt only, on one
+   timezone**, so this holds by construction today. If the estate ever spans
+   timezones, the "today"/deadline boundary must be revisited before that
+   expansion — it is a hard prerequisite, not a nicety.
 3. **Unifying the two recurrence engines' Cancel behavior** (§4.5).
 
 ---
@@ -315,12 +366,15 @@ terminal-correction (§6.4).
 **Phase 3 — Reporting & analytics.** Lock the four-way classification; Cancelled
 excluded from completion rate; cancellation-by-reason secondary KPI; Late as
 timeliness; wire Missed into branch scorecards.
-*Risk:* wiring Missed into scorecards before ruling the grace question (§12.1)
-bakes the truth-gap into performance data.
+*Risk (now retired):* the grace question is ruled (§3.6), so scorecards no longer
+bake a truth-gap into performance data. The remaining risk is the **hard
+invariant** in §8 — the moment any surface prints "incomplete = Missed +
+Cancelled", the distinction this whole spec exists to protect is destroyed.
 
-**V2 / V3 candidates.** Grace period / Completed-Late; unify recurrence-engine
-Cancel behavior; a "this routine is cancelled repeatedly → suggest pausing it"
-nudge; multi-timezone support if the estate expands.
+**V2 / V3 candidates.** Unify recurrence-engine Cancel behavior; a "this routine
+is cancelled repeatedly → suggest pausing it" nudge; multi-timezone support if
+the estate expands. (Grace / Completed-Late is **no longer a candidate** — it was
+ruled in §3.6.)
 
 ---
 

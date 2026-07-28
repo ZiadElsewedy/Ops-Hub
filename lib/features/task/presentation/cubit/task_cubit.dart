@@ -6,6 +6,7 @@ import 'package:drop/core/enums/notification_type.dart';
 import 'package:drop/core/enums/schedule_day.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_assignment_type.dart';
+import 'package:drop/core/enums/task_cancel_reason.dart';
 import 'package:drop/core/enums/task_priority.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/enums/task_type.dart';
@@ -139,6 +140,22 @@ class TaskCubit extends Cubit<TaskState> {
       metadata: {'title': task.title, ...metadata},
     );
   }
+
+  /// Why a **terminal** task refuses an action. One message source across
+  /// edit / delete / reassign so a closed record is never mislabelled — a
+  /// cancelled task must not be reported as "approved and locked", since the
+  /// two carry opposite meanings and only one of them has a reopen path.
+  /// [closedPhrase] completes "… tasks are closed and {phrase}."; [approved] is
+  /// the whole sentence for an approved task (which *is* reopenable).
+  static String _terminalBlockMessage(
+    TaskStatus status, {
+    required String closedPhrase,
+    required String approved,
+  }) => switch (status) {
+    TaskStatus.missed => 'Missed tasks are closed and $closedPhrase.',
+    TaskStatus.cancelled => 'Cancelled tasks are closed and $closedPhrase.',
+    _ => approved,
+  };
 
   List<TaskEntity> get _tasks =>
       state.maybeWhen(loaded: (t, _, _, _, _) => t, orElse: () => const []);
@@ -536,9 +553,11 @@ class TaskCubit extends Cubit<TaskState> {
     final existing = _taskById(task.id);
     if (existing?.status.isTerminal ?? false) {
       _emitTransientError(
-        existing!.status == TaskStatus.missed
-            ? 'Missed tasks are closed and cannot be edited.'
-            : 'Approved tasks are locked. Reopen the task to edit it.',
+        _terminalBlockMessage(
+          existing!.status,
+          closedPhrase: 'cannot be edited',
+          approved: 'Approved tasks are locked. Reopen the task to edit it.',
+        ),
       );
       return;
     }
@@ -584,9 +603,12 @@ class TaskCubit extends Cubit<TaskState> {
     final existing = _taskById(taskId);
     if (existing?.status.isTerminal ?? false) {
       _emitTransientError(
-        existing!.status == TaskStatus.missed
-            ? 'Missed tasks are closed and cannot be deleted.'
-            : 'Approved tasks are locked. Reopen the task before deleting it.',
+        _terminalBlockMessage(
+          existing!.status,
+          closedPhrase: 'cannot be deleted',
+          approved:
+              'Approved tasks are locked. Reopen the task before deleting it.',
+        ),
       );
       return;
     }
@@ -640,9 +662,12 @@ class TaskCubit extends Cubit<TaskState> {
     final existing = _taskById(taskId);
     if (existing?.status.isTerminal ?? false) {
       _emitTransientError(
-        existing!.status == TaskStatus.missed
-            ? 'Missed tasks are closed and cannot change assignees.'
-            : 'Approved tasks are locked. Reopen the task to change assignees.',
+        _terminalBlockMessage(
+          existing!.status,
+          closedPhrase: 'cannot change assignees',
+          approved:
+              'Approved tasks are locked. Reopen the task to change assignees.',
+        ),
       );
       return;
     }
@@ -812,6 +837,272 @@ class TaskCubit extends Cubit<TaskState> {
           if ((reviewNotes ?? '').trim().isNotEmpty) 'reviewNotes': reviewNotes,
         },
       );
+    }
+  }
+
+  /// **Admin-only terminal correction** (Automated Tasks spec §6.4) — returns a
+  /// mistakenly-closed task to `pending`, clearing the terminal evidence.
+  ///
+  /// Without it, a mistimed or fat-fingered terminal is a **permanent lie in the
+  /// reporting**: a cancel that lost the race to the Missed sweep by seconds, a
+  /// cancel of the wrong task, a miss recorded against work that was actually
+  /// done. This is the cheapest possible safety valve, and it is deliberately
+  /// narrow — admin only, always audited — so it can't become a routine escape
+  /// hatch that erodes accountability.
+  ///
+  /// Scoped to `missed` / `cancelled`. Correcting an **approved** task is the
+  /// separate, longer-standing [reopenTask] (which a manager may also do, per
+  /// the spec's §6 permission table); this one is the admin's alone. The caller
+  /// gates on role; `firestore.rules` is the real enforcement.
+  Future<void> correctTerminal(TaskEntity task, {String? note}) async {
+    if (task.status != TaskStatus.missed &&
+        task.status != TaskStatus.cancelled) {
+      _emitTransientError('Only a missed or cancelled task can be corrected.');
+      return;
+    }
+    final now = DateTime.now();
+    final trimmed = note?.trim();
+    final from = task.status;
+    final ok = await _transition(
+      task,
+      from: const {TaskStatus.missed, TaskStatus.cancelled},
+      patch: {
+        'status': TaskStatus.pending.value,
+        // Every trace of the wrong outcome goes, or the task would sit in
+        // `pending` still carrying a cancellation reason and a missed stamp.
+        'missedAt': null,
+        'cancelledAt': null,
+        'cancelledBy': null,
+        'cancelReason': null,
+        'cancelNote': null,
+        // A corrected task rejoins active views; the retention pass may have
+        // archived it while it was closed.
+        'archivedAt': null,
+      },
+      appendLog: [
+        ActivityEntry(
+          status: kActivityTerminalCorrected,
+          actorId: _user?.uid ?? '',
+          actorName: _user?.displayName,
+          at: now,
+          note: (trimmed?.isEmpty ?? true)
+              ? 'Reopened — ${from.value} recorded in error'
+              : trimmed,
+        ),
+      ],
+    );
+    if (ok) {
+      _trackTask(
+        task,
+        AuditEventType.taskTerminalCorrected,
+        metadata: {
+          'correctedFrom': from.value,
+          if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed,
+        },
+      );
+    }
+  }
+
+  /// Cancels a task — the terminal **business decision** that this work will not
+  /// be done (Automated Tasks spec §5). Distinct from both Approved (success)
+  /// and Missed (a shift wall closed on unfinished work): a cancellation is
+  /// neither, and is excluded from the completion rate entirely (§8).
+  ///
+  /// Reachable from `pending` or `started` **only** — a submitted task must be
+  /// reviewed, never voided (§5.4) — and never by an employee (§5.1; the real
+  /// gate is `firestore.rules`, which also holds a manager to their own branch).
+  /// [reason] is mandatory and structured; [note] may add context but never
+  /// substitutes for the code, because cancellation volume *by reason* is the
+  /// signal that catches a misconfigured template or a routine that should be
+  /// paused (§10.3).
+  ///
+  /// **Instance-scoped (§4.3):** cancelling today's generated shift task cancels
+  /// only that instance. Tomorrow's still generates — stopping a routine is a
+  /// separate action on its template, deliberately outside this workflow.
+  Future<void> cancelTask(
+    TaskEntity task, {
+    required TaskCancelReason reason,
+    String? note,
+  }) async {
+    // A reason is the point of the feature; `unknown` is a read-side fallback
+    // for a code written by a newer build, never something we may write.
+    if (!TaskCancelReason.selectable.contains(reason)) {
+      _emitTransientError('Choose a reason before cancelling this task.');
+      return;
+    }
+    final trimmed = note?.trim();
+    final now = DateTime.now();
+    final ok = await _transition(
+      task,
+      from: const {TaskStatus.pending, TaskStatus.started},
+      patch: {
+        'status': TaskStatus.cancelled.value,
+        'cancelledAt': now,
+        'cancelledBy': _user?.uid,
+        'cancelReason': reason.value,
+        'cancelNote': (trimmed?.isEmpty ?? true) ? null : trimmed,
+        // Cancelling IS the answer to an open "this task is wrong" report, so
+        // the flag clears with it — otherwise a closed task would keep asking
+        // for a decision that has just been made.
+        'reportedIncorrectBy': null,
+        'reportedIncorrectAt': null,
+        'reportedIncorrectNote': null,
+      },
+      appendLog: [
+        ActivityEntry(
+          status: TaskStatus.cancelled.value,
+          actorId: _user?.uid ?? '',
+          actorName: _user?.displayName,
+          at: now,
+          // The reason always reaches the timeline, so the record reads
+          // honestly even where the cancel fields aren't rendered.
+          note: (trimmed?.isEmpty ?? true)
+              ? reason.label
+              : '${reason.label} — $trimmed',
+        ),
+      ],
+    );
+    if (ok) {
+      if (_user != null) {
+        // Targeted, never branch-wide (§9.2): the people who were going to do
+        // this work. For a shift broadcast there are no named assignees, so
+        // resolve the rostered crew exactly as a review outcome does (§9.3) —
+        // nobody rostered yields an empty list, which `NotifyTaskEvent` treats
+        // as "no recipients", not as a failure.
+        await _notifyTaskEvent(
+          task: task.copyWith(cancelReason: reason, cancelNote: trimmed),
+          type: NotificationType.taskCancelled,
+          actor: _user!,
+          recipientOverride: await _reviewRecipients(task),
+        );
+      }
+      _trackTask(
+        task,
+        AuditEventType.taskCancelled,
+        metadata: {
+          'reason': reason.value,
+          if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed,
+          'cancelledFrom': task.status.value,
+        },
+      );
+    }
+  }
+
+  /// An employee flags a task as **incorrect** and routes it to their branch's
+  /// managers, who decide (Automated Tasks spec §5.2). This is the release valve
+  /// that makes manager-only cancellation workable: the person actually holding
+  /// the wrong work has a way to say so, without ever getting the power to
+  /// cancel it themselves.
+  ///
+  /// [note] is required — a report with no explanation gives the manager nothing
+  /// to decide on. Filing does **not** change the task's status: the work stays
+  /// exactly where it was until a manager cancels it or dismisses the report.
+  Future<void> reportTaskIncorrect(TaskEntity task, {required String note}) async {
+    final trimmed = note.trim();
+    if (trimmed.isEmpty) {
+      _emitTransientError("Tell your manager what's wrong with this task.");
+      return;
+    }
+    if (task.status.isTerminal) {
+      _emitTransientError('This task is already closed.');
+      return;
+    }
+    final user = _user;
+    if (user == null) return;
+    final now = DateTime.now();
+    final ok = await _transition(
+      task,
+      // Any live state — a task can be wrong at any point before it closes, and
+      // reporting is not a lifecycle move, so there is no predecessor to assert
+      // beyond "not terminal" (checked above).
+      from: const {
+        TaskStatus.pending,
+        TaskStatus.started,
+        TaskStatus.completed,
+        TaskStatus.waitingReview,
+        TaskStatus.rejected,
+      },
+      patch: {
+        'reportedIncorrectBy': user.uid,
+        'reportedIncorrectAt': now,
+        'reportedIncorrectNote': trimmed,
+      },
+      appendLog: [
+        ActivityEntry(
+          status: kActivityReportedIncorrect,
+          actorId: user.uid,
+          actorName: user.displayName,
+          at: now,
+          note: trimmed,
+        ),
+      ],
+    );
+    if (!ok) return;
+
+    final reported = task.copyWith(
+      reportedIncorrectBy: user.uid,
+      reportedIncorrectAt: now,
+      reportedIncorrectNote: trimmed,
+    );
+    await _notifyTaskEvent(
+      task: reported,
+      type: NotificationType.taskReportedIncorrect,
+      actor: user,
+      recipientOverride: await _branchManagers(task.branchId),
+    );
+    _trackTask(
+      task,
+      AuditEventType.taskReportedIncorrect,
+      metadata: {'note': trimmed},
+    );
+  }
+
+  /// A manager/admin closes an employee's report **without** cancelling — the
+  /// task is fine as issued. Clears the report so the banner and the manager's
+  /// queue don't keep showing work that has already been judged.
+  Future<void> dismissIncorrectReport(TaskEntity task) async {
+    if (!task.isReportedIncorrect) return;
+    final now = DateTime.now();
+    final ok = await _transition(
+      task,
+      from: const {
+        TaskStatus.pending,
+        TaskStatus.started,
+        TaskStatus.completed,
+        TaskStatus.waitingReview,
+        TaskStatus.rejected,
+      },
+      patch: {
+        'reportedIncorrectBy': null,
+        'reportedIncorrectAt': null,
+        'reportedIncorrectNote': null,
+      },
+      appendLog: [
+        ActivityEntry(
+          status: kActivityReportDismissed,
+          actorId: _user?.uid ?? '',
+          actorName: _user?.displayName,
+          at: now,
+          note: 'Report reviewed — the task stands',
+        ),
+      ],
+    );
+    if (ok) _trackTask(task, AuditEventType.taskReportDismissed);
+  }
+
+  /// The branch's active managers — the routing target for an employee's
+  /// incorrect-task report. Falls back to an empty list (a valid "nobody to
+  /// tell"), never to a broadcast.
+  Future<List<String>> _branchManagers(String? branchId) async {
+    if (branchId == null || branchId.isEmpty) return const [];
+    try {
+      final users = await _getUsersByBranch(branchId);
+      return [
+        for (final u in users)
+          if (u.role.isManager && u.isActive) u.uid,
+      ];
+    } catch (_) {
+      return const [];
     }
   }
 

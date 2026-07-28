@@ -27,6 +27,9 @@ String activityTitle(String status) => switch (status) {
   'rejected' => 'Rework requested',
   'missed' => 'Missed deadline',
   'cancelled' => 'Cancelled',
+  'reportedIncorrect' => 'Reported as incorrect',
+  'reportDismissed' => 'Report dismissed',
+  'terminalCorrected' => 'Reopened by admin',
   'note' => 'Note',
   'noteWarning' => 'Warning',
   'noteIssue' => 'Issue',
@@ -38,7 +41,10 @@ String activityTitle(String status) => switch (status) {
 Color activityColor(String status) => switch (status) {
   'approved' => AppColors.success,
   'rejected' || 'missed' || 'noteIssue' => kStateRejected,
-  'waitingReview' || 'noteWarning' => kStateInReview,
+  // A report is a raised hand, not a fault — amber like the other "someone
+  // needs to look at this" events. A cancellation stays neutral grey (it is
+  // neither success nor failure), which `_` already gives it.
+  'reportedIncorrect' || 'waitingReview' || 'noteWarning' => kStateInReview,
   'started' => kStateInProgress,
   'pending' || 'assigned' => kStatePending,
   'completed' => AppColors.textSecondary,
@@ -55,7 +61,10 @@ IconData activityIcon(String status) => switch (status) {
   'approved' => Icons.verified_rounded,
   'rejected' => Icons.replay_rounded,
   'missed' => Icons.event_busy_rounded,
-  'cancelled' => Icons.close_rounded,
+  'cancelled' => Icons.block_rounded,
+  'reportedIncorrect' => Icons.flag_outlined,
+  'reportDismissed' => Icons.flag_rounded,
+  'terminalCorrected' => Icons.lock_open_rounded,
   'note' => Icons.chat_bubble_outline_rounded,
   'noteWarning' => Icons.warning_amber_rounded,
   'noteIssue' => Icons.report_gmailerrorred_rounded,

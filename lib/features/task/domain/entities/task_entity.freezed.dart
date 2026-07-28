@@ -129,7 +129,38 @@ mixin _$TaskEntity {
   /// deadline passed before the work was completed. Written only by the
   /// server-side automation sweep; null for every task that has not missed
   /// its shift window. Additive — old task documents remain valid.
-  DateTime? get missedAt => throw _privateConstructorUsedError;
+  DateTime? get missedAt =>
+      throw _privateConstructorUsedError; // ─── Cancellation (Automated Tasks spec §5) ──────────────────
+  /// When a manager/admin cancelled the task, and who. Cancellation is a
+  /// terminal **business decision** — the work will not be done — taken from
+  /// `pending` or `started` only, and it is neither success nor failure for
+  /// reporting (§8). Null on every task that was never cancelled. Additive —
+  /// old task documents remain valid.
+  DateTime? get cancelledAt => throw _privateConstructorUsedError;
+  String? get cancelledBy => throw _privateConstructorUsedError;
+
+  /// The mandatory structured reason (§5.5). Always set on a cancelled task;
+  /// null otherwise. **Immutable once written** (frozen in `firestore.rules`)
+  /// so reporting by reason code stays historically honest.
+  TaskCancelReason? get cancelReason => throw _privateConstructorUsedError;
+
+  /// Optional free-text note accompanying [cancelReason]. Never a substitute
+  /// for the code — it exists to add context a picklist can't carry.
+  String? get cancelNote =>
+      throw _privateConstructorUsedError; // ─── Reported incorrect (Automated Tasks spec §5.2) ───────────
+  /// An employee flagged this task as wrong (duplicate, not applicable, aimed
+  /// at the wrong shift…) and routed it to a manager, **who decides** — the
+  /// employee never cancels. This is the release valve that makes manager-only
+  /// cancellation workable rather than inhumane.
+  ///
+  /// [reportedIncorrectBy] is the reporting employee's uid; the note is their
+  /// explanation and is required at the call site, because a report with no
+  /// explanation gives the manager nothing to decide on. All three clear
+  /// together when a manager dismisses the report or cancels the task. Null on
+  /// every unreported task. Additive — no migration.
+  String? get reportedIncorrectBy => throw _privateConstructorUsedError;
+  DateTime? get reportedIncorrectAt => throw _privateConstructorUsedError;
+  String? get reportedIncorrectNote => throw _privateConstructorUsedError;
 
   /// Free-text notes added by the executing employee.
   String? get notes => throw _privateConstructorUsedError;
@@ -234,6 +265,13 @@ abstract class $TaskEntityCopyWith<$Res> {
     DateTime? startsAt,
     DateTime? deadline,
     DateTime? missedAt,
+    DateTime? cancelledAt,
+    String? cancelledBy,
+    TaskCancelReason? cancelReason,
+    String? cancelNote,
+    String? reportedIncorrectBy,
+    DateTime? reportedIncorrectAt,
+    String? reportedIncorrectNote,
     String? notes,
     String? proofImageUrl,
     DateTime? startedAt,
@@ -296,6 +334,13 @@ class _$TaskEntityCopyWithImpl<$Res, $Val extends TaskEntity>
     Object? startsAt = freezed,
     Object? deadline = freezed,
     Object? missedAt = freezed,
+    Object? cancelledAt = freezed,
+    Object? cancelledBy = freezed,
+    Object? cancelReason = freezed,
+    Object? cancelNote = freezed,
+    Object? reportedIncorrectBy = freezed,
+    Object? reportedIncorrectAt = freezed,
+    Object? reportedIncorrectNote = freezed,
     Object? notes = freezed,
     Object? proofImageUrl = freezed,
     Object? startedAt = freezed,
@@ -413,6 +458,34 @@ class _$TaskEntityCopyWithImpl<$Res, $Val extends TaskEntity>
                 ? _value.missedAt
                 : missedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            cancelledAt: freezed == cancelledAt
+                ? _value.cancelledAt
+                : cancelledAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            cancelledBy: freezed == cancelledBy
+                ? _value.cancelledBy
+                : cancelledBy // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            cancelReason: freezed == cancelReason
+                ? _value.cancelReason
+                : cancelReason // ignore: cast_nullable_to_non_nullable
+                      as TaskCancelReason?,
+            cancelNote: freezed == cancelNote
+                ? _value.cancelNote
+                : cancelNote // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            reportedIncorrectBy: freezed == reportedIncorrectBy
+                ? _value.reportedIncorrectBy
+                : reportedIncorrectBy // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            reportedIncorrectAt: freezed == reportedIncorrectAt
+                ? _value.reportedIncorrectAt
+                : reportedIncorrectAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            reportedIncorrectNote: freezed == reportedIncorrectNote
+                ? _value.reportedIncorrectNote
+                : reportedIncorrectNote // ignore: cast_nullable_to_non_nullable
+                      as String?,
             notes: freezed == notes
                 ? _value.notes
                 : notes // ignore: cast_nullable_to_non_nullable
@@ -539,6 +612,13 @@ abstract class _$$TaskEntityImplCopyWith<$Res>
     DateTime? startsAt,
     DateTime? deadline,
     DateTime? missedAt,
+    DateTime? cancelledAt,
+    String? cancelledBy,
+    TaskCancelReason? cancelReason,
+    String? cancelNote,
+    String? reportedIncorrectBy,
+    DateTime? reportedIncorrectAt,
+    String? reportedIncorrectNote,
     String? notes,
     String? proofImageUrl,
     DateTime? startedAt,
@@ -601,6 +681,13 @@ class __$$TaskEntityImplCopyWithImpl<$Res>
     Object? startsAt = freezed,
     Object? deadline = freezed,
     Object? missedAt = freezed,
+    Object? cancelledAt = freezed,
+    Object? cancelledBy = freezed,
+    Object? cancelReason = freezed,
+    Object? cancelNote = freezed,
+    Object? reportedIncorrectBy = freezed,
+    Object? reportedIncorrectAt = freezed,
+    Object? reportedIncorrectNote = freezed,
     Object? notes = freezed,
     Object? proofImageUrl = freezed,
     Object? startedAt = freezed,
@@ -718,6 +805,34 @@ class __$$TaskEntityImplCopyWithImpl<$Res>
             ? _value.missedAt
             : missedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        cancelledAt: freezed == cancelledAt
+            ? _value.cancelledAt
+            : cancelledAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        cancelledBy: freezed == cancelledBy
+            ? _value.cancelledBy
+            : cancelledBy // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        cancelReason: freezed == cancelReason
+            ? _value.cancelReason
+            : cancelReason // ignore: cast_nullable_to_non_nullable
+                  as TaskCancelReason?,
+        cancelNote: freezed == cancelNote
+            ? _value.cancelNote
+            : cancelNote // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        reportedIncorrectBy: freezed == reportedIncorrectBy
+            ? _value.reportedIncorrectBy
+            : reportedIncorrectBy // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        reportedIncorrectAt: freezed == reportedIncorrectAt
+            ? _value.reportedIncorrectAt
+            : reportedIncorrectAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        reportedIncorrectNote: freezed == reportedIncorrectNote
+            ? _value.reportedIncorrectNote
+            : reportedIncorrectNote // ignore: cast_nullable_to_non_nullable
+                  as String?,
         notes: freezed == notes
             ? _value.notes
             : notes // ignore: cast_nullable_to_non_nullable
@@ -823,6 +938,13 @@ class _$TaskEntityImpl extends _TaskEntity {
     this.startsAt,
     this.deadline,
     this.missedAt,
+    this.cancelledAt,
+    this.cancelledBy,
+    this.cancelReason,
+    this.cancelNote,
+    this.reportedIncorrectBy,
+    this.reportedIncorrectAt,
+    this.reportedIncorrectNote,
     this.notes,
     this.proofImageUrl,
     this.startedAt,
@@ -1031,6 +1153,44 @@ class _$TaskEntityImpl extends _TaskEntity {
   /// its shift window. Additive — old task documents remain valid.
   @override
   final DateTime? missedAt;
+  // ─── Cancellation (Automated Tasks spec §5) ──────────────────
+  /// When a manager/admin cancelled the task, and who. Cancellation is a
+  /// terminal **business decision** — the work will not be done — taken from
+  /// `pending` or `started` only, and it is neither success nor failure for
+  /// reporting (§8). Null on every task that was never cancelled. Additive —
+  /// old task documents remain valid.
+  @override
+  final DateTime? cancelledAt;
+  @override
+  final String? cancelledBy;
+
+  /// The mandatory structured reason (§5.5). Always set on a cancelled task;
+  /// null otherwise. **Immutable once written** (frozen in `firestore.rules`)
+  /// so reporting by reason code stays historically honest.
+  @override
+  final TaskCancelReason? cancelReason;
+
+  /// Optional free-text note accompanying [cancelReason]. Never a substitute
+  /// for the code — it exists to add context a picklist can't carry.
+  @override
+  final String? cancelNote;
+  // ─── Reported incorrect (Automated Tasks spec §5.2) ───────────
+  /// An employee flagged this task as wrong (duplicate, not applicable, aimed
+  /// at the wrong shift…) and routed it to a manager, **who decides** — the
+  /// employee never cancels. This is the release valve that makes manager-only
+  /// cancellation workable rather than inhumane.
+  ///
+  /// [reportedIncorrectBy] is the reporting employee's uid; the note is their
+  /// explanation and is required at the call site, because a report with no
+  /// explanation gives the manager nothing to decide on. All three clear
+  /// together when a manager dismisses the report or cancels the task. Null on
+  /// every unreported task. Additive — no migration.
+  @override
+  final String? reportedIncorrectBy;
+  @override
+  final DateTime? reportedIncorrectAt;
+  @override
+  final String? reportedIncorrectNote;
 
   /// Free-text notes added by the executing employee.
   @override
@@ -1128,7 +1288,7 @@ class _$TaskEntityImpl extends _TaskEntity {
 
   @override
   String toString() {
-    return 'TaskEntity(id: $id, title: $title, description: $description, type: $type, workType: $workType, status: $status, priority: $priority, branchId: $branchId, assigneeIds: $assigneeIds, checklist: $checklist, referenceAttachments: $referenceAttachments, data: $data, createdBy: $createdBy, assignedShiftId: $assignedShiftId, shift: $shift, assignmentType: $assignmentType, instanceDate: $instanceDate, sourceTemplateId: $sourceTemplateId, recurrenceRootId: $recurrenceRootId, occurrenceKey: $occurrenceKey, correlationId: $correlationId, startsAt: $startsAt, deadline: $deadline, missedAt: $missedAt, notes: $notes, proofImageUrl: $proofImageUrl, startedAt: $startedAt, submittedAt: $submittedAt, approvedBy: $approvedBy, approvedAt: $approvedAt, rejectedBy: $rejectedBy, rejectedAt: $rejectedAt, reviewNotes: $reviewNotes, revisionNumber: $revisionNumber, requiresRework: $requiresRework, rejectionReason: $rejectionReason, recurrence: $recurrence, activityLog: $activityLog, createdAt: $createdAt, updatedAt: $updatedAt, archivedAt: $archivedAt, version: $version)';
+    return 'TaskEntity(id: $id, title: $title, description: $description, type: $type, workType: $workType, status: $status, priority: $priority, branchId: $branchId, assigneeIds: $assigneeIds, checklist: $checklist, referenceAttachments: $referenceAttachments, data: $data, createdBy: $createdBy, assignedShiftId: $assignedShiftId, shift: $shift, assignmentType: $assignmentType, instanceDate: $instanceDate, sourceTemplateId: $sourceTemplateId, recurrenceRootId: $recurrenceRootId, occurrenceKey: $occurrenceKey, correlationId: $correlationId, startsAt: $startsAt, deadline: $deadline, missedAt: $missedAt, cancelledAt: $cancelledAt, cancelledBy: $cancelledBy, cancelReason: $cancelReason, cancelNote: $cancelNote, reportedIncorrectBy: $reportedIncorrectBy, reportedIncorrectAt: $reportedIncorrectAt, reportedIncorrectNote: $reportedIncorrectNote, notes: $notes, proofImageUrl: $proofImageUrl, startedAt: $startedAt, submittedAt: $submittedAt, approvedBy: $approvedBy, approvedAt: $approvedAt, rejectedBy: $rejectedBy, rejectedAt: $rejectedAt, reviewNotes: $reviewNotes, revisionNumber: $revisionNumber, requiresRework: $requiresRework, rejectionReason: $rejectionReason, recurrence: $recurrence, activityLog: $activityLog, createdAt: $createdAt, updatedAt: $updatedAt, archivedAt: $archivedAt, version: $version)';
   }
 
   @override
@@ -1184,6 +1344,20 @@ class _$TaskEntityImpl extends _TaskEntity {
                 other.deadline == deadline) &&
             (identical(other.missedAt, missedAt) ||
                 other.missedAt == missedAt) &&
+            (identical(other.cancelledAt, cancelledAt) ||
+                other.cancelledAt == cancelledAt) &&
+            (identical(other.cancelledBy, cancelledBy) ||
+                other.cancelledBy == cancelledBy) &&
+            (identical(other.cancelReason, cancelReason) ||
+                other.cancelReason == cancelReason) &&
+            (identical(other.cancelNote, cancelNote) ||
+                other.cancelNote == cancelNote) &&
+            (identical(other.reportedIncorrectBy, reportedIncorrectBy) ||
+                other.reportedIncorrectBy == reportedIncorrectBy) &&
+            (identical(other.reportedIncorrectAt, reportedIncorrectAt) ||
+                other.reportedIncorrectAt == reportedIncorrectAt) &&
+            (identical(other.reportedIncorrectNote, reportedIncorrectNote) ||
+                other.reportedIncorrectNote == reportedIncorrectNote) &&
             (identical(other.notes, notes) || other.notes == notes) &&
             (identical(other.proofImageUrl, proofImageUrl) ||
                 other.proofImageUrl == proofImageUrl) &&
@@ -1249,6 +1423,13 @@ class _$TaskEntityImpl extends _TaskEntity {
     startsAt,
     deadline,
     missedAt,
+    cancelledAt,
+    cancelledBy,
+    cancelReason,
+    cancelNote,
+    reportedIncorrectBy,
+    reportedIncorrectAt,
+    reportedIncorrectNote,
     notes,
     proofImageUrl,
     startedAt,
@@ -1304,6 +1485,13 @@ abstract class _TaskEntity extends TaskEntity {
     final DateTime? startsAt,
     final DateTime? deadline,
     final DateTime? missedAt,
+    final DateTime? cancelledAt,
+    final String? cancelledBy,
+    final TaskCancelReason? cancelReason,
+    final String? cancelNote,
+    final String? reportedIncorrectBy,
+    final DateTime? reportedIncorrectAt,
+    final String? reportedIncorrectNote,
     final String? notes,
     final String? proofImageUrl,
     final DateTime? startedAt,
@@ -1460,7 +1648,43 @@ abstract class _TaskEntity extends TaskEntity {
   /// server-side automation sweep; null for every task that has not missed
   /// its shift window. Additive — old task documents remain valid.
   @override
-  DateTime? get missedAt;
+  DateTime? get missedAt; // ─── Cancellation (Automated Tasks spec §5) ──────────────────
+  /// When a manager/admin cancelled the task, and who. Cancellation is a
+  /// terminal **business decision** — the work will not be done — taken from
+  /// `pending` or `started` only, and it is neither success nor failure for
+  /// reporting (§8). Null on every task that was never cancelled. Additive —
+  /// old task documents remain valid.
+  @override
+  DateTime? get cancelledAt;
+  @override
+  String? get cancelledBy;
+
+  /// The mandatory structured reason (§5.5). Always set on a cancelled task;
+  /// null otherwise. **Immutable once written** (frozen in `firestore.rules`)
+  /// so reporting by reason code stays historically honest.
+  @override
+  TaskCancelReason? get cancelReason;
+
+  /// Optional free-text note accompanying [cancelReason]. Never a substitute
+  /// for the code — it exists to add context a picklist can't carry.
+  @override
+  String? get cancelNote; // ─── Reported incorrect (Automated Tasks spec §5.2) ───────────
+  /// An employee flagged this task as wrong (duplicate, not applicable, aimed
+  /// at the wrong shift…) and routed it to a manager, **who decides** — the
+  /// employee never cancels. This is the release valve that makes manager-only
+  /// cancellation workable rather than inhumane.
+  ///
+  /// [reportedIncorrectBy] is the reporting employee's uid; the note is their
+  /// explanation and is required at the call site, because a report with no
+  /// explanation gives the manager nothing to decide on. All three clear
+  /// together when a manager dismisses the report or cancels the task. Null on
+  /// every unreported task. Additive — no migration.
+  @override
+  String? get reportedIncorrectBy;
+  @override
+  DateTime? get reportedIncorrectAt;
+  @override
+  String? get reportedIncorrectNote;
 
   /// Free-text notes added by the executing employee.
   @override

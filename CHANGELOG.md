@@ -16,6 +16,94 @@ released — DROP ships from branches and has no version tags.
 
 ## Unreleased
 
+### 2026-07-28
+
+- **Automated Tasks Phase 2 — Visibility & trust** (feature; MED risk). The
+  half of the spec that makes Phase 1 humane rather than merely correct.
+  - **Notify on Missed (§9.1)** — the sweep used to close work silently, with
+    the audit log as the only trace and nobody watching it. `taskMissed` is now
+    written server-side by `autoEndRecurringShiftTasks` to the branch's active
+    managers, **falling back to admins when a branch has none** (a manager-less
+    branch would otherwise be silent again, which is the exact gap this closes;
+    a covered branch never also pages every admin, or the signal dies). Ids are
+    deterministic (`taskmissed_{taskId}_{uid}`), so a retried sweep can't
+    double-notify. Deliberately **not** in the client whitelist.
+  - **Notify on Cancel (§9.2/§9.3)** — targeted at the assignee(s), never
+    branch-wide, with the mandatory reason in the body so nobody is left
+    guessing. A shift broadcast has no named assignee, so it resolves the
+    **rostered crew** exactly as a review outcome does; nobody rostered is a
+    valid no-op, not a failure.
+  - **Employee "report incorrect task" (§5.2)** — the release valve. New
+    additive `reportedIncorrectBy` / `At` / `Note` fields, a quiet
+    "Something's wrong with this task" link under the employee's real action,
+    and a **required** explanation (a bare "this is wrong" gives the manager
+    nothing to decide on). It **does not change the task's status** — the work
+    stays put until a manager acts. Managers get a warning-tinted banner
+    carrying the reporter, the note and both decisions inline: *Cancel task* or
+    *Task stands*. Cancelling clears the report, because cancelling is the
+    answer. Rules let an employee file only under their own uid, never over an
+    open report and never clearing one.
+  - **Admin terminal correction (§6.4)** — `correctTerminal` returns a
+    `missed`/`cancelled` task to `pending`, clearing every trace of the undone
+    outcome. Admin-only and always audited (`task.terminal_corrected`), because
+    a mistimed terminal — a cancel that lost the race to the sweep by seconds,
+    a miss recorded against work that was done — is otherwise a permanent lie in
+    the reporting. Deliberately narrow so it stays a safety valve, not a routine
+    escape hatch. The existing manager-or-admin *reopen approved* is untouched
+    (the spec's §6 table treats them as separate permissions).
+  - New audit events `task.reported_incorrect` · `task.report_dismissed` ·
+    `task.terminal_corrected`, and three timeline-only activity kinds. +11
+    Flutter tests (**1103 pass / 2 pre-existing splash failures**), +1 Cloud
+    Functions test (**37 pass**), analyze unchanged at 1 pre-existing info.
+  - **`firestore.rules` NEEDS DEPLOY** — carries the terminal-correction
+    carve-out and the incorrect-report guards.
+  - **Still not built:** Phase 3 (four-way reporting/KPIs, §10).
+
+- **Automated Tasks Phase 1 — Cancelled core** (feature; MED risk). Implements
+  Phase 1 of the frozen
+  [AUTOMATED_TASKS_PRODUCT_SPEC](docs/design/AUTOMATED_TASKS_PRODUCT_SPEC.md):
+  a third terminal outcome that is neither success nor failure.
+  - **`TaskStatus.cancelled`** — terminal, reachable from `pending`/`started`
+    **only** (a submitted task must be reviewed, never voided — §5.4), and
+    manager/admin only. New `TaskStatus.isCancellable` is the one predicate the
+    UI, the cubit and the rules all read.
+  - **Mandatory structured reason.** New `core/enums/task_cancel_reason.dart`
+    with the five frozen picklist codes (`duplicate` · `wrong_generated` ·
+    `no_longer_needed` · `shift_cancelled` · `management_decision`) plus an
+    optional free-text note. The **wire ids are frozen and the record is
+    immutable once written**, so relabelling an option never rewrites history;
+    an unrecognised code round-trips as `unknown` rather than silently becoming
+    a *different* reason. Additive `TaskEntity` fields (`cancelledAt`,
+    `cancelledBy`, `cancelReason`, `cancelNote`) — no migration.
+  - **Counted nowhere (§8).** Cancelled is excluded from the active window, the
+    feed, the overdue count and the branch completion rate's numerator *and*
+    denominator. This is the invariant that stops Cancel becoming a way to
+    launder work that simply wasn't done; it is asserted from every angle a
+    number is derived.
+  - **`firestore.rules` (NEEDS DEPLOY).** Cancelling requires `canReachBranch`
+    (so an employee never can), a `pending`/`started` predecessor, a picklist
+    reason and a timestamp. A cancelled task is then frozen — no update, no
+    delete, and no forging `cancelled` at create time. Outside that one
+    transition every cancel field must be byte-identical to what is stored.
+  - **No resurrection (§4.4).** The generator's window-repair path now skips any
+    terminal instance (new pure `isTerminalTaskStatus`), so a cancelled task can
+    never be handed a fresh deadline and pulled back onto the auto-end sweep's
+    radar. Cancel-vs-miss is a race with a deterministic winner: **first terminal
+    to land wins, the other is a no-op**.
+  - **UI** — a monochrome Cancel sheet (radio picklist + optional note; the CTA
+    stays disabled until a reason is chosen, and the dismiss action is labelled
+    *Keep Task* so "Cancel" never means two things in one sheet), reached from a
+    Task Details action shown only while the task is cancellable. A cancelled
+    task's locked banner now carries the reason and note. Cancelled reads
+    neutral grey everywhere — never the error red Missed wears.
+  - Audit: new `task.cancelled` event carrying `reason` / `note` /
+    `cancelledFrom`. +19 Flutter tests (**1092 pass / 2 pre-existing splash
+    failures**), +2 Cloud Functions tests (**36 pass**), analyze unchanged at 1
+    pre-existing info.
+  - **Not yet built (later spec phases):** notify-on-cancel and notify-on-missed,
+    the employee "report incorrect task" path, the admin terminal correction
+    (§6.4), and the four-way reporting/KPI rework (§10).
+
 ### 2026-07-27
 
 - **Employees directory density pass (P19; presentation-only).** `/admin/employees`

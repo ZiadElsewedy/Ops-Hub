@@ -30,7 +30,10 @@
       "Bash(python3 -)",
       "Bash(grep -n \"branches/{branchId}\\\\` \\(Phase 5\\)\\\\*\\\\* is admin-write\" PROJECT_CONTEXT.md)",
       "Bash(xcrun simctl *)",
-      "Bash(xcodebuild -showsdks)"
+      "Bash(xcodebuild -showsdks)",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(node --test)",
+      "Bash(flutter test *)"
     ]
   }
 }

@@ -3,7 +3,9 @@ import 'package:drop/core/enums/recurrence_frequency.dart';
 import 'package:drop/core/enums/schedule_day.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_assignment_type.dart';
+import 'package:drop/core/enums/task_cancel_reason.dart';
 import 'package:drop/core/enums/task_priority.dart';
+import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/enums/task_type.dart';
 import 'package:drop/core/enums/template_repeat_mode.dart';
 import 'package:drop/core/theme/app_colors.dart';
@@ -40,6 +42,7 @@ part 'task_action_sheets/checklist_builder.dart';
 part 'task_action_sheets/assignee_picker_sheet.dart';
 part 'task_action_sheets/assign_sheet.dart';
 part 'task_action_sheets/review_sheet.dart';
+part 'task_action_sheets/cancel_sheet.dart';
 part 'task_action_sheets/shared/form_primitives.dart';
 part 'task_action_sheets/shift_pickers.dart';
 
@@ -82,6 +85,26 @@ Future<void> showReviewSheet({
   required TaskEntity task,
 }) =>
     showSheet(context, _ReviewSheet(cubit: cubit, task: task));
+
+/// Cancel a task with a mandatory structured reason (manager/admin, and only
+/// from `pending` / `started` — see [TaskStatus.isCancellable]). Callers gate
+/// the affordance; the cubit and `firestore.rules` both re-check.
+Future<void> showCancelSheet({
+  required BuildContext context,
+  required TaskCubit cubit,
+  required TaskEntity task,
+}) =>
+    showSheet(context, _CancelSheet(cubit: cubit, task: task));
+
+/// An employee reports a task as incorrect, routing it to their branch's
+/// managers to decide. The employee never cancels — this is the release valve
+/// that makes manager-only cancellation workable.
+Future<void> showReportIncorrectSheet({
+  required BuildContext context,
+  required TaskCubit cubit,
+  required TaskEntity task,
+}) =>
+    showSheet(context, _ReportIncorrectSheet(cubit: cubit, task: task));
 
 /// Shared bottom-sheet chrome (rounded top, drag handle, keyboard-aware
 /// padding). Reused by the task + template sheets so they all feel the same.

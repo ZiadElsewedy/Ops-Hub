@@ -339,9 +339,13 @@ class _BranchMetrics {
 
   /// Approved (closed) tasks.
   final int approved;
+
+  /// Every task that counts toward this branch's record. **Cancelled work is
+  /// not in here at all** — by decision it never happened, so it may not sit on
+  /// either side of the completion rate (Automated Tasks spec §8).
   final int total;
 
-  /// Approved ÷ total, or null when the branch has no tasks.
+  /// Approved ÷ total, or null when the branch has no countable tasks.
   double? get completionRate => total == 0 ? null : approved / total;
 
   bool get needsAttention => overdue > 0 || pendingReview > 0;
@@ -349,6 +353,10 @@ class _BranchMetrics {
   factory _BranchMetrics.from(Iterable<TaskEntity> tasks) {
     var total = 0, active = 0, pendingReview = 0, overdue = 0, approved = 0;
     for (final t in tasks) {
+      // A cancelled task is excluded from the numerator, the denominator, and
+      // the overdue count — cancellation must never be able to flatter (or
+      // damage) a branch's numbers. Counted nowhere is the whole point.
+      if (t.status == TaskStatus.cancelled) continue;
       total++;
       switch (t.status) {
         case TaskStatus.waitingReview:
@@ -364,6 +372,8 @@ class _BranchMetrics {
           // Closed by the recurring-task deadline sweep. It is retained in the
           // total, but is neither active work nor an overdue task.
           break;
+        case TaskStatus.cancelled:
+          break; // unreachable — skipped above.
       }
       if (_overdue(t)) overdue++;
     }

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:drop/core/enums/task_assignment_type.dart';
+import 'package:drop/core/enums/task_cancel_reason.dart';
 import 'package:drop/core/enums/task_type.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/enums/task_priority.dart';
@@ -121,6 +122,35 @@ class TaskEntity with _$TaskEntity {
     /// server-side automation sweep; null for every task that has not missed
     /// its shift window. Additive — old task documents remain valid.
     DateTime? missedAt,
+    // ─── Cancellation (Automated Tasks spec §5) ──────────────────
+    /// When a manager/admin cancelled the task, and who. Cancellation is a
+    /// terminal **business decision** — the work will not be done — taken from
+    /// `pending` or `started` only, and it is neither success nor failure for
+    /// reporting (§8). Null on every task that was never cancelled. Additive —
+    /// old task documents remain valid.
+    DateTime? cancelledAt,
+    String? cancelledBy,
+    /// The mandatory structured reason (§5.5). Always set on a cancelled task;
+    /// null otherwise. **Immutable once written** (frozen in `firestore.rules`)
+    /// so reporting by reason code stays historically honest.
+    TaskCancelReason? cancelReason,
+    /// Optional free-text note accompanying [cancelReason]. Never a substitute
+    /// for the code — it exists to add context a picklist can't carry.
+    String? cancelNote,
+    // ─── Reported incorrect (Automated Tasks spec §5.2) ───────────
+    /// An employee flagged this task as wrong (duplicate, not applicable, aimed
+    /// at the wrong shift…) and routed it to a manager, **who decides** — the
+    /// employee never cancels. This is the release valve that makes manager-only
+    /// cancellation workable rather than inhumane.
+    ///
+    /// [reportedIncorrectBy] is the reporting employee's uid; the note is their
+    /// explanation and is required at the call site, because a report with no
+    /// explanation gives the manager nothing to decide on. All three clear
+    /// together when a manager dismisses the report or cancels the task. Null on
+    /// every unreported task. Additive — no migration.
+    String? reportedIncorrectBy,
+    DateTime? reportedIncorrectAt,
+    String? reportedIncorrectNote,
     /// Free-text notes added by the executing employee.
     String? notes,
     /// Download URL of the proof image the employee uploads on completion.
@@ -189,6 +219,10 @@ class TaskEntity with _$TaskEntity {
 
   /// Whether the manager attached any reference images.
   bool get hasReferences => referenceAttachments.isNotEmpty;
+
+  /// True while an employee's "this task is wrong" report is open and awaiting a
+  /// manager's decision (spec §5.2). Drives the manager-facing banner.
+  bool get isReportedIncorrect => reportedIncorrectAt != null;
 
   /// The canonical **due** timestamp (Task Scheduling V2). Aliases the physical
   /// [deadline] field so new code reads `dueAt` while old docs/readers keep

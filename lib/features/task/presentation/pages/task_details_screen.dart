@@ -15,6 +15,7 @@ import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_dialog.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
+import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
@@ -140,16 +141,39 @@ class _DetailsView extends StatelessWidget {
     if (confirmed && context.mounted) cubit.reopenTask(task);
   }
 
+  /// The admin's §6.4 safety valve. Confirmed because it rewrites a closed
+  /// outcome — the message names which one, so nobody undoes a Missed thinking
+  /// they were undoing a Cancel.
+  Future<void> _confirmCorrectTerminal(BuildContext context) async {
+    final isMissed = task.status == TaskStatus.missed;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: isMissed ? 'Reopen this missed task?' : 'Undo this cancellation?',
+      message: isMissed
+          ? 'Use this only when the task was recorded as missed in error. It '
+                'returns to Pending and the missed record is cleared.'
+          : 'Use this only when the task was cancelled in error. It returns to '
+                'Pending and the cancellation reason is cleared.',
+      confirmLabel: 'Reopen',
+    );
+    if (confirmed && context.mounted) cubit.correctTerminal(task);
+  }
+
   @override
   Widget build(BuildContext context) {
     final role = context.currentRole;
     final isEmployee = role?.isEmployee ?? true;
     final isManagerOrAdmin = !(role?.isEmployee ?? true);
     final isAdmin = role?.isAdmin ?? false;
-    // Terminal records are read-only. Only an approved task has an admin
-    // Reopen transition; a missed task stays closed.
+    // Terminal records are read-only, with two narrow exits: a manager/admin
+    // may reopen an APPROVED task, and an admin alone may correct a mistaken
+    // missed/cancelled terminal (Automated Tasks spec §6.4).
     final isLocked = task.status.isTerminal;
     final canReopen = isAdmin && task.status == TaskStatus.approved;
+    final canCorrectTerminal =
+        isAdmin &&
+        (task.status == TaskStatus.missed ||
+            task.status == TaskStatus.cancelled);
     // Branch identity from the app-wide directory (§8b) — drives the cover
     // banner + logo. Watched so it fills in once the directory preloads.
     final branch = context.watch<BranchCubit>().branchById(task.branchId);
@@ -185,18 +209,36 @@ class _DetailsView extends StatelessWidget {
               );
             },
           ),
+          // Cancel — the manager/admin early exit, offered from Pending or
+          // Started only. A submitted task must be reviewed, never voided
+          // (Automated Tasks spec §5.4), so the affordance disappears the
+          // moment the employee sends it for review.
+          if (task.status.isCancellable)
+            IconButton(
+              icon: const Icon(
+                Icons.block_rounded,
+                color: AppColors.textSecondary,
+              ),
+              tooltip: 'Cancel task',
+              onPressed: () =>
+                  showCancelSheet(context: context, cubit: cubit, task: task),
+            ),
         ],
-        // A terminal record is locked. An admin can reopen only an approved
-        // task; a missed task deliberately has no escape hatch.
+        // A terminal record is locked, but not beyond correction: an approved
+        // task reopens, and an ADMIN may undo a mistaken missed/cancelled
+        // terminal (§6.4) so a fat-fingered close doesn't become a permanent
+        // lie in the reporting. A manager sees the padlock instead.
         if (isManagerOrAdmin && isLocked)
-          if (canReopen)
+          if (canReopen || canCorrectTerminal)
             IconButton(
               icon: const Icon(
                 Icons.lock_open_rounded,
                 color: AppColors.textSecondary,
               ),
-              tooltip: 'Reopen',
-              onPressed: () => _confirmReopen(context),
+              tooltip: canReopen ? 'Reopen' : 'Correct this record',
+              onPressed: () => canReopen
+                  ? _confirmReopen(context)
+                  : _confirmCorrectTerminal(context),
             )
           else
             const Padding(
@@ -241,9 +283,22 @@ class _DetailsView extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xl),
 
-                // ── Locked notice (approved or missed) ──────────────────
+                // ── Locked notice (approved · missed · cancelled) ───────
                 if (isLocked) ...[
-                  _LockedBanner(status: task.status, canReopen: canReopen),
+                  _LockedBanner(task: task, canReopen: canReopen),
+                  const SizedBox(height: AppSpacing.xl),
+                ],
+
+                // ── An employee says this task is wrong ─────────────────
+                // Sits directly under the status because it is the one thing a
+                // manager opening this task most needs to act on.
+                if (!isLocked && task.isReportedIncorrect) ...[
+                  _ReportedIncorrectBanner(
+                    task: task,
+                    cubit: cubit,
+                    directory: directory,
+                    canDecide: isManagerOrAdmin,
+                  ),
                   const SizedBox(height: AppSpacing.xl),
                 ],
 
@@ -566,7 +621,18 @@ class _DetailsView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 24, 40, 48),
             children: [
               if (isLocked) ...[
-                _LockedBanner(status: task.status, canReopen: canReopen),
+                _LockedBanner(task: task, canReopen: canReopen),
+                const SizedBox(height: AppSpacing.xl),
+              ],
+              // The action panel is where a manager decides, so the open report
+              // belongs at the top of it.
+              if (!isLocked && task.isReportedIncorrect) ...[
+                _ReportedIncorrectBanner(
+                  task: task,
+                  cubit: cubit,
+                  directory: directory,
+                  canDecide: isManagerOrAdmin,
+                ),
                 const SizedBox(height: AppSpacing.xl),
               ],
               _Section(
@@ -887,6 +953,14 @@ class _StatusPill extends StatelessWidget {
       AppColors.errorSurface,
       'MISSED',
       Icons.event_busy_rounded,
+    ),
+    // A business decision, not a failure — neutral surface, never the error
+    // treatment Missed carries (Automated Tasks spec §8).
+    TaskStatus.cancelled => (
+      AppColors.textSecondary,
+      AppColors.darkSurfaceElevated,
+      'CANCELLED',
+      Icons.block_rounded,
     ),
   };
 }
@@ -1261,14 +1335,45 @@ class _SubmittedBlock extends StatelessWidget {
 // ─── Employee action area ───────────────────────────────────────────
 
 /// Shown at the top of a terminal task's details. Approved records can be
-/// reopened by an admin; missed records are closed after their deadline.
+/// reopened by an admin; missed records are closed after their deadline; a
+/// cancelled record additionally carries **why** — the mandatory reason code
+/// (Automated Tasks spec §5.5), which is the part of the decision anyone
+/// reading the task later actually needs.
 class _LockedBanner extends StatelessWidget {
-  const _LockedBanner({required this.status, required this.canReopen});
-  final TaskStatus status;
+  const _LockedBanner({required this.task, required this.canReopen});
+  final TaskEntity task;
   final bool canReopen;
+
+  /// Glyph + tint + headline for each closed outcome. Cancelled is deliberately
+  /// neutral: it is a business decision, not a failure (§8), so it must never
+  /// wear the error treatment Missed carries.
+  (IconData, Color, String) get _tone => switch (task.status) {
+    TaskStatus.missed => (
+      Icons.event_busy_rounded,
+      AppColors.error,
+      'Missed and closed. This task can no longer be changed.',
+    ),
+    TaskStatus.cancelled => (
+      Icons.block_rounded,
+      AppColors.textSecondary,
+      'Cancelled. This work will not be done, and it does not count as '
+          'completed or missed.',
+    ),
+    _ => (
+      Icons.lock_outline_rounded,
+      AppColors.textSecondary,
+      canReopen
+          ? 'Approved and locked. Reopen the task to make changes.'
+          : 'Approved and locked. This task can no longer be changed.',
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
+    final (icon, color, headline) = _tone;
+    final reason = task.cancelReason;
+    final note = task.cancelNote?.trim() ?? '';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -1278,30 +1383,172 @@ class _LockedBanner extends StatelessWidget {
         border: Border.all(color: AppColors.darkBorder),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            status == TaskStatus.missed
-                ? Icons.event_busy_rounded
-                : Icons.lock_outline_rounded,
-            size: 18,
-            color: status == TaskStatus.missed
-                ? AppColors.error
-                : AppColors.textSecondary,
-          ),
+          Icon(icon, size: 18, color: color),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(
-              status == TaskStatus.missed
-                  ? 'Missed and closed. This task can no longer be changed.'
-                  : canReopen
-                  ? 'Approved and locked. Reopen the task to make changes.'
-                  : 'Approved and locked. This task can no longer be changed.',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  headline,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+                // The reason is the record. It is shown even when the code is
+                // one this build doesn't recognise, so a newer client's
+                // cancellation never reads as "cancelled, no reason given".
+                if (reason != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    reason.label,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+                if (note.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    note,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// An open "this task is wrong" report (Automated Tasks spec §5.2), shown to
+/// everyone who can see the task — the reporter needs to know it landed, and the
+/// manager needs to decide.
+///
+/// The decision lives **here**, next to the complaint, rather than sending the
+/// manager off to find the cancel action: Cancel it, or dismiss the report and
+/// say the task stands. Warning-tinted because it is an open question, not a
+/// failure.
+class _ReportedIncorrectBanner extends StatelessWidget {
+  const _ReportedIncorrectBanner({
+    required this.task,
+    required this.cubit,
+    required this.directory,
+    required this.canDecide,
+  });
+
+  final TaskEntity task;
+  final TaskCubit cubit;
+  final Map<String, UserEntity> directory;
+  final bool canDecide;
+
+  String get _reporter {
+    final u = directory[task.reportedIncorrectBy];
+    if (u == null) return 'An employee';
+    final name = u.displayName?.trim();
+    return (name != null && name.isNotEmpty) ? name : u.email;
+  }
+
+  Future<void> _dismiss(BuildContext context) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Dismiss this report?',
+      message:
+          'The task stands as issued and stays assigned. The report is cleared '
+          'from the task.',
+      confirmLabel: 'Dismiss',
+    );
+    if (confirmed && context.mounted) cubit.dismissIncorrectReport(task);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final note = task.reportedIncorrectNote?.trim() ?? '';
+    final at = task.reportedIncorrectAt;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.darkSurfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.warning.withAlpha(90)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.flag_outlined,
+                size: 18,
+                color: AppColors.warning,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      at == null
+                          ? '$_reporter reported this task'
+                          : '$_reporter reported this task · ${AppDateFormatter.relative(at)}',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (note.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        note,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (canDecide) ...[
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                if (task.status.isCancellable)
+                  Expanded(
+                    child: PremiumButton(
+                      label: 'Cancel task',
+                      icon: Icons.block_rounded,
+                      onPressed: () => showCancelSheet(
+                        context: context,
+                        cubit: cubit,
+                        task: task,
+                      ),
+                    ),
+                  ),
+                if (task.status.isCancellable)
+                  const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: PremiumButton(
+                    label: 'Task stands',
+                    icon: Icons.check_rounded,
+                    onPressed: () => _dismiss(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1315,6 +1562,36 @@ class _EmployeeActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _primaryAction(context),
+        // The release valve (Automated Tasks spec §5.2). An employee can never
+        // cancel — but handing them wrong work with no way to say so is what
+        // would make manager-only cancellation inhumane. Deliberately quiet: a
+        // text link under the real action, not a competing button. Hidden once a
+        // report is open (the banner above then owns the state).
+        if (!task.isReportedIncorrect) ...[
+          const SizedBox(height: AppSpacing.xs),
+          TextButton(
+            onPressed: () => showReportIncorrectSheet(
+              context: context,
+              cubit: cubit,
+              task: task,
+            ),
+            child: Text(
+              "Something's wrong with this task",
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _primaryAction(BuildContext context) {
     return switch (task.status) {
       TaskStatus.pending => AppButton(
         label: 'Start Task',

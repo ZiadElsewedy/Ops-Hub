@@ -51,8 +51,9 @@ class AppGlassCard extends StatelessWidget {
   /// Maps a task status to its subtle glow colour, or null for "no glow"
   /// (monochrome). Reuses [taskStatusColor] so the colour mapping lives in one
   /// place. Only the **reviewed/awaiting** states glow; pending / started /
-  /// completed / missed stay monochrome (no indigo "active" glow — owner
-  /// ruling). A missed task is closed, so it does not carry a live-state glow.
+  /// completed / missed / cancelled stay monochrome (no indigo "active" glow —
+  /// owner ruling). A missed or cancelled task is closed, so it does not carry a
+  /// live-state glow.
   static Color? glowForTaskStatus(TaskStatus status) => switch (status) {
     TaskStatus.approved ||
     TaskStatus.waitingReview ||
@@ -60,7 +61,8 @@ class AppGlassCard extends StatelessWidget {
     TaskStatus.pending ||
     TaskStatus.started ||
     TaskStatus.completed ||
-    TaskStatus.missed => null,
+    TaskStatus.missed ||
+    TaskStatus.cancelled => null,
   };
 
   @override

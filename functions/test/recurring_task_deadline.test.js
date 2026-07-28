@@ -3,6 +3,8 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const {
+  isTerminalTaskStatus,
+  selectMissedNotifyTargets,
   resolveRecurringTaskWindow,
   shouldAutoEndRecurringTask,
 } = require("../recurring_task_deadline");
@@ -134,4 +136,62 @@ test("auto-end eligibility only allows live generated pending/started tasks at d
     shouldAutoEndRecurringTask({ ...eligible, deadlineMs: nowMs + 1 }),
     false,
   );
+});
+
+test("terminal statuses are the three closed outcomes", () => {
+  // The set the generator's repair path and the auto-end sweep both refuse to
+  // touch — "terminal tasks are never resurrected" (Automated Tasks spec §4.4).
+  assert.strictEqual(isTerminalTaskStatus("approved"), true);
+  assert.strictEqual(isTerminalTaskStatus("missed"), true);
+  assert.strictEqual(isTerminalTaskStatus("cancelled"), true);
+
+  for (const open of ["pending", "started", "completed", "waitingReview", "rejected"]) {
+    assert.strictEqual(isTerminalTaskStatus(open), false, `${open} is still open`);
+  }
+  // A missing / malformed status must never read as terminal, or a legacy doc
+  // would silently opt out of the sweep that closes it.
+  assert.strictEqual(isTerminalTaskStatus(null), false);
+  assert.strictEqual(isTerminalTaskStatus(undefined), false);
+  assert.strictEqual(isTerminalTaskStatus(""), false);
+});
+
+test("a cancelled instance is never auto-ended as missed", () => {
+  // Cancel vs Missed race (spec §5.7): first terminal to land wins, the other
+  // becomes a no-op. The sweep re-reads status inside its transaction, so a
+  // cancel that committed first leaves nothing for it to do.
+  const nowMs = Date.UTC(2026, 6, 20, 16, 30);
+  const base = {
+    sourceTemplateId: "routine-1",
+    deadlineMs: nowMs - 1,
+    nowMs,
+  };
+  assert.strictEqual(shouldAutoEndRecurringTask({ ...base, status: "pending" }), true);
+  assert.strictEqual(
+    shouldAutoEndRecurringTask({ ...base, status: "cancelled" }),
+    false,
+    "a cancelled task must not be rewritten to missed",
+  );
+  assert.strictEqual(shouldAutoEndRecurringTask({ ...base, status: "approved" }), false);
+  assert.strictEqual(shouldAutoEndRecurringTask({ ...base, status: "missed" }), false);
+});
+
+test("a missed task pages the branch manager, falling back to admins", () => {
+  // Spec §9.1 — the point is that an automatic failure reaches a HUMAN.
+  assert.deepStrictEqual(
+    selectMissedNotifyTargets({ managers: ["mgr1"], admins: ["admin1"] }),
+    ["mgr1"],
+    "a covered branch must not also page every admin, or the signal dies",
+  );
+  assert.deepStrictEqual(
+    selectMissedNotifyTargets({ managers: [], admins: ["admin1", "admin2"] }),
+    ["admin1", "admin2"],
+    "a branch with no manager would otherwise be silent again",
+  );
+  // De-duplicated, blank-safe, and an empty estate is valid — not an error.
+  assert.deepStrictEqual(
+    selectMissedNotifyTargets({ managers: ["mgr1", "mgr1", "", "  "] }),
+    ["mgr1"],
+  );
+  assert.deepStrictEqual(selectMissedNotifyTargets({}), []);
+  assert.deepStrictEqual(selectMissedNotifyTargets(), []);
 });

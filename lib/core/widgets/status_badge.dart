@@ -101,6 +101,12 @@ Color _taskColor(TaskStatus s) {
       return AppColors.error;
     case TaskStatus.missed:
       return AppColors.error;
+    case TaskStatus.cancelled:
+      // A business decision, not a failure — it is excluded from the completion
+      // rate entirely, so it must never wear the error tint that Missed does
+      // (Automated Tasks spec §8). Neutral grey, matching the same "voided, not
+      // failed" reading as an excused absence.
+      return AppColors.textSecondary;
   }
 }
 
@@ -120,6 +126,8 @@ String _taskLabel(TaskStatus s) {
       return 'Rejected';
     case TaskStatus.missed:
       return 'Missed';
+    case TaskStatus.cancelled:
+      return 'Cancelled';
   }
 }
 

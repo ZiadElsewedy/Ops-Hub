@@ -194,6 +194,27 @@ function resolveRecurringTaskWindow({
   };
 }
 
+// The closed lifecycle outcomes (Automated Tasks spec §2). Mirrors
+// `TaskStatus.isTerminal` in lib/core/enums/task_status.dart.
+const TERMINAL_TASK_STATUSES = Object.freeze([
+  "approved",
+  "missed",
+  "cancelled",
+]);
+
+/**
+ * Whether a task has already reached a closed outcome.
+ *
+ * "Terminal tasks are never resurrected" (§4.4): once today's instance exists in
+ * a terminal state, no retry, regeneration **or repair** may recreate, reopen or
+ * overwrite it. Generation for a day is spent the moment that day's instance
+ * exists in any state, and this is the guard that keeps a well-meaning backfill
+ * from writing to a record whose story is already over.
+ */
+function isTerminalTaskStatus(status) {
+  return TERMINAL_TASK_STATUSES.includes(String(status || ""));
+}
+
 /**
  * Whether a generated recurring shift task may be terminally auto-ended.
  *
@@ -223,8 +244,36 @@ function shouldAutoEndRecurringTask({
     resolvedDeadlineMs <= resolvedNowMs;
 }
 
+/**
+ * Who is told that a generated shift task was auto-closed as Missed.
+ *
+ * The spec routes this to **the branch manager** (§9.1) — the point being that
+ * an automatic failure must reach a human rather than dying in the audit log.
+ * A branch with no active manager would therefore be silent again, which is the
+ * exact gap this notification exists to close, so admins are the **fallback**
+ * (not an addition — a manager-covered branch never pages an admin, or every
+ * miss in the estate would land in the same inbox and stop being read).
+ *
+ * Both lists are uid arrays. Returns a de-duplicated array, possibly empty when
+ * the estate has neither — valid, and never an error.
+ */
+function selectMissedNotifyTargets({ managers = [], admins = [] } = {}) {
+  const clean = (list) => [
+    ...new Set(
+      (Array.isArray(list) ? list : [])
+        .map((uid) => String(uid || "").trim())
+        .filter((uid) => uid.length > 0),
+    ),
+  ];
+  const branchManagers = clean(managers);
+  return branchManagers.length > 0 ? branchManagers : clean(admins);
+}
+
 module.exports = {
   DAY_NAMES,
+  TERMINAL_TASK_STATUSES,
+  isTerminalTaskStatus,
+  selectMissedNotifyTargets,
   standardShiftHours,
   resolveShiftHours,
   resolveRecurringTaskWindow,

@@ -200,7 +200,9 @@ class _Counts {
         case TaskStatus.rejected:
           rej++;
         case TaskStatus.missed:
-          // A missed task is closed and must not affect today's active-work
+        case TaskStatus.cancelled:
+          // Closed records — a missed shift deadline, or work management
+          // cancelled outright. Neither must affect today's active-work
           // progress, even when this count helper is called with a broad list.
           break;
       }
@@ -1270,6 +1272,8 @@ class _StatusPill extends StatelessWidget {
       TaskStatus.approved => ('Approved', AppColors.success),
       TaskStatus.rejected => ('Rejected', AppColors.error),
       TaskStatus.missed => ('Missed', AppColors.error),
+      // Neither success nor failure — never the error tint (spec §8).
+      TaskStatus.cancelled => ('Cancelled', AppColors.textSecondary),
     };
 
     return Container(

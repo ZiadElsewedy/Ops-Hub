@@ -136,6 +136,25 @@ real message instead of "Broadcast unavailable".
 broadcasts · swaps · cases · requests). Adding a type requires adding its
 producer in the same change.
 
+### Automated-tasks types (spec §9)
+
+| Type | Producer | Routed to |
+| --- | --- | --- |
+| `taskCancelled` | client — `TaskCubit.cancelTask` | the assignee(s); for a shift broadcast, the **rostered crew** (nobody rostered = no recipients, which is valid) |
+| `taskReportedIncorrect` | client — `TaskCubit.reportTaskIncorrect` | the reporter's **branch managers** |
+| `taskMissed` | **server** — `autoEndRecurringShiftTasks` | the branch's managers, falling back to admins when a branch has none |
+
+`taskCancelled` and `taskReportedIncorrect` are in `CLIENT_NOTIFICATION_TYPES`
+(a manager cancels and an employee reports from the app). **`taskMissed` is
+deliberately absent from that whitelist** — the sweep is its only writer, and
+manager routing needs a role lookup no client should perform. Its ids are
+deterministic (`taskmissed_{taskId}_{uid}`), so a retried sweep cannot
+double-notify.
+
+> **No notification on Late** (§9.4). It is a passive visual; alerting on every
+> deadline crossing is noise, and the noise is what makes people stop reading
+> the alerts that matter.
+
 ---
 
 ## 6. Release / deploy checklist (this pass)
