@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1117 pass · 2 fail** across 159 files (~24s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **41 pass**; NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1117 pass · 2 fail** across 159 files (~24s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **41 pass**; **Firestore rules: 26 pass** (`cd firestore-tests && npm test`); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -208,6 +208,25 @@ splash layout regressed or `kSplashOpticalLift` changed without the test followi
 **Pre-existing and unrelated to any current work** — but it means `flutter test` is
 not green, so a real regression could hide behind it. Worth fixing or deleting.
 
+### Live deploy state (verified 2026-07-29)
+
+A deploy was attempted on 2026-07-28. It **landed the rules and did not land the
+functions** — confirmed read-only against `bazic-d9ad7`:
+
+- **Functions: NOT deployed.** 21 of the 23 exported functions exist in
+  production, and the newest deployed revision is **2026-07-15**. Missing
+  entirely: **`autoEndRecurringShiftTasks`** and **`onRecurringTemplateWritten`**.
+  Consequences today: **no task can ever become Missed** (the sweep does not
+  exist, so the grace period and notify-on-Missed are inert and the completion
+  rate's denominator can only ever contain Approved), and the deployed
+  `sendNotification` predates the whitelist entries for `taskCancelled` /
+  `taskReportedIncorrect`, so a cancel commits but the assignee is never told.
+  The last recorded failure cause (2026-06-21 log) was a **Cloud Build service
+  account permission**, which is worth checking first.
+- **Rules: deployed** — which is how the create-denial bug reached the app.
+  Fixed 2026-07-29 and covered by `firestore-tests/`; **the fix itself still
+  needs a rules deploy**.
+
 ### Deployed-rules drift
 
 The active production Firestore ruleset was verified read-only on 2026-07-18. It
@@ -359,6 +378,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 flutter analyze                          # expect: 1 info, 0 errors/warnings
 flutter test                             # expect: 1117 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 41 pass
+(cd firestore-tests && npm test)         # expect: 26 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 46
 ls lib/features | wc -l                  # expect: 18
 ```

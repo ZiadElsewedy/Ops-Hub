@@ -46,3 +46,8 @@ app.*.map.json
 
 # C2 migration backups (contain salary data — never commit)
 compensation_backup_*.json
+
+# Node dependencies (Cloud Functions + the Firestore rules-test harness).
+node_modules/
+firestore-debug.log
+ui-debug.log

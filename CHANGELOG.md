@@ -16,6 +16,43 @@ released — DROP ships from branches and has no version tags.
 
 ## Unreleased
 
+### 2026-07-29
+
+- **Fixed: the deployed rules denied every task creation** (bug; HIGH severity,
+  LOW-risk fix). Reported from the running app as *"The caller does not have
+  permission to execute the specified operation"* — a task would appear briefly,
+  vanish, and Active Tasks would fall to 0.
+  - **Root cause: one wrong default.** `map.get(key, default)` returns the
+    default **only when the key is ABSENT**. `TaskModel.toMap()` always emits
+    every key, so an unset optional arrives as *present-with-null* — and
+    `get('cancelReason', '')` therefore returns `null`, not `''`. The Phase-1
+    create rule compared it to `''`, which is never true, so **every task
+    creation was denied for every role**, deterministically.
+  - The "appears then disappears" symptom is Firestore offline persistence
+    (`main.dart`): the SDK applies the write to the local cache, the listener
+    renders it, the server rejects it, and the SDK rolls it back.
+  - **Two further operations were broken by the same defect** and are also
+    fixed: the employee **report-incorrect** path (`filesOwnIncorrectReport`)
+    and the **admin terminal correction** (§6.4), both of which tested a
+    null-valued field against `''`.
+  - **Fix:** nullable task fields now default to `null` and compare against
+    `null` throughout. This is also what restores **backwards compatibility** —
+    `get(key, null) == null` is correct for a legacy document (key absent) *and*
+    a current one (key present, value null), whereas the `''` default was wrong
+    for both. No product behaviour, spec, or Flutter model changed.
+  - **New permanent test harness: `firestore-tests/`** — 26 emulator-backed
+    checks against the real `firestore.rules` using the **real
+    `TaskModel.toMap()` payload**, including an explicit legacy-document suite.
+    Run with `cd firestore-tests && npm test`. Rules were the one
+    production-critical artifact in the repo with no test at all: the 1117 Dart
+    tests exercise `TaskCubit` against a fake repository and never evaluate a
+    rule, which is precisely why this shipped.
+  - Verified: task creation ✓, report-incorrect ✓, admin terminal correction ✓,
+    and every standing guarantee still denies (employee-cannot-cancel,
+    terminals frozen and undeletable, no cancel from Waiting Review, cancel
+    without a picklist reason rejected, missed server-only, employees cannot
+    forge review attribution or shrink the activity log).
+
 ### 2026-07-28
 
 - **Grace period ruled: a fixed, global 30 minutes**

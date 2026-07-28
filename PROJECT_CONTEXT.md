@@ -234,7 +234,7 @@ Reuse these. Do not re-implement or duplicate them.
 | Desktop chrome (sidebar, ⌘K) | `core/widgets/app_shell.dart` + `app_sidebar.dart` + `command_palette.dart` |
 | Colours / type / spacing / radius | `core/theme/` — never inline a `Color(...)` or `TextStyle(...)` |
 | Global component styling | `core/theme/app_theme.dart` |
-| Firestore / Storage security | `firestore.rules` · `storage.rules` → **deploy** |
+| Firestore / Storage security | `firestore.rules` · `storage.rules` → add a case in `firestore-tests/` → **deploy** |
 | Server logic | `functions/index.js` → **deploy** |
 | Collection names / app name | `core/constants/app_constants.dart` |
 | DI wiring | `core/di/injection.dart` |
@@ -420,6 +420,10 @@ Rule detail per collection: [docs/design/DATA_MODEL.md](docs/design/DATA_MODEL.m
 
 1. `flutter analyze` — clean.
 2. `flutter test` — no **new** failures (see CURRENT_STATE for known ones).
+2b. If you touched `firestore.rules`: `cd firestore-tests && npm test`.
+   **Rules are production code and the Dart suite cannot see them** — it runs
+   against fake repositories and never evaluates a rule. A rule regression once
+   denied every task creation in production while all 1100+ Dart tests passed.
 3. Update **CURRENT_STATE.md** if status, gaps, or priorities moved.
 4. Append a **CHANGELOG.md** line.
 5. Update the **design doc** if you changed how a feature works.
