@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1103 pass · 2 fail** across 158 files (~24s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **37 pass**; NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1117 pass · 2 fail** across 159 files (~24s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **41 pass**; NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -73,12 +73,16 @@ reporting classification.
 | --- | --- |
 | P1 — Cancelled core | Done, **uncommitted** (2026-07-28). `TaskStatus.cancelled` + the five-code `TaskCancelReason` picklist (frozen wire ids, immutable once written) + additive entity/model fields + `TaskCubit.cancelTask` (from `pending`/`started` only) + `task.cancelled` audit + branch-scoped rules with the cancelled record frozen + the generator's no-resurrection guard + the Cancel sheet & locked-banner reason. Cancelled counts **nowhere** (§8). **Rules need the standing deploy.** |
 | P2 — Visibility & trust | Done, **uncommitted** (2026-07-28). Server-side notify-on-Missed (branch managers, admins as fallback, deterministic ids) · targeted notify-on-Cancel (assignees, or the rostered crew for a shift broadcast) · the employee **report-incorrect** path (required explanation, status unchanged, manager banner with Cancel / Task-stands inline) · **admin terminal correction** (`missed`\|`cancelled` → `pending`, audited). **Rules need the standing deploy.** |
-| P3 — Reporting & analytics | ❌ Not started. Completion rate = Approved ÷ (Approved + Missed) · cancellation-by-reason as a secondary KPI · Late as a timeliness signal · Missed into branch scorecards (**gated on ruling the §12.1 grace question first**) |
+| P3 — Reporting & analytics | Done, **uncommitted** (2026-07-28). Pure `domain/task_outcomes.dart` locks the four-way classification: completion rate = **Approved ÷ (Approved + Missed)** with Cancelled excluded from both sides (ungameable), cancellations on their own line **by reason code**, Late as timeliness on completed work, and Missed surfaced on the admin task overview. No new route or screen. |
 
-> **The four-way KPI rework is still open.** Phase 1 guarantees cancelled counts
-> nowhere, but the headline completion rate is still `approved ÷ total` rather
-> than the spec's `Approved ÷ (Approved + Missed)`, and there is no
-> cancellation-by-reason surface yet — that is Phase 3.
+> **The §10.2 scorecard gate is CLEARED** — the grace period is ruled
+> ([ADR-013](docs/decisions/ADR-013-task-grace-period.md)): a fixed, global **30
+> minutes** after shift end before Missed is evaluated. Grace is a tolerance on
+> the close, not a deadline — tasks still read **Late from the original
+> deadline**. Not configurable; no *Completed Late* state.
+>
+> **Completion rates from before this change are not comparable to figures
+> after it.** Treat the switchover as a baseline reset, not an improvement.
 
 **Chat (NestJS backend)** — a NEW staff-chat feature (distinct from Cases, which
 stays on Firebase untouched), backed by an external, already-verified NestJS API.
@@ -309,6 +313,7 @@ unknowingly reversed:
 | [ADR-009](docs/decisions/ADR-009-no-analytics-pipeline.md) — no analytics | Build a metric without naming the decision it changes. [ADR-011](docs/decisions/ADR-011-automation-observability.md) carved out automation *execution observability* (not analytics); don't widen it to a time-series/analytics surface |
 | [ADR-005](docs/decisions/ADR-005-server-authoritative-writes.md) — server-authoritative | Let a client write its own audit trail |
 | [ADR-010](docs/decisions/ADR-010-lean-over-enterprise.md) — lean | Reach for the enterprise shape |
+| [ADR-013](docs/decisions/ADR-013-task-grace-period.md) — fixed 30-min grace | Make grace configurable, add a *Completed Late* status, or let grace delay the **Late** visual (it must fire at the deadline) |
 
 **Owner-frozen surfaces** — improve in-language, never replace without sign-off:
 
@@ -352,8 +357,8 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1103 pass, 2 fail (pre-existing: 2 splash-centering)
-(cd functions && node --test)            # expect: 37 pass
+flutter test                             # expect: 1117 pass, 2 fail (pre-existing: 2 splash-centering)
+(cd functions && node --test)            # expect: 41 pass
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 46
 ls lib/features | wc -l                  # expect: 18
 ```

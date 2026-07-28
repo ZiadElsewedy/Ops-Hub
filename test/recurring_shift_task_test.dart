@@ -19,6 +19,7 @@ import 'package:drop/features/schedule/domain/repositories/schedule_repository.d
 import 'package:drop/features/schedule/domain/schedule_week.dart';
 import 'package:drop/features/schedule/domain/shift_hours.dart';
 import 'package:drop/features/task/domain/entities/recurring_task_template_entity.dart';
+import 'package:drop/features/task/domain/task_schedule.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/repositories/task_repository.dart';
 import 'package:drop/features/task/domain/usecases/assign_task.dart';
@@ -193,9 +194,13 @@ void main() {
     expect(find.text('Shift window'), findsOneWidget);
     expect(find.text('08:30 – 16:30'), findsOneWidget);
     expect(find.text('Missed policy · Enabled'), findsOneWidget);
+    // The copy states the grace period explicitly (ADR-013) — a manager judging
+    // a Missed record has to know it already allowed for finishing a little
+    // over. Asserted against the constant so the two can never drift.
     expect(
       find.text(
-        'Generated tasks are due at shift end. Unfinished tasks automatically end as Missed.',
+        'Generated tasks are due at shift end. Unfinished tasks end as '
+        'Missed ${kTaskGracePeriod.inMinutes} minutes after that.',
       ),
       findsOneWidget,
     );

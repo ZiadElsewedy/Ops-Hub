@@ -305,7 +305,12 @@ Generation for a day is spent the moment that day's instance exists in **any** s
 Pure record-shape logic is extracted to `functions/automation_run.js`.
 
 **`autoEndRecurringShiftTasks`** — every 15 minutes, queries the indexed due
-generated shift tasks and transactionally revalidates each one. It changes only a
+generated shift tasks and transactionally revalidates each one. A task is due
+only once its deadline is at least the **30-minute grace period** in the past
+([ADR-013](../decisions/ADR-013-task-grace-period.md)); the query cutoff and the
+transaction's re-check use the same rule, so the sweep's own cadence can never
+become the effective policy — which is precisely the defect grace replaced. It
+changes only a
 live source-template `pending`/`started` instance to `missed`, stamps `missedAt`,
 appends the system timeline entry, bumps `version`, and emits `task.auto_missed`.
 A manager cancel and this sweep can race; **the first terminal to land wins and

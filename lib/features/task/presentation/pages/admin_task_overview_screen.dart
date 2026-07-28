@@ -16,6 +16,7 @@ import 'package:drop/core/widgets/segmented_tab_bar.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/operations/presentation/pages/branch_operations_screen.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/widgets/task_empty_state.dart';
@@ -179,6 +180,7 @@ class _AdminTaskOverviewScreenState extends State<AdminTaskOverviewScreen>
                   branches: sorted.length,
                   lens: lens,
                 ),
+                _OutcomeBreakdown(outcomes: company.outcomes),
                 const SizedBox(height: AppSpacing.lg),
                 ResponsiveCardGrid(
                   maxItemWidth: 520,
@@ -325,6 +327,7 @@ class _BranchMetrics {
     required this.pendingReview,
     required this.overdue,
     required this.approved,
+    required this.outcomes,
   });
 
   /// Open work in progress (pending / started / completed / rejected — i.e. not
@@ -345,8 +348,22 @@ class _BranchMetrics {
   /// either side of the completion rate (Automated Tasks spec §8).
   final int total;
 
-  /// Approved ÷ total, or null when the branch has no countable tasks.
-  double? get completionRate => total == 0 ? null : approved / total;
+  /// The four-way classification (§8) — the single source for the headline KPI,
+  /// the Missed failure signal, cancellation-by-reason, and timeliness.
+  final TaskOutcomes outcomes;
+
+  /// **The headline KPI: Approved ÷ (Approved + Missed)** (§10.1), as a 0–1
+  /// fraction, or null until something has actually closed. Cancelled is
+  /// excluded from both sides, which is what makes the figure ungameable — a
+  /// manager cannot improve it by cancelling work they expect to fail.
+  ///
+  /// This is a *reliability* measure over decided work, **not** progress
+  /// through the backlog; `approved` / [total] is the progress framing and the
+  /// two must not be conflated in copy.
+  double? get completionRate {
+    final pct = outcomes.completionRatePct;
+    return pct == null ? null : pct / 100;
+  }
 
   bool get needsAttention => overdue > 0 || pendingReview > 0;
 
@@ -383,6 +400,9 @@ class _BranchMetrics {
       pendingReview: pendingReview,
       overdue: overdue,
       approved: approved,
+      // Derived over the FULL list (cancelled included), because the by-reason
+      // breakdown needs the cancellations the loop above deliberately skips.
+      outcomes: taskOutcomes(tasks),
     );
   }
 
@@ -444,6 +464,17 @@ class _CompanySummary extends StatelessWidget {
               label: 'Overdue',
               alert: metrics.overdue > 0,
             ),
+          // The real failure signal (§10.2). Safe to show alongside the rate now
+          // that the grace period stops it over-reporting at shift boundaries
+          // (ADR-013). Hidden at zero so a clean estate stays calm.
+          if (metrics.outcomes.missed > 0) ...[
+            _summaryDivider(),
+            _SummaryStat(
+              value: '${metrics.outcomes.missed}',
+              label: 'Missed',
+              alert: true,
+            ),
+          ],
           _summaryDivider(),
           _SummaryStat(
             value: pct == null ? '—' : '${(pct * 100).round()}%',
@@ -459,6 +490,110 @@ class _CompanySummary extends StatelessWidget {
     height: 34,
     color: AppColors.darkBorder,
     margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+  );
+}
+
+/// The reporting lines the four-way classification exists to produce
+/// (Automated Tasks spec §8 / §10): what the completion rate was computed over,
+/// **cancellations on their own line broken down by reason**, and lateness as a
+/// timeliness signal on completed work.
+///
+/// Three rules this widget exists to honour:
+///  - Cancelled is **never** added to Missed. They are separate lines because
+///    they are separate truths — one is a decision, the other is a failure.
+///  - Late is reported as timeliness on *completed* work, never as pass/fail
+///    and never as an outcome (§10.4).
+///  - It renders nothing when there is nothing to say. A quiet estate should
+///    not grow a reporting panel just to display zeroes.
+class _OutcomeBreakdown extends StatelessWidget {
+  const _OutcomeBreakdown({required this.outcomes});
+  final TaskOutcomes outcomes;
+
+  @override
+  Widget build(BuildContext context) {
+    final rate = outcomes.completionRatePct;
+    final latePct = outcomes.lateCompletionPct;
+    final reasons = outcomes.cancelReasonsByFrequency;
+    // Nothing decided, nothing cancelled → nothing worth a panel.
+    if (rate == null && reasons.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.darkSurface,
+          borderRadius: AppRadius.cardAll,
+          border: Border.all(color: AppColors.darkBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (rate != null)
+              _line(
+                Icons.check_circle_outline_rounded,
+                // Names the denominator out loud. A completion rate whose basis
+                // is invisible is the kind of number people argue about.
+                '$rate% completed — ${outcomes.approved} approved of '
+                    '${outcomes.scored} closed',
+                AppColors.textSecondary,
+              ),
+            if (latePct != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              _line(
+                Icons.schedule_rounded,
+                outcomes.averageLatenessMinutes == null
+                    ? '$latePct% of completed work finished after its deadline'
+                    : '$latePct% of completed work finished after its deadline '
+                          '· avg ${outcomes.averageLatenessMinutes}m late',
+                AppColors.textTertiary,
+              ),
+            ],
+            if (reasons.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              const Divider(color: AppColors.darkBorder, height: 1),
+              const SizedBox(height: AppSpacing.sm),
+              _line(
+                Icons.block_rounded,
+                // Its OWN line, and explicitly outside the rate — the moment
+                // this reads "incomplete = missed + cancelled" the whole
+                // distinction is gone (§8 hard invariant).
+                '${outcomes.cancelled} cancelled · not counted for or against',
+                AppColors.textSecondary,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              // A single cancel is legitimate; a cluster is the smell that
+              // catches a misconfigured template or a routine to pause (§10.3).
+              for (final entry in reasons)
+                Padding(
+                  padding: const EdgeInsets.only(left: 22, top: 2),
+                  child: Text(
+                    '${entry.key.label} · ${entry.value}',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _line(IconData icon, String text, Color color) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 14, color: color),
+      const SizedBox(width: AppSpacing.sm),
+      Expanded(
+        child: Text(
+          text,
+          style: AppTypography.caption.copyWith(color: color, height: 1.4),
+        ),
+      ),
+    ],
   );
 }
 
@@ -602,16 +737,24 @@ class _BranchOverviewCard extends StatelessWidget {
     );
   }
 
-  /// Supporting line under the metrics. Active reads as progress-so-far; Done
-  /// celebrates a fully-cleared branch, else counts what is done of the total.
+  /// Supporting line under the metrics. Done counts progress through the
+  /// backlog; Active carries the headline **completion rate**.
+  ///
+  /// Those are two different figures and the copy keeps them apart: progress is
+  /// `approved / total` (how much of the work is finished), while the rate is
+  /// `Approved ÷ (Approved + Missed)` over **closed** work only (how reliably
+  /// the branch delivers what it takes on). A branch with everything still open
+  /// has real progress to report and no rate yet — saying "No tasks yet" there
+  /// would be simply false.
   String _caption(_BranchMetrics m, double? pct, bool isDone) {
-    if (pct == null) return 'No tasks yet';
+    if (m.total == 0 && m.outcomes.cancelled == 0) return 'No tasks yet';
     if (isDone) {
       return m.approved == m.total
           ? 'All ${m.total} tasks complete'
           : '${m.approved} of ${m.total} done';
     }
-    return 'Completion ${(pct * 100).round()}%';
+    if (pct == null) return 'Nothing closed yet';
+    return 'Completion ${(pct * 100).round()}% of ${m.outcomes.scored} closed';
   }
 
   /// The text-only identity header used when a branch has no cover photo.

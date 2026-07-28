@@ -72,6 +72,7 @@ const ATTENDANCE_MAX_SESSION_MINUTES = 16 * 60;
 // The pure auto-close decision (unit-tested in test/auto_close.test.js).
 const { isAutoCloseDue } = require("./attendance_auto_close");
 const {
+  TASK_GRACE_MS,
   isTerminalTaskStatus,
   resolveRecurringTaskWindow,
   selectMissedNotifyTargets,
@@ -2176,13 +2177,21 @@ exports.autoEndRecurringShiftTasks = onSchedule(
   async () => {
     const now = new Date();
     const nowTs = admin.firestore.Timestamp.fromDate(now);
+    // The grace cutoff (ADR-013): a task is a candidate only once its deadline
+    // is at least the grace period in the past. Narrowing the QUERY by the same
+    // rule the transaction re-checks keeps one definition of "due" — a query
+    // that fetched everything past the raw deadline would churn through tasks
+    // still inside their tolerance on every 15-minute run.
+    const graceCutoffTs = admin.firestore.Timestamp.fromMillis(
+      now.getTime() - TASK_GRACE_MS,
+    );
     let due;
     try {
       due = await db
         .collection(TASKS)
         .where("assignmentType", "==", "shift")
         .where("status", "in", ["pending", "started"])
-        .where("deadline", "<=", nowTs)
+        .where("deadline", "<=", graceCutoffTs)
         .orderBy("deadline", "asc")
         .limit(BATCH_LIMIT)
         .get();
@@ -2225,7 +2234,7 @@ exports.autoEndRecurringShiftTasks = onSchedule(
                 actorId: "system",
                 actorName: "Automation",
                 at: nowTs,
-                note: "Automatically marked missed after the shift deadline.",
+                note: "Automatically marked missed — the shift ended and the grace period passed.",
                 attachments: [],
               },
             ],

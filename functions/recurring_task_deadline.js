@@ -216,11 +216,47 @@ function isTerminalTaskStatus(status) {
 }
 
 /**
+ * The grace period between a shift task's deadline and the moment it may be
+ * recorded as Missed — **a fixed, global 30 minutes**
+ * ([ADR-013](../docs/decisions/ADR-013-task-grace-period.md), spec §3.6).
+ *
+ * It is deliberately NOT configurable: a per-branch grace would be a dial that
+ * moves the headline completion rate, held by the person that rate evaluates.
+ * Changing this number is a product decision with an ADR, never a setting.
+ *
+ * It must stay **greater than the sweep interval** (15 minutes). Below that, the
+ * cron cadence becomes the de facto rule again and two employees finishing at
+ * the same minute can get opposite records — the exact defect this replaced.
+ *
+ * Mirrored client-side by `kTaskGraceMinutes` in
+ * `lib/features/task/domain/task_schedule.dart`.
+ */
+const TASK_GRACE_MINUTES = 30;
+const TASK_GRACE_MS = TASK_GRACE_MINUTES * MINUTE_MS;
+
+/**
+ * The instant a task becomes eligible to be recorded as Missed: its deadline
+ * plus the grace period. Null for a task with no resolved deadline.
+ *
+ * Note this is **not** the task's due time and must never be presented as one —
+ * grace is a tolerance on the close. The task reads *Late* from `deadline`
+ * (spec §3.1); it is simply not recorded as failed until this instant.
+ */
+function missedEvaluationMs(deadline) {
+  const deadlineMs = toEpochMs(deadline);
+  return deadlineMs == null ? null : deadlineMs + TASK_GRACE_MS;
+}
+
+/**
  * Whether a generated recurring shift task may be terminally auto-ended.
  *
  * This is intentionally conservative: only a source-template instance that is
- * still pending/started, live (not soft-archived), and at/past a real deadline
- * qualifies. Review and completed lifecycle states are never rewritten.
+ * still pending/started, live (not soft-archived), and past its deadline **plus
+ * the grace period** qualifies. Review and completed lifecycle states are never
+ * rewritten.
+ *
+ * The grace is what stops an employee who stayed to finish at 16:35 from getting
+ * the same record as one who walked away at 16:00.
  */
 function shouldAutoEndRecurringTask({
   sourceTemplateId,
@@ -237,11 +273,11 @@ function shouldAutoEndRecurringTask({
   if (status !== "pending" && status !== "started") return false;
   if (archivedAt != null) return false;
 
-  const resolvedDeadlineMs = toEpochMs(deadlineMs ?? deadline);
+  const evaluateAtMs = missedEvaluationMs(deadlineMs ?? deadline);
   const resolvedNowMs = toEpochMs(nowMs ?? now);
-  return resolvedDeadlineMs != null &&
+  return evaluateAtMs != null &&
     resolvedNowMs != null &&
-    resolvedDeadlineMs <= resolvedNowMs;
+    evaluateAtMs <= resolvedNowMs;
 }
 
 /**
@@ -271,8 +307,11 @@ function selectMissedNotifyTargets({ managers = [], admins = [] } = {}) {
 
 module.exports = {
   DAY_NAMES,
+  TASK_GRACE_MINUTES,
+  TASK_GRACE_MS,
   TERMINAL_TASK_STATUSES,
   isTerminalTaskStatus,
+  missedEvaluationMs,
   selectMissedNotifyTargets,
   standardShiftHours,
   resolveShiftHours,

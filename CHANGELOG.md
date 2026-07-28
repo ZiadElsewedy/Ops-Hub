@@ -18,6 +18,61 @@ released — DROP ships from branches and has no version tags.
 
 ### 2026-07-28
 
+- **Grace period ruled: a fixed, global 30 minutes**
+  ([ADR-013](docs/decisions/ADR-013-task-grace-period.md); spec §3.6). The owner
+  ruled the question §10.2 gated branch scorecards on. A generated shift task is
+  now evaluated for Missed **30 minutes after its resolved shift end**.
+  - **The old rule was never actually "zero grace".** The sweep runs every 15
+    minutes, so a task submitted at 16:32 against a 16:30 end survived or died
+    depending on where the cron tick fell — a random, invisible, irreproducible
+    tolerance. The decision replaces it with a deterministic one.
+  - **Grace is a tolerance on the close, not a deadline.** `dueAt` is unchanged
+    and the task still reads **Late from the shift end** — the employee feels the
+    urgency immediately; they are simply not *recorded as failed* until the
+    tolerance expires. Still no notification on Late.
+  - **Not configurable, and no "Completed Late" state.** A per-branch grace would
+    be a dial on the headline KPI held by the person that KPI evaluates;
+    lateness is *measured* from timestamps we already store, never *stated* as a
+    fourth outcome.
+  - One constant, mirrored: `TASK_GRACE_MINUTES` (enforcing, Cloud Functions) and
+    `kTaskGracePeriod` (client). The sweep's **query cutoff and its transaction
+    re-check now share one rule**, so the cron cadence can never be the effective
+    policy again. Automation Center copy states the grace explicitly.
+  - Verified the flagged edge: the operational-weekend night shift ends 00:00, so
+    its grace expires 00:30 **the next calendar day** — pinned by test.
+
+- **Automated Tasks Phase 3 — Reporting & analytics** (feature; MED risk). The
+  four-way classification, now unblocked by the grace ruling.
+  - **New pure `domain/task_outcomes.dart`** — the single derivation of spec
+    §8/§10 over the already-in-memory task list. No stored aggregates, no
+    pipeline (ADR-009, §13).
+  - **Completion rate is now `Approved ÷ (Approved + Missed)`**, replacing
+    `approved ÷ total`. Cancelled is excluded from **both** sides, which is what
+    makes it ungameable — a manager cannot lift the number by cancelling work
+    they expect to fail (asserted directly in test). It reads null, not 0%, until
+    something has actually closed.
+  - **Hard invariant enforced by omission:** there is deliberately no field or
+    helper anywhere that sums Missed + Cancelled. The moment such a number
+    exists, someone renders it and the distinction is destroyed.
+  - **Cancellations report on their own line, broken down by reason code**, most
+    frequent first — a single cancel is legitimate, a cluster is the smell that
+    catches a misconfigured template or a routine that should be paused. A
+    cancellation with an unreadable code counts under `unknown` rather than
+    vanishing, so the breakdown always reconciles with the total.
+  - **Late is timeliness on completed work** — "% completed after deadline" +
+    average lateness (averaged over late work only, so the signal isn't diluted).
+    Coaching data; it never touches the completion rate.
+  - **Missed wired into the branch surfaces**, safe now that grace stops it
+    over-reporting at shift boundaries: a Missed stat (hidden at zero) and a
+    breakdown panel on the admin task overview, using existing primitives — no
+    new route, no new screen. Fixed a consequence of the formula change: a branch
+    with only open work now reads "Nothing closed yet" instead of the false "No
+    tasks yet", and the card distinguishes the reliability *rate* from backlog
+    *progress* in copy.
+  - +14 Flutter tests, +4 Cloud Functions tests. **1117 pass / 2 pre-existing
+    splash failures**; Cloud Functions **41 pass**; analyze unchanged at 1
+    pre-existing info.
+
 - **Automated Tasks Phase 2 — Visibility & trust** (feature; MED risk). The
   half of the spec that makes Phase 1 humane rather than merely correct.
   - **Notify on Missed (§9.1)** — the sweep used to close work silently, with
