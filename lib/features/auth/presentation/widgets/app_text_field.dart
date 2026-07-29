@@ -31,6 +31,14 @@ class AppTextField extends StatefulWidget {
   final int maxLines;
   final int? minLines;
 
+  /// An externally-controlled inline error. When non-null the border turns red
+  /// and the message is shown directly under the field (used for on-blur /
+  /// on-submit validation driven by the parent form).
+  final String? errorText;
+
+  /// Notifies the parent when focus enters/leaves — enables on-blur validation.
+  final ValueChanged<bool>? onFocusChange;
+
   const AppTextField({
     super.key,
     required this.controller,
@@ -52,6 +60,8 @@ class AppTextField extends StatefulWidget {
     this.maxLines = 1,
     this.minLines,
     this.inputFormatters,
+    this.errorText,
+    this.onFocusChange,
   });
 
   @override
@@ -87,6 +97,7 @@ class _AppTextFieldState extends State<AppTextField>
 
   void _onFocusChange(bool focused) {
     setState(() => _isFocused = focused);
+    widget.onFocusChange?.call(focused);
     if (focused) {
       _controller.forward();
     } else {
@@ -100,15 +111,18 @@ class _AppTextFieldState extends State<AppTextField>
     final bg = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final defaultBorder = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
-    return AnimatedBuilder(
+    final hasError = widget.errorText != null;
+    final field = AnimatedBuilder(
       animation: _borderColor,
       builder: (_, child) => Container(
         decoration: BoxDecoration(
           color: bg,
           borderRadius: AppRadius.xlAll,
           border: Border.all(
-            color: _isFocused ? AppColors.primary : defaultBorder,
-            width: _isFocused ? 1.5 : 1,
+            color: hasError
+                ? AppColors.error
+                : (_isFocused ? AppColors.primary : defaultBorder),
+            width: (_isFocused || hasError) ? 1.5 : 1,
           ),
           boxShadow: _isFocused
               ? [
@@ -116,7 +130,7 @@ class _AppTextFieldState extends State<AppTextField>
                     color: AppColors.primary.withAlpha(20),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
-                  )
+                  ),
                 ]
               : [],
         ),
@@ -172,13 +186,15 @@ class _AppTextFieldState extends State<AppTextField>
                     ),
                   )
                 : widget.suffix ??
-                    (widget.suffixIcon != null
-                        ? Icon(widget.suffixIcon,
-                            size: 20,
-                            color: _isFocused
-                                ? AppColors.primary
-                                : AppColors.textTertiary)
-                        : null),
+                      (widget.suffixIcon != null
+                          ? Icon(
+                              widget.suffixIcon,
+                              size: 20,
+                              color: _isFocused
+                                  ? AppColors.primary
+                                  : AppColors.textTertiary,
+                            )
+                          : null),
             filled: false,
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
@@ -199,6 +215,22 @@ class _AppTextFieldState extends State<AppTextField>
           ),
         ),
       ),
+    );
+
+    if (!hasError) return field;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        field,
+        Padding(
+          padding: const EdgeInsets.only(top: 6, left: 6),
+          child: Text(
+            widget.errorText!,
+            style: AppTypography.caption.copyWith(color: AppColors.error),
+          ),
+        ),
+      ],
     );
   }
 }

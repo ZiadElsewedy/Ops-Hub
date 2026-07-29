@@ -85,6 +85,10 @@ class NotifyTaskEvent {
         return 'Task Approved';
       case NotificationType.taskRejected:
         return 'Task Rejected';
+      case NotificationType.taskCancelled:
+        return 'Task Cancelled';
+      case NotificationType.taskReportedIncorrect:
+        return 'Task Reported';
       default:
         return 'Task Update';
     }
@@ -105,6 +109,21 @@ class NotifyTaskEvent {
       case NotificationType.taskRejected:
         final reason = (task.rejectionReason ?? '').trim();
         return reason.isNotEmpty ? reason : 'Review manager notes';
+      case NotificationType.taskCancelled:
+        // Always says WHY — the reason is mandatory precisely so the person who
+        // was going to do this work isn't left guessing. Work already underway
+        // is called out, since that is the cancel that costs someone something
+        // (Automated Tasks spec §9.2).
+        final reason = task.cancelReason?.label;
+        final prefix = task.startedAt != null
+            ? '${task.title} — stopped'
+            : task.title;
+        return reason == null ? prefix : '$prefix • $reason';
+      case NotificationType.taskReportedIncorrect:
+        final note = (task.reportedIncorrectNote ?? '').trim();
+        return note.isNotEmpty
+            ? '${task.title} — $note'
+            : '${task.title} was reported as incorrect';
       default:
         return task.title;
     }

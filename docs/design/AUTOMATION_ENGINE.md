@@ -297,12 +297,25 @@ rollups + health counters · `audit_logs` events · `maxInstances:1` + `retryCou
 per-branch local time; determinism is the priority — a branch-local "today" is a
 noted P2). It resolves and persists the weekly shift window from the saved
 schedule; a duplicate created by an older client is repaired only when its deadline
-is missing. Pure record-shape logic is extracted to `functions/automation_run.js`.
+is missing **and the instance is not already terminal** — "terminal tasks are never
+resurrected" ([spec §4.4](AUTOMATED_TASKS_PRODUCT_SPEC.md)), and that explicitly
+includes repair, so a cancelled/missed/approved instance is left exactly as it is
+(the guard is the pure `isTerminalTaskStatus` in `functions/recurring_task_deadline.js`).
+Generation for a day is spent the moment that day's instance exists in **any** state.
+Pure record-shape logic is extracted to `functions/automation_run.js`.
 
 **`autoEndRecurringShiftTasks`** — every 15 minutes, queries the indexed due
-generated shift tasks and transactionally revalidates each one. It changes only a
+generated shift tasks and transactionally revalidates each one. A task is due
+only once its deadline is at least the **30-minute grace period** in the past
+([ADR-013](../decisions/ADR-013-task-grace-period.md)); the query cutoff and the
+transaction's re-check use the same rule, so the sweep's own cadence can never
+become the effective policy — which is precisely the defect grace replaced. It
+changes only a
 live source-template `pending`/`started` instance to `missed`, stamps `missedAt`,
 appends the system timeline entry, bumps `version`, and emits `task.auto_missed`.
+A manager cancel and this sweep can race; **the first terminal to land wins and
+the other is a no-op** (spec §5.7) — the transaction re-reads the status, so an
+already-`cancelled` instance is skipped rather than rewritten to `missed`.
 It does not send a notification or touch completed/review states. The pure window
 and eligibility policy is in `functions/recurring_task_deadline.js`.
 

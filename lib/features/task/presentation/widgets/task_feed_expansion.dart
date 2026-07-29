@@ -234,7 +234,11 @@ class TaskFeedActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMissed = task.status == TaskStatus.missed;
+    // Missed and cancelled are both closed records: no reassigning, no notes.
+    // (Approved is handled separately below — it has an admin reopen path.)
+    final isClosed =
+        task.status == TaskStatus.missed ||
+        task.status == TaskStatus.cancelled;
     return Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.xs,
@@ -253,14 +257,14 @@ class TaskFeedActions extends StatelessWidget {
           ),
         ],
         if (task.status != TaskStatus.approved &&
-            !isMissed &&
+            !isClosed &&
             task.assignmentType != TaskAssignmentType.shift)
           TaskActionButton(
             label: 'Reassign',
             icon: Icons.person_add_alt_1_outlined,
             onPressed: () => _reassign(context),
           ),
-        if (!isMissed)
+        if (!isClosed)
           TaskActionButton(
             label: 'Note',
             icon: Icons.chat_bubble_outline_rounded,

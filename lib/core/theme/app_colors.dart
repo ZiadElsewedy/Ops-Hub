@@ -84,6 +84,11 @@ class AppColors {
   static const Color errorSurface = Color(0xFF2E0D0D);
   static const Color warning = Color(0xFFF59E0B);
 
+  /// Soft, desaturated blue for **work in flight** (started). The fourth and
+  /// final semantic colour — used only as a low-alpha hairline on a task card's
+  /// edge, never as a fill, so the monochrome ruling (ADR-004) holds.
+  static const Color info = Color(0xFF64A0FF);
+
   // ─── Utility ─────────────────────────────────────────────────────────────
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);

@@ -10,11 +10,12 @@ import 'package:drop/features/task/domain/work_types/work_type_definition.dart';
 import 'package:drop/features/task/domain/work_types/work_type_registry.dart';
 import 'package:drop/features/task/presentation/work_type_presenter.dart';
 
-/// The **work-type selector** that opens the create form — the defining choice
-/// of the whole workflow, so it reads as a premium hero card (icon · kind ·
-/// blurb) rather than a row of chips. Tapping it opens a rich chooser sheet.
-/// Locked to a static card in edit mode — a task's fundamental kind never
-/// changes mid-life (same stance as the assignment-type selector).
+/// The **work-type selector** — the defining choice of the whole workflow. For a
+/// small catalogue (≤ [_inlineThreshold]) it renders inline selectable cards, so
+/// the first and most important decision needs no bottom sheet; a larger future
+/// catalogue automatically falls back to the searchable chooser sheet. Locked to
+/// a static summary card in edit mode — a task's fundamental kind never changes
+/// mid-life (same stance as the assignment-type selector).
 class WorkTypePicker extends StatelessWidget {
   const WorkTypePicker({
     super.key,
@@ -27,13 +28,36 @@ class WorkTypePicker extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final bool enabled;
 
+  /// Above this many types the inline cards would crowd the page, so the picker
+  /// falls back to the searchable chooser sheet. Small sets (the current 5)
+  /// render inline — no "page → bottom sheet" for the first decision.
+  static const int _inlineThreshold = 6;
+
   @override
   Widget build(BuildContext context) {
-    final selected = WorkTypeRegistry.instance.byId(value);
-    return _WorkTypeCard(
-      definition: selected,
-      enabled: enabled,
-      onTap: enabled ? () => _open(context) : null,
+    final registry = WorkTypeRegistry.instance;
+    final selected = registry.byId(value);
+
+    // Edit mode: a task's kind is fixed — show the locked summary card.
+    if (!enabled) {
+      return _WorkTypeCard(definition: selected, enabled: false, onTap: null);
+    }
+
+    // Large future catalogue → keep the searchable sheet (architecture intact).
+    final all = registry.all;
+    if (all.length > _inlineThreshold) {
+      return _WorkTypeCard(
+        definition: selected,
+        enabled: true,
+        onTap: () => _open(context),
+      );
+    }
+
+    // Small set → inline selectable cards, no sheet.
+    return _WorkTypeInlineCards(
+      definitions: all,
+      value: value,
+      onChanged: onChanged,
     );
   }
 
@@ -48,6 +72,124 @@ class WorkTypePicker extends StatelessWidget {
       builder: (_) => _WorkTypeSheet(current: value),
     );
     if (picked != null && picked != value) onChanged(picked);
+  }
+}
+
+/// Inline, always-visible work-type selection — a compact grid of selectable
+/// cards, so the first and most important decision needs no bottom sheet. The
+/// chosen type's blurb sits beneath as live context. Used for small catalogues
+/// (see [WorkTypePicker._inlineThreshold]).
+class _WorkTypeInlineCards extends StatelessWidget {
+  const _WorkTypeInlineCards({
+    required this.definitions,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final List<WorkTypeDefinition> definitions;
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = definitions.firstWhere(
+      (d) => d.id == value,
+      orElse: () => definitions.first,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final d in definitions)
+              _WorkTypeChip(
+                definition: d,
+                selected: d.id == value,
+                onTap: () => onChanged(d.id),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        // The selected type's blurb — live context, kept out of each chip so the
+        // grid stays compact.
+        Text(
+          selected.blurb,
+          style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
+        ),
+      ],
+    );
+  }
+}
+
+/// One selectable work-type card in [_WorkTypeInlineCards]. Comfortably above
+/// the 44px minimum tap target; announces its selected state to assistive tech.
+class _WorkTypeChip extends StatelessWidget {
+  const _WorkTypeChip({
+    required this.definition,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final WorkTypeDefinition definition;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: definition.label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 10,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.darkSurfaceElevated
+                : AppColors.darkSurface,
+            borderRadius: AppRadius.lgAll,
+            border: Border.all(
+              color: selected ? AppColors.accentBorder : AppColors.darkBorder,
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                WorkTypePresenter.iconFor(definition.id),
+                size: 18,
+                color: selected
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                definition.label,
+                style: AppTypography.label.copyWith(
+                  color: selected
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -85,20 +227,25 @@ class _WorkTypeCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('WORK TYPE',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textTertiary,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w600,
-                      )),
+                  Text(
+                    'WORK TYPE',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 3),
                   Text(definition.label, style: AppTypography.label),
                   const SizedBox(height: 2),
-                  Text(definition.blurb,
-                      style: AppTypography.caption
-                          .copyWith(color: AppColors.textTertiary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    definition.blurb,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -130,11 +277,14 @@ class _WorkTypeIcon extends StatelessWidget {
         color: selected ? AppColors.primary : AppColors.darkBg,
         borderRadius: AppRadius.mdAll,
         border: Border.all(
-            color: selected ? AppColors.primary : AppColors.darkBorder),
+          color: selected ? AppColors.primary : AppColors.darkBorder,
+        ),
       ),
-      child: Icon(icon,
-          size: 21,
-          color: selected ? AppColors.onPrimary : AppColors.textSecondary),
+      child: Icon(
+        icon,
+        size: 21,
+        color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+      ),
     );
   }
 }
@@ -164,14 +314,16 @@ class _WorkTypeSheet extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           const Text('Work type', style: AppTypography.h3),
           const SizedBox(height: 2),
-          const Text('What kind of work is this?', style: AppTypography.caption),
+          const Text(
+            'What kind of work is this?',
+            style: AppTypography.caption,
+          ),
           const SizedBox(height: AppSpacing.lg),
           Flexible(
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: defs.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: AppSpacing.sm),
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, i) {
                 final def = defs[i];
                 return _WorkTypeRow(
@@ -213,32 +365,38 @@ class _WorkTypeRow extends StatelessWidget {
               : AppColors.darkSurfaceElevated,
           borderRadius: AppRadius.lgAll,
           border: Border.all(
-              color: selected ? AppColors.primary : AppColors.darkBorder),
+            color: selected ? AppColors.primary : AppColors.darkBorder,
+          ),
         ),
         child: Row(
           children: [
             _WorkTypeIcon(
-                icon: WorkTypePresenter.iconFor(definition.id),
-                selected: selected),
+              icon: WorkTypePresenter.iconFor(definition.id),
+              selected: selected,
+            ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(definition.label,
-                      style: AppTypography.label.copyWith(
-                        color: selected
-                            ? AppColors.textPrimary
-                            : AppColors.textPrimary,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
-                      )),
+                  Text(
+                    definition.label,
+                    style: AppTypography.label.copyWith(
+                      color: selected
+                          ? AppColors.textPrimary
+                          : AppColors.textPrimary,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(definition.blurb,
-                      style: AppTypography.caption
-                          .copyWith(color: AppColors.textTertiary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    definition.blurb,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -263,15 +421,15 @@ class _SheetGrip extends StatelessWidget {
   const _SheetGrip();
   @override
   Widget build(BuildContext context) => Center(
-        child: Container(
-          width: 36,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.darkBorder,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
+    child: Container(
+      width: 36,
+      height: 4,
+      decoration: BoxDecoration(
+        color: AppColors.darkBorder,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    ),
+  );
 }
 
 class _TypeChip extends StatelessWidget {
@@ -294,10 +452,11 @@ class _TypeChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
-          color:
-              selected ? AppColors.primary : AppColors.darkSurfaceElevated,
+          color: selected ? AppColors.primary : AppColors.darkSurfaceElevated,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.darkBorder,
@@ -306,10 +465,11 @@ class _TypeChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 15,
-                color:
-                    selected ? AppColors.onPrimary : AppColors.textSecondary),
+            Icon(
+              icon,
+              size: 15,
+              color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Text(
               label,
@@ -381,8 +541,9 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
     _data = {...widget.initialData};
     for (final f in widget.resolvedFields) {
       if (_usesController(f.kind)) {
-        _controllers[f.key] =
-            TextEditingController(text: _display(_data[f.key]));
+        _controllers[f.key] = TextEditingController(
+          text: _display(_data[f.key]),
+        );
       }
     }
   }
@@ -441,8 +602,7 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
       WorkFieldKind.text || WorkFieldKind.multiline => _textField(f),
       WorkFieldKind.number ||
       WorkFieldKind.integer ||
-      WorkFieldKind.currency =>
-        _numberField(f),
+      WorkFieldKind.currency => _numberField(f),
       WorkFieldKind.date => _dateField(f),
       WorkFieldKind.time => _timeField(f),
       WorkFieldKind.toggle => _toggleField(f),
@@ -457,9 +617,10 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
         const SizedBox(height: AppSpacing.xs),
         Padding(
           padding: const EdgeInsets.only(left: AppSpacing.sm),
-          child: Text(err,
-              style:
-                  AppTypography.caption.copyWith(color: AppColors.error)),
+          child: Text(
+            err,
+            style: AppTypography.caption.copyWith(color: AppColors.error),
+          ),
         ),
       ],
     );
@@ -477,10 +638,10 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
       prefixIcon: WorkTypePresenter.iconForField(f.kind),
       maxLines: multiline ? 4 : 1,
       minLines: multiline ? 2 : 1,
-      keyboardType:
-          multiline ? TextInputType.multiline : TextInputType.text,
-      textInputAction:
-          multiline ? TextInputAction.newline : TextInputAction.next,
+      keyboardType: multiline ? TextInputType.multiline : TextInputType.text,
+      textInputAction: multiline
+          ? TextInputAction.newline
+          : TextInputAction.next,
       onChanged: (s) => _set(f.key, s.isEmpty ? null : s),
     );
   }
@@ -543,7 +704,10 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
         );
         if (picked != null) {
           final d = DateTime.now();
-          _set(f.key, DateTime(d.year, d.month, d.day, picked.hour, picked.minute));
+          _set(
+            f.key,
+            DateTime(d.year, d.month, d.day, picked.hour, picked.minute),
+          );
         }
       },
     );
@@ -553,7 +717,9 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
     final on = _data[f.key] == true;
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: AppColors.darkSurface,
         borderRadius: BorderRadius.circular(16),
@@ -561,8 +727,11 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
       ),
       child: Row(
         children: [
-          Icon(WorkTypePresenter.iconForField(f.kind),
-              size: 20, color: AppColors.textTertiary),
+          Icon(
+            WorkTypePresenter.iconForField(f.kind),
+            size: 20,
+            color: AppColors.textTertiary,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(child: Text(f.label, style: AppTypography.body)),
           Switch(
@@ -591,8 +760,8 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
                 icon: Icons.check_rounded,
                 label: opt.label,
                 selected: selected == opt.value,
-                onTap: () => _set(
-                    f.key, selected == opt.value ? null : opt.value),
+                onTap: () =>
+                    _set(f.key, selected == opt.value ? null : opt.value),
               ),
           ],
         ),
@@ -612,7 +781,9 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
+        ),
         decoration: BoxDecoration(
           color: AppColors.darkSurface,
           borderRadius: BorderRadius.circular(16),
@@ -635,8 +806,11 @@ class _DynamicWorkFormState extends State<DynamicWorkForm> {
             if (onClear != null)
               GestureDetector(
                 onTap: onClear,
-                child: const Icon(Icons.close_rounded,
-                    size: 18, color: AppColors.textTertiary),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
               ),
           ],
         ),

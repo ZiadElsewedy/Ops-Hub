@@ -35,7 +35,7 @@ Every module home is arranged as layers, top to bottom:
 | --- | --- |
 | Spacing | `AppSpacing` (`xs 4 · sm 8 · md 12 · lg 16 · xl 24 · xxl 32 · xxxl 48`) |
 | Radius | `AppRadius` (`card 20 · button 18 · full 999`, + `*All` `BorderRadius`) |
-| Colour | `AppColors` — **strictly monochrome**; `accent`/`primary` = white; semantic `success`/`warning`/`error` **only for status**, used sparingly |
+| Colour | `AppColors` — **strictly monochrome**; `accent`/`primary` = white; semantic `success`/`warning`/`error`/`info` **only for status**, used sparingly (`info` = work in flight, hairline only — never a fill) |
 | Type | `AppTypography` (`display · h1 28 · h2 · h3 18 · labelLarge · label · labelSmall · caption`) |
 
 ### Text hierarchy — a 4-step ramp (2026-07-09)
@@ -165,4 +165,25 @@ button press-scale, previews, and state changes only. Live feed rows use
 inserts, settled rows stay put). **Gate every animation on reduced motion**
 (`MediaQuery.disableAnimations`) — provide a static fallback, don't just shorten
 the duration. `LiveStatusBorder` is reserved for the single most-urgent actionable
-signal on a surface — its motion/colours are frozen; don't modify it.
+signal on a surface — its motion/colours are frozen; don't modify it. **It no
+longer runs on Employee Home** — see the border language below.
+
+### The task card border language (Employee Home, [ADR-014](../decisions/ADR-014-task-card-border-language.md))
+
+**The 1px edge *is* the state, and it does not move.** `taskAttentionTone` maps a
+status to one soft, desaturated hairline — white (new) · blue `info` (started) ·
+amber (in review) · green (approved) · red (missed/rejected) · grey (cancelled).
+
+Exactly one card ever gets more: a `pending` task this viewer has **never
+opened**, wrapped in `TaskAttentionSurface` — ambient white bloom (~5.5%), a 3%
+bevel highlight over the top 46%, a specular hairline peaking at the top-left,
+and one shimmer across **20%–66% of the top edge only, every 9s**. The shimmer
+never reaches a corner; that is what stops it reading as an orbit. Opening or
+starting the task clears all four in 200ms, permanently.
+
+Two standing rules come out of this and apply beyond task cards:
+
+- **Emphasis means unseen, never status.** Nothing is brighter than its
+  neighbours for merely *being* in a state.
+- **Nothing on a resting surface animates forever.** Stop the controller when a
+  card settles — don't just hide it.

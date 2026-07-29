@@ -9,6 +9,7 @@ import 'package:drop/core/network/api_client.dart';
 import 'package:drop/core/network/network_config.dart';
 import 'package:drop/core/services/case_seen_store.dart';
 import 'package:drop/core/services/notification_service.dart';
+import 'package:drop/core/services/task_seen_store.dart';
 import 'package:drop/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:drop/features/auth/data/datasources/user_remote_datasource.dart';
 import 'package:drop/features/auth/data/repositories/auth_repository_impl.dart';
@@ -305,6 +306,12 @@ class AppDependencies {
   static late final AuthCubit authCubit;
   static late final ProfileCubit profileCubit;
   static late final TaskCubit taskCubit;
+
+  /// Which tasks this viewer has already opened — drives the one-time
+  /// "new task" attention treatment on Employee Home. Client-only and
+  /// constructed eagerly: it is read from a widget's `initState`, not from a
+  /// cubit, and must be available before [init] completes in tests.
+  static final TaskSeenStore taskSeenStore = TaskSeenStore();
 
   // ─── Admin module (Phase 5) ─────────────────────────────────
   static late final BranchCubit branchCubit;

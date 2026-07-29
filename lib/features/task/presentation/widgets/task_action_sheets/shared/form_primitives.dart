@@ -1,112 +1,10 @@
 part of '../../task_action_sheets.dart';
 
 // ─── Premium form primitives ─────────────────────────────────────
-// A small, cohesive kit shared across the create sheet so every section reads
-// as one system: a hero header, group dividers, quiet duration controls,
-// summary picker tiles, the deadline field and an animated validation banner.
-
-/// The sheet's hero header — title + a one-line intent, so the form opens like
-/// a workflow builder rather than a bare "New Task".
-class _SheetHeader extends StatelessWidget {
-  const _SheetHeader({
-    required this.title,
-    required this.subtitle,
-    this.eyebrow = 'NEW WORKFLOW',
-  });
-  final String title;
-  final String subtitle;
-  final String eyebrow;
-
-  @override
-  Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    final duration = reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 520);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: reduceMotion ? 1 : 0, end: 1),
-                duration: duration,
-                curve: Curves.easeOutCubic,
-                builder: (context, progress, child) => Opacity(
-                  opacity: progress,
-                  child: Transform.scale(
-                    scale: 0.88 + (0.12 * progress),
-                    child: child,
-                  ),
-                ),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.subtleGradient,
-                    borderRadius: AppRadius.mdAll,
-                    border: Border.all(color: AppColors.darkBorder),
-                  ),
-                  child: const Icon(
-                    Icons.add_task_rounded,
-                    size: 17,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      eyebrow,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textTertiary,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(title, style: AppTypography.h2),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: reduceMotion ? 1 : 0, end: 1),
-            duration: duration,
-            curve: Curves.easeOutCubic,
-            builder: (context, progress, _) => ClipRRect(
-              borderRadius: AppRadius.fullAll,
-              child: Container(
-                height: 2,
-                color: AppColors.darkBorder,
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: progress,
-                  child: const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(subtitle, style: AppTypography.caption),
-        ],
-      ),
-    );
-  }
-}
+// A small, cohesive kit shared across the create form so every section reads
+// as one system: group dividers, quiet duration controls, summary picker tiles,
+// the deadline field and an animated validation banner. (The page's hero header
+// now lives with the full-screen chrome in task_form_sheet.dart.)
 
 /// A group divider — a small labelled heading with a trailing hairline that
 /// visually partitions the long form into scannable sections.
@@ -1007,9 +905,9 @@ class _ScheduleBanner extends StatelessWidget {
   }
 }
 
-/// Shown when a team's assignees span **different** shifts — the schedule can't
-/// be auto-suggested, so the manager picks Morning / Night / Custom (keeping
-/// them in control per the "smart defaults, never locked" principle).
+/// Shown when the picked assignees span **different** shifts — the schedule
+/// can't be auto-suggested, so the manager picks Morning / Night / Custom
+/// (keeping them in control per the "smart defaults, never locked" principle).
 class _MixedShiftChooser extends StatelessWidget {
   const _MixedShiftChooser({required this.onPick, required this.onCustom});
 
@@ -1038,7 +936,7 @@ class _MixedShiftChooser extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'This team works mixed shifts — pick a schedule',
+                  'These people work mixed shifts — pick a schedule',
                   style: AppTypography.caption.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -1168,12 +1066,20 @@ class _Segmented<T> extends StatelessWidget {
             children: [
               for (final seg in segments)
                 Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onChanged(seg.value),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      child: _SegLabel(seg: seg, selected: seg.value == value),
+                  child: Semantics(
+                    button: true,
+                    selected: seg.value == value,
+                    label: seg.label,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onChanged(seg.value),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: _SegLabel(
+                          seg: seg,
+                          selected: seg.value == value,
+                        ),
+                      ),
                     ),
                   ),
                 ),

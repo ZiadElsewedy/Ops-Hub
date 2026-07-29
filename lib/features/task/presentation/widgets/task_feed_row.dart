@@ -165,6 +165,7 @@ String _statusLabel(TaskStatus s) => switch (s) {
   TaskStatus.approved => 'Approved',
   TaskStatus.rejected => 'Rejected',
   TaskStatus.missed => 'Missed',
+  TaskStatus.cancelled => 'Cancelled',
 };
 
 class _Chip extends StatelessWidget {

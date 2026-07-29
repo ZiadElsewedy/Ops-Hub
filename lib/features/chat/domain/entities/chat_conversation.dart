@@ -29,17 +29,15 @@ class ChatConversation {
   /// The other participant relative to [myUserId] — for a conversation fetched
   /// by id (the list endpoint provides this pre-computed, see
   /// [ChatConversationSummary.counterpartUserId]).
-  String counterpartOf(String myUserId) => participantIds.firstWhere(
-        (id) => id != myUserId,
-        orElse: () => myUserId,
-      );
+  String counterpartOf(String myUserId) =>
+      participantIds.firstWhere((id) => id != myUserId, orElse: () => myUserId);
 }
 
 /// One row of the caller's conversation list — the client mirror of the
 /// backend's `ConversationListItemResponseDto`. Identical to
-/// [ChatConversation] plus the server-computed [counterpartUserId]. Unread
-/// counts and last-message previews are deliberately absent — the backend does
-/// not expose them on this endpoint (see backend-improvement notes).
+/// [ChatConversation] plus the server-computed [counterpartUserId] and
+/// [unreadCount]. Last-message previews remain client-resolved from cache,
+/// history, and realtime because the list endpoint does not expose them.
 class ChatConversationSummary {
   const ChatConversationSummary({
     required this.id,
@@ -89,10 +87,7 @@ class ChatConversationSummary {
 /// A page of the conversation list with an opaque keyset cursor. Pass
 /// [nextCursor] back as `cursor` to load the next page; null means no more.
 class ChatConversationPage {
-  const ChatConversationPage({
-    required this.items,
-    this.nextCursor,
-  });
+  const ChatConversationPage({required this.items, this.nextCursor});
 
   final List<ChatConversationSummary> items;
   final String? nextCursor;

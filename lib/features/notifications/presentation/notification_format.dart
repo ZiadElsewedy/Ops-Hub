@@ -40,6 +40,13 @@ NotificationPriority notificationPriority(NotificationType type) =>
       NotificationType.taskRejected ||
       NotificationType.taskRework ||
       NotificationType.taskSubmitted ||
+      // A cancel is the assignee's move: STOP — most of all when they had
+      // already started (Automated Tasks spec §9.2). A missed task is the
+      // manager's move: work the branch owed did not happen. An incorrect-task
+      // report is the manager's move: decide whether to cancel it.
+      NotificationType.taskCancelled ||
+      NotificationType.taskMissed ||
+      NotificationType.taskReportedIncorrect ||
       NotificationType.swapRequested ||
       // A new case needs a recipient to act; a new reply is the other party's
       // move.
@@ -105,7 +112,13 @@ enum NotificationCategory {
 NotificationCategory categoryOf(NotificationType type) => switch (type) {
       NotificationType.taskAssigned ||
       NotificationType.taskReminder ||
-      NotificationType.taskOverdue =>
+      NotificationType.taskOverdue ||
+      // Cancelled / missed / reported-incorrect are facts about the WORK, not
+      // verdicts on someone's submission, so they file under Tasks rather than
+      // Reviews.
+      NotificationType.taskCancelled ||
+      NotificationType.taskMissed ||
+      NotificationType.taskReportedIncorrect =>
         NotificationCategory.tasks,
       NotificationType.taskSubmitted ||
       NotificationType.taskApproved ||

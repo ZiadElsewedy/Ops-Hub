@@ -37,6 +37,30 @@ enum AuditEventType {
   taskRejected('task.rejected', AuditEntityType.task, 'Task rejected'),
   taskReworkRequested(
       'task.rework_requested', AuditEntityType.task, 'Rework requested'),
+
+  /// A manager/admin cancelled the task — the terminal business decision that
+  /// the work will not be done. Metadata carries the mandatory structured
+  /// `reason` code (+ optional `note`), which is what makes cancellation volume
+  /// by reason auditable — the laundering detector in the Automated Tasks spec
+  /// (§10.3). Cancelling one instance never touches its routine (§4.3), so this
+  /// is a task event, not an automation one.
+  taskCancelled('task.cancelled', AuditEntityType.task, 'Task cancelled'),
+
+  /// An employee reported a task as incorrect (metadata carries their `note`),
+  /// and a manager/admin's decision to overrule that report. The cancellation
+  /// itself is `task.cancelled`, so the pair answers "was this cancel prompted
+  /// by the floor, and how often are those reports dismissed?".
+  taskReportedIncorrect(
+      'task.reported_incorrect', AuditEntityType.task, 'Task reported incorrect'),
+  taskReportDismissed(
+      'task.report_dismissed', AuditEntityType.task, 'Task report dismissed'),
+
+  /// An admin returned a terminal task (missed / cancelled) to Pending — the
+  /// single, deliberately narrow safety valve for a mistaken terminal
+  /// (Automated Tasks spec §6.4). Audited without exception: it is the one
+  /// action that can rewrite a closed outcome, so it must never be quiet.
+  taskTerminalCorrected(
+      'task.terminal_corrected', AuditEntityType.task, 'Terminal corrected'),
   taskPhotoUploaded(
       'task.photo_uploaded', AuditEntityType.task, 'Photo uploaded'),
 

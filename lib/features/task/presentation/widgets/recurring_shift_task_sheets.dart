@@ -19,6 +19,7 @@ import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
 import 'package:drop/features/schedule/domain/shift_hours.dart';
 import 'package:drop/features/task/domain/entities/checklist_item.dart';
 import 'package:drop/features/task/domain/entities/recurring_task_template_entity.dart';
+import 'package:drop/features/task/domain/task_schedule.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/widgets/task_action_sheets.dart';
 
@@ -1096,26 +1097,30 @@ class _MissedPolicyNote extends StatelessWidget {
         color: AppColors.darkBg,
         borderRadius: AppRadius.mdAll,
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
+          const Icon(
             Icons.info_outline_rounded,
             size: 16,
             color: AppColors.textTertiary,
           ),
-          SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Missed policy · Enabled',
                   style: AppTypography.labelSmall,
                 ),
-                SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Generated tasks are due at shift end. Unfinished tasks automatically end as Missed.',
+                  // States the grace explicitly. A manager judging a Missed
+                  // record needs to know the record already allowed for
+                  // finishing a little over (ADR-013).
+                  'Generated tasks are due at shift end. Unfinished tasks end as '
+                  'Missed ${kTaskGracePeriod.inMinutes} minutes after that.',
                   style: AppTypography.caption,
                 ),
               ],

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,7 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
+import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/routes/route_names.dart';
+import 'package:drop/core/services/task_seen_store.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
@@ -30,8 +33,7 @@ import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/pages/task_details_screen.dart';
-import 'package:drop/features/task/presentation/widgets/live_status_border.dart';
-import 'package:drop/features/task/presentation/widgets/task_card.dart';
+import 'package:drop/features/task/presentation/widgets/task_attention_surface.dart';
 
 /// Redesigned employee home — a personal operations command center.
 ///
@@ -55,15 +57,32 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   List<TaskEntity>? _cachedTasks;
   Map<String, UserEntity> _cachedDir = const {};
 
+  // Which tasks this employee has already opened. Until the persisted map has
+  // loaded, nothing is treated as new — otherwise every card would flash the
+  // attention treatment for the frame or two before the file lands.
+  final TaskSeenStore _seen = AppDependencies.taskSeenStore;
+  bool _seenReady = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  Future<void> _loadSeen(String uid) async {
+    await _seen.load(uid);
+    if (mounted) setState(() => _seenReady = true);
+  }
+
+  /// Acknowledging a task is what ends its attention treatment — permanently.
+  void _markSeen(TaskEntity task) {
+    if (_seen.markSeen(task.id)) setState(() {});
+  }
+
   void _load({bool force = false}) {
     final user = context.currentUser;
     if (user != null) {
+      unawaited(_loadSeen(user.uid));
       context.read<StatisticsCubit>().load(user, forceRefresh: force);
       context.read<TaskCubit>().load(user, forceRefresh: force);
       // Surface this employee's swap requests right here on Home — both the ones
@@ -144,6 +163,11 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                     tasks: snap.tasks,
                     busy: snap.busy,
                     directory: snap.directory,
+                    seen: _SeenGate(
+                      store: _seen,
+                      ready: _seenReady,
+                      onSeen: _markSeen,
+                    ),
                   );
                 },
               ),
@@ -200,7 +224,9 @@ class _Counts {
         case TaskStatus.rejected:
           rej++;
         case TaskStatus.missed:
-          // A missed task is closed and must not affect today's active-work
+        case TaskStatus.cancelled:
+          // Closed records — a missed shift deadline, or work management
+          // cancelled outright. Neither must affect today's active-work
           // progress, even when this count helper is called with a broad list.
           break;
       }
@@ -229,16 +255,35 @@ class _Counts {
 
 // ─── Dashboard (ring hero + strip + sections) ────────────────────────
 
+/// Reads and clears the per-viewer "never opened this" flag that arms a task
+/// card's attention treatment. Bundled so the three widgets between Home's
+/// state and the card don't each have to thread two more parameters.
+class _SeenGate {
+  const _SeenGate({
+    required this.store,
+    required this.ready,
+    required this.onSeen,
+  });
+
+  final TaskSeenStore store;
+  final bool ready;
+  final void Function(TaskEntity) onSeen;
+
+  bool isNew(TaskEntity t) => ready && store.isUnseen(t.id, t.status);
+}
+
 class _Dashboard extends StatelessWidget {
   const _Dashboard({
     required this.tasks,
     required this.busy,
     required this.directory,
+    required this.seen,
   });
 
   final List<TaskEntity> tasks;
   final bool busy;
   final Map<String, UserEntity> directory;
+  final _SeenGate seen;
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +308,12 @@ class _Dashboard extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         EntranceFade(
           delay: staggerDelay(3),
-          child: _TaskSection(tasks: tasks, busy: busy, directory: directory),
+          child: _TaskSection(
+            tasks: tasks,
+            busy: busy,
+            directory: directory,
+            seen: seen,
+          ),
         ),
       ],
     );
@@ -788,11 +838,13 @@ class _TaskSection extends StatelessWidget {
     required this.tasks,
     required this.busy,
     required this.directory,
+    required this.seen,
   });
 
   final List<TaskEntity> tasks;
   final bool busy;
   final Map<String, UserEntity> directory;
+  final _SeenGate seen;
 
   static bool _isActive(TaskEntity t) =>
       t.status == TaskStatus.pending || t.status == TaskStatus.started;
@@ -854,6 +906,7 @@ class _TaskSection extends StatelessWidget {
                 task: rejected[i],
                 directory: directory,
                 busy: busy,
+                seen: seen,
                 onOpen: () => _openTask(context, rejected[i]),
               ),
             ),
@@ -873,6 +926,7 @@ class _TaskSection extends StatelessWidget {
                 task: inReview[i],
                 directory: directory,
                 busy: busy,
+                seen: seen,
                 onOpen: () => _openTask(context, inReview[i]),
               ),
             ),
@@ -893,6 +947,7 @@ class _TaskSection extends StatelessWidget {
                 task: missed[i],
                 directory: directory,
                 busy: busy,
+                seen: seen,
                 onOpen: () => _openTask(context, missed[i]),
               ),
             ),
@@ -912,9 +967,15 @@ class _TaskSection extends StatelessWidget {
                 task: preview[i],
                 directory: directory,
                 busy: busy,
+                seen: seen,
                 onOpen: () => _openTask(context, preview[i]),
                 onStart: preview[i].status == TaskStatus.pending
-                    ? () => context.read<TaskCubit>().startTask(preview[i])
+                    ? () {
+                        // Starting work acknowledges the task just as opening
+                        // it does — the treatment must not survive either.
+                        seen.onSeen(preview[i]);
+                        context.read<TaskCubit>().startTask(preview[i]);
+                      }
                     : null,
               ),
             ),
@@ -932,6 +993,7 @@ class _TaskSection extends StatelessWidget {
   }
 
   void _openTask(BuildContext context, TaskEntity task) {
+    seen.onSeen(task);
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (ctx, anim, _) =>
@@ -1009,6 +1071,7 @@ class _HomeTaskCard extends StatelessWidget {
     required this.task,
     required this.directory,
     required this.busy,
+    required this.seen,
     required this.onOpen,
     this.onStart,
   });
@@ -1016,6 +1079,7 @@ class _HomeTaskCard extends StatelessWidget {
   final TaskEntity task;
   final Map<String, UserEntity> directory;
   final bool busy;
+  final _SeenGate seen;
   final VoidCallback onOpen;
   final VoidCallback? onStart;
 
@@ -1028,27 +1092,21 @@ class _HomeTaskCard extends StatelessWidget {
 
     final assignedBy = directory[task.createdBy]?.displayName;
 
-    // Live-activity sweep (NOT status — the pill owns status). Only actionable
-    // states animate; the margin sits outside the wrapper so the sweep tracks
-    // the card border, not the inter-card gap.
+    // The 1px edge carries the state (the pill still owns the *label*). Only a
+    // pending task nobody has opened yet gets the attention treatment on top;
+    // every other card is a still, quiet hairline. The margin sits outside the
+    // wrapper so the edge tracks the card, not the inter-card gap.
+    final isNew = seen.isNew(task);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: LiveStatusBorder(
-        color: liveActivityColor(task),
-        speed: liveOrbitSpeed(task),
-        pulse: taskOverdue(task),
+      child: TaskAttentionSurface(
+        tone: taskAttentionTone(task.status, unseen: isNew),
+        attention: isNew,
         borderRadius: AppRadius.cardAll,
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.darkSurface,
             borderRadius: AppRadius.cardAll,
-            border: Border.all(
-              color: isStarted
-                  ? AppColors.primary.withAlpha(45)
-                  : isRejected || isMissed
-                  ? AppColors.error.withAlpha(45)
-                  : AppColors.darkBorder,
-            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1270,6 +1328,8 @@ class _StatusPill extends StatelessWidget {
       TaskStatus.approved => ('Approved', AppColors.success),
       TaskStatus.rejected => ('Rejected', AppColors.error),
       TaskStatus.missed => ('Missed', AppColors.error),
+      // Neither success nor failure — never the error tint (spec §8).
+      TaskStatus.cancelled => ('Cancelled', AppColors.textSecondary),
     };
 
     return Container(

@@ -43,8 +43,11 @@ class _ReviewSheetState extends State<_ReviewSheet> {
           const SizedBox(height: AppSpacing.xl),
           AppButton(
             label: 'Approve',
-            icon: const Icon(Icons.check_circle_outline_rounded,
-                size: 20, color: AppColors.textDark),
+            icon: const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 20,
+              color: AppColors.textDark,
+            ),
             onPressed: () {
               widget.cubit.approveTask(widget.task, reviewNotes: _note);
               Navigator.of(context).pop();
@@ -67,8 +70,10 @@ class _ReviewSheetState extends State<_ReviewSheet> {
               widget.cubit.rejectTask(widget.task, reviewNotes: _note);
               Navigator.of(context).pop();
             },
-            child: Text('Reject',
-                style: AppTypography.label.copyWith(color: AppColors.error)),
+            child: Text(
+              'Reject',
+              style: AppTypography.label.copyWith(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -100,15 +105,16 @@ class _ReviewChecklist extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.checklist_rounded,
-                  size: 16,
-                  color: complete ? AppColors.success : AppColors.textTertiary),
+              Icon(
+                Icons.checklist_rounded,
+                size: 16,
+                color: complete ? AppColors.success : AppColors.textTertiary,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 complete ? '100% complete' : '$done / $total completed',
                 style: AppTypography.labelSmall.copyWith(
-                  color:
-                      complete ? AppColors.success : AppColors.textSecondary,
+                  color: complete ? AppColors.success : AppColors.textSecondary,
                 ),
               ),
             ],
@@ -124,17 +130,20 @@ class _ReviewChecklist extends StatelessWidget {
                         ? Icons.check_circle_rounded
                         : Icons.radio_button_unchecked_rounded,
                     size: 16,
-                    color:
-                        i.completed ? AppColors.success : AppColors.textTertiary,
+                    color: i.completed
+                        ? AppColors.success
+                        : AppColors.textTertiary,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
-                    child: Text(i.title,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: i.completed
-                              ? AppColors.textTertiary
-                              : AppColors.textPrimary,
-                        )),
+                    child: Text(
+                      i.title,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: i.completed
+                            ? AppColors.textTertiary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -185,4 +194,3 @@ class _SubmittedWork extends StatelessWidget {
     );
   }
 }
-

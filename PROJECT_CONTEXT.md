@@ -11,6 +11,7 @@ Each document has **one** responsibility. A fact lives in exactly one of them.
 | Document | Answers | Read it when |
 | --- | --- | --- |
 | **PROJECT_CONTEXT.md** (this) | How is this built? | Always, first |
+| [.nav/](.nav/README.md) — **ATLAS** | *Where do I go / what breaks?* | Navigating or modifying code (esp. AI agents → [.nav/08_AI_PROTOCOL.md](.nav/08_AI_PROTOCOL.md)) |
 | [CURRENT_STATE.md](CURRENT_STATE.md) | Where are we today? | Starting any task |
 | [CHANGELOG.md](CHANGELOG.md) | What happened when? | You need history |
 | [docs/design/](docs/design/) | How does *this feature* work? | Touching that feature |
@@ -77,7 +78,7 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
 | Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
 | Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Caches metadata/URLs, **never image bytes** |
-| Server logic | Cloud Functions (Node.js, `functions/`) | 21 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
+| Server logic | Cloud Functions (Node.js, `functions/`) | 23 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS unconfigured — see CURRENT_STATE |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
 | Serialization | `json_serializable` | |
@@ -124,8 +125,9 @@ wires every datasource, repository, use case, and cubit **by hand** — no DI pa
 
 - **App-wide cubits** are provided in `main.dart` via `MultiBlocProvider`:
   `auth` · `profile` · `task` · `branch` · `adminUsers` · `statistics` · `schedule` ·
-  `shiftSwap` · `branchOperations` · `broadcast` · `notification` · `caseList` ·
-  `requestsList` · `attendance`.
+  `shiftSwap` · `branchOperations` · `broadcast` · `broadcastTemplate` ·
+  `broadcastSchedule` · `notification` · `caseList` · `chatList` ·
+  `requestsList` · `attendance` · `attendanceAdmin`.
 - **Per-entity cubits** are built on demand by `AppDependencies.create*` —
   `createCaseConversationCubit`, `createRequestDetailCubit`.
 
@@ -186,14 +188,16 @@ features' cubits.
 | `network/` | `ApiClient` — the single authenticated HTTP seam for the NestJS chat API (+ `NetworkConfig`). Consumed only by `features/chat/` |
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
-| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (45 routes) |
+| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (46 routes) |
 | `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
 
-**`core/` must never import a feature.** Apply feature-specific behaviour at the
-call site through an exposed hook (e.g. `AttentionTile.radius`), not inside the
+**`core/` is feature-neutral except `app_shell.dart`, the existing
+composition-boundary widget that reads auth/chat/notification state to render
+authenticated desktop chrome.** Apply feature-specific behaviour at the call
+site through an exposed hook (e.g. `AttentionTile.radius`), not inside a generic
 primitive.
 
 ### Single-source seams
@@ -231,7 +235,7 @@ Reuse these. Do not re-implement or duplicate them.
 | Desktop chrome (sidebar, ⌘K) | `core/widgets/app_shell.dart` + `app_sidebar.dart` + `command_palette.dart` |
 | Colours / type / spacing / radius | `core/theme/` — never inline a `Color(...)` or `TextStyle(...)` |
 | Global component styling | `core/theme/app_theme.dart` |
-| Firestore / Storage security | `firestore.rules` · `storage.rules` → **deploy** |
+| Firestore / Storage security | `firestore.rules` · `storage.rules` → add a case in `firestore-tests/` → **deploy** |
 | Server logic | `functions/index.js` → **deploy** |
 | Collection names / app name | `core/constants/app_constants.dart` |
 | DI wiring | `core/di/injection.dart` |
@@ -314,8 +318,8 @@ dart run build_runner build --delete-conflicting-outputs
 ## 7. UI philosophy
 
 **Strictly monochrome, dark mode only.** `AppColors.primary` is **white** and is the
-only accent. The only chromatic colours are semantic `success` / `error` / `warning`,
-and they express **status only**.
+only accent. The only chromatic colours are semantic `success` / `error` / `warning` /
+`info`, and they express **status only** (`info` is hairline-only — never a fill).
 
 This is the single most re-litigated decision in DROP — read
 [ADR-004](docs/decisions/ADR-004-monochrome-design.md) **before** proposing a brand
@@ -326,7 +330,12 @@ colour.
   **no two adjacent texts share a grey**.
 - **Never replace a lived-in UI without sign-off.** "Work on it more" means
   *enrich*, not *simplify*. Motion is often load-bearing (`LiveStatusBorder`'s orbit
-  is a spec, not decoration).
+  is a spec, not decoration) — but **not perpetual**: on Employee Home it was
+  replaced by a still, per-state 1px edge
+  ([ADR-014](docs/decisions/ADR-014-task-card-border-language.md)) after the owner
+  signed off on a mockup first. Two standing rules came out of that: **emphasis
+  means unseen, never status**, and **nothing on a resting surface animates
+  forever**.
 - **One primary CTA per screen.**
 - Task action sheets may use neutral tonal depth, restrained entrance/stagger motion,
   and pointer lift feedback; chromatic colour remains semantic-only and reduced
@@ -345,6 +354,7 @@ colour.
 | Fact row | `StatStrip` |
 | Feed row | `ActivityCard` |
 | Status pill | `StatusBadge` (`.task` is canonical) |
+| Task card edge | `TaskAttentionSurface` + `taskAttentionTone` (Employee Home) |
 | Empty state | `DropEmptyState` |
 | Loading | `Skeleton` / `DropLoadingState` |
 | Feedback | `AppSnackbar.success/error` — never raw `ScaffoldMessenger` |
@@ -417,6 +427,10 @@ Rule detail per collection: [docs/design/DATA_MODEL.md](docs/design/DATA_MODEL.m
 
 1. `flutter analyze` — clean.
 2. `flutter test` — no **new** failures (see CURRENT_STATE for known ones).
+2b. If you touched `firestore.rules`: `cd firestore-tests && npm test`.
+   **Rules are production code and the Dart suite cannot see them** — it runs
+   against fake repositories and never evaluates a rule. A rule regression once
+   denied every task creation in production while all 1100+ Dart tests passed.
 3. Update **CURRENT_STATE.md** if status, gaps, or priorities moved.
 4. Append a **CHANGELOG.md** line.
 5. Update the **design doc** if you changed how a feature works.

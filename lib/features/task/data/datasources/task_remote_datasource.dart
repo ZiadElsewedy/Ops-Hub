@@ -263,6 +263,13 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
     'approvedBy', 'approvedAt', 'rejectedBy', 'rejectedAt',
     'reviewNotes', 'rejectionReason', 'revisionNumber', 'requiresRework',
     'archivedAt', 'missedAt',
+    // Cancellation is a terminal decision recorded by the transition path; the
+    // reason in particular is immutable (spec §5.5), so a content edit must
+    // never carry it.
+    'cancelledAt', 'cancelledBy', 'cancelReason', 'cancelNote',
+    // An employee's open "this task is wrong" report — filed and cleared only
+    // through the transition path, so an edit can neither forge nor erase one.
+    'reportedIncorrectBy', 'reportedIncorrectAt', 'reportedIncorrectNote',
   };
 
   @override

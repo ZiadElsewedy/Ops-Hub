@@ -4,6 +4,7 @@ import 'package:drop/core/enums/attachment_type.dart';
 import 'package:drop/core/enums/recurrence_frequency.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_assignment_type.dart';
+import 'package:drop/core/enums/task_cancel_reason.dart';
 import 'package:drop/core/enums/task_type.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/enums/task_priority.dart';
@@ -46,6 +47,13 @@ class TaskModel {
   final DateTime? startsAt;
   final DateTime? deadline;
   final DateTime? missedAt;
+  final DateTime? cancelledAt;
+  final String? cancelledBy;
+  final TaskCancelReason? cancelReason;
+  final String? cancelNote;
+  final String? reportedIncorrectBy;
+  final DateTime? reportedIncorrectAt;
+  final String? reportedIncorrectNote;
   final String? notes;
   final String? proofImageUrl;
   final DateTime? startedAt;
@@ -90,6 +98,13 @@ class TaskModel {
     this.startsAt,
     this.deadline,
     this.missedAt,
+    this.cancelledAt,
+    this.cancelledBy,
+    this.cancelReason,
+    this.cancelNote,
+    this.reportedIncorrectBy,
+    this.reportedIncorrectAt,
+    this.reportedIncorrectNote,
     this.notes,
     this.proofImageUrl,
     this.startedAt,
@@ -135,6 +150,13 @@ class TaskModel {
         startsAt: map.date('startsAt'),
         deadline: map.date('deadline'),
         missedAt: map.date('missedAt'),
+        cancelledAt: map.date('cancelledAt'),
+        cancelledBy: map['cancelledBy'] as String?,
+        cancelReason: TaskCancelReason.fromString(map['cancelReason'] as String?),
+        cancelNote: map['cancelNote'] as String?,
+        reportedIncorrectBy: map['reportedIncorrectBy'] as String?,
+        reportedIncorrectAt: map.date('reportedIncorrectAt'),
+        reportedIncorrectNote: map['reportedIncorrectNote'] as String?,
         notes: map['notes'] as String?,
         proofImageUrl: map['proofImageUrl'] as String?,
         startedAt: map.date('startedAt'),
@@ -180,6 +202,13 @@ class TaskModel {
         startsAt: e.startsAt,
         deadline: e.deadline,
         missedAt: e.missedAt,
+        cancelledAt: e.cancelledAt,
+        cancelledBy: e.cancelledBy,
+        cancelReason: e.cancelReason,
+        cancelNote: e.cancelNote,
+        reportedIncorrectBy: e.reportedIncorrectBy,
+        reportedIncorrectAt: e.reportedIncorrectAt,
+        reportedIncorrectNote: e.reportedIncorrectNote,
         notes: e.notes,
         proofImageUrl: e.proofImageUrl,
         startedAt: e.startedAt,
@@ -235,6 +264,23 @@ class TaskModel {
         // task, but stripped from ordinary client content edits so a stale task
         // snapshot can never clear an automation-recorded missed outcome.
         'missedAt': missedAt == null ? null : Timestamp.fromDate(missedAt!),
+        // Terminal cancellation evidence. Like `missedAt`, these are owned by
+        // the transactional transition path and stripped from ordinary content
+        // edits, so a stale snapshot can never erase a recorded cancellation or
+        // rewrite its reason (the reason is immutable — spec §5.5).
+        'cancelledAt':
+            cancelledAt == null ? null : Timestamp.fromDate(cancelledAt!),
+        'cancelledBy': cancelledBy,
+        'cancelReason': cancelReason?.value,
+        'cancelNote': cancelNote,
+        // An open "this task is wrong" report. Transition-owned like the
+        // cancellation record: an employee files it and a manager clears it, so
+        // a routine content edit must never carry (or silently drop) it.
+        'reportedIncorrectBy': reportedIncorrectBy,
+        'reportedIncorrectAt': reportedIncorrectAt == null
+            ? null
+            : Timestamp.fromDate(reportedIncorrectAt!),
+        'reportedIncorrectNote': reportedIncorrectNote,
         'notes': notes,
         'proofImageUrl': proofImageUrl,
         'startedAt': startedAt == null ? null : Timestamp.fromDate(startedAt!),
@@ -283,6 +329,13 @@ class TaskModel {
         startsAt: startsAt,
         deadline: deadline,
         missedAt: missedAt,
+        cancelledAt: cancelledAt,
+        cancelledBy: cancelledBy,
+        cancelReason: cancelReason,
+        cancelNote: cancelNote,
+        reportedIncorrectBy: reportedIncorrectBy,
+        reportedIncorrectAt: reportedIncorrectAt,
+        reportedIncorrectNote: reportedIncorrectNote,
         notes: notes,
         proofImageUrl: proofImageUrl,
         startedAt: startedAt,
@@ -328,6 +381,13 @@ class TaskModel {
         startsAt: startsAt,
         deadline: deadline,
         missedAt: missedAt,
+        cancelledAt: cancelledAt,
+        cancelledBy: cancelledBy,
+        cancelReason: cancelReason,
+        cancelNote: cancelNote,
+        reportedIncorrectBy: reportedIncorrectBy,
+        reportedIncorrectAt: reportedIncorrectAt,
+        reportedIncorrectNote: reportedIncorrectNote,
         notes: notes,
         proofImageUrl: proofImageUrl,
         startedAt: startedAt,

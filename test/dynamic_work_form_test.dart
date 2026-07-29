@@ -93,7 +93,7 @@ void main() {
   });
 
   group('WorkTypePicker', () {
-    testWidgets('opens a chooser listing every type and reports a selection',
+    testWidgets('renders every type inline and reports a selection',
         (tester) async {
       String? picked;
       await tester.pumpWidget(_host(WorkTypePicker(
@@ -101,19 +101,15 @@ void main() {
         onChanged: (id) => picked = id,
       )));
 
-      // The hero card summarises the current pick; the full list lives in the
-      // chooser sheet.
+      // Small catalogue (≤ threshold) → every type is shown inline as a
+      // selectable card, with no "page → bottom sheet" step.
       expect(find.text('General Task'), findsOneWidget);
-      expect(find.text('Inventory Count'), findsNothing);
-
-      // Tapping the card opens the chooser with every registered type.
-      await tester.tap(find.text('General Task'));
-      await tester.pumpAndSettle();
       expect(find.text('Transfer / Handover'), findsOneWidget);
       expect(find.text('Inventory Count'), findsOneWidget);
 
+      // Tapping a type reports it immediately (no chooser step).
       await tester.tap(find.text('Inventory Count'));
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(picked, 'inventoryCount');
     });
 

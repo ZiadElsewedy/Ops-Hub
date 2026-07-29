@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/drop_logo.dart';
 
@@ -32,6 +33,7 @@ class AdaptiveScaffold extends StatelessWidget {
     this.contentMaxWidth,
     this.scrollableHeaderActions = false,
     this.showBrandMark = true,
+    this.compactDesktopHeader = false,
   });
 
   final String title;
@@ -75,6 +77,10 @@ class AdaptiveScaffold extends StatelessWidget {
   /// Non-interactive and tinted tertiary so it never competes with actions.
   final bool showBrandMark;
 
+  /// Opts this page into a more compact desktop header. It is intentionally
+  /// opt-in so established desktop surfaces keep their approved hierarchy.
+  final bool compactDesktopHeader;
+
   @override
   Widget build(BuildContext context) {
     if (!context.isDesktop) {
@@ -85,10 +91,7 @@ class AdaptiveScaffold extends StatelessWidget {
           elevation: 0,
           title: titleWidget ?? Text(title, style: AppTypography.h3),
           leading: leading,
-          actions: [
-            ...actions,
-            if (showBrandMark) const _AppBarBrandMark(),
-          ],
+          actions: [...actions, if (showBrandMark) const _AppBarBrandMark()],
           bottom: bottom,
         ),
         body: body,
@@ -119,6 +122,7 @@ class AdaptiveScaffold extends StatelessWidget {
             actions: actions,
             leading: leading,
             scrollableActions: scrollableHeaderActions,
+            compact: compactDesktopHeader,
             onBack: canPop ? () => Navigator.of(context).maybePop() : null,
           ),
           const Divider(height: 1, color: AppColors.darkBorder),
@@ -142,9 +146,7 @@ class _AppBarBrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.only(left: 6, right: 16),
-      child: Center(
-        child: DropLogo(height: 16, color: AppColors.textTertiary),
-      ),
+      child: Center(child: DropLogo(height: 16, color: AppColors.textTertiary)),
     );
   }
 }
@@ -157,6 +159,7 @@ class _DesktopPageHeader extends StatelessWidget {
     required this.actions,
     required this.leading,
     required this.scrollableActions,
+    required this.compact,
     required this.onBack,
   });
 
@@ -166,18 +169,25 @@ class _DesktopPageHeader extends StatelessWidget {
   final List<Widget> actions;
   final Widget? leading;
   final bool scrollableActions;
+  final bool compact;
   final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
+    final headerVerticalPadding = compact ? AppSpacing.sm : 22.0;
     final actionRow = actions.isEmpty
         ? const SizedBox.shrink()
         : Row(mainAxisSize: MainAxisSize.min, children: actions);
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 76),
+      constraints: BoxConstraints(minHeight: compact ? 68 : 76),
       color: AppColors.darkBg,
-      padding: const EdgeInsets.fromLTRB(40, 22, 40, 22),
+      padding: EdgeInsets.fromLTRB(
+        40,
+        headerVerticalPadding,
+        40,
+        headerVerticalPadding,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -189,15 +199,24 @@ class _DesktopPageHeader extends StatelessWidget {
             const SizedBox(width: 14),
           ],
           Expanded(
-            child: titleWidget ??
+            child:
+                titleWidget ??
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, style: AppTypography.h1),
+                    Text(
+                      title,
+                      style: compact ? AppTypography.h2 : AppTypography.h1,
+                    ),
                     if (subtitle != null) ...[
-                      const SizedBox(height: 4),
-                      Text(subtitle!, style: AppTypography.body),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        subtitle!,
+                        style: compact
+                            ? AppTypography.bodySmall
+                            : AppTypography.body,
+                      ),
                     ],
                   ],
                 ),
@@ -243,12 +262,17 @@ class _HeaderBackButtonState extends State<_HeaderBackButton> {
           height: 40,
           width: 40,
           decoration: BoxDecoration(
-            color: _hovered ? AppColors.darkSurfaceElevated : AppColors.darkSurface,
+            color: _hovered
+                ? AppColors.darkSurfaceElevated
+                : AppColors.darkSurface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: AppColors.darkBorder),
           ),
-          child: const Icon(Icons.arrow_back_rounded,
-              size: 19, color: AppColors.textSecondary),
+          child: const Icon(
+            Icons.arrow_back_rounded,
+            size: 19,
+            color: AppColors.textSecondary,
+          ),
         ),
       ),
     );

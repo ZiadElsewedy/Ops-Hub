@@ -36,6 +36,31 @@ extension TaskSchedulePhaseX on TaskSchedulePhase {
 /// The window (before [TaskEntity.dueAt]) within which a task reads "due soon".
 const Duration kDueSoonWindow = Duration(minutes: 30);
 
+/// The grace period between a generated shift task's deadline and the moment the
+/// server may record it as **Missed** — a fixed, global 30 minutes
+/// ([ADR-013](../../../../docs/decisions/ADR-013-task-grace-period.md)).
+///
+/// **This is a tolerance on the close, not a deadline.** It must never be added
+/// to `dueAt`, fed into [schedulePhase], or used to delay the Overdue/Late
+/// reading: a task is Late from its deadline (spec §3.1) and the employee should
+/// feel that immediately — they are simply not *recorded as failed* until the
+/// grace expires. The only legitimate client use is telling a manager when a
+/// task will close.
+///
+/// Mirrors `TASK_GRACE_MINUTES` in `functions/recurring_task_deadline.js`, which
+/// is the enforcing copy. Not configurable, by decision — a per-branch grace
+/// would be a dial on the headline completion rate held by the person that rate
+/// evaluates.
+const Duration kTaskGracePeriod = Duration(minutes: 30);
+
+/// When [t] becomes eligible to be recorded as Missed — its deadline plus
+/// [kTaskGracePeriod]. Null when the task has no deadline. Read-only insight for
+/// the UI; the server decides.
+DateTime? missedEvaluationAt(TaskEntity t) {
+  final due = t.dueAt;
+  return due?.add(kTaskGracePeriod);
+}
+
 /// The derived phase of [t] at [now]. Ordering:
 /// terminal (approved/completed/submitted/missed) → [done]; else overdue
 /// ([isTaskOverdue]) → [overdue]; else due within [dueSoonWindow] → [dueSoon];

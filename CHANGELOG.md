@@ -14,7 +14,378 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-29 — ATLAS developer navigation system (`.nav/`)
+
+Added `.nav/` — a code-navigation "operating system" (not prose docs): a boot README, 8 cross-cutting
+maps (world map, entry points, data map, "what do I edit if…", danger/invariants, reverse navigation,
+patterns, AI protocol), one location card per feature (18), and a machine-readable `atlas.index.json`.
+Mechanical facts (file inventories, route/collection/function/test associations) are **generated** by
+`.nav/gen_atlas.py` from the live code; judgment sections are hand-authored. Regenerate after structural
+changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
+
+
 ## Unreleased
+
+### 2026-07-29
+
+- **Create/Edit Task graduated from a bottom sheet to a first-class full-screen
+  route** (UX/architecture; MED risk — new container for a core daily workflow,
+  business logic untouched). Owner ruling: the modal `showModalBottomSheet` read
+  as temporary and buried its primary action. `showTaskFormSheet` now
+  `Navigator.push`es a **`CupertinoPageRoute(fullscreenDialog: true)`** (bottom-up
+  modal, own back stack). The form's state, `_save`, validation, and scheduling
+  are **byte-for-byte unchanged** — only the container and presentation were
+  elevated: a pinned nav bar (Cancel + a title that condenses in on scroll), a
+  hero header with stronger identity, the Work Type reframed as the workflow's
+  opening move, **assignment as interactive segmented cards**, a rewarding
+  checklist builder (autofocus-on-add + a filled add affordance), a **sticky
+  Create bar with live validation** (dims until the essentials are set, states
+  what you're about to make), a Cupertino discard-guard on Cancel, and inline
+  errors. Strictly monochrome (ADR-004). `_SheetHeader` retired in favour of the
+  new page hero; other sheets (Assign/Review/Cancel/Report) stay sheets. No test
+  pumps the form; task suite + full `flutter analyze` green. Concept mockup:
+  design artifact (Create Task full-screen redesign).
+  - **Follow-up: Required vs Optional restructure (dependency-driven disclosure,
+    not a wizard).** After weighing a linear step-by-step wizard and rejecting it
+    (serial gating taxes the expert manager who creates tasks all day), the
+    required workflow stays always-visible and ordered: **Work Type** leads (the
+    framing decision — it determines the form's structure, so it sets context
+    before data entry) → **Task Details** (title · the type's own fields ·
+    optional description, grouped) → **Assignment** → **Schedule**. The optional
+    enhancements — **Checklist · Priority · Repeat · Attachments** — fold into a
+    single secondary **"Additional Details"** disclosure (`_OptionsPanel`),
+    collapsed by default with a live summary ("3 steps · High priority · 2
+    photos"), revealed via `AnimatedSize` + fade. So the common task is a short
+    screen (Work Type default General + Title + assignee → Create). It auto-opens
+    when editing/prefilling a task that already has optional content, and a failed
+    submit auto-expands it so no folded-field error hides. Business logic still
+    untouched (`_save`/validation/scheduling/cubit). **Future direction:** Work
+    Type should carry *smart presets* that auto-populate checklist templates +
+    defaults per type (extends the existing `WorkTypeRegistry` seam).
+  - **Follow-up: V1 ship-blocker polish pass (presentation-only, no behaviour
+    change).** Four fixes from a cold design review, all with logic preserved and
+    the full suite green (1132 pass · 2 pre-existing splash fails):
+    1. **Work Type is inline, no more sheet.** For a small catalogue (≤6; today
+       5) the picker renders inline selectable cards (`_WorkTypeInlineCards`) —
+       the first decision no longer opens a bottom sheet. Above the threshold it
+       auto-falls-back to the searchable sheet, so the architecture still scales.
+    2. **Inline validation.** Title now validates on blur and shows a red inline
+       error on the field (`AppTextField` gained additive `errorText` +
+       `onFocusChange`); the bottom banner is reserved for the cross-field
+       work-type setup error only. Create stays disabled until valid; the footer
+       names the blocker (title / branch / shift).
+    3. **Native scheduling picker.** Replaced the Material `showDatePicker` /
+       `showTimePicker` with a monochrome Cupertino `CupertinoDatePicker`
+       (date+time, dark theme). Same value range and returned `DateTime` — the
+       scheduling engine is untouched.
+    4. **Accessibility.** Checklist icon buttons 32→44px (+ a "Remove step"
+       label); `Semantics` (button/selected) on the segmented control, assignment
+       cards, and work-type cards; segmented touch height nudged up. Deferred V2
+       ideas recorded as `TODO(create-task-v2)` in `task_action_sheets.dart`
+       (Create & Add Another, Smart Templates, Draft Recovery, AI Suggestions,
+       Create from Template, Better Schedule Presets).
+  - **Follow-up: the assignment model says what the business actually does —
+    Individual · Group · Shift** (UX + one new rule; LOW risk — labels are
+    presentation, the one behaviour change is gated to new tasks). Owner ruling:
+    "Team" implied a standing organisational unit, but the mode is really an
+    ad-hoc set of 2–3 people a manager hand-picks for one task, and "Employee"
+    was a noun for a person pretending to be a mode.
+    - **Labels only — no data migration.** `TaskAssignmentType.label` now reads
+      **Individual / Group / Shift**. The enum *names* are the persisted values
+      and were deliberately **not** renamed, so every existing
+      `tasks/{id}.assignmentType` document, `fromString`, the
+      `assignmentType == 'shift'` check in `firestore.rules`, the composite
+      indexes, and the Cloud Functions keep working untouched. New
+      `test/task_assignment_type_test.dart` (6 tests) pins that invariant.
+    - **The mode is DERIVED from the pick, not asked before it** (owner ruling,
+      same day — this deliberately reverses the "never infer the mode from the
+      count" position taken earlier in the session). Previously `individual` and
+      `team` were *behaviourally identical*: both opened the same multi-select,
+      both wrote `assigneeIds`, and nothing in the codebase ever read `team`
+      (every consumer only branches on `== shift`). Rather than make Individual
+      a separate single-select, there is now **one people picker, always
+      multi-select, that never closes on a tap** — you keep adding while it's
+      open — and the mode follows the final count via the new pure
+      `TaskAssignmentType.forAssigneeCount` (1 → Individual, 2+ → Group). Shift
+      is never derived; it targets the roster, so it stays a deliberate choice.
+    - **The derivation is shown, not hidden.** The picker's subtitle names the
+      outcome live while you build the selection — "1 selected — Individual: one
+      person owns this" / "3 selected — Group: they share the work" — reading
+      the label from `forAssigneeCount` itself, so the copy can't drift from the
+      rule. That was the condition for accepting inference at all: the magic has
+      to be visible while it happens.
+    - **The cards are still a control, and still don't discard work.** An
+      explicit tap wins until the next selection change. Group → Individual with
+      several people picked keeps the person picked **first** and says so inline
+      ("Kept 1 of 3 — an Individual task has a single owner"); Individual →
+      Group carries that person in as the group's first member; Shift leaves the
+      pick untouched, so coming back restores it.
+    - **A new people-mode task now requires at least one assignee.** Empty
+      `assigneeIds` reaches **nobody** (`canUserAccessTask`), so Create stays
+      disabled with "Choose who this task is for". This also removes a false
+      promise: the Team card claimed *"Everyone in the branch"* and the footer
+      claimed *"Assigned to the whole team"* on an empty pick, neither of which
+      anything implemented. **Edit mode is exempt** (an existing task's
+      assignment isn't re-litigated in the form) — note this closes the
+      create-time "assign later" path; pre-existing unassigned tasks still show
+      in the Unassigned feed filter.
+- **Employee "My Tasks" premium polish pass** (polish; LOW risk — one screen,
+  in-language, no behaviour change). Enriches
+  [`my_tasks_screen.dart`](lib/features/task/presentation/pages/my_tasks_screen.dart)
+  while honouring the monochrome ruling (ADR-004) and the card attention model
+  (ADR-014 — the `LiveStatusBorder` orbit and per-state status dot are kept):
+  two-line header (title over today's date), a compact monochrome completion
+  overview (ring + done/remaining + "N Active Tasks" / "You're all caught up"),
+  a slimmer 38px sliding segmented control (local override — shared primitive
+  untouched), richer cards (larger title, shift · due subtitle, restrained
+  "High" marker, press spring-back), **date-grouped closed tasks**
+  (Today · Yesterday · This week · Earlier) that fade slightly and swap the
+  progress bar for an outcome badge, and a calmer ringed-check all-clear state.
+  Indigo from the design brief was **declined** — it reverses ADR-004; owner
+  confirmed monochrome. No tests reference the screen; task suite still green.
+- **The task card's edge is now the state, and it stopped moving** (polish;
+  MED risk — replaces a lived-in UI on one surface). Owner-approved from a
+  high-fidelity mockup before any code was written; ruled in
+  [ADR-014](docs/decisions/ADR-014-task-card-border-language.md).
+  - **`LiveStatusBorder`'s perpetual orbit is gone from Employee Home.** Every
+    actionable card used to run a comet around its full border forever, so
+    nothing on the screen was ever still and nothing could be emphasised. Now a
+    single soft 1px hairline carries the status (`taskAttentionTone`), and it
+    does not animate: white (new) · blue (started) · amber (in review) · green
+    (approved) · red (missed/rejected) · grey (cancelled).
+  - **Only a genuinely new task gets attention** — new `TaskAttentionSurface`
+    gives an unopened `pending` card an Apple-quiet treatment: ambient white
+    bloom, a 3% bevel highlight, a specular hairline, and **one shimmer across a
+    short section of the top edge every 9 seconds**. It never reaches a corner,
+    which is what keeps it from reading as an orbit or a spinner. Reduced motion
+    drops the shimmer and keeps the static layers.
+  - **Opening or starting the task clears it permanently** (200ms). New
+    `TaskSeenStore` — a per-uid JSON file mirroring `CaseSeenStore`, so this is
+    **client-only: no schema change, no rules deploy**.
+  - New `AppColors.info` (the fourth and final semantic colour, hairline only);
+    `LiveStatusBorder` still runs on My Tasks, the admin dashboard, and
+    `AttentionTile` — deliberately out of scope. **On-device visual sign-off
+    still pending.**
+
+- **Fixed: the deployed rules denied every task creation** (bug; HIGH severity,
+  LOW-risk fix). Reported from the running app as *"The caller does not have
+  permission to execute the specified operation"* — a task would appear briefly,
+  vanish, and Active Tasks would fall to 0.
+  - **Root cause: one wrong default.** `map.get(key, default)` returns the
+    default **only when the key is ABSENT**. `TaskModel.toMap()` always emits
+    every key, so an unset optional arrives as *present-with-null* — and
+    `get('cancelReason', '')` therefore returns `null`, not `''`. The Phase-1
+    create rule compared it to `''`, which is never true, so **every task
+    creation was denied for every role**, deterministically.
+  - The "appears then disappears" symptom is Firestore offline persistence
+    (`main.dart`): the SDK applies the write to the local cache, the listener
+    renders it, the server rejects it, and the SDK rolls it back.
+  - **Two further operations were broken by the same defect** and are also
+    fixed: the employee **report-incorrect** path (`filesOwnIncorrectReport`)
+    and the **admin terminal correction** (§6.4), both of which tested a
+    null-valued field against `''`.
+  - **Fix:** nullable task fields now default to `null` and compare against
+    `null` throughout. This is also what restores **backwards compatibility** —
+    `get(key, null) == null` is correct for a legacy document (key absent) *and*
+    a current one (key present, value null), whereas the `''` default was wrong
+    for both. No product behaviour, spec, or Flutter model changed.
+  - **New permanent test harness: `firestore-tests/`** — 26 emulator-backed
+    checks against the real `firestore.rules` using the **real
+    `TaskModel.toMap()` payload**, including an explicit legacy-document suite.
+    Run with `cd firestore-tests && npm test`. Rules were the one
+    production-critical artifact in the repo with no test at all: the 1117 Dart
+    tests exercise `TaskCubit` against a fake repository and never evaluate a
+    rule, which is precisely why this shipped.
+  - Verified: task creation ✓, report-incorrect ✓, admin terminal correction ✓,
+    and every standing guarantee still denies (employee-cannot-cancel,
+    terminals frozen and undeletable, no cancel from Waiting Review, cancel
+    without a picklist reason rejected, missed server-only, employees cannot
+    forge review attribution or shrink the activity log).
+
+### 2026-07-28
+
+- **Grace period ruled: a fixed, global 30 minutes**
+  ([ADR-013](docs/decisions/ADR-013-task-grace-period.md); spec §3.6). The owner
+  ruled the question §10.2 gated branch scorecards on. A generated shift task is
+  now evaluated for Missed **30 minutes after its resolved shift end**.
+  - **The old rule was never actually "zero grace".** The sweep runs every 15
+    minutes, so a task submitted at 16:32 against a 16:30 end survived or died
+    depending on where the cron tick fell — a random, invisible, irreproducible
+    tolerance. The decision replaces it with a deterministic one.
+  - **Grace is a tolerance on the close, not a deadline.** `dueAt` is unchanged
+    and the task still reads **Late from the shift end** — the employee feels the
+    urgency immediately; they are simply not *recorded as failed* until the
+    tolerance expires. Still no notification on Late.
+  - **Not configurable, and no "Completed Late" state.** A per-branch grace would
+    be a dial on the headline KPI held by the person that KPI evaluates;
+    lateness is *measured* from timestamps we already store, never *stated* as a
+    fourth outcome.
+  - One constant, mirrored: `TASK_GRACE_MINUTES` (enforcing, Cloud Functions) and
+    `kTaskGracePeriod` (client). The sweep's **query cutoff and its transaction
+    re-check now share one rule**, so the cron cadence can never be the effective
+    policy again. Automation Center copy states the grace explicitly.
+  - Verified the flagged edge: the operational-weekend night shift ends 00:00, so
+    its grace expires 00:30 **the next calendar day** — pinned by test.
+
+- **Automated Tasks Phase 3 — Reporting & analytics** (feature; MED risk). The
+  four-way classification, now unblocked by the grace ruling.
+  - **New pure `domain/task_outcomes.dart`** — the single derivation of spec
+    §8/§10 over the already-in-memory task list. No stored aggregates, no
+    pipeline (ADR-009, §13).
+  - **Completion rate is now `Approved ÷ (Approved + Missed)`**, replacing
+    `approved ÷ total`. Cancelled is excluded from **both** sides, which is what
+    makes it ungameable — a manager cannot lift the number by cancelling work
+    they expect to fail (asserted directly in test). It reads null, not 0%, until
+    something has actually closed.
+  - **Hard invariant enforced by omission:** there is deliberately no field or
+    helper anywhere that sums Missed + Cancelled. The moment such a number
+    exists, someone renders it and the distinction is destroyed.
+  - **Cancellations report on their own line, broken down by reason code**, most
+    frequent first — a single cancel is legitimate, a cluster is the smell that
+    catches a misconfigured template or a routine that should be paused. A
+    cancellation with an unreadable code counts under `unknown` rather than
+    vanishing, so the breakdown always reconciles with the total.
+  - **Late is timeliness on completed work** — "% completed after deadline" +
+    average lateness (averaged over late work only, so the signal isn't diluted).
+    Coaching data; it never touches the completion rate.
+  - **Missed wired into the branch surfaces**, safe now that grace stops it
+    over-reporting at shift boundaries: a Missed stat (hidden at zero) and a
+    breakdown panel on the admin task overview, using existing primitives — no
+    new route, no new screen. Fixed a consequence of the formula change: a branch
+    with only open work now reads "Nothing closed yet" instead of the false "No
+    tasks yet", and the card distinguishes the reliability *rate* from backlog
+    *progress* in copy.
+  - +14 Flutter tests, +4 Cloud Functions tests. **1117 pass / 2 pre-existing
+    splash failures**; Cloud Functions **41 pass**; analyze unchanged at 1
+    pre-existing info.
+
+- **Automated Tasks Phase 2 — Visibility & trust** (feature; MED risk). The
+  half of the spec that makes Phase 1 humane rather than merely correct.
+  - **Notify on Missed (§9.1)** — the sweep used to close work silently, with
+    the audit log as the only trace and nobody watching it. `taskMissed` is now
+    written server-side by `autoEndRecurringShiftTasks` to the branch's active
+    managers, **falling back to admins when a branch has none** (a manager-less
+    branch would otherwise be silent again, which is the exact gap this closes;
+    a covered branch never also pages every admin, or the signal dies). Ids are
+    deterministic (`taskmissed_{taskId}_{uid}`), so a retried sweep can't
+    double-notify. Deliberately **not** in the client whitelist.
+  - **Notify on Cancel (§9.2/§9.3)** — targeted at the assignee(s), never
+    branch-wide, with the mandatory reason in the body so nobody is left
+    guessing. A shift broadcast has no named assignee, so it resolves the
+    **rostered crew** exactly as a review outcome does; nobody rostered is a
+    valid no-op, not a failure.
+  - **Employee "report incorrect task" (§5.2)** — the release valve. New
+    additive `reportedIncorrectBy` / `At` / `Note` fields, a quiet
+    "Something's wrong with this task" link under the employee's real action,
+    and a **required** explanation (a bare "this is wrong" gives the manager
+    nothing to decide on). It **does not change the task's status** — the work
+    stays put until a manager acts. Managers get a warning-tinted banner
+    carrying the reporter, the note and both decisions inline: *Cancel task* or
+    *Task stands*. Cancelling clears the report, because cancelling is the
+    answer. Rules let an employee file only under their own uid, never over an
+    open report and never clearing one.
+  - **Admin terminal correction (§6.4)** — `correctTerminal` returns a
+    `missed`/`cancelled` task to `pending`, clearing every trace of the undone
+    outcome. Admin-only and always audited (`task.terminal_corrected`), because
+    a mistimed terminal — a cancel that lost the race to the sweep by seconds,
+    a miss recorded against work that was done — is otherwise a permanent lie in
+    the reporting. Deliberately narrow so it stays a safety valve, not a routine
+    escape hatch. The existing manager-or-admin *reopen approved* is untouched
+    (the spec's §6 table treats them as separate permissions).
+  - New audit events `task.reported_incorrect` · `task.report_dismissed` ·
+    `task.terminal_corrected`, and three timeline-only activity kinds. +11
+    Flutter tests (**1103 pass / 2 pre-existing splash failures**), +1 Cloud
+    Functions test (**37 pass**), analyze unchanged at 1 pre-existing info.
+  - **`firestore.rules` NEEDS DEPLOY** — carries the terminal-correction
+    carve-out and the incorrect-report guards.
+  - **Still not built:** Phase 3 (four-way reporting/KPIs, §10).
+
+- **Automated Tasks Phase 1 — Cancelled core** (feature; MED risk). Implements
+  Phase 1 of the frozen
+  [AUTOMATED_TASKS_PRODUCT_SPEC](docs/design/AUTOMATED_TASKS_PRODUCT_SPEC.md):
+  a third terminal outcome that is neither success nor failure.
+  - **`TaskStatus.cancelled`** — terminal, reachable from `pending`/`started`
+    **only** (a submitted task must be reviewed, never voided — §5.4), and
+    manager/admin only. New `TaskStatus.isCancellable` is the one predicate the
+    UI, the cubit and the rules all read.
+  - **Mandatory structured reason.** New `core/enums/task_cancel_reason.dart`
+    with the five frozen picklist codes (`duplicate` · `wrong_generated` ·
+    `no_longer_needed` · `shift_cancelled` · `management_decision`) plus an
+    optional free-text note. The **wire ids are frozen and the record is
+    immutable once written**, so relabelling an option never rewrites history;
+    an unrecognised code round-trips as `unknown` rather than silently becoming
+    a *different* reason. Additive `TaskEntity` fields (`cancelledAt`,
+    `cancelledBy`, `cancelReason`, `cancelNote`) — no migration.
+  - **Counted nowhere (§8).** Cancelled is excluded from the active window, the
+    feed, the overdue count and the branch completion rate's numerator *and*
+    denominator. This is the invariant that stops Cancel becoming a way to
+    launder work that simply wasn't done; it is asserted from every angle a
+    number is derived.
+  - **`firestore.rules` (NEEDS DEPLOY).** Cancelling requires `canReachBranch`
+    (so an employee never can), a `pending`/`started` predecessor, a picklist
+    reason and a timestamp. A cancelled task is then frozen — no update, no
+    delete, and no forging `cancelled` at create time. Outside that one
+    transition every cancel field must be byte-identical to what is stored.
+  - **No resurrection (§4.4).** The generator's window-repair path now skips any
+    terminal instance (new pure `isTerminalTaskStatus`), so a cancelled task can
+    never be handed a fresh deadline and pulled back onto the auto-end sweep's
+    radar. Cancel-vs-miss is a race with a deterministic winner: **first terminal
+    to land wins, the other is a no-op**.
+  - **UI** — a monochrome Cancel sheet (radio picklist + optional note; the CTA
+    stays disabled until a reason is chosen, and the dismiss action is labelled
+    *Keep Task* so "Cancel" never means two things in one sheet), reached from a
+    Task Details action shown only while the task is cancellable. A cancelled
+    task's locked banner now carries the reason and note. Cancelled reads
+    neutral grey everywhere — never the error red Missed wears.
+  - Audit: new `task.cancelled` event carrying `reason` / `note` /
+    `cancelledFrom`. +19 Flutter tests (**1092 pass / 2 pre-existing splash
+    failures**), +2 Cloud Functions tests (**36 pass**), analyze unchanged at 1
+    pre-existing info.
+  - **Not yet built (later spec phases):** notify-on-cancel and notify-on-missed,
+    the employee "report incorrect task" path, the admin terminal correction
+    (§6.4), and the four-way reporting/KPI rework (§10).
+
+### 2026-07-27
+
+- **Employees directory density pass (P19; presentation-only).** `/admin/employees`
+  now has a compact desktop header with live employee/active/branch counts and a
+  header-level Create Employee CTA (the desktop FAB is gone; mobile keeps it),
+  one horizontal search/filter/sort/view toolbar, and lazy list/natural-height
+  two-column rendering for large directories (no fixed card-height overflow).
+  Employee cards now pair a softer 48px avatar and
+  compact access badge with inline Completed/Pending/Rate/Late metrics, keeping
+  only Details and Edit visible; Change Branch, Position, Reset Password, and
+  Activate/Deactivate remain available in the ellipsis and desktop context menus.
+  Existing routes, cubits, repositories, action sheets, and `isActive` access
+  semantics are unchanged; the design remains monochrome apart from semantic
+  status colors. Added focused widget coverage for the compact card and overflow
+  behavior.
+
+- **Chat List macOS polish (P18; presentation-only).** `/chat` now uses a
+  compact opt-in desktop header with a persistent native dark search field
+  (`Search conversations...`), tighter 56px-avatar rows, 16/600 names,
+  one-line previews, inset dividers, soft hover/selection, circular unread
+  badges, and an icon-led `No conversation selected` empty state. Desktop chrome
+  now has calmer selected navigation rows, a compact circular Chat badge, and a
+  low-depth profile card. Reused `AppSearchField` for compact,
+  focus/reduced-motion-aware geometry; routes, cubits, API/backend, and data
+  behavior are unchanged.
+
+- **Fixed iOS Simulator builds failing with "Unable to find a destination
+  matching the provided destination specifier."** Removed the non-standard
+  `SUPPORTED_PLATFORMS = iphoneos;` line from the Runner project's **Release**
+  and **Profile** build configs in `ios/Runner.xcodeproj/project.pbxproj` (the
+  stock Flutter template never sets it). Because scheme destination-eligibility
+  is computed via the project's `defaultConfigurationName = Release`, that line
+  stripped iOS Simulator from the Runner scheme's eligible destinations for
+  **every** invocation — including `flutter run` (Debug) and even
+  `generic/platform=iOS Simulator` — while `xcodebuild -showdestinations` still
+  listed the simulator (it enumerates real devices rather than filtering by the
+  scheme). Verified with `flutter build ios --debug --simulator` → built
+  `Runner.app`. (Separate red herring in the original report: the hardcoded
+  destination UUID `…E8506BD8CD12` did not match the live device
+  `…E8506BD8C012` — always let Flutter pick the device instead of pinning a
+  stale UUID.)
 
 ### 2026-07-26
 

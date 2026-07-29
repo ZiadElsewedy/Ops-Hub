@@ -19,6 +19,10 @@ import 'package:drop/features/task/domain/entities/task_entity.dart';
 /// **Excluded**
 ///  - approved tasks from a previous day — historical / effectively archived.
 ///  - missed tasks — closed operational records, never active work.
+///  - cancelled tasks — the business decided the work would not happen, so it
+///    must never sit in a queue or count toward today's progress. Unlike an
+///    approved task it earns **no** same-day credit: it was never done
+///    (Automated Tasks spec §8 — cancelled is excluded from reporting entirely).
 bool isTaskInActiveWindow(TaskEntity task, DateTime now) {
   switch (task.status) {
     case TaskStatus.pending:
@@ -31,6 +35,7 @@ bool isTaskInActiveWindow(TaskEntity task, DateTime now) {
       final at = task.approvedAt;
       return at != null && _isSameDay(at, now);
     case TaskStatus.missed:
+    case TaskStatus.cancelled:
       return false;
   }
 }

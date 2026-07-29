@@ -258,7 +258,10 @@ Color? liveActivityColor(TaskEntity task) {
     TaskStatus.started => _stateInProgress,
     TaskStatus.waitingReview => _stateInReview,
     TaskStatus.rejected => _stateRejected,
-    TaskStatus.approved || TaskStatus.completed || TaskStatus.missed => null,
+    TaskStatus.approved ||
+    TaskStatus.completed ||
+    TaskStatus.missed ||
+    TaskStatus.cancelled => null,
   };
 }
 
@@ -271,7 +274,10 @@ double liveOrbitSpeed(TaskEntity task) {
     TaskStatus.started => 1.2, // medium
     TaskStatus.waitingReview => 0.9, // slightly slow
     TaskStatus.rejected => 1.3, // slightly fast
-    TaskStatus.approved || TaskStatus.completed || TaskStatus.missed => 1.0,
+    TaskStatus.approved ||
+    TaskStatus.completed ||
+    TaskStatus.missed ||
+    TaskStatus.cancelled => 1.0,
   };
 }
 
@@ -341,6 +347,7 @@ class _StatusPill extends StatelessWidget {
     TaskStatus.approved => ('Approved', Icons.check_circle_rounded),
     TaskStatus.rejected => ('Needs rework', Icons.replay_rounded),
     TaskStatus.missed => ('Missed', Icons.event_busy_rounded),
+    TaskStatus.cancelled => ('Cancelled', Icons.block_rounded),
   };
 }
 

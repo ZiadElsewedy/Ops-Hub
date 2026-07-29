@@ -19,9 +19,27 @@ enum NotificationType {
   taskSubmitted,
   taskApproved,
   taskRejected,
+  /// A manager/admin cancelled the task — **targeted at the assignee(s)**, never
+  /// branch-wide (Automated Tasks spec §9.2). Someone expected to do that work
+  /// and must be told it is void. A shift-broadcast cancel with no named
+  /// assignee goes to the rostered crew instead; nobody rostered means no
+  /// recipients, which is valid and must never break the send.
+  taskCancelled,
+  /// An employee flagged a task as wrong — routed to their branch's managers,
+  /// who decide (spec §5.2). This is the release valve that makes manager-only
+  /// cancellation workable, so it is deliberately a *client* notification: the
+  /// employee is the sender.
+  taskReportedIncorrect,
   // ── Task reminders (`runTaskReminders` Cloud Function) ──
   taskReminder,
   taskOverdue,
+  /// A generated shift task hit its deadline unfinished and was auto-closed as
+  /// Missed — routed to the branch's manager(s) (spec §9.1). Produced
+  /// SERVER-SIDE by `autoEndRecurringShiftTasks` (the sweep is the only writer,
+  /// and manager routing needs a role lookup), so it is deliberately NOT in the
+  /// client `sendNotification` whitelist. Without it an automatic failure is
+  /// silent, which is the gap this closes.
+  taskMissed,
   // ── Broadcast events (`sendBroadcast` / `dispatchBroadcast` Cloud Function) ──
   broadcastAnnouncement,
   broadcastReminder,
