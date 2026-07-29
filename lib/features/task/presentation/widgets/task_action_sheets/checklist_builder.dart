@@ -186,7 +186,7 @@ class _StepRow extends StatelessWidget {
             child: IconButton(
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+              constraints: const BoxConstraints.tightFor(width: 44, height: 44),
               onPressed: onToggleRequired,
               icon: Icon(
                 isRequired ? Icons.star_rounded : Icons.star_outline_rounded,
@@ -200,8 +200,9 @@ class _StepRow extends StatelessWidget {
           IconButton(
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
             onPressed: onRemove,
+            tooltip: 'Remove step',
             icon: const Icon(
               Icons.close_rounded,
               size: 18,

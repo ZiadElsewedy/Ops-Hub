@@ -104,6 +104,19 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
   Future<List<UserEntity>>? _employeesFuture;
   String _employeesBranch = '';
 
+  /// A one-line explanation shown under the assignee field when switching modes
+  /// forced us to change the selection (Group → Individual keeps a single
+  /// owner). Cleared on the next deliberate change, so it never lingers.
+  String? _assignmentNote;
+
+  /// Individual mode on a **new** task means exactly one owner — the picker is a
+  /// radio list and Create stays disabled until someone is chosen. Editing is
+  /// exempt: tasks created before this rule (every task defaults to
+  /// `individual`) may hold several assignees and must open unharmed.
+  bool get _singleAssignee =>
+      widget.existing == null &&
+      _assignmentType == TaskAssignmentType.individual;
+
   String? _error;
 
   // ── Presentation-only state (no business logic) ──────────────────────
@@ -121,6 +134,11 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
   /// a short screen; opened automatically when a task already carries optional
   /// content (editing / a template prefill) so nothing is hidden.
   late bool _optionsExpanded = _hasOptionalContent;
+
+  /// Inline error for the Title field — set on blur (or a defensive submit) when
+  /// empty, cleared the moment a title is typed. Replaces the bottom banner for
+  /// this simple, per-field check.
+  String? _titleError;
 
   String? _initialBranch() {
     final fromExisting = widget.existing?.branchId;
@@ -141,14 +159,62 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
     _scroll.addListener(_onScroll);
   }
 
-  /// Rebuild so the sticky footer's enabled state tracks the title live.
+  /// Rebuild so the sticky footer's enabled state tracks the title live; also
+  /// clears the title error as soon as text is entered.
   void _onFormChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {
+      if (_titleError != null && _title.text.trim().isNotEmpty) {
+        _titleError = null;
+      }
+    });
+  }
+
+  /// On-blur validation for the title (the button stays disabled until valid;
+  /// this surfaces *why* at the field the moment focus leaves it empty).
+  void _onTitleFocusChange(bool focused) {
+    if (focused || !mounted) return;
+    final empty = _title.text.trim().isEmpty;
+    if (empty != (_titleError != null)) {
+      setState(() => _titleError = empty ? 'Title is required' : null);
+    }
   }
 
   void _onScroll() {
     final scrolled = _scroll.hasClients && _scroll.offset > 12;
     if (scrolled != _scrolled) setState(() => _scrolled = scrolled);
+  }
+
+  /// Switch the assignment mode and reconcile the current pick with it.
+  ///
+  /// The modes are never inferred from the selection — the manager chooses, and
+  /// the form follows. Only one case needs reconciling: **Group → Individual**
+  /// with several people already picked. Rather than clearing the work or
+  /// blocking the switch, we keep the person picked first and say so; the other
+  /// direction (Individual → Group) simply carries that person in as the group's
+  /// first member. Switching to Shift leaves the pick untouched — shift mode
+  /// ignores `assigneeIds`, so coming back restores exactly what was there.
+  void _onAssignmentModeChanged(TaskAssignmentType t) {
+    if (t == _assignmentType) return;
+    setState(() {
+      _assignmentType = t;
+      _assignmentNote = null;
+      if (t == TaskAssignmentType.shift) {
+        _mixedShifts = false;
+      } else if (t == TaskAssignmentType.individual && _assignees.length > 1) {
+        final total = _assignees.length;
+        final kept = _assignees.first; // insertion order = first one picked
+        _assignees
+          ..clear()
+          ..add(kept);
+        _assignmentNote =
+            'Kept 1 of $total — an Individual task has a single owner.';
+      }
+    });
+    // Switching to individual/group re-resolves the roster.
+    if (t != TaskAssignmentType.shift) {
+      _resolveAssigneeSchedule();
+    }
   }
 
   /// (Re)loads the branch's employee list for the assignee picker when the
@@ -246,29 +312,36 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
   }
 
   void _save() {
+    // NOTE: the validation *logic* below is unchanged — same checks, same order,
+    // same early-returns. Only where each error is *surfaced* changed: the
+    // simple per-field checks now show inline (title on its field; branch/shift/
+    // schedule are gated by the disabled Create button + the footer hint + the
+    // Schedule field's own inline error), so the bottom banner is reserved for
+    // the cross-field work-type setup error only.
     final title = _title.text.trim();
     if (title.isEmpty) {
-      setState(() => _error = 'Title is required.');
+      setState(() => _titleError = 'Title is required');
       return;
     }
     final branchId = widget.isAdmin
         ? (_branchId ?? '')
         : widget.defaultBranchId;
     if (branchId.isEmpty) {
-      setState(() => _error = 'Please select a branch.');
-      return;
+      return; // gated by _canSubmit; footer shows "Select a branch to continue"
     }
     if (widget.existing == null &&
         _assignmentType == TaskAssignmentType.shift &&
         _shift == null) {
-      setState(() => _error = 'Please select a shift.');
-      return;
+      return; // gated by _canSubmit; footer shows "Choose a shift to continue"
+    }
+    if (_singleAssignee && _assignees.isEmpty) {
+      return; // gated by _canSubmit; footer shows "Choose who owns this task"
     }
     // Scheduling V2 — a due-before-start window is invalid (an outside-shift
-    // window is only a non-blocking warning, so it does not stop here).
+    // window is only a non-blocking warning, so it does not stop here). The
+    // Schedule field already renders this error inline (live).
     final scheduleError = _scheduleError;
     if (scheduleError != null) {
-      setState(() => _error = scheduleError);
       return;
     }
     final description = _desc.text.trim().isEmpty ? null : _desc.text.trim();
@@ -390,23 +463,91 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
   }
 
   /// Pick a full date **and** time (Task Scheduling V2 — start/due carry a time,
-  /// not just a date). Cancelling the time step keeps the current time-of-day.
+  /// not just a date). Presentation-only change: this uses a monochrome
+  /// Cupertino wheel picker instead of the Material calendar/clock dialogs, so
+  /// scheduling stays inside the DROP design language. The value range and the
+  /// returned `DateTime` are unchanged — the scheduling engine is untouched.
+  /// (Cancel makes no change; Done commits date + time in one step.)
   Future<DateTime?> _pickDateTime(DateTime? current) async {
     final now = DateTime.now();
-    final base = current ?? now;
-    final date = await showDatePicker(
+    final minDate = DateTime(now.year - 1);
+    final maxDate = DateTime(now.year + 3, 12, 31, 23, 59);
+    var initial = current ?? now;
+    if (initial.isBefore(minDate)) initial = minDate;
+    if (initial.isAfter(maxDate)) initial = maxDate;
+
+    var temp = initial;
+    return showModalBottomSheet<DateTime>(
       context: context,
-      initialDate: base,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 3),
+      backgroundColor: AppColors.darkSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SheetHandle(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: AppTypography.label.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  Text('Date & time', style: AppTypography.label),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(temp),
+                    child: Text(
+                      'Done',
+                      style: AppTypography.label.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 216,
+              child: CupertinoTheme(
+                data: const CupertinoThemeData(brightness: Brightness.dark),
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.dateAndTime,
+                  backgroundColor: AppColors.darkSurface,
+                  initialDateTime: initial,
+                  minimumDate: minDate,
+                  maximumDate: maxDate,
+                  use24hFormat: false,
+                  onDateTimeChanged: (dt) => temp = dt,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+        ),
+      ),
     );
-    if (date == null || !mounted) return null;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(base),
-    );
-    final t = time ?? TimeOfDay.fromDateTime(base);
-    return DateTime(date.year, date.month, date.day, t.hour, t.minute);
   }
 
   Future<void> _pickStart() async {
@@ -563,6 +704,11 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
         _shift == null) {
       return false;
     }
+    // Individual = exactly one owner, so a new Individual task can't be created
+    // with nobody on it. Group stays optional — that's the "create now, assign
+    // later" path, and those tasks are exactly what the Unassigned feed filter
+    // is for.
+    if (_singleAssignee && _assignees.isEmpty) return false;
     return _scheduleError == null;
   }
 
@@ -582,15 +728,26 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
     if (_title.text.trim().isEmpty) {
       return 'Add a title to continue';
     }
+    if (widget.isAdmin && (_branchId ?? '').trim().isEmpty) {
+      return 'Select a branch to continue';
+    }
     if (isNew && shiftMode && _shift == null) {
       return 'Choose a shift to continue';
+    }
+    if (_singleAssignee && _assignees.isEmpty) {
+      return 'Choose who owns this task';
+    }
+    if (isNew && !shiftMode && _assignees.isEmpty) {
+      // A Group with nobody picked is a real, supported state — it lands in the
+      // Unassigned feed. Say that plainly. (This line used to claim "Assigned to
+      // the whole team", which nothing in the codebase implements: an empty
+      // assignee list reaches *no one*, see `canUserAccessTask`.)
+      return 'No one assigned yet — you can assign later';
     }
     final who = shiftMode
         ? (_shift == null ? null : '${_shift!.label} shift')
         : (_assignees.isEmpty
-              ? (_assignmentType == TaskAssignmentType.team
-                    ? 'the whole team'
-                    : null)
+              ? null
               : '${_assignees.length} '
                     '${_assignees.length == 1 ? 'person' : 'people'}');
     final when = _deadline != null
@@ -631,6 +788,54 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
       ),
     );
     if (discard == true && mounted) Navigator.of(context).pop();
+  }
+
+  /// Whether any optional enhancement already carries content — used to open the
+  /// Options panel automatically when editing or seeding from a template.
+  bool get _hasOptionalContent =>
+      _itemControllers.any((c) => c.text.trim().isNotEmpty) ||
+      _priority != TaskPriority.normal ||
+      _recurrence != RecurrenceFrequency.none ||
+      _shiftRepeat != TemplateRepeatMode.once ||
+      _newRefs.isNotEmpty ||
+      _existingRefs.isNotEmpty;
+
+  /// A compact readout of what's set inside the collapsed Options panel, so its
+  /// state is legible without expanding it.
+  String _optionsSummary(bool shiftMode) {
+    final parts = <String>[];
+    final steps = _itemControllers
+        .where((c) => c.text.trim().isNotEmpty)
+        .length;
+    if (steps > 0) parts.add('$steps ${steps == 1 ? 'step' : 'steps'}');
+    if (_priority != TaskPriority.normal) {
+      parts.add('${_priorityLabel(_priority)} priority');
+    }
+    if (shiftMode) {
+      if (_shiftRepeat != TemplateRepeatMode.once) parts.add('Repeats');
+    } else if (_recurrence != RecurrenceFrequency.none) {
+      parts.add('Repeats ${_recurrence.label.toLowerCase()}');
+    }
+    final photos = _newRefs.length + _existingRefs.length;
+    if (photos > 0) parts.add('$photos ${photos == 1 ? 'photo' : 'photos'}');
+    if (parts.isEmpty) return 'Steps · priority · repeat · attachments';
+    return parts.join(' · ');
+  }
+
+  static String _priorityLabel(TaskPriority p) => switch (p) {
+    TaskPriority.low => 'Low',
+    TaskPriority.normal => 'Normal',
+    TaskPriority.high => 'High',
+  };
+
+  /// Submit wrapper: runs the unchanged [_save], then — if it surfaced an error
+  /// — makes sure the Options panel is open, so an error on a folded field
+  /// (e.g. a work type that requires steps) is never hidden.
+  void _submit() {
+    _save();
+    if (mounted && _error != null && !_optionsExpanded) {
+      setState(() => _optionsExpanded = true);
+    }
   }
 
   @override
@@ -689,25 +894,17 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                       child: _FormHero(isNew: isNew),
                     ),
 
-                    // ── Task: the required essentials, captured first ───────
-                    // Title leads — it is the one field every task needs and the
-                    // thing a manager already has in mind. Work type shapes the
-                    // fields under it; description is an optional companion.
+                    // ── Work type: the first, framing decision — it determines
+                    //    the form's structure, so it establishes context before
+                    //    any data entry. ─────────────────────────────────────
                     section(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          AppTextField(
-                            controller: _title,
-                            label: 'Title',
-                            prefixIcon: Icons.title_rounded,
-                            autofocus: true,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
                           _WorkTypeIntro(enabled: isNew),
                           const SizedBox(height: AppSpacing.md),
-                          // Work type regenerates the type-specific fields below
-                          // it. Locked (static) in edit mode.
+                          // Regenerates the type-specific fields in Task Details.
+                          // Locked (static) in edit mode.
                           WorkTypePicker(
                             value: _workType,
                             enabled: isNew,
@@ -716,6 +913,26 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                               _workData = {};
                               _workFieldErrors = const {};
                             }),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Task Details: the "what is this" block — title, the
+                    //    type's own fields, and an optional description ────────
+                    section(
+                      label: 'Task Details',
+                      icon: Icons.subject_rounded,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AppTextField(
+                            controller: _title,
+                            label: 'Title',
+                            prefixIcon: Icons.title_rounded,
+                            autofocus: true,
+                            errorText: _titleError,
+                            onFocusChange: _onTitleFocusChange,
                           ),
                           const SizedBox(height: AppSpacing.md),
                           // Type-specific fields (nothing for a general task).
@@ -766,18 +983,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                             const SizedBox(height: AppSpacing.sm),
                             _AssignmentModeCards(
                               value: _assignmentType,
-                              onChanged: (t) {
-                                setState(() {
-                                  _assignmentType = t;
-                                  if (t == TaskAssignmentType.shift) {
-                                    _mixedShifts = false;
-                                  }
-                                });
-                                // Switching to individual/team re-resolves the roster.
-                                if (t != TaskAssignmentType.shift) {
-                                  _resolveAssigneeSchedule();
-                                }
-                              },
+                              onChanged: _onAssignmentModeChanged,
                             ),
                             const SizedBox(height: AppSpacing.md),
                           ],
@@ -791,20 +997,29 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                                 _suggestFromShift(s);
                               }),
                             )
-                          else
+                          else ...[
                             _AssigneeField(
                               future: _employeesFuture,
                               selected: _assignees,
+                              single: _singleAssignee,
                               onChanged: (next) {
                                 setState(() {
                                   _assignees
                                     ..clear()
                                     ..addAll(next);
+                                  // A deliberate pick supersedes any carry-over
+                                  // explanation.
+                                  _assignmentNote = null;
                                 });
                                 // Pre-fill the schedule from the assignees' rostered shift.
                                 _resolveAssigneeSchedule();
                               },
                             ),
+                            if (_assignmentNote != null) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              _AssignmentNote(text: _assignmentNote!),
+                            ],
+                          ],
                         ],
                       ),
                     ),
@@ -864,6 +1079,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                     EntranceFade(
                       delay: staggerDelay(step++),
                       child: _OptionsPanel(
+                        title: 'Additional Details',
                         expanded: _optionsExpanded,
                         summary: _optionsSummary(shiftMode),
                         onToggle: () => setState(
@@ -930,7 +1146,10 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                                     _Seg(RecurrenceFrequency.none, 'None'),
                                     _Seg(RecurrenceFrequency.daily, 'Daily'),
                                     _Seg(RecurrenceFrequency.weekly, 'Weekly'),
-                                    _Seg(RecurrenceFrequency.monthly, 'Monthly'),
+                                    _Seg(
+                                      RecurrenceFrequency.monthly,
+                                      'Monthly',
+                                    ),
                                   ],
                                 ),
                               ],
@@ -973,7 +1192,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
         isNew: isNew,
         canSubmit: _canSubmit,
         summary: _footerSummary(isNew, shiftMode),
-        onSubmit: _save,
+        onSubmit: _submit,
       ),
     );
   }
@@ -1131,9 +1350,16 @@ class _WorkTypeIntro extends StatelessWidget {
   }
 }
 
-/// The assignment-mode chooser as three interactive **cards** (Employee · Team ·
-/// Shift) — each with a glyph, label, and a one-line description, so choosing
-/// *how* the work is assigned feels like a decision, not a toggle.
+/// The assignment-mode chooser as three interactive **cards** (Individual ·
+/// Group · Shift) — each with a glyph, label, and a one-line description, so
+/// choosing *how* the work is assigned feels like a decision, not a toggle.
+///
+/// The three modes describe how the branch actually works: one person owns it,
+/// a few named people share it, or it belongs to whoever is on a shift. The
+/// middle mode is deliberately **not** called "Team" — it is a set picked for
+/// this one task, not a standing org unit — and it is **not** "everyone in the
+/// branch": that claim used to sit on this card but nothing implemented it (an
+/// empty pick reaches nobody, see `canUserAccessTask`).
 class _AssignmentModeCards extends StatelessWidget {
   const _AssignmentModeCards({required this.value, required this.onChanged});
 
@@ -1143,11 +1369,11 @@ class _AssignmentModeCards extends StatelessWidget {
   static const _meta = {
     TaskAssignmentType.individual: (
       Icons.person_outline_rounded,
-      'Assign specific people',
+      'One person owns this task',
     ),
     TaskAssignmentType.team: (
       Icons.groups_2_outlined,
-      'Everyone in the branch',
+      'A few people you pick, sharing the work',
     ),
     TaskAssignmentType.shift: (
       Icons.schedule_rounded,
@@ -1193,68 +1419,73 @@ class _AssignmentModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: reduceMotion
-            ? Duration.zero
-            : const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.darkSurfaceElevated
-              : AppColors.darkSurface,
-          borderRadius: AppRadius.lgAll,
-          border: Border.all(
-            color: selected ? AppColors.accentBorder : AppColors.darkBorder,
-            width: selected ? 1.4 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label. $description',
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.darkSurfaceElevated
+                : AppColors.darkSurface,
+            borderRadius: AppRadius.lgAll,
+            border: Border.all(
+              color: selected ? AppColors.accentBorder : AppColors.darkBorder,
+              width: selected ? 1.4 : 1,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: AppColors.darkBg,
-                borderRadius: AppRadius.mdAll,
-                border: Border.all(color: AppColors.darkBorder),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.darkBg,
+                  borderRadius: AppRadius.mdAll,
+                  border: Border.all(color: AppColors.darkBorder),
+                ),
+                child: Icon(
+                  icon,
+                  size: 17,
+                  color: selected
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
+                ),
               ),
-              child: Icon(
-                icon,
-                size: 17,
-                color: selected
-                    ? AppColors.textPrimary
-                    : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppTypography.label.copyWith(
-                      color: selected
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: AppTypography.label.copyWith(
+                        color: selected
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    description,
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textTertiary,
+                    const SizedBox(height: 1),
+                    Text(
+                      description,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            _ModeRadio(selected: selected),
-          ],
+              _ModeRadio(selected: selected),
+            ],
+          ),
         ),
       ),
     );
@@ -1346,6 +1577,123 @@ class _StickyCreateBar extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The optional-enhancements disclosure ("Additional Details" — steps · priority
+/// · repeat · attachments), kept visually secondary and collapsed by default so
+/// the required workflow reads as a short screen. A tappable header (with a live
+/// summary of what's set) reveals the body with an [AnimatedSize] + fade. It
+/// never *blocks* — it's always one tap away, in any order.
+class _OptionsPanel extends StatelessWidget {
+  const _OptionsPanel({
+    required this.title,
+    required this.expanded,
+    required this.summary,
+    required this.onToggle,
+    required this.child,
+  });
+
+  final String title;
+  final bool expanded;
+  final String summary;
+  final VoidCallback onToggle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            button: true,
+            label: title,
+            hint: expanded ? 'Collapse' : 'Expand',
+            child: InkWell(
+              onTap: onToggle,
+              borderRadius: AppRadius.lgAll,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.darkSurface,
+                  borderRadius: AppRadius.lgAll,
+                  border: Border.all(color: AppColors.darkBorder),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.tune_rounded,
+                      size: 16,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      title,
+                      style: AppTypography.label.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    // The summary of what's set — hidden once expanded (the fields
+                    // themselves are then visible right below).
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: expanded
+                            ? const SizedBox.shrink()
+                            : Text(
+                                summary,
+                                key: ValueKey(summary),
+                                textAlign: TextAlign.right,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.caption.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    AnimatedRotation(
+                      turns: expanded ? 0.5 : 0,
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      child: const Icon(
+                        Icons.expand_more_rounded,
+                        size: 20,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: expanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.md),
+                    child: child,
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
       ),
     );
   }

@@ -47,6 +47,16 @@ part 'task_action_sheets/cancel_sheet.dart';
 part 'task_action_sheets/shared/form_primitives.dart';
 part 'task_action_sheets/shift_pickers.dart';
 
+// TODO(create-task-v2): deferred to a future release (owner-agreed, out of the
+// V1 ship-polish scope). Track as issues when scheduled:
+//   • Create & Add Another — keep the form open, reset for rapid batch entry.
+//   • Smart Templates — a work type auto-populates a default checklist + field
+//     defaults on selection (extend WorkTypeRegistry / WorkTypeDefinition).
+//   • Draft Recovery — persist an in-progress task and restore on reopen.
+//   • AI Suggestions — suggest title/checklist/assignee from context.
+//   • Create from Template — surface "start from template" in this flow.
+//   • Better Schedule Presets — richer, configurable quick-deadline presets.
+
 /// Create or edit a task (manager/admin). For a manager the branch is fixed to
 /// [defaultBranchId]; an admin **picks** an existing branch from a dropdown
 /// (loaded from Firestore — never free text, so a task can't be orphaned on a

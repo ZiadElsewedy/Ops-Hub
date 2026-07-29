@@ -45,6 +45,81 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   new page hero; other sheets (Assign/Review/Cancel/Report) stay sheets. No test
   pumps the form; task suite + full `flutter analyze` green. Concept mockup:
   design artifact (Create Task full-screen redesign).
+  - **Follow-up: Required vs Optional restructure (dependency-driven disclosure,
+    not a wizard).** After weighing a linear step-by-step wizard and rejecting it
+    (serial gating taxes the expert manager who creates tasks all day), the
+    required workflow stays always-visible and ordered: **Work Type** leads (the
+    framing decision — it determines the form's structure, so it sets context
+    before data entry) → **Task Details** (title · the type's own fields ·
+    optional description, grouped) → **Assignment** → **Schedule**. The optional
+    enhancements — **Checklist · Priority · Repeat · Attachments** — fold into a
+    single secondary **"Additional Details"** disclosure (`_OptionsPanel`),
+    collapsed by default with a live summary ("3 steps · High priority · 2
+    photos"), revealed via `AnimatedSize` + fade. So the common task is a short
+    screen (Work Type default General + Title + assignee → Create). It auto-opens
+    when editing/prefilling a task that already has optional content, and a failed
+    submit auto-expands it so no folded-field error hides. Business logic still
+    untouched (`_save`/validation/scheduling/cubit). **Future direction:** Work
+    Type should carry *smart presets* that auto-populate checklist templates +
+    defaults per type (extends the existing `WorkTypeRegistry` seam).
+  - **Follow-up: V1 ship-blocker polish pass (presentation-only, no behaviour
+    change).** Four fixes from a cold design review, all with logic preserved and
+    the full suite green (1132 pass · 2 pre-existing splash fails):
+    1. **Work Type is inline, no more sheet.** For a small catalogue (≤6; today
+       5) the picker renders inline selectable cards (`_WorkTypeInlineCards`) —
+       the first decision no longer opens a bottom sheet. Above the threshold it
+       auto-falls-back to the searchable sheet, so the architecture still scales.
+    2. **Inline validation.** Title now validates on blur and shows a red inline
+       error on the field (`AppTextField` gained additive `errorText` +
+       `onFocusChange`); the bottom banner is reserved for the cross-field
+       work-type setup error only. Create stays disabled until valid; the footer
+       names the blocker (title / branch / shift).
+    3. **Native scheduling picker.** Replaced the Material `showDatePicker` /
+       `showTimePicker` with a monochrome Cupertino `CupertinoDatePicker`
+       (date+time, dark theme). Same value range and returned `DateTime` — the
+       scheduling engine is untouched.
+    4. **Accessibility.** Checklist icon buttons 32→44px (+ a "Remove step"
+       label); `Semantics` (button/selected) on the segmented control, assignment
+       cards, and work-type cards; segmented touch height nudged up. Deferred V2
+       ideas recorded as `TODO(create-task-v2)` in `task_action_sheets.dart`
+       (Create & Add Another, Smart Templates, Draft Recovery, AI Suggestions,
+       Create from Template, Better Schedule Presets).
+  - **Follow-up: the assignment model says what the business actually does —
+    Individual · Group · Shift** (UX + one new rule; LOW risk — labels are
+    presentation, the one behaviour change is gated to new tasks). Owner ruling:
+    "Team" implied a standing organisational unit, but the mode is really an
+    ad-hoc set of 2–3 people a manager hand-picks for one task, and "Employee"
+    was a noun for a person pretending to be a mode.
+    - **Labels only — no data migration.** `TaskAssignmentType.label` now reads
+      **Individual / Group / Shift**. The enum *names* are the persisted values
+      and were deliberately **not** renamed, so every existing
+      `tasks/{id}.assignmentType` document, `fromString`, the
+      `assignmentType == 'shift'` check in `firestore.rules`, the composite
+      indexes, and the Cloud Functions keep working untouched. New
+      `test/task_assignment_type_test.dart` (6 tests) pins that invariant.
+    - **Individual is now a real single-select** (new tasks only). Previously
+      `individual` and `team` were *behaviourally identical* — both opened the
+      same multi-select and both wrote `assigneeIds`; nothing in the codebase
+      ever read `team` (every consumer only branches on `== shift`). Three modes
+      only earn their keep if Individual means one owner, so it now opens a
+      **radio list** (tap replaces the choice and closes the sheet; no bulk
+      actions, no Done button) and **requires exactly one** person before Create
+      enables. **Edit mode is exempt** — every task predating this defaults to
+      `individual` and may hold several assignees, so reopening one must not
+      silently drop them.
+    - **Switching modes never auto-switches or silently discards.** Modes are
+      never inferred from the count. Group → Individual with several people
+      picked keeps the person picked first and says so inline ("Kept 1 of 3 — an
+      Individual task has a single owner"); Individual → Group carries that
+      person in as the group's first member; Shift leaves the pick untouched, so
+      coming back restores it.
+    - **Fixed: the "whole team" claim that reached nobody.** The Team card said
+      *"Everyone in the branch"* and the footer said *"Assigned to the whole
+      team"* when nothing was selected — but an empty `assigneeIds` is
+      accessible to **no one** (`canUserAccessTask`), and such a task lands in
+      the Unassigned feed. Group with zero picks now reads honestly ("No one
+      assigned yet — you can assign later"), which is the deliberate
+      "create now, assign later" path.
 - **Employee "My Tasks" premium polish pass** (polish; LOW risk — one screen,
   in-language, no behaviour change). Enriches
   [`my_tasks_screen.dart`](lib/features/task/presentation/pages/my_tasks_screen.dart)

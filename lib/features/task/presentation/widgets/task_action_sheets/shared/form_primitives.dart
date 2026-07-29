@@ -905,9 +905,9 @@ class _ScheduleBanner extends StatelessWidget {
   }
 }
 
-/// Shown when a team's assignees span **different** shifts — the schedule can't
-/// be auto-suggested, so the manager picks Morning / Night / Custom (keeping
-/// them in control per the "smart defaults, never locked" principle).
+/// Shown when the picked assignees span **different** shifts — the schedule
+/// can't be auto-suggested, so the manager picks Morning / Night / Custom
+/// (keeping them in control per the "smart defaults, never locked" principle).
 class _MixedShiftChooser extends StatelessWidget {
   const _MixedShiftChooser({required this.onPick, required this.onCustom});
 
@@ -936,7 +936,7 @@ class _MixedShiftChooser extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'This team works mixed shifts — pick a schedule',
+                  'These people work mixed shifts — pick a schedule',
                   style: AppTypography.caption.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -1066,12 +1066,20 @@ class _Segmented<T> extends StatelessWidget {
             children: [
               for (final seg in segments)
                 Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onChanged(seg.value),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      child: _SegLabel(seg: seg, selected: seg.value == value),
+                  child: Semantics(
+                    button: true,
+                    selected: seg.value == value,
+                    label: seg.label,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onChanged(seg.value),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: _SegLabel(
+                          seg: seg,
+                          selected: seg.value == value,
+                        ),
+                      ),
                     ),
                   ),
                 ),
