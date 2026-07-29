@@ -116,6 +116,12 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
   /// immediate and rewarding. `-1` = none pending.
   int _lastAddedIndex = -1;
 
+  /// Whether the optional "Options" panel (steps · priority · repeat ·
+  /// attachments) is expanded. Collapsed by default so the required workflow is
+  /// a short screen; opened automatically when a task already carries optional
+  /// content (editing / a template prefill) so nothing is hidden.
+  late bool _optionsExpanded = _hasOptionalContent;
+
   String? _initialBranch() {
     final fromExisting = widget.existing?.branchId;
     if (fromExisting != null && fromExisting.isNotEmpty) return fromExisting;
@@ -683,15 +689,25 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                       child: _FormHero(isNew: isNew),
                     ),
 
-                    // ── The opening move: choose the kind of work ───────────
+                    // ── Task: the required essentials, captured first ───────
+                    // Title leads — it is the one field every task needs and the
+                    // thing a manager already has in mind. Work type shapes the
+                    // fields under it; description is an optional companion.
                     section(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          AppTextField(
+                            controller: _title,
+                            label: 'Title',
+                            prefixIcon: Icons.title_rounded,
+                            autofocus: true,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
                           _WorkTypeIntro(enabled: isNew),
                           const SizedBox(height: AppSpacing.md),
-                          // Work type — the hero choice; regenerates the
-                          // type-specific fields below it. Locked in edit mode.
+                          // Work type regenerates the type-specific fields below
+                          // it. Locked (static) in edit mode.
                           WorkTypePicker(
                             value: _workType,
                             enabled: isNew,
@@ -700,13 +716,6 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                               _workData = {};
                               _workFieldErrors = const {};
                             }),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField(
-                            controller: _title,
-                            label: 'Title',
-                            prefixIcon: Icons.title_rounded,
-                            autofocus: true,
                           ),
                           const SizedBox(height: AppSpacing.md),
                           // Type-specific fields (nothing for a general task).
@@ -729,20 +738,6 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                             textInputAction: TextInputAction.newline,
                           ),
                         ],
-                      ),
-                    ),
-
-                    // ── Steps: the checklist builder ────────────────────────
-                    section(
-                      label: 'Steps',
-                      icon: Icons.checklist_rounded,
-                      child: _ChecklistBuilder(
-                        controllers: _itemControllers,
-                        required: _itemRequired,
-                        lastAdded: _lastAddedIndex,
-                        onAdd: _addChecklistItem,
-                        onRemove: _removeChecklistItem,
-                        onToggleRequired: _toggleRequired,
                       ),
                     ),
 
@@ -862,85 +857,101 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                       ),
                     ),
 
-                    // ── Review: how it's prioritised and whether it repeats ─────────
-                    section(
-                      label: 'Review',
-                      icon: Icons.fact_check_outlined,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _FieldCaption('Priority'),
-                          const SizedBox(height: AppSpacing.sm),
-                          _Segmented<TaskPriority>(
-                            value: _priority,
-                            onChanged: (v) => setState(() => _priority = v),
-                            segments: const [
-                              _Seg(
-                                TaskPriority.low,
-                                'Low',
-                                icon: Icons.arrow_downward_rounded,
-                              ),
-                              _Seg(
-                                TaskPriority.normal,
-                                'Normal',
-                                icon: Icons.remove_rounded,
-                              ),
-                              _Seg(
-                                TaskPriority.high,
-                                'High',
-                                icon: Icons.priority_high_rounded,
-                              ),
+                    // ── Options: optional enhancements — always one tap away,
+                    //    visually secondary, collapsed by default so the common
+                    //    task stays a short screen. Steps · Priority · Repeat ·
+                    //    Attachments. ─────────────────────────────────────────
+                    EntranceFade(
+                      delay: staggerDelay(step++),
+                      child: _OptionsPanel(
+                        expanded: _optionsExpanded,
+                        summary: _optionsSummary(shiftMode),
+                        onToggle: () => setState(
+                          () => _optionsExpanded = !_optionsExpanded,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Steps (checklist)
+                            _ChecklistBuilder(
+                              controllers: _itemControllers,
+                              required: _itemRequired,
+                              lastAdded: _lastAddedIndex,
+                              onAdd: _addChecklistItem,
+                              onRemove: _removeChecklistItem,
+                              onToggleRequired: _toggleRequired,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            const _FieldCaption('Priority'),
+                            const SizedBox(height: AppSpacing.sm),
+                            _Segmented<TaskPriority>(
+                              value: _priority,
+                              onChanged: (v) => setState(() => _priority = v),
+                              segments: const [
+                                _Seg(
+                                  TaskPriority.low,
+                                  'Low',
+                                  icon: Icons.arrow_downward_rounded,
+                                ),
+                                _Seg(
+                                  TaskPriority.normal,
+                                  'Normal',
+                                  icon: Icons.remove_rounded,
+                                ),
+                                _Seg(
+                                  TaskPriority.high,
+                                  'High',
+                                  icon: Icons.priority_high_rounded,
+                                ),
+                              ],
+                            ),
+                            // Recurrence (new tasks only) — shift mode gets its
+                            // own Once/Daily/Weekly picker (daily/weekly saves as
+                            // a recurring shift-task template, not a single task).
+                            if (isNew) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              if (shiftMode)
+                                ShiftRepeatPicker(
+                                  value: _shiftRepeat,
+                                  onChanged: (v) =>
+                                      setState(() => _shiftRepeat = v),
+                                  weekday: _shiftWeekday,
+                                  onWeekdayChanged: (w) =>
+                                      setState(() => _shiftWeekday = w),
+                                )
+                              else ...[
+                                const _FieldCaption('Repeats'),
+                                const SizedBox(height: AppSpacing.sm),
+                                _Segmented<RecurrenceFrequency>(
+                                  value: _recurrence,
+                                  onChanged: (v) =>
+                                      setState(() => _recurrence = v),
+                                  segments: const [
+                                    _Seg(RecurrenceFrequency.none, 'None'),
+                                    _Seg(RecurrenceFrequency.daily, 'Daily'),
+                                    _Seg(RecurrenceFrequency.weekly, 'Weekly'),
+                                    _Seg(RecurrenceFrequency.monthly, 'Monthly'),
+                                  ],
+                                ),
+                              ],
                             ],
-                          ),
-                          // Recurrence (new tasks only) — shift mode gets its own
-                          // Once/Daily/Weekly picker (daily/weekly saves as a recurring
-                          // shift-task template rather than a single task).
-                          if (isNew) ...[
-                            const SizedBox(height: AppSpacing.md),
-                            if (shiftMode)
-                              ShiftRepeatPicker(
-                                value: _shiftRepeat,
-                                onChanged: (v) =>
-                                    setState(() => _shiftRepeat = v),
-                                weekday: _shiftWeekday,
-                                onWeekdayChanged: (w) =>
-                                    setState(() => _shiftWeekday = w),
-                              )
-                            else ...[
-                              const _FieldCaption('Repeats'),
-                              const SizedBox(height: AppSpacing.sm),
-                              _Segmented<RecurrenceFrequency>(
-                                value: _recurrence,
-                                onChanged: (v) =>
-                                    setState(() => _recurrence = v),
-                                segments: const [
-                                  _Seg(RecurrenceFrequency.none, 'None'),
-                                  _Seg(RecurrenceFrequency.daily, 'Daily'),
-                                  _Seg(RecurrenceFrequency.weekly, 'Weekly'),
-                                  _Seg(RecurrenceFrequency.monthly, 'Monthly'),
-                                ],
-                              ),
-                            ],
+                            const SizedBox(height: AppSpacing.lg),
+                            AttachmentPickerField(
+                              attachments: _newRefs,
+                              allowVideo: false,
+                              title: 'Reference images',
+                              hint:
+                                  'Attach photos showing how this should look — the '
+                                  'employee sees them before starting. Photos are '
+                                  'compressed before upload.',
+                              existing: _existingRefs,
+                              onRemoveExisting: (a) =>
+                                  setState(() => _existingRefs.remove(a)),
+                              onChanged: (list) =>
+                                  setState(() => _newRefs = list),
+                            ),
                           ],
-                        ],
-                      ),
-                    ),
-
-                    // ── Attachments: "what good looks like" ─────────────────────────
-                    section(
-                      label: 'Attachments',
-                      icon: Icons.image_outlined,
-                      child: AttachmentPickerField(
-                        attachments: _newRefs,
-                        allowVideo: false,
-                        title: 'Reference images',
-                        hint:
-                            'Attach photos showing how this should look — the employee '
-                            'sees them before starting. Photos are compressed before upload.',
-                        existing: _existingRefs,
-                        onRemoveExisting: (a) =>
-                            setState(() => _existingRefs.remove(a)),
-                        onChanged: (list) => setState(() => _newRefs = list),
+                        ),
                       ),
                     ),
 
