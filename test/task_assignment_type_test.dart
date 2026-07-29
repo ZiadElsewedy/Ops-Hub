@@ -43,6 +43,35 @@ void main() {
       );
     });
 
+    group('forAssigneeCount — the mode is derived from the pick', () {
+      test('one person owns it, two or more share it', () {
+        expect(
+          TaskAssignmentType.forAssigneeCount(1),
+          TaskAssignmentType.individual,
+        );
+        expect(TaskAssignmentType.forAssigneeCount(2), TaskAssignmentType.team);
+        expect(TaskAssignmentType.forAssigneeCount(7), TaskAssignmentType.team);
+      });
+
+      test('an empty pick is not a Group', () {
+        // Nobody selected yet reads as "no owner chosen", not "shared work" —
+        // and the form blocks Create there anyway.
+        expect(
+          TaskAssignmentType.forAssigneeCount(0),
+          TaskAssignmentType.individual,
+        );
+      });
+
+      test('never derives shift — the roster is only ever chosen', () {
+        for (var n = 0; n < 10; n++) {
+          expect(
+            TaskAssignmentType.forAssigneeCount(n),
+            isNot(TaskAssignmentType.shift),
+          );
+        }
+      });
+    });
+
     test('missing / unknown → individual (pre-field tasks keep working)', () {
       expect(TaskAssignmentType.fromString(null), TaskAssignmentType.individual);
       expect(

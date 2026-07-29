@@ -27,6 +27,17 @@ enum TaskAssignmentType {
         _ => individual,
       };
 
+  /// The mode a **people** pick lands on: one person owns it ([individual]),
+  /// two or more share it ([team]). Owner ruling 2026-07-29 — Individual vs
+  /// Group is a readout of the selection, not a question asked before it, so
+  /// the task form derives the mode from the picker's final count instead of
+  /// gating the picker on a mode.
+  ///
+  /// [shift] is never derived: it targets the roster rather than a list of
+  /// people, so it is only ever chosen deliberately.
+  static TaskAssignmentType forAssigneeCount(int count) =>
+      count >= 2 ? team : individual;
+
   /// The human label. "Group" (not "Team") because this is a set of people the
   /// manager picks for one task, not a standing organisational unit.
   String get label => switch (this) {

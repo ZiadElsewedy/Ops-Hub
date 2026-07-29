@@ -5,35 +5,31 @@ part of '../task_action_sheets.dart';
 /// set + the loaded future) lives on [_TaskFormSheetState]; this widget renders
 /// + returns the new selection through [onChanged].
 ///
-/// [single] switches the whole field into **one-owner** mode (Individual on a
-/// new task): the tile speaks in the singular and the sheet behaves like a radio
-/// list rather than a capped multi-select — picking someone *replaces* the
-/// current choice instead of refusing the tap.
+/// There is **one** picker for people, always multi-select: the assignment mode
+/// is derived from how many you end up choosing (1 → Individual, 2+ → Group), so
+/// the field never has to ask "which kind of pick is this?" up front.
 class _AssigneeField extends StatelessWidget {
   const _AssigneeField({
     required this.future,
     required this.selected,
     required this.onChanged,
-    this.single = false,
   });
 
   final Future<List<UserEntity>>? future;
   final Set<String> selected;
   final ValueChanged<Set<String>> onChanged;
 
-  /// One-owner mode. **Never set while editing**: a task created before this
-  /// existed can carry several assignees under `individual`, and reopening it
-  /// must not silently drop them.
-  final bool single;
-
   static String _name(UserEntity u) =>
       (u.displayName != null && u.displayName!.isNotEmpty)
       ? u.displayName!
       : u.email;
 
-  String get _label => single ? 'Assignee' : 'Assignees';
-  IconData get _icon =>
-      single ? Icons.person_add_alt_1_outlined : Icons.group_add_outlined;
+  /// Reads the current pick, not a mode: one person is an "Assignee", several
+  /// are "Assignees".
+  String get _label => selected.length == 1 ? 'Assignee' : 'Assignees';
+  IconData get _icon => selected.length == 1
+      ? Icons.person_add_alt_1_outlined
+      : Icons.group_add_outlined;
 
   @override
   Widget build(BuildContext context) {
@@ -78,9 +74,7 @@ class _AssigneeField extends StatelessWidget {
           icon: _icon,
           label: _label,
           value: value,
-          placeholder: single
-              ? 'Choose who owns this'
-              : 'Unassigned — pick who runs it',
+          placeholder: 'Pick one person — or a few',
           leading: chosen.isEmpty ? null : _AvatarStack(users: chosen),
           onTap: () async {
             final result = await showModalBottomSheet<Set<String>>(
@@ -90,11 +84,8 @@ class _AssigneeField extends StatelessWidget {
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              builder: (_) => _AssigneePickerSheet(
-                employees: employees,
-                initial: selected,
-                single: single,
-              ),
+              builder: (_) =>
+                  _AssigneePickerSheet(employees: employees, initial: selected),
             );
             if (result != null) onChanged(result);
           },
@@ -170,19 +161,16 @@ class _AvatarStack extends StatelessWidget {
 /// working set and returns it on "Done" (or null if dismissed), so the form only
 /// commits a deliberate selection.
 ///
-/// In [single] mode it is a radio list: the bulk actions disappear, a tap
-/// *replaces* the choice, and the sheet closes immediately — one decision, one
-/// gesture, no Done button to hunt for. Dismissing without tapping anyone still
-/// returns null (no change).
+/// **The sheet never closes on a tap.** Picking one person and picking three are
+/// the same gesture continued — you stay in the list until you say Done — which
+/// is what lets the assignment mode be *derived* from the final count instead of
+/// chosen up front. The subtitle names that outcome live ("1 selected —
+/// Individual…" / "3 selected — Group…") so the derivation is visible while you
+/// make it, never a surprise waiting on the other side.
 class _AssigneePickerSheet extends StatefulWidget {
-  const _AssigneePickerSheet({
-    required this.employees,
-    required this.initial,
-    this.single = false,
-  });
+  const _AssigneePickerSheet({required this.employees, required this.initial});
   final List<UserEntity> employees;
   final Set<String> initial;
-  final bool single;
 
   @override
   State<_AssigneePickerSheet> createState() => _AssigneePickerSheetState();
@@ -204,9 +192,20 @@ class _AssigneePickerSheetState extends State<_AssigneePickerSheet> {
       ? u.displayName!
       : u.email;
 
+  /// What the current selection will produce, in the manager's own terms. The
+  /// mode itself comes from [TaskAssignmentType.forAssigneeCount] so this line
+  /// can never drift from the rule the form actually applies.
+  String get _outcome {
+    if (_sel.isEmpty) return 'Pick one person, or a few to share the work';
+    final mode = TaskAssignmentType.forAssigneeCount(_sel.length);
+    final what = mode == TaskAssignmentType.individual
+        ? 'one person owns this'
+        : 'they share the work';
+    return '${_sel.length} selected — ${mode.label}: $what';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final single = widget.single;
     final q = _query.trim().toLowerCase();
     final items = q.isEmpty
         ? widget.employees
@@ -232,44 +231,42 @@ class _AssigneePickerSheetState extends State<_AssigneePickerSheet> {
         children: [
           const SheetHandle(),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            single ? 'Choose the owner' : 'Assign a group',
-            style: AppTypography.h3,
-          ),
+          const Text('Assign people', style: AppTypography.h3),
           const SizedBox(height: 2),
-          Text(
-            single
-                ? 'One person is accountable for this task'
-                : 'Pick the people who share this work',
-            style: AppTypography.caption,
+          // The live readout of what this pick will *become*. Showing it here,
+          // while the list is still open, is what keeps the derived mode honest.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: Text(
+              _outcome,
+              key: ValueKey(_outcome),
+              style: AppTypography.caption,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          // Bulk actions only make sense for a group — in one-owner mode a tap
-          // is already the whole interaction.
-          if (!single)
-            Row(
-              children: [
-                _QuickAction(
-                  icon: Icons.groups_2_outlined,
-                  label: allSelected ? 'All selected' : 'Select all',
-                  active: allSelected,
-                  onTap: () => setState(() {
-                    if (allSelected) {
-                      _sel.clear();
-                    } else {
-                      _sel.addAll(widget.employees.map((u) => u.uid));
-                    }
-                  }),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                _QuickAction(
-                  icon: Icons.person_off_outlined,
-                  label: 'Clear',
-                  active: false,
-                  onTap: _sel.isEmpty ? null : () => setState(_sel.clear),
-                ),
-              ],
-            ),
+          Row(
+            children: [
+              _QuickAction(
+                icon: Icons.groups_2_outlined,
+                label: allSelected ? 'All selected' : 'Select all',
+                active: allSelected,
+                onTap: () => setState(() {
+                  if (allSelected) {
+                    _sel.clear();
+                  } else {
+                    _sel.addAll(widget.employees.map((u) => u.uid));
+                  }
+                }),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              _QuickAction(
+                icon: Icons.person_off_outlined,
+                label: 'Clear',
+                active: false,
+                onTap: _sel.isEmpty ? null : () => setState(_sel.clear),
+              ),
+            ],
+          ),
           if (widget.employees.length > 6) ...[
             const SizedBox(height: AppSpacing.md),
             AppTextField(
@@ -293,29 +290,24 @@ class _AssigneePickerSheetState extends State<_AssigneePickerSheet> {
                   email: u.email,
                   avatar: UserAvatar.fromUser(u, size: 38),
                   selected: selected,
-                  radio: single,
-                  onTap: single
-                      // One owner: the tap *is* the decision — replace and
-                      // close, so choosing a person is a single gesture.
-                      ? () => Navigator.of(context).pop({u.uid})
-                      : () => setState(() {
-                          if (selected) {
-                            _sel.remove(u.uid);
-                          } else {
-                            _sel.add(u.uid);
-                          }
-                        }),
+                  // Always a toggle — one tap adds the first person, the next
+                  // tap adds a second. The sheet stays open either way.
+                  onTap: () => setState(() {
+                    if (selected) {
+                      _sel.remove(u.uid);
+                    } else {
+                      _sel.add(u.uid);
+                    }
+                  }),
                 );
               },
             ),
           ),
-          if (!single) ...[
-            const SizedBox(height: AppSpacing.md),
-            AppButton(
-              label: _sel.isEmpty ? 'Done' : 'Assign ${_sel.length}',
-              onPressed: () => Navigator.of(context).pop(_sel),
-            ),
-          ],
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: _sel.isEmpty ? 'Done' : 'Assign ${_sel.length}',
+            onPressed: () => Navigator.of(context).pop(_sel),
+          ),
         ],
       ),
     );
@@ -369,7 +361,6 @@ class _AssigneeRow extends StatelessWidget {
     required this.avatar,
     required this.selected,
     required this.onTap,
-    this.radio = false,
   });
 
   final String name;
@@ -377,10 +368,6 @@ class _AssigneeRow extends StatelessWidget {
   final Widget avatar;
   final bool selected;
   final VoidCallback onTap;
-
-  /// Draw a radio dot instead of a checkmark — the affordance has to say
-  /// "exactly one of these", not "tick as many as you like".
-  final bool radio;
 
   @override
   Widget build(BuildContext context) {
@@ -415,9 +402,7 @@ class _AssigneeRow extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Icon(
               selected
-                  ? (radio
-                        ? Icons.radio_button_checked_rounded
-                        : Icons.check_circle_rounded)
+                  ? Icons.check_circle_rounded
                   : Icons.radio_button_unchecked_rounded,
               size: 22,
               color: selected ? AppColors.success : AppColors.textTertiary,

@@ -97,29 +97,38 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
       `assignmentType == 'shift'` check in `firestore.rules`, the composite
       indexes, and the Cloud Functions keep working untouched. New
       `test/task_assignment_type_test.dart` (6 tests) pins that invariant.
-    - **Individual is now a real single-select** (new tasks only). Previously
-      `individual` and `team` were *behaviourally identical* — both opened the
-      same multi-select and both wrote `assigneeIds`; nothing in the codebase
-      ever read `team` (every consumer only branches on `== shift`). Three modes
-      only earn their keep if Individual means one owner, so it now opens a
-      **radio list** (tap replaces the choice and closes the sheet; no bulk
-      actions, no Done button) and **requires exactly one** person before Create
-      enables. **Edit mode is exempt** — every task predating this defaults to
-      `individual` and may hold several assignees, so reopening one must not
-      silently drop them.
-    - **Switching modes never auto-switches or silently discards.** Modes are
-      never inferred from the count. Group → Individual with several people
-      picked keeps the person picked first and says so inline ("Kept 1 of 3 — an
-      Individual task has a single owner"); Individual → Group carries that
-      person in as the group's first member; Shift leaves the pick untouched, so
-      coming back restores it.
-    - **Fixed: the "whole team" claim that reached nobody.** The Team card said
-      *"Everyone in the branch"* and the footer said *"Assigned to the whole
-      team"* when nothing was selected — but an empty `assigneeIds` is
-      accessible to **no one** (`canUserAccessTask`), and such a task lands in
-      the Unassigned feed. Group with zero picks now reads honestly ("No one
-      assigned yet — you can assign later"), which is the deliberate
-      "create now, assign later" path.
+    - **The mode is DERIVED from the pick, not asked before it** (owner ruling,
+      same day — this deliberately reverses the "never infer the mode from the
+      count" position taken earlier in the session). Previously `individual` and
+      `team` were *behaviourally identical*: both opened the same multi-select,
+      both wrote `assigneeIds`, and nothing in the codebase ever read `team`
+      (every consumer only branches on `== shift`). Rather than make Individual
+      a separate single-select, there is now **one people picker, always
+      multi-select, that never closes on a tap** — you keep adding while it's
+      open — and the mode follows the final count via the new pure
+      `TaskAssignmentType.forAssigneeCount` (1 → Individual, 2+ → Group). Shift
+      is never derived; it targets the roster, so it stays a deliberate choice.
+    - **The derivation is shown, not hidden.** The picker's subtitle names the
+      outcome live while you build the selection — "1 selected — Individual: one
+      person owns this" / "3 selected — Group: they share the work" — reading
+      the label from `forAssigneeCount` itself, so the copy can't drift from the
+      rule. That was the condition for accepting inference at all: the magic has
+      to be visible while it happens.
+    - **The cards are still a control, and still don't discard work.** An
+      explicit tap wins until the next selection change. Group → Individual with
+      several people picked keeps the person picked **first** and says so inline
+      ("Kept 1 of 3 — an Individual task has a single owner"); Individual →
+      Group carries that person in as the group's first member; Shift leaves the
+      pick untouched, so coming back restores it.
+    - **A new people-mode task now requires at least one assignee.** Empty
+      `assigneeIds` reaches **nobody** (`canUserAccessTask`), so Create stays
+      disabled with "Choose who this task is for". This also removes a false
+      promise: the Team card claimed *"Everyone in the branch"* and the footer
+      claimed *"Assigned to the whole team"* on an empty pick, neither of which
+      anything implemented. **Edit mode is exempt** (an existing task's
+      assignment isn't re-litigated in the form) — note this closes the
+      create-time "assign later" path; pre-existing unassigned tasks still show
+      in the Unassigned feed filter.
 - **Employee "My Tasks" premium polish pass** (polish; LOW risk — one screen,
   in-language, no behaviour change). Enriches
   [`my_tasks_screen.dart`](lib/features/task/presentation/pages/my_tasks_screen.dart)

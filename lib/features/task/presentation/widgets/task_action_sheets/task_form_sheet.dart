@@ -109,13 +109,15 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
   /// owner). Cleared on the next deliberate change, so it never lingers.
   String? _assignmentNote;
 
-  /// Individual mode on a **new** task means exactly one owner — the picker is a
-  /// radio list and Create stays disabled until someone is chosen. Editing is
-  /// exempt: tasks created before this rule (every task defaults to
-  /// `individual`) may hold several assignees and must open unharmed.
-  bool get _singleAssignee =>
+  /// A new people-mode task has to reach someone: an empty `assigneeIds` is
+  /// accessible to **nobody** (`canUserAccessTask`), so Create stays disabled
+  /// until at least one person is picked. Shift mode targets the roster instead,
+  /// and editing is exempt (an existing task's assignment is not re-litigated
+  /// here).
+  bool get _needsAssignee =>
       widget.existing == null &&
-      _assignmentType == TaskAssignmentType.individual;
+      _assignmentType != TaskAssignmentType.shift &&
+      _assignees.isEmpty;
 
   String? _error;
 
@@ -185,15 +187,43 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
     if (scrolled != _scrolled) setState(() => _scrolled = scrolled);
   }
 
-  /// Switch the assignment mode and reconcile the current pick with it.
+  /// Commit a new people-selection and let the mode follow it
+  /// ([TaskAssignmentType.forAssigneeCount] — one owner vs a sharing group).
+  /// The picker is a single always-multi-select sheet that stays open while the
+  /// selection is built, so the mode is a readout of what you land on rather
+  /// than a question asked before you start.
   ///
-  /// The modes are never inferred from the selection — the manager chooses, and
-  /// the form follows. Only one case needs reconciling: **Group → Individual**
-  /// with several people already picked. Rather than clearing the work or
-  /// blocking the switch, we keep the person picked first and say so; the other
-  /// direction (Individual → Group) simply carries that person in as the group's
-  /// first member. Switching to Shift leaves the pick untouched — shift mode
-  /// ignores `assigneeIds`, so coming back restores exactly what was there.
+  /// Also re-resolves the rostered shift, since the schedule suggestion depends
+  /// on who is picked.
+  void _onAssigneesChanged(Set<String> next) {
+    setState(() {
+      _assignees
+        ..clear()
+        ..addAll(next);
+      // A deliberate pick supersedes any carry-over explanation.
+      _assignmentNote = null;
+      // Shift mode targets the roster, so a people-pick never drags it out of
+      // it; editing never changes an existing task's mode.
+      if (widget.existing == null &&
+          _assignmentType != TaskAssignmentType.shift) {
+        _assignmentType = TaskAssignmentType.forAssigneeCount(
+          _assignees.length,
+        );
+      }
+    });
+    _resolveAssigneeSchedule();
+  }
+
+  /// Set the assignment mode **explicitly** and reconcile the current pick.
+  ///
+  /// Tapping a card still wins over the derivation until the next selection
+  /// change — the cards are a control, not just a display. Only one case needs
+  /// reconciling: **Group → Individual** with several people already picked.
+  /// Rather than clearing the work or blocking the switch, we keep the person
+  /// picked first and say so; the other direction (Individual → Group) simply
+  /// carries that person in as the group's first member. Switching to Shift
+  /// leaves the pick untouched — shift mode ignores `assigneeIds`, so coming
+  /// back restores exactly what was there.
   void _onAssignmentModeChanged(TaskAssignmentType t) {
     if (t == _assignmentType) return;
     setState(() {
@@ -334,8 +364,8 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
         _shift == null) {
       return; // gated by _canSubmit; footer shows "Choose a shift to continue"
     }
-    if (_singleAssignee && _assignees.isEmpty) {
-      return; // gated by _canSubmit; footer shows "Choose who owns this task"
+    if (_needsAssignee) {
+      return; // gated by _canSubmit; footer shows "Choose who this task is for"
     }
     // Scheduling V2 — a due-before-start window is invalid (an outside-shift
     // window is only a non-blocking warning, so it does not stop here). The
@@ -704,11 +734,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
         _shift == null) {
       return false;
     }
-    // Individual = exactly one owner, so a new Individual task can't be created
-    // with nobody on it. Group stays optional — that's the "create now, assign
-    // later" path, and those tasks are exactly what the Unassigned feed filter
-    // is for.
-    if (_singleAssignee && _assignees.isEmpty) return false;
+    if (_needsAssignee) return false;
     return _scheduleError == null;
   }
 
@@ -734,15 +760,8 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
     if (isNew && shiftMode && _shift == null) {
       return 'Choose a shift to continue';
     }
-    if (_singleAssignee && _assignees.isEmpty) {
-      return 'Choose who owns this task';
-    }
-    if (isNew && !shiftMode && _assignees.isEmpty) {
-      // A Group with nobody picked is a real, supported state — it lands in the
-      // Unassigned feed. Say that plainly. (This line used to claim "Assigned to
-      // the whole team", which nothing in the codebase implements: an empty
-      // assignee list reaches *no one*, see `canUserAccessTask`.)
-      return 'No one assigned yet — you can assign later';
+    if (_needsAssignee) {
+      return 'Choose who this task is for';
     }
     final who = shiftMode
         ? (_shift == null ? null : '${_shift!.label} shift')
@@ -1001,19 +1020,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
                             _AssigneeField(
                               future: _employeesFuture,
                               selected: _assignees,
-                              single: _singleAssignee,
-                              onChanged: (next) {
-                                setState(() {
-                                  _assignees
-                                    ..clear()
-                                    ..addAll(next);
-                                  // A deliberate pick supersedes any carry-over
-                                  // explanation.
-                                  _assignmentNote = null;
-                                });
-                                // Pre-fill the schedule from the assignees' rostered shift.
-                                _resolveAssigneeSchedule();
-                              },
+                              onChanged: _onAssigneesChanged,
                             ),
                             if (_assignmentNote != null) ...[
                               const SizedBox(height: AppSpacing.sm),
