@@ -33,7 +33,9 @@
       "Bash(xcodebuild -showsdks)",
       "Bash(awk -F: '{print $1}')",
       "Bash(node --test)",
-      "Bash(flutter test *)"
+      "Bash(flutter test *)",
+      "Bash(command -v codex)",
+      "Bash(codex --version)"
     ]
   }
 }
