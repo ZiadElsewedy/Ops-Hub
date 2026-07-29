@@ -11,6 +11,7 @@ Each document has **one** responsibility. A fact lives in exactly one of them.
 | Document | Answers | Read it when |
 | --- | --- | --- |
 | **PROJECT_CONTEXT.md** (this) | How is this built? | Always, first |
+| [.nav/](.nav/README.md) — **ATLAS** | *Where do I go / what breaks?* | Navigating or modifying code (esp. AI agents → [.nav/08_AI_PROTOCOL.md](.nav/08_AI_PROTOCOL.md)) |
 | [CURRENT_STATE.md](CURRENT_STATE.md) | Where are we today? | Starting any task |
 | [CHANGELOG.md](CHANGELOG.md) | What happened when? | You need history |
 | [docs/design/](docs/design/) | How does *this feature* work? | Touching that feature |

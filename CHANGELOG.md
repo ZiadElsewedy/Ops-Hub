@@ -14,6 +14,16 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-29 — ATLAS developer navigation system (`.nav/`)
+
+Added `.nav/` — a code-navigation "operating system" (not prose docs): a boot README, 8 cross-cutting
+maps (world map, entry points, data map, "what do I edit if…", danger/invariants, reverse navigation,
+patterns, AI protocol), one location card per feature (18), and a machine-readable `atlas.index.json`.
+Mechanical facts (file inventories, route/collection/function/test associations) are **generated** by
+`.nav/gen_atlas.py` from the live code; judgment sections are hand-authored. Regenerate after structural
+changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
+
+
 ## Unreleased
 
 ### 2026-07-29
