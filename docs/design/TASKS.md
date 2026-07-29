@@ -193,10 +193,12 @@ Manage → Add; never stack bottom sheets).
 Every generated instance persists its exact `instanceDate`, `startsAt`, and
 `deadline`. The generator and the client materializer resolve the week slot using
 the saved weekly schedule in the same order as attendance: per-day `shiftHours`
-override → frozen `shiftPlan` → `ShiftHours.standard`. The saved `weekStart`
-instant is the local-midnight anchor, so a configured 08:30–16:30 Morning shift is
-actually due at that shift end (and night windows may cross midnight). The task id
-remains UTC-keyed for existing duplicate protection; the deadline itself is an
+override → frozen `shiftPlan` → `ShiftHours.standard`. The window is anchored to
+the occurrence's **business-local midnight** (`Africa/Cairo`,
+[ADR-015](../decisions/ADR-015-automation-business-timezone.md)), so a configured
+08:30–16:30 Morning shift is actually due at that shift end (and night windows may
+cross midnight); the saved `weekStart` now only resolves which hours apply. The
+task id is keyed on the same business civil date; the deadline itself is an
 absolute timestamp.
 
 At or after that persisted deadline, `autoEndRecurringShiftTasks` marks an

@@ -69,7 +69,7 @@ Non-obvious and load-bearing. Each one buys idempotency for free.
 | `attendance/{id}` | `{uid}_{yyyyMMdd}_{shift}` | Clock-in is **idempotent and offline-safe** — a retry writes the same doc rather than a duplicate shift |
 | `weekly_schedules/{id}` | `{branchId}_{Sunday-yyyy-MM-dd}` | One doc per branch-week; addressable without a query |
 | `shift_templates/{id}` | `{branchId}__{role}` | Direct lookup |
-| Recurring shift-task instance | `rt_{templateId}_{yyyy-MM-dd}` (UTC) | The id **is** the duplicate guard; each instance persists its resolved `startsAt` / `deadline` window |
+| Recurring shift-task instance | `rt_{templateId}_{yyyy-MM-dd}` (the `Africa/Cairo` business civil day — [ADR-015](../decisions/ADR-015-automation-business-timezone.md)) | The id **is** the duplicate guard; each instance persists its resolved `startsAt` / `deadline` window |
 | Recurrence respawn | `rec_{sourceTaskId}` | Fixed the reopen → re-approve duplicate-task bug |
 
 ## 3. The two privacy splits

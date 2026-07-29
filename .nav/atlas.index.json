@@ -79,7 +79,8 @@
     "ADR-011-automation-observability.md",
     "ADR-012-chat-directory-is-flat.md",
     "ADR-013-task-grace-period.md",
-    "ADR-014-task-card-border-language.md"
+    "ADR-014-task-card-border-language.md",
+    "ADR-015-automation-business-timezone.md"
   ],
   "design_specs": [
     "ATTENDANCE.md",
@@ -1383,6 +1384,7 @@
         "test/recurring_shift_task_test.dart",
         "test/task_access_test.dart",
         "test/task_archive_test.dart",
+        "test/task_assignment_type_test.dart",
         "test/task_attachment_test.dart",
         "test/task_attention_surface_test.dart",
         "test/task_badge_test.dart",

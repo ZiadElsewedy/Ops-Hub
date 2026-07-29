@@ -72,7 +72,11 @@ const ATTENDANCE_MAX_SESSION_MINUTES = 16 * 60;
 // The pure auto-close decision (unit-tested in test/auto_close.test.js).
 const { isAutoCloseDue } = require("./attendance_auto_close");
 const {
+  BUSINESS_TIME_ZONE,
   TASK_GRACE_MS,
+  businessCivilMidnightMs,
+  businessDayParts,
+  businessWeekStartKey,
   isTerminalTaskStatus,
   resolveRecurringTaskWindow,
   selectMissedNotifyTargets,
@@ -1477,37 +1481,43 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
 
 // ── Recurring shift-task instance generation (Shift Assignment feature) ──
 
-// yyyy-MM-dd in UTC (a Cloud Function has no per-branch local time, so UTC is
-// the deterministic convention — mirrors ScheduleWeek's date-key format).
+// Automation date helpers. "Today" is the business civil day in Africa/Cairo
+// (Automated Tasks spec §12.2), not the Cloud Function host's UTC calendar.
 function isoDate(d) {
+  return businessDayParts(d).dateKey;
+}
+
+// 1 = Monday … 7 = Sunday (matches RecurringTaskTemplateEntity.weekday /
+// Dart's DateTime.weekday convention).
+function isoWeekday(d) {
+  return businessDayParts(d).isoWeekday;
+}
+
+// weekly_schedules.assignments.<day> key spelling — matches SWAP_DAY_INDEX.
+function scheduleDayName(d) {
+  return businessDayParts(d).dayName;
+}
+
+// The Sunday that starts the business week containing d, as a
+// yyyy-MM-dd key — mirrors ScheduleWeek.startOf/docId (`<branchId>_<key>`).
+function weekStartKey(d) {
+  return businessWeekStartKey(d);
+}
+
+function legacyUtcDateKey(d) {
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");
   const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
-// 1 = Monday … 7 = Sunday (matches RecurringTaskTemplateEntity.weekday /
-// Dart's DateTime.weekday convention).
-function isoWeekday(d) {
-  const jsDay = d.getUTCDay(); // 0 = Sunday … 6 = Saturday
-  return jsDay === 0 ? 7 : jsDay;
-}
-
-// weekly_schedules.assignments.<day> key spelling — matches SWAP_DAY_INDEX.
-const SCHEDULE_DAY_NAMES = [
-  "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
-];
-function scheduleDayName(d) {
-  return SCHEDULE_DAY_NAMES[d.getUTCDay()];
-}
-
-// The Sunday (UTC midnight) that starts the week containing d, as a
-// yyyy-MM-dd key — mirrors ScheduleWeek.startOf/docId (`<branchId>_<key>`).
-function weekStartKey(d) {
-  const sunday = new Date(Date.UTC(
-    d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - d.getUTCDay(),
-  ));
-  return isoDate(sunday);
+function addCivilDays(year, month, day, days) {
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
 }
 
 // True when a Firestore write failed because the document already exists — the
@@ -1546,18 +1556,32 @@ async function eligibleRecipients(scheduleData, dayName, shift) {
 }
 
 // Advisory next-run timestamp for a template's rollup (the Automation Center
-// shows it). Daily → tomorrow; weekly → the next date matching the ISO weekday.
+// shows it). Daily → tomorrow; weekly → the next matching business weekday.
 function computeNextRun(repeat, weekday, now) {
-  const d = new Date(now.getTime());
+  const today = businessDayParts(now);
+  if (!today) return admin.firestore.Timestamp.fromDate(now);
+  let next = today;
   if (repeat === "weekly") {
     for (let i = 0; i < 7; i++) {
-      d.setUTCDate(d.getUTCDate() + 1);
-      if (isoWeekday(d) === Number(weekday)) break;
+      const civil = addCivilDays(next.year, next.month, next.day, 1);
+      const midnightMs = businessCivilMidnightMs(civil.year, civil.month, civil.day);
+      if (midnightMs == null) return admin.firestore.Timestamp.fromDate(now);
+      next = businessDayParts(midnightMs);
+      if (next && next.isoWeekday === Number(weekday)) break;
     }
   } else {
-    d.setUTCDate(d.getUTCDate() + 1);
+    const civil = addCivilDays(today.year, today.month, today.day, 1);
+    const midnightMs = businessCivilMidnightMs(civil.year, civil.month, civil.day);
+    if (midnightMs == null) return admin.firestore.Timestamp.fromDate(now);
+    next = businessDayParts(midnightMs);
   }
-  return admin.firestore.Timestamp.fromDate(d);
+  const nextMidnightMs = next
+    ? businessCivilMidnightMs(next.year, next.month, next.day)
+    : null;
+  const runAtMs = nextMidnightMs != null
+    ? nextMidnightMs + 60 * 60 * 1000
+    : now.getTime();
+  return admin.firestore.Timestamp.fromMillis(runAtMs);
 }
 
 // Writes ONE business audit event to `audit_logs` as the "system" actor,
@@ -1587,8 +1611,10 @@ async function writeAutomationAudit(eventType, entityType, entityId, branchId, m
  * Daily instance generation for recurring shift-task templates (Shift
  * Assignment feature). Scans active `recurringTaskTemplates` and, for each one
  * due today (daily, or weekly matching today's ISO weekday), creates *one* real
- * `tasks/{id}` document at a **deterministic id** (`rt_{templateId}_{yyyy-MM-dd}`,
- * UTC). Duplicate prevention is an **atomic `ref.create()`** (throws
+ * `tasks/{id}` document at a **deterministic business-date id**
+ * (`rt_{templateId}_{yyyy-MM-dd}`, Africa/Cairo). It is pinned to 01:00
+ * Africa/Cairo so generation runs before the earliest shift starts. Duplicate
+ * prevention is an **atomic `ref.create()`** (throws
  * ALREADY_EXISTS → skip), so overlapping runs / scheduler retries can never
  * double-create or double-notify; `maxInstances:1` additionally prevents
  * overlap. Roster notifications go only to ELIGIBLE employees (rostered, not on
@@ -1600,7 +1626,13 @@ async function writeAutomationAudit(eventType, entityType, entityId, branchId, m
  * docs/design/AUTOMATION_ENGINE.md.
  */
 exports.generateShiftTaskInstances = onSchedule(
-  { schedule: "every 24 hours", maxInstances: 1, retryCount: 0, timeoutSeconds: 300 },
+  {
+    schedule: "0 1 * * *",
+    timeZone: BUSINESS_TIME_ZONE,
+    maxInstances: 1,
+    retryCount: 0,
+    timeoutSeconds: 300,
+  },
   async (event) => {
     const now = new Date();
     const todayKey = isoDate(now);
@@ -1631,6 +1663,8 @@ exports.generateShiftTaskInstances = onSchedule(
       if (!branchId) continue;
       const shift = t.shift === "night" ? "night" : "morning";
       const instanceId = `rt_${doc.id}_${todayKey}`;
+      const legacyTodayKey = legacyUtcDateKey(now);
+      const legacyInstanceId = `rt_${doc.id}_${legacyTodayKey}`;
       const runId = `${doc.id}_${todayKey}`;
       // Deterministic correlation id for this execution (§Correlation ID) —
       // stamped on the run, the generated task, its notifications and its audit
@@ -1729,103 +1763,123 @@ exports.generateShiftTaskInstances = onSchedule(
         });
 
         stage("generate");
+        // Temporary transition guard for the UTC-key → business-date-key
+        // convention change. If today's occurrence already exists under the
+        // legacy UTC-derived id, this business occurrence is already spent; skip
+        // exactly like an ALREADY_EXISTS on the new id. Delete once no live
+        // UTC-keyed generated instance can remain.
+        if (legacyTodayKey !== todayKey) {
+          const legacySnap = await db.collection(TASKS).doc(legacyInstanceId).get();
+          if (legacySnap.exists) {
+            status = "skipped";
+            outcome = "alreadyExists";
+            step(SEVERITY.info, "Skipped — task already generated for today", {
+              taskId: legacyInstanceId,
+              legacyUtcDateKey: legacyTodayKey,
+              businessDateKey: todayKey,
+              windowBackfilled: false,
+            });
+          }
+        }
         // Atomic create — the ENTIRE duplicate guarantee. `create()` rejects with
         // ALREADY_EXISTS if the deterministic id is already present (an overlapping
         // run / retry / the client materializer beat us), so we never double-create
         // and never double-notify.
-        try {
-          await ref.create({
-            id: instanceId,
-            title: t.title || "",
-            description: t.description || null,
-            type: "daily",
-            status: "pending",
-            priority: t.priority || "normal",
-            branchId,
-            assigneeIds: [],
-            assignedEmployeeId: null,
-            checklist,
-            referenceAttachments: [],
-            createdBy: t.createdBy || null,
-            assignedShiftId: null,
-            shift,
-            assignmentType: "shift",
-            instanceDate: admin.firestore.Timestamp.fromMillis(taskWindow.instanceDateMs),
-            sourceTemplateId: doc.id,
-            correlationId: runCorrelationId,
-            startsAt: admin.firestore.Timestamp.fromMillis(taskWindow.startsAtMs),
-            deadline: admin.firestore.Timestamp.fromMillis(taskWindow.deadlineMs),
-            missedAt: null,
-            notes: null,
-            proofImageUrl: null,
-            startedAt: null,
-            submittedAt: null,
-            approvedBy: null,
-            approvedAt: null,
-            rejectedBy: null,
-            rejectedAt: null,
-            reviewNotes: null,
-            revisionNumber: 0,
-            requiresRework: false,
-            rejectionReason: null,
-            recurrence: null,
-            activityLog: [
-              {
-                status: "pending",
-                actorId: "system",
-                actorName: null,
-                at: admin.firestore.Timestamp.fromDate(now),
-                note: "Auto-generated (recurring shift task)",
-                attachments: [],
-              },
-            ],
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          generatedTaskId = instanceId;
-          created++;
-          step(SEVERITY.info, "Task generated", { taskId: instanceId });
-        } catch (createErr) {
-          if (isAlreadyExists(createErr)) {
-            status = "skipped";
-            outcome = "alreadyExists";
-            // A pre-deployment app may have materialized this deterministic
-            // instance without a deadline before the server run reached it.
-            // Repair only missing window fields, transactionally, and never
-            // overwrite a window already persisted for the occurrence.
-            //
-            // A TERMINAL instance is never touched — "no retry, regeneration or
-            // repair may recreate, reopen, or overwrite it" (spec §4.4). Giving
-            // an already-cancelled (or approved / missed) task a fresh deadline
-            // would put a closed record back on the auto-end sweep's radar and
-            // rewrite history nobody asked to change.
-            let windowBackfilled = false;
-            await db.runTransaction(async (tx) => {
-              const existing = await tx.get(ref);
-              if (!existing.exists) return;
-              const existingTask = existing.data() || {};
-              if (
-                existingTask.sourceTemplateId !== doc.id ||
-                existingTask.assignmentType !== "shift" ||
-                existingTask.deadline != null ||
-                isTerminalTaskStatus(existingTask.status)
-              ) {
-                return;
-              }
-              tx.update(ref, {
-                instanceDate: admin.firestore.Timestamp.fromMillis(taskWindow.instanceDateMs),
-                startsAt: admin.firestore.Timestamp.fromMillis(taskWindow.startsAtMs),
-                deadline: admin.firestore.Timestamp.fromMillis(taskWindow.deadlineMs),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        if (outcome !== "alreadyExists") {
+          try {
+            await ref.create({
+              id: instanceId,
+              title: t.title || "",
+              description: t.description || null,
+              type: "daily",
+              status: "pending",
+              priority: t.priority || "normal",
+              branchId,
+              assigneeIds: [],
+              assignedEmployeeId: null,
+              checklist,
+              referenceAttachments: [],
+              createdBy: t.createdBy || null,
+              assignedShiftId: null,
+              shift,
+              assignmentType: "shift",
+              instanceDate: admin.firestore.Timestamp.fromMillis(taskWindow.instanceDateMs),
+              sourceTemplateId: doc.id,
+              correlationId: runCorrelationId,
+              startsAt: admin.firestore.Timestamp.fromMillis(taskWindow.startsAtMs),
+              deadline: admin.firestore.Timestamp.fromMillis(taskWindow.deadlineMs),
+              missedAt: null,
+              notes: null,
+              proofImageUrl: null,
+              startedAt: null,
+              submittedAt: null,
+              approvedBy: null,
+              approvedAt: null,
+              rejectedBy: null,
+              rejectedAt: null,
+              reviewNotes: null,
+              revisionNumber: 0,
+              requiresRework: false,
+              rejectionReason: null,
+              recurrence: null,
+              activityLog: [
+                {
+                  status: "pending",
+                  actorId: "system",
+                  actorName: null,
+                  at: admin.firestore.Timestamp.fromDate(now),
+                  note: "Auto-generated (recurring shift task)",
+                  attachments: [],
+                },
+              ],
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            generatedTaskId = instanceId;
+            created++;
+            step(SEVERITY.info, "Task generated", { taskId: instanceId });
+          } catch (createErr) {
+            if (isAlreadyExists(createErr)) {
+              status = "skipped";
+              outcome = "alreadyExists";
+              // A pre-deployment app may have materialized this deterministic
+              // instance without a deadline before the server run reached it.
+              // Repair only missing window fields, transactionally, and never
+              // overwrite a window already persisted for the occurrence.
+              //
+              // A TERMINAL instance is never touched — "no retry, regeneration or
+              // repair may recreate, reopen, or overwrite it" (spec §4.4). Giving
+              // an already-cancelled (or approved / missed) task a fresh deadline
+              // would put a closed record back on the auto-end sweep's radar and
+              // rewrite history nobody asked to change.
+              let windowBackfilled = false;
+              await db.runTransaction(async (tx) => {
+                const existing = await tx.get(ref);
+                if (!existing.exists) return;
+                const existingTask = existing.data() || {};
+                if (
+                  existingTask.sourceTemplateId !== doc.id ||
+                  existingTask.assignmentType !== "shift" ||
+                  existingTask.deadline != null ||
+                  isTerminalTaskStatus(existingTask.status)
+                ) {
+                  return;
+                }
+                tx.update(ref, {
+                  instanceDate: admin.firestore.Timestamp.fromMillis(taskWindow.instanceDateMs),
+                  startsAt: admin.firestore.Timestamp.fromMillis(taskWindow.startsAtMs),
+                  deadline: admin.firestore.Timestamp.fromMillis(taskWindow.deadlineMs),
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                windowBackfilled = true;
               });
-              windowBackfilled = true;
-            });
-            step(SEVERITY.info, "Skipped — task already generated for today", {
-              taskId: instanceId,
-              windowBackfilled,
-            });
-          } else {
-            throw createErr;
+              step(SEVERITY.info, "Skipped — task already generated for today", {
+                taskId: instanceId,
+                windowBackfilled,
+              });
+            } else {
+              throw createErr;
+            }
           }
         }
 
@@ -1869,7 +1923,7 @@ exports.generateShiftTaskInstances = onSchedule(
               shift,
               branchId,
               branchName,
-              timezone: "UTC",
+              timezone: BUSINESS_TIME_ZONE,
               recipients,
             });
 

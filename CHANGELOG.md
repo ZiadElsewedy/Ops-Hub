@@ -26,6 +26,22 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ## Unreleased
 
+### 2026-07-30
+
+- **Fixed: automated tasks can no longer be born already overdue** (bug; HIGH
+  severity, MED risk — two recurrence engines plus scheduler semantics). The
+  recurring-shift generator now treats "today" as the Egypt business civil day
+  (`Africa/Cairo`) instead of UTC, anchors shift windows to that local midnight
+  with DST-safe calendar arithmetic, and runs at **01:00 Africa/Cairo** before
+  any shift starts. A temporary legacy UTC-key guard prevents a duplicate on the
+  deploy transition. The client save-time materializer now uses the local
+  business date and refuses to create a shift instance after its resolved
+  deadline, while still allowing creation mid-window. Per-task recurrence rolls
+  successors forward until their deadline is in the future and uses calendar
+  stepping for daily/weekly rules. +5 Cloud Functions tests and +3 Flutter tests.
+  **Requires a functions deploy** for the server generator/sweep behavior to
+  take effect in production.
+
 ### 2026-07-29
 
 - **Create/Edit Task graduated from a bottom sheet to a first-class full-screen

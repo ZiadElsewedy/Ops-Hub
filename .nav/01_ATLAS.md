@@ -79,7 +79,7 @@ Firebase. `core/` never imports a `feature/`. A feature never imports another fe
 
 ## 📚 Where the *decisions* live (why things are the way they are)
 
-- `docs/decisions/ADR-001..014` — the 14 architecture decision records (Firebase, Cubit-only,
+- `docs/decisions/ADR-001..015` — the 15 architecture decision records (Firebase, Cubit-only,
   clean-architecture, monochrome, server-authoritative writes, requests-are-approvals, lean-over-enterprise, …).
 - `docs/design/*.md` — 16 frozen product/design specs (one per major feature).
 - `PROJECT_CONTEXT.md` / `CURRENT_STATE.md` / `CHANGELOG.md` (repo root) — treated as source code; read first.

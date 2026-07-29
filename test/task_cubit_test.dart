@@ -290,13 +290,17 @@ void main() {
 
   // ── Recurrence spawn is deterministic + idempotent (P0 duplicate fix) ──
   group('recurring approval spawns a deterministic, idempotent successor', () {
-    TaskEntity recurring({required String id, String? rootId}) => TaskEntity(
+    TaskEntity recurring({
+      required String id,
+      String? rootId,
+      DateTime? deadline,
+    }) => TaskEntity(
       id: id,
       title: 'Restock cooler',
       status: TaskStatus.waitingReview,
       branchId: 'branch1',
       assigneeIds: const ['emp1'],
-      deadline: DateTime(2026, 1, 10),
+      deadline: deadline ?? DateTime(2026, 1, 10),
       recurrence: const RecurrenceConfig(frequency: RecurrenceFrequency.daily),
       recurrenceRootId: rootId,
       createdBy: 'mgr1',
@@ -374,6 +378,28 @@ void main() {
           spawned.recurrenceRootId,
           't1',
         ); // lineage preserved down the chain
+      },
+    );
+
+    test(
+      'approval long after the source deadline spawns a future successor',
+      () async {
+        final h = _build();
+        await h.cubit.load(manager);
+        await pumpEventQueue();
+        final beforeApprove = DateTime.now();
+
+        await h.cubit.approveTask(
+          recurring(
+            id: 'stale',
+            deadline: beforeApprove.subtract(const Duration(days: 10)),
+          ),
+        );
+        await pumpEventQueue();
+
+        final spawned = h.repo.createdWithId.single;
+        expect(spawned.deadline, isNotNull);
+        expect(spawned.deadline!.isAfter(beforeApprove), isTrue);
       },
     );
   });

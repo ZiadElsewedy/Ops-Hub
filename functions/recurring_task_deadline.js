@@ -12,14 +12,17 @@
 //   2. this week's frozen shiftPlan;
 //   3. the current business standard.
 //
-// A persisted weekly schedule's weekStart is an *instant*, not a date string.
-// When it is available, it remains the anchor for the slot's local midnight;
-// rebuilding midnight with Date.UTC would move a schedule created in a
-// non-UTC timezone. A missing/legacy schedule intentionally falls back to UTC
-// because the recurring engine's deterministic occurrence key is UTC.
+// A persisted weekly schedule's weekStart is still used to resolve that week's
+// frozen hours, but never as "today's" midnight. The automation occurrence date
+// is the business civil date in Africa/Cairo (spec §12.2), rebuilt with calendar
+// arithmetic so DST transitions cannot shift a slot by one hour.
 
 const MINUTE_MS = 60 * 1000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
+
+// Automated Tasks spec §12.2: DROP operates in Egypt only, on one timezone.
+// A multi-timezone estate must revisit this constant and the deterministic key
+// convention before expanding.
+const BUSINESS_TIME_ZONE = "Africa/Cairo";
 
 const DAY_NAMES = [
   "sunday",
@@ -34,6 +37,25 @@ const DAY_NAMES = [
 const DAY_INDEX = Object.freeze(
   Object.fromEntries(DAY_NAMES.map((name, index) => [name, index])),
 );
+
+const BUSINESS_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: BUSINESS_TIME_ZONE,
+  weekday: "long",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const BUSINESS_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: BUSINESS_TIME_ZONE,
+  hourCycle: "h23",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
 
 function isWeekendDay(day) {
   return day === "thursday" || day === "friday" || day === "saturday";
@@ -57,6 +79,22 @@ function normalizeShift(shift) {
   return String(shift || "").trim().toLowerCase() === "night"
     ? "night"
     : "morning";
+}
+
+function two(n) {
+  return String(n).padStart(2, "0");
+}
+
+function dateKey(year, month, day) {
+  return `${year}-${two(month)}-${two(day)}`;
+}
+
+function partsMap(formatter, ms) {
+  return Object.fromEntries(
+    formatter.formatToParts(new Date(ms))
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
 }
 
 // Accepts persisted `{ start, end }` and the camel-case shape used in a few
@@ -133,27 +171,107 @@ function toEpochMs(value) {
   return null;
 }
 
-function utcDayFor(occurrenceMs) {
-  return DAY_NAMES[new Date(occurrenceMs).getUTCDay()];
+function businessDateTimeParts(value) {
+  const ms = toEpochMs(value);
+  if (ms == null) return null;
+  const parts = partsMap(BUSINESS_DATE_TIME_FORMATTER, ms);
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    second: Number(parts.second),
+  };
 }
 
-function utcMidnightFor(occurrenceMs) {
-  const occurrence = new Date(occurrenceMs);
-  return Date.UTC(
-    occurrence.getUTCFullYear(),
-    occurrence.getUTCMonth(),
-    occurrence.getUTCDate(),
+function offsetMsForBusinessInstant(value) {
+  const parts = businessDateTimeParts(value);
+  if (!parts) return null;
+  const asUtcMs = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+  return asUtcMs - toEpochMs(value);
+}
+
+function businessDayParts(value) {
+  const ms = toEpochMs(value);
+  if (ms == null) return null;
+  const parts = partsMap(BUSINESS_DAY_FORMATTER, ms);
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const day = Number(parts.day);
+  const dayName = String(parts.weekday || "").toLowerCase();
+  const dayIndex = DAY_INDEX[dayName];
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    dayIndex == null
+  ) {
+    return null;
+  }
+  return {
+    year,
+    month,
+    day,
+    dateKey: dateKey(year, month, day),
+    dayName,
+    isoWeekday: dayIndex === 0 ? 7 : dayIndex,
+  };
+}
+
+function businessCivilMidnightMs(year, month, day) {
+  const utcCivilMidnight = Date.UTC(year, month - 1, day);
+  const firstOffset = offsetMsForBusinessInstant(utcCivilMidnight);
+  if (firstOffset == null) return null;
+  const candidate = utcCivilMidnight - firstOffset;
+  const correctedOffset = offsetMsForBusinessInstant(candidate);
+  if (correctedOffset == null) return null;
+  return utcCivilMidnight - correctedOffset;
+}
+
+function businessCivilTimeMs(year, month, day, minutesAfterMidnight) {
+  const wholeDays = Math.floor(minutesAfterMidnight / 1440);
+  const minuteOfDay = minutesAfterMidnight - wholeDays * 1440;
+  const hour = Math.floor(minuteOfDay / 60);
+  const minute = minuteOfDay % 60;
+  const utcCivilTime = Date.UTC(year, month - 1, day + wholeDays, hour, minute);
+  const firstOffset = offsetMsForBusinessInstant(utcCivilTime);
+  if (firstOffset == null) return null;
+  const candidate = utcCivilTime - firstOffset;
+  const correctedOffset = offsetMsForBusinessInstant(candidate);
+  if (correctedOffset == null) return null;
+  return utcCivilTime - correctedOffset;
+}
+
+function businessWeekStartKey(value) {
+  const parts = businessDayParts(value);
+  if (!parts) return null;
+  const sunday = new Date(Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day - DAY_INDEX[parts.dayName],
+  ));
+  return dateKey(
+    sunday.getUTCFullYear(),
+    sunday.getUTCMonth() + 1,
+    sunday.getUTCDate(),
   );
 }
 
 /**
  * Resolves the exact window for a recurring shift occurrence.
  *
- * `day` should be the generator's canonical lower-case day name when a
- * schedule is available. It avoids reinterpreting a branch-local calendar day
- * through the Cloud Function host timezone. Without it, the UTC occurrence day
- * is used, matching the existing deterministic `rt_{template}_{yyyy-MM-dd}`
- * convention.
+ * `day` should be the generator's canonical lower-case business day name when a
+ * schedule is available. Without it, the occurrence's Africa/Cairo civil day is
+ * used. The returned window is anchored to that occurrence's business midnight,
+ * while `schedule.weekStart` affects only the frozen hours lookup.
  *
  * Returns null for an invalid occurrence rather than guessing with Date.now().
  * All returned values are epoch milliseconds so this helper stays Firebase-free.
@@ -167,16 +285,31 @@ function resolveRecurringTaskWindow({
 } = {}) {
   const occurrenceMs = toEpochMs(occurrenceAt ?? occurrenceDate);
   if (occurrenceMs == null) return null;
+  const occurrenceDay = businessDayParts(occurrenceMs);
+  if (!occurrenceDay) return null;
 
-  const resolvedDay = normalizeDay(day) || utcDayFor(occurrenceMs);
+  const resolvedDay = normalizeDay(day) || occurrenceDay.dayName;
   const resolvedShift = normalizeShift(shift);
   const hours = resolveShiftHours({ schedule, day: resolvedDay, shift: resolvedShift });
-  const weekStartMs = toEpochMs(schedule && schedule.weekStart);
-  const slotMidnightMs = weekStartMs == null
-    ? utcMidnightFor(occurrenceMs)
-    : weekStartMs + DAY_INDEX[resolvedDay] * DAY_MS;
-  const startsAtMs = slotMidnightMs + hours.startMinutes * MINUTE_MS;
-  const deadlineMs = slotMidnightMs + hours.endMinutes * MINUTE_MS;
+  const slotMidnightMs = businessCivilMidnightMs(
+    occurrenceDay.year,
+    occurrenceDay.month,
+    occurrenceDay.day,
+  );
+  if (slotMidnightMs == null) return null;
+  const startsAtMs = businessCivilTimeMs(
+    occurrenceDay.year,
+    occurrenceDay.month,
+    occurrenceDay.day,
+    hours.startMinutes,
+  );
+  const deadlineMs = businessCivilTimeMs(
+    occurrenceDay.year,
+    occurrenceDay.month,
+    occurrenceDay.day,
+    hours.endMinutes,
+  );
+  if (startsAtMs == null || deadlineMs == null) return null;
 
   return {
     // The task schema calls these startsAt/deadline; the `Ms` suffix keeps the
@@ -306,10 +439,14 @@ function selectMissedNotifyTargets({ managers = [], admins = [] } = {}) {
 }
 
 module.exports = {
+  BUSINESS_TIME_ZONE,
   DAY_NAMES,
   TASK_GRACE_MINUTES,
   TASK_GRACE_MS,
   TERMINAL_TASK_STATUSES,
+  businessCivilMidnightMs,
+  businessDayParts,
+  businessWeekStartKey,
   isTerminalTaskStatus,
   missedEvaluationMs,
   selectMissedNotifyTargets,
