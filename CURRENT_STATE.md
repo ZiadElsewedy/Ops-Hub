@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1146 pass · 2 fail** across 161 files (~27s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **41 pass**; **Firestore rules: 26 pass** (`cd firestore-tests && npm test`); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1132 pass · 2 fail** across 161 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **41 pass**; **Firestore rules: 26 pass** (`cd firestore-tests && npm test`); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -376,7 +376,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1146 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1132 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 41 pass
 (cd firestore-tests && npm test)         # expect: 26 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 46

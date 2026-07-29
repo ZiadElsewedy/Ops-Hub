@@ -317,8 +317,8 @@ dart run build_runner build --delete-conflicting-outputs
 ## 7. UI philosophy
 
 **Strictly monochrome, dark mode only.** `AppColors.primary` is **white** and is the
-only accent. The only chromatic colours are semantic `success` / `error` / `warning`,
-and they express **status only**.
+only accent. The only chromatic colours are semantic `success` / `error` / `warning` /
+`info`, and they express **status only** (`info` is hairline-only — never a fill).
 
 This is the single most re-litigated decision in DROP — read
 [ADR-004](docs/decisions/ADR-004-monochrome-design.md) **before** proposing a brand
@@ -329,7 +329,12 @@ colour.
   **no two adjacent texts share a grey**.
 - **Never replace a lived-in UI without sign-off.** "Work on it more" means
   *enrich*, not *simplify*. Motion is often load-bearing (`LiveStatusBorder`'s orbit
-  is a spec, not decoration).
+  is a spec, not decoration) — but **not perpetual**: on Employee Home it was
+  replaced by a still, per-state 1px edge
+  ([ADR-014](docs/decisions/ADR-014-task-card-border-language.md)) after the owner
+  signed off on a mockup first. Two standing rules came out of that: **emphasis
+  means unseen, never status**, and **nothing on a resting surface animates
+  forever**.
 - **One primary CTA per screen.**
 - Task action sheets may use neutral tonal depth, restrained entrance/stagger motion,
   and pointer lift feedback; chromatic colour remains semantic-only and reduced
@@ -348,6 +353,7 @@ colour.
 | Fact row | `StatStrip` |
 | Feed row | `ActivityCard` |
 | Status pill | `StatusBadge` (`.task` is canonical) |
+| Task card edge | `TaskAttentionSurface` + `taskAttentionTone` (Employee Home) |
 | Empty state | `DropEmptyState` |
 | Loading | `Skeleton` / `DropLoadingState` |
 | Feedback | `AppSnackbar.success/error` — never raw `ScaffoldMessenger` |
