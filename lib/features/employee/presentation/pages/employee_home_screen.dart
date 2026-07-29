@@ -30,6 +30,7 @@ import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dar
 import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
 import 'package:drop/features/task/domain/active_window.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_schedule.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/pages/task_details_screen.dart';
@@ -62,6 +63,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   // attention treatment for the frame or two before the file lands.
   final TaskSeenStore _seen = AppDependencies.taskSeenStore;
   bool _seenReady = false;
+  Timer? _startGateTimer;
+  DateTime? _startGateTimerAt;
 
   @override
   void initState() {
@@ -90,6 +93,37 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       // requests. (Previously only reachable inside Schedule → Swaps.)
       context.read<ShiftSwapCubit>().loadMine(user.uid);
     }
+  }
+
+  void _armStartGateTimer(Iterable<TaskEntity> tasks) {
+    final now = DateTime.now();
+    DateTime? next;
+    for (final task in tasks) {
+      if (task.status != TaskStatus.pending) continue;
+      final start = task.startsAt;
+      if (start == null || !start.isAfter(now)) continue;
+      if (next == null || start.isBefore(next)) next = start;
+    }
+    if (next == null) {
+      _startGateTimer?.cancel();
+      _startGateTimer = null;
+      _startGateTimerAt = null;
+      return;
+    }
+    if (_startGateTimerAt == next && _startGateTimer?.isActive == true) return;
+    _startGateTimer?.cancel();
+    _startGateTimerAt = next;
+    _startGateTimer = Timer(next.difference(now), () {
+      _startGateTimer = null;
+      _startGateTimerAt = null;
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _startGateTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -148,6 +182,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                     loaded: (tasks, busy, directory, _, _) {
                       _cachedTasks = tasks;
                       _cachedDir = directory;
+                      _armStartGateTimer(tasks);
                       return (tasks: tasks, busy: busy, directory: directory);
                     },
                     orElse: () => _cachedTasks == null
@@ -1089,6 +1124,9 @@ class _HomeTaskCard extends StatelessWidget {
     final isRejected = task.status == TaskStatus.rejected;
     final isReview = task.status == TaskStatus.waitingReview;
     final isMissed = task.status == TaskStatus.missed;
+    final blockedReason = task.status == TaskStatus.pending
+        ? startBlockedReason(task, DateTime.now())
+        : null;
 
     final assignedBy = directory[task.createdBy]?.displayName;
 
@@ -1166,6 +1204,7 @@ class _HomeTaskCard extends StatelessWidget {
                 busy: busy,
                 onOpen: onOpen,
                 onStart: onStart,
+                startBlockedReason: blockedReason,
                 isStarted: isStarted,
                 isRejected: isRejected,
                 isReview: isReview,
@@ -1187,6 +1226,7 @@ class _CardFooter extends StatelessWidget {
     required this.busy,
     required this.onOpen,
     required this.onStart,
+    required this.startBlockedReason,
     required this.isStarted,
     required this.isRejected,
     required this.isReview,
@@ -1197,6 +1237,7 @@ class _CardFooter extends StatelessWidget {
   final bool busy;
   final VoidCallback onOpen;
   final VoidCallback? onStart;
+  final String? startBlockedReason;
   final bool isStarted;
   final bool isRejected;
   final bool isReview;
@@ -1214,6 +1255,12 @@ class _CardFooter extends StatelessWidget {
       action = const _MutedFooter(
         icon: Icons.hourglass_top_rounded,
         label: 'Awaiting review',
+      );
+    } else if (startBlockedReason != null) {
+      action = _MutedFooter(
+        icon: Icons.schedule_rounded,
+        label: startBlockedReason!,
+        iconColor: AppColors.textTertiary,
       );
     } else if (onStart != null) {
       action = _ActionButton(
@@ -1287,9 +1334,14 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _MutedFooter extends StatelessWidget {
-  const _MutedFooter({required this.icon, required this.label});
+  const _MutedFooter({
+    required this.icon,
+    required this.label,
+    this.iconColor = AppColors.warning,
+  });
   final IconData icon;
   final String label;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1297,7 +1349,7 @@ class _MutedFooter extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: AppColors.warning),
+          Icon(icon, size: 14, color: iconColor),
           const SizedBox(width: 6),
           Text(
             label,

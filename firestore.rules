@@ -316,6 +316,16 @@ service cloud.firestore {
             // `canReachBranch` gate above; stated here so the employee branch
             // reads as a complete, self-contained list of what they may do.
             && request.resource.data.get('status', 'pending') != 'cancelled'
+            // The start gate (ADR-016) — server-enforced for EVERY employee
+            // transition into `started`, keyed on the DESTINATION status so
+            // rework is gated identically. No exceptions, by ruling: consistency
+            // over special cases. A null startsAt stays startable for manual and
+            // legacy tasks — `get('startsAt', null)`, NEVER `get('startsAt', '')`
+            // (every model emits every key, so an unset optional is
+            // present-with-null; a '' default once denied every task create).
+            && (request.resource.data.get('status', 'pending') != 'started'
+                || resource.data.get('startsAt', null) == null
+                || resource.data.get('startsAt', null) <= request.time)
             // An employee may FILE an incorrect-task report under their own uid
             // (spec §5.2) — the release valve — but may never forge one for
             // someone else, overwrite an open report, or clear one. Clearing is

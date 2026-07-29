@@ -35,6 +35,14 @@ class AppDateFormatter {
     return '$h12:$min $period';
   }
 
+  /// Wall-clock time, **24-hour zero-padded** — e.g. `08:30`, `16:30`, `00:05`.
+  /// Use this wherever the value sits next to a shift window, which
+  /// `ShiftHours.format` renders in the same 24-hour form (`08:30 – 16:30`); a
+  /// 12-hour reading beside it looks like a different clock.
+  static String time24(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:'
+      '${dt.minute.toString().padLeft(2, '0')}';
+
   /// Day + abbreviated month — e.g. `6 Jul`.
   static String dayMonth(DateTime dt) => '${dt.day} ${_mon(dt.month)}';
 

@@ -376,6 +376,66 @@ test("an employee's ordinary work is unaffected by the report guard", async () =
   );
 });
 
+// ─── Scheduled start gate ──────────────────────────────────────────
+
+const startPatch = (over = {}) => ({
+  status: "started",
+  startedAt: new Date(),
+  version: 1,
+  activityLog: [{ status: "started", actorId: "emp1", at: new Date() }],
+  ...over,
+});
+
+test("an employee cannot start a task before its stored startsAt", async () => {
+  await seed(
+    env,
+    "s1",
+    currentTask({ startsAt: new Date(Date.now() + 60 * 60 * 1000) }),
+  );
+
+  await assertFails(updateDoc(doc(as("emp1"), "tasks/s1"), startPatch()));
+});
+
+test("an employee can start a task once startsAt has arrived", async () => {
+  await seed(
+    env,
+    "s2",
+    currentTask({ startsAt: new Date(Date.now() - 1000) }),
+  );
+
+  await assertSucceeds(updateDoc(doc(as("emp1"), "tasks/s2"), startPatch()));
+});
+
+test("an employee can still start a task with null startsAt", async () => {
+  await seed(env, "s3", currentTask({ startsAt: null }));
+
+  await assertSucceeds(updateDoc(doc(as("emp1"), "tasks/s3"), startPatch()));
+});
+
+test("rework has no schedule exception before startsAt", async () => {
+  await seed(
+    env,
+    "s4",
+    currentTask({
+      status: "rejected",
+      startsAt: new Date(Date.now() + 60 * 60 * 1000),
+    }),
+  );
+  await assertFails(updateDoc(doc(as("emp1"), "tasks/s4"), startPatch()));
+});
+
+test("rework can start once startsAt has arrived", async () => {
+  await seed(
+    env,
+    "s5",
+    currentTask({
+      status: "rejected",
+      startsAt: new Date(Date.now() - 1000),
+    }),
+  );
+  await assertSucceeds(updateDoc(doc(as("emp1"), "tasks/s5"), startPatch()));
+});
+
 // ─── Admin terminal correction (spec §6.4) ──────────────────────────
 
 const correctionPatch = {

@@ -12,6 +12,7 @@ library;
 import 'package:drop/core/enums/schedule_day.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_status.dart';
+import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/features/schedule/domain/shift_hours.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_feed.dart' show isTaskOverdue;
@@ -59,6 +60,35 @@ const Duration kTaskGracePeriod = Duration(minutes: 30);
 DateTime? missedEvaluationAt(TaskEntity t) {
   final due = t.dueAt;
   return due?.add(kTaskGracePeriod);
+}
+
+/// Whether [task] may transition into `started` at [now].
+///
+/// The start gate
+/// ([ADR-016](../../../../docs/decisions/ADR-016-task-start-gate.md)): a task is
+/// **visible when upcoming, startable only from [TaskEntity.startsAt]**.
+///
+/// This is a **scheduling** gate only, orthogonal to [TaskStatus], and it is
+/// keyed on the *destination* status — so every transition into `started` is
+/// blocked before `startsAt`, **rework included, with no exceptions**. A null
+/// `startsAt` remains startable for legacy and manually-created rows, and the
+/// boundary is inclusive. `firestore.rules` re-checks the same boundary against
+/// server time; the two must never disagree.
+bool canStartTaskNow(TaskEntity task, DateTime now) {
+  final start = task.startsAt;
+  return start == null || !now.isBefore(start);
+}
+
+/// Human explanation for a closed [canStartTaskNow] gate, or null when the task
+/// is startable. Kept in the scheduling domain so every caller uses the same
+/// wording and the same DateTime formatter.
+///
+/// 24-hour by deliberate choice ([AppDateFormatter.time24]): this sits beside a
+/// shift window rendered as `08:30 – 16:30`, and mixing clock formats on one
+/// screen reads as a bug.
+String? startBlockedReason(TaskEntity task, DateTime now) {
+  if (canStartTaskNow(task, now)) return null;
+  return 'Starts at ${AppDateFormatter.time24(task.startsAt!)}';
 }
 
 /// The derived phase of [t] at [now]. Ordering:

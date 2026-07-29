@@ -28,6 +28,19 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-30
 
+- **Scheduled tasks are visible but not startable before their start time**
+  (feature; MED risk — client workflow + Firestore rules). Upcoming `pending`
+  tasks already stayed in active/upcoming lists and read Scheduled rather than
+  Overdue/Missed; this now has coverage. The actual start path is gated by one
+  pure `task_schedule.dart` predicate, reused by Employee Home, Task Details,
+  and `TaskCubit.startTask`: null `startsAt` remains startable, the boundary is
+  inclusive, and **rework has no exception** (`rejected → started` is blocked
+  before `startsAt` just like first start). The UI disables and explains the
+  action ("Starts at …") and arms a one-shot timer so it enables itself without
+  refresh. Firestore rules now deny employee writes whose destination status is
+  `started` while the stored `startsAt` is still in the future. +14 Flutter
+  tests and +5 Firestore rules tests. **Requires a rules deploy.**
+
 - **Fixed: automated tasks can no longer be born already overdue** (bug; HIGH
   severity, MED risk — two recurrence engines plus scheduler semantics). The
   recurring-shift generator now treats "today" as the Egypt business civil day

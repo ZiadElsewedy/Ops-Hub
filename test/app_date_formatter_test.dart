@@ -16,6 +16,16 @@ void main() {
     });
   });
 
+  group('AppDateFormatter.time24 (24h, zero-padded)', () {
+    test('pads the hour so it lines up with a shift window', () {
+      expect(AppDateFormatter.time24(DateTime(2026, 7, 6, 8, 30)), '08:30');
+      expect(AppDateFormatter.time24(DateTime(2026, 7, 6, 0, 5)), '00:05');
+      expect(AppDateFormatter.time24(DateTime(2026, 7, 6, 12, 0)), '12:00');
+      expect(AppDateFormatter.time24(DateTime(2026, 7, 6, 16, 30)), '16:30');
+      expect(AppDateFormatter.time24(DateTime(2026, 7, 6, 23, 59)), '23:59');
+    });
+  });
+
   group('absolute date styles', () {
     final d = DateTime(2026, 7, 6, 16, 32);
     test('dayMonth', () => expect(AppDateFormatter.dayMonth(d), '6 Jul'));

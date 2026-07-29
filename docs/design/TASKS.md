@@ -231,6 +231,36 @@ Overdue / Done, computed from the times + lifecycle in pure
 generated recurring shift task, while **Overdue** remains a derived phase for any
 other open task.
 
+### The start gate ([ADR-016](../decisions/ADR-016-task-start-gate.md))
+
+**A task is visible when upcoming, and startable only from `startsAt`.** This is a
+product rule, not a UI detail.
+
+The gate keys on the **destination status**, so *every* transition into `started`
+passes it and there are **no exceptions** — rework (`rejected → started`) is
+blocked before `startsAt` exactly like a first start (`pending → started`). A null
+`startsAt` stays startable (manual and legacy rows); the boundary is inclusive.
+
+Enforced in three places that must never disagree: the pure `canStartTaskNow` /
+`startBlockedReason` in `domain/task_schedule.dart`, `TaskCubit.startTask` (which
+refuses before writing, so every caller is caught), and `firestore.rules`, which
+re-checks the same boundary against server `request.time` on any employee write
+whose destination status is `started`.
+
+A pending task whose `startsAt` is in the future stays in the active/upcoming
+surfaces and reads Scheduled — never Overdue or Missed. The Start control stays
+**visible but disabled** and says when it opens ("Starts at 08:30", 24-hour to
+match the shift window beside it), then enables itself via a one-shot timer with
+no refresh.
+
+> **Accepted consequence, by ruling:** if a manager moves a task's `startsAt` into
+> the future while it is in rework, the employee is blocked until that time.
+> Consistency was chosen over special-case convenience. Do not "fix" this by
+> re-adding a status exemption — that reverses ADR-016.
+
+This is orthogonal to the grace period: an unstarted task still becomes Missed
+after `deadline` + 30 min ([ADR-013](../decisions/ADR-013-task-grace-period.md)).
+
 Smart defaults pre-fill start/due from the assigned shift's hours
 (`shiftDefaultSchedule`) as a *suggestion that is never locked*. For
 individual/team, `TaskCubit.resolveAssigneeShift` reads the branch roster and the

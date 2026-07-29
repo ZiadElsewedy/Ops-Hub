@@ -168,6 +168,7 @@
 - `test/task_outcomes_test.dart`
 - `test/task_schedule_test.dart`
 - `test/task_seen_store_test.dart`
+- `test/task_start_gate_widget_test.dart`
 - `test/task_status_test.dart`
 - `test/task_submission_gate_test.dart`
 

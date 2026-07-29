@@ -80,7 +80,8 @@
     "ADR-012-chat-directory-is-flat.md",
     "ADR-013-task-grace-period.md",
     "ADR-014-task-card-border-language.md",
-    "ADR-015-automation-business-timezone.md"
+    "ADR-015-automation-business-timezone.md",
+    "ADR-016-task-start-gate.md"
   ],
   "design_specs": [
     "ATTENDANCE.md",
@@ -1406,6 +1407,7 @@
         "test/task_outcomes_test.dart",
         "test/task_schedule_test.dart",
         "test/task_seen_store_test.dart",
+        "test/task_start_gate_widget_test.dart",
         "test/task_status_test.dart",
         "test/task_submission_gate_test.dart"
       ],

@@ -23,6 +23,7 @@ probably already weighed. Reversing one is fine; doing it *unknowingly* is not.
 | [ADR-013](ADR-013-task-grace-period.md) | A fixed 30-minute grace period before a task is Missed | Accepted |
 | [ADR-014](ADR-014-task-card-border-language.md) | The task card's 1px edge is the state; only a new task gets attention | Accepted |
 | [ADR-015](ADR-015-automation-business-timezone.md) | Automation uses the Egypt business civil day | Accepted |
+| [ADR-016](ADR-016-task-start-gate.md) | A task is visible when upcoming, startable only from `startsAt` | Accepted |
 
 ## Writing a new one
 

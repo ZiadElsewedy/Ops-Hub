@@ -1109,8 +1109,15 @@ class TaskCubit extends Cubit<TaskState> {
   // ─── Employee actions ──────────────────────────────────────────
   Future<void> startTask(TaskEntity task) async {
     final now = DateTime.now();
+    // The start gate (ADR-016) — refuse before writing, so every caller is
+    // covered, including any surface added later. No status exemptions.
+    final blockedReason = startBlockedReason(task, now);
+    if (blockedReason != null) {
+      _emitTransientError(blockedReason);
+      return;
+    }
     // pending → started (a fresh task) or rejected → started (redoing a
-    // reworked/rejected task); both are legal predecessors, unchanged.
+    // reworked/rejected task); the same schedule gate above applies to both.
     final ok = await _transition(
       task,
       from: const {TaskStatus.pending, TaskStatus.rejected},
