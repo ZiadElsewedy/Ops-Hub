@@ -28,6 +28,37 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-29
 
+- **Create/Edit Task graduated from a bottom sheet to a first-class full-screen
+  route** (UX/architecture; MED risk — new container for a core daily workflow,
+  business logic untouched). Owner ruling: the modal `showModalBottomSheet` read
+  as temporary and buried its primary action. `showTaskFormSheet` now
+  `Navigator.push`es a **`CupertinoPageRoute(fullscreenDialog: true)`** (bottom-up
+  modal, own back stack). The form's state, `_save`, validation, and scheduling
+  are **byte-for-byte unchanged** — only the container and presentation were
+  elevated: a pinned nav bar (Cancel + a title that condenses in on scroll), a
+  hero header with stronger identity, the Work Type reframed as the workflow's
+  opening move, **assignment as interactive segmented cards**, a rewarding
+  checklist builder (autofocus-on-add + a filled add affordance), a **sticky
+  Create bar with live validation** (dims until the essentials are set, states
+  what you're about to make), a Cupertino discard-guard on Cancel, and inline
+  errors. Strictly monochrome (ADR-004). `_SheetHeader` retired in favour of the
+  new page hero; other sheets (Assign/Review/Cancel/Report) stay sheets. No test
+  pumps the form; task suite + full `flutter analyze` green. Concept mockup:
+  design artifact (Create Task full-screen redesign).
+- **Employee "My Tasks" premium polish pass** (polish; LOW risk — one screen,
+  in-language, no behaviour change). Enriches
+  [`my_tasks_screen.dart`](lib/features/task/presentation/pages/my_tasks_screen.dart)
+  while honouring the monochrome ruling (ADR-004) and the card attention model
+  (ADR-014 — the `LiveStatusBorder` orbit and per-state status dot are kept):
+  two-line header (title over today's date), a compact monochrome completion
+  overview (ring + done/remaining + "N Active Tasks" / "You're all caught up"),
+  a slimmer 38px sliding segmented control (local override — shared primitive
+  untouched), richer cards (larger title, shift · due subtitle, restrained
+  "High" marker, press spring-back), **date-grouped closed tasks**
+  (Today · Yesterday · This week · Earlier) that fade slightly and swap the
+  progress bar for an outcome badge, and a calmer ringed-check all-clear state.
+  Indigo from the design brief was **declined** — it reverses ADR-004; owner
+  confirmed monochrome. No tests reference the screen; task suite still green.
 - **The task card's edge is now the state, and it stopped moving** (polish;
   MED risk — replaces a lived-in UI on one surface). Owner-approved from a
   high-fidelity mockup before any code was written; ruled in

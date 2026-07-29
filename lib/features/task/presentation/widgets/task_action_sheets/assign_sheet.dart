@@ -10,14 +10,17 @@ class _AssignSheet extends StatefulWidget {
 }
 
 class _AssignSheetState extends State<_AssignSheet> {
-  late final Future<List<UserEntity>> _future =
-      widget.cubit.branchEmployees(widget.task.branchId ?? '');
+  late final Future<List<UserEntity>> _future = widget.cubit.branchEmployees(
+    widget.task.branchId ?? '',
+  );
 
   late final Set<String> _selected = {...widget.task.assigneeIds};
 
   void _save() {
-    widget.cubit
-        .assignEmployees(taskId: widget.task.id, employeeIds: _selected.toList());
+    widget.cubit.assignEmployees(
+      taskId: widget.task.id,
+      employeeIds: _selected.toList(),
+    );
     Navigator.of(context).pop();
   }
 
@@ -42,13 +45,15 @@ class _AssignSheetState extends State<_AssignSheet> {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
                 child: Text(
-                    'No employees in this branch yet.\nAsk an admin to assign '
-                    'an approved employee to this branch first.',
-                    style: AppTypography.bodySmall),
+                  'No employees in this branch yet.\nAsk an admin to assign '
+                  'an approved employee to this branch first.',
+                  style: AppTypography.bodySmall,
+                ),
               );
             }
-            final allSelected =
-                employees.every((u) => _selected.contains(u.uid));
+            final allSelected = employees.every(
+              (u) => _selected.contains(u.uid),
+            );
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -57,7 +62,9 @@ class _AssignSheetState extends State<_AssignSheet> {
                   children: [
                     _QuickAction(
                       icon: Icons.groups_2_outlined,
-                      label: allSelected ? 'Team selected' : 'Assign whole team',
+                      label: allSelected
+                          ? 'Team selected'
+                          : 'Assign whole team',
                       active: allSelected,
                       onTap: () => setState(() {
                         if (allSelected) {
@@ -88,8 +95,8 @@ class _AssignSheetState extends State<_AssignSheet> {
                       final u = employees[i];
                       final name =
                           (u.displayName != null && u.displayName!.isNotEmpty)
-                              ? u.displayName!
-                              : u.email;
+                          ? u.displayName!
+                          : u.email;
                       final selected = _selected.contains(u.uid);
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
@@ -155,29 +162,37 @@ class _QuickAction extends StatelessWidget {
           opacity: disabled ? 0.5 : 1,
           child: Container(
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.md),
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.md,
+            ),
             decoration: BoxDecoration(
               color: active
                   ? AppColors.primary.withAlpha(28)
                   : AppColors.darkSurfaceElevated,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: active ? AppColors.primary : AppColors.darkBorder),
+                color: active ? AppColors.primary : AppColors.darkBorder,
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon,
-                    size: 16,
-                    color: active ? AppColors.primary : AppColors.textSecondary),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: active ? AppColors.primary : AppColors.textSecondary,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Flexible(
-                  child: Text(label,
-                      style: AppTypography.caption.copyWith(
-                          color: active
-                              ? AppColors.primary
-                              : AppColors.textSecondary),
-                      overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    label,
+                    style: AppTypography.caption.copyWith(
+                      color: active
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -187,4 +202,3 @@ class _QuickAction extends StatelessWidget {
     );
   }
 }
-

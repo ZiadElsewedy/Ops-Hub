@@ -4,7 +4,11 @@ part of '../task_action_sheets.dart';
 /// "Shift" is the assigned-to mode (Shift Assignment feature) — the task
 /// targets whoever is rostered on the picked shift, not named employees.
 class ShiftChipPicker extends StatelessWidget {
-  const ShiftChipPicker({super.key, required this.value, required this.onChanged});
+  const ShiftChipPicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
   final ScheduleShift? value;
   final void Function(ScheduleShift) onChanged;
 
@@ -15,8 +19,11 @@ class ShiftChipPicker extends StatelessWidget {
       children: [
         const Row(
           children: [
-            Icon(Icons.schedule_rounded,
-                size: 16, color: AppColors.textTertiary),
+            Icon(
+              Icons.schedule_rounded,
+              size: 16,
+              color: AppColors.textTertiary,
+            ),
             SizedBox(width: AppSpacing.sm),
             Text('Shift', style: AppTypography.bodySmall),
           ],
@@ -31,7 +38,9 @@ class ShiftChipPicker extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
                   decoration: BoxDecoration(
                     color: value == shift
                         ? AppColors.primary
@@ -49,8 +58,9 @@ class ShiftChipPicker extends StatelessWidget {
                       color: value == shift
                           ? AppColors.onPrimary
                           : AppColors.textSecondary,
-                      fontWeight:
-                          value == shift ? FontWeight.w700 : FontWeight.normal,
+                      fontWeight: value == shift
+                          ? FontWeight.w700
+                          : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -93,8 +103,7 @@ class ShiftRepeatPicker extends StatelessWidget {
       children: [
         const Row(
           children: [
-            Icon(Icons.repeat_rounded,
-                size: 16, color: AppColors.textTertiary),
+            Icon(Icons.repeat_rounded, size: 16, color: AppColors.textTertiary),
             SizedBox(width: AppSpacing.sm),
             Text('Repeats', style: AppTypography.bodySmall),
           ],
@@ -109,7 +118,9 @@ class ShiftRepeatPicker extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
                   decoration: BoxDecoration(
                     color: value == mode
                         ? AppColors.primary
@@ -127,8 +138,9 @@ class ShiftRepeatPicker extends StatelessWidget {
                       color: value == mode
                           ? AppColors.onPrimary
                           : AppColors.textSecondary,
-                      fontWeight:
-                          value == mode ? FontWeight.w700 : FontWeight.normal,
+                      fontWeight: value == mode
+                          ? FontWeight.w700
+                          : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -148,7 +160,11 @@ class ShiftRepeatPicker extends StatelessWidget {
 /// (`DateTime.monday` = 1 … `DateTime.sunday` = 7, matching
 /// [RecurringTaskTemplateEntity.weekday]).
 class WeekdayChipPicker extends StatelessWidget {
-  const WeekdayChipPicker({super.key, required this.value, required this.onChanged});
+  const WeekdayChipPicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
   final int value;
   final void Function(int) onChanged;
 
@@ -184,8 +200,9 @@ class WeekdayChipPicker extends StatelessWidget {
                   color: value == i + 1
                       ? AppColors.onPrimary
                       : AppColors.textSecondary,
-                  fontWeight:
-                      value == i + 1 ? FontWeight.w700 : FontWeight.normal,
+                  fontWeight: value == i + 1
+                      ? FontWeight.w700
+                      : FontWeight.normal,
                 ),
               ),
             ),
@@ -194,4 +211,3 @@ class WeekdayChipPicker extends StatelessWidget {
     );
   }
 }
-

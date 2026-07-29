@@ -106,6 +106,16 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
 
   String? _error;
 
+  // ── Presentation-only state (no business logic) ──────────────────────
+  /// Drives the collapsing header: the large hero title condenses into the
+  /// pinned nav-bar title and a hairline appears once the body scrolls.
+  final ScrollController _scroll = ScrollController();
+  bool _scrolled = false;
+
+  /// The checklist row to autofocus after an add — makes "Add step" feel
+  /// immediate and rewarding. `-1` = none pending.
+  int _lastAddedIndex = -1;
+
   String? _initialBranch() {
     final fromExisting = widget.existing?.branchId;
     if (fromExisting != null && fromExisting.isNotEmpty) return fromExisting;
@@ -119,6 +129,20 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
     super.initState();
     _initChecklist();
     _syncEmployeesFuture();
+    // Live validation: the sticky Create button reflects readiness as the
+    // manager types the title (the authoritative checks stay in [_save]).
+    _title.addListener(_onFormChanged);
+    _scroll.addListener(_onScroll);
+  }
+
+  /// Rebuild so the sticky footer's enabled state tracks the title live.
+  void _onFormChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onScroll() {
+    final scrolled = _scroll.hasClients && _scroll.offset > 12;
+    if (scrolled != _scrolled) setState(() => _scrolled = scrolled);
   }
 
   /// (Re)loads the branch's employee list for the assignee picker when the
@@ -155,6 +179,8 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
 
   @override
   void dispose() {
+    _title.removeListener(_onFormChanged);
+    _scroll.dispose();
     _title.dispose();
     _desc.dispose();
     for (final c in _itemControllers) {
@@ -171,6 +197,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
         'ci_${DateTime.now().millisecondsSinceEpoch}_${_itemControllers.length}',
       );
       _itemOriginals.add(null);
+      _lastAddedIndex = _itemControllers.length - 1; // autofocus the new row
     });
   }
 
@@ -181,6 +208,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
       _itemRequired.removeAt(i);
       _itemIds.removeAt(i);
       _itemOriginals.removeAt(i);
+      _lastAddedIndex = -1; // indices shifted — don't steal focus
     });
   }
 
@@ -514,13 +542,98 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
     return null;
   }
 
+  // ── Presentation helpers (read-only; [_save] stays the source of truth) ──
+
+  /// Whether the always-required essentials are in place, so the sticky Create
+  /// button can reflect readiness live. This is a *reflection* of state, not the
+  /// gate — [_save] still runs the full, authoritative validation (including the
+  /// work-type setup) and surfaces inline errors.
+  bool get _canSubmit {
+    if (_title.text.trim().isEmpty) return false;
+    final branch = widget.isAdmin ? (_branchId ?? '') : widget.defaultBranchId;
+    if (branch.trim().isEmpty) return false;
+    if (widget.existing == null &&
+        _assignmentType == TaskAssignmentType.shift &&
+        _shift == null) {
+      return false;
+    }
+    return _scheduleError == null;
+  }
+
+  /// Any content entered — used to guard against losing work on Cancel (the
+  /// bottom sheet's fatal flaw: one stray swipe wiped everything).
+  bool get _dirty =>
+      _title.text.trim().isNotEmpty ||
+      _desc.text.trim().isNotEmpty ||
+      _assignees.isNotEmpty ||
+      _shift != null ||
+      _newRefs.isNotEmpty ||
+      _itemControllers.any((c) => c.text.trim().isNotEmpty);
+
+  /// A one-line, plain-language summary under the Create button — what the
+  /// manager is about to make, or the single thing still missing.
+  String _footerSummary(bool isNew, bool shiftMode) {
+    if (_title.text.trim().isEmpty) {
+      return 'Add a title to continue';
+    }
+    if (isNew && shiftMode && _shift == null) {
+      return 'Choose a shift to continue';
+    }
+    final who = shiftMode
+        ? (_shift == null ? null : '${_shift!.label} shift')
+        : (_assignees.isEmpty
+              ? (_assignmentType == TaskAssignmentType.team
+                    ? 'the whole team'
+                    : null)
+              : '${_assignees.length} '
+                    '${_assignees.length == 1 ? 'person' : 'people'}');
+    final when = _deadline != null
+        ? 'due ${AppDateFormatter.dayMonth(_deadline!)}'
+        : null;
+    final parts = <String>[];
+    if (who != null) parts.add('Assigned to $who');
+    if (when != null) parts.add(when);
+    if (parts.isEmpty) return isNew ? 'Ready to create' : 'Ready to save';
+    return parts.join(' · ');
+  }
+
+  /// Cancel with a discard guard when there is unsaved work.
+  Future<void> _confirmCancel() async {
+    FocusScope.of(context).unfocus();
+    if (!_dirty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: Text(
+          widget.existing == null ? 'Discard new task?' : 'Discard changes?',
+        ),
+        content: const Text('Your edits will not be saved.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep editing'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isNew = widget.existing == null;
     final shiftMode = _assignmentType == TaskAssignmentType.shift;
 
     // Each section (its group divider + content) fades + lifts in with a gentle
-    // stagger, so opening the sheet feels like a workflow assembling rather than
+    // stagger, so opening the page feels like a workflow assembling rather than
     // a static form appearing.
     var step = 0;
     Widget section({String? label, IconData? icon, required Widget child}) {
@@ -536,302 +649,693 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
       return EntranceFade(delay: staggerDelay(step++), child: body);
     }
 
-    return SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: AppColors.darkBg,
+      // A pinned nav bar (Cancel · condensing title), a scrolling body, and a
+      // Create action pinned to the bottom — the full-screen frame that a bottom
+      // sheet never had. The footer is a bottomNavigationBar so it rides above
+      // the keyboard automatically.
+      body: Column(
+        children: [
+          _FormTopBar(
+            isNew: isNew,
+            scrolled: _scrolled,
+            onCancel: _confirmCancel,
+          ),
+          Expanded(
+            child: CupertinoScrollbar(
+              controller: _scroll,
+              child: SingleChildScrollView(
+                controller: _scroll,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pagePadding,
+                  AppSpacing.sm,
+                  AppSpacing.pagePadding,
+                  AppSpacing.xxxl,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    EntranceFade(
+                      offset: 10,
+                      duration: const Duration(milliseconds: 420),
+                      child: _FormHero(isNew: isNew),
+                    ),
+
+                    // ── The opening move: choose the kind of work ───────────
+                    section(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _WorkTypeIntro(enabled: isNew),
+                          const SizedBox(height: AppSpacing.md),
+                          // Work type — the hero choice; regenerates the
+                          // type-specific fields below it. Locked in edit mode.
+                          WorkTypePicker(
+                            value: _workType,
+                            enabled: isNew,
+                            onChanged: (id) => setState(() {
+                              _workType = id; // fields differ per type
+                              _workData = {};
+                              _workFieldErrors = const {};
+                            }),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          AppTextField(
+                            controller: _title,
+                            label: 'Title',
+                            prefixIcon: Icons.title_rounded,
+                            autofocus: true,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          // Type-specific fields (nothing for a general task).
+                          DynamicWorkForm(
+                            definition: WorkTypeRegistry.instance.byId(
+                              _workType,
+                            ),
+                            initialData: _workData,
+                            errors: _workFieldErrors,
+                            onChanged: (data) => _workData = data,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          AppTextField(
+                            controller: _desc,
+                            label: 'Description (optional)',
+                            prefixIcon: Icons.notes_rounded,
+                            maxLines: 4,
+                            minLines: 1,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Steps: the checklist builder ────────────────────────
+                    section(
+                      label: 'Steps',
+                      icon: Icons.checklist_rounded,
+                      child: _ChecklistBuilder(
+                        controllers: _itemControllers,
+                        required: _itemRequired,
+                        lastAdded: _lastAddedIndex,
+                        onAdd: _addChecklistItem,
+                        onRemove: _removeChecklistItem,
+                        onToggleRequired: _toggleRequired,
+                      ),
+                    ),
+
+                    // ── Assignment: branch, mode, and who ───────────────────────────
+                    section(
+                      label: 'Assignment',
+                      icon: Icons.group_outlined,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (widget.isAdmin) ...[
+                            _BranchField(
+                              future: _branchesFuture,
+                              value: _branchId,
+                              onChanged: (v) => setState(() {
+                                _branchId = v;
+                                _assignees
+                                    .clear(); // employees differ per branch
+                                _syncEmployeesFuture();
+                              }),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
+                          if (isNew) ...[
+                            const _FieldCaption('Assigned to'),
+                            const SizedBox(height: AppSpacing.sm),
+                            _AssignmentModeCards(
+                              value: _assignmentType,
+                              onChanged: (t) {
+                                setState(() {
+                                  _assignmentType = t;
+                                  if (t == TaskAssignmentType.shift) {
+                                    _mixedShifts = false;
+                                  }
+                                });
+                                // Switching to individual/team re-resolves the roster.
+                                if (t != TaskAssignmentType.shift) {
+                                  _resolveAssigneeSchedule();
+                                }
+                              },
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
+                          if (shiftMode)
+                            ShiftChipPicker(
+                              value: _shift,
+                              onChanged: (s) => setState(() {
+                                _shift = s;
+                                // Picking a shift pre-fills the schedule as a smart default
+                                // (never a lock — the manager can still edit or reset).
+                                _suggestFromShift(s);
+                              }),
+                            )
+                          else
+                            _AssigneeField(
+                              future: _employeesFuture,
+                              selected: _assignees,
+                              onChanged: (next) {
+                                setState(() {
+                                  _assignees
+                                    ..clear()
+                                    ..addAll(next);
+                                });
+                                // Pre-fill the schedule from the assignees' rostered shift.
+                                _resolveAssigneeSchedule();
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Schedule: when the work starts and is due ───────────────────
+                    section(
+                      label: 'Schedule',
+                      icon: Icons.event_note_outlined,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_mixedShifts) ...[
+                            _MixedShiftChooser(
+                              onPick: (shift) => setState(() {
+                                _suggestFromShift(shift);
+                                _mixedShifts = false;
+                              }),
+                              onCustom: () =>
+                                  setState(() => _mixedShifts = false),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
+                          _ScheduleField(
+                            start: _startsAt,
+                            due: _deadline,
+                            resolving: _resolvingShift,
+                            onQuickDeadline: isNew ? _applyQuickDeadline : null,
+                            quickDeadlineDuration: _quickDeadlinePreset,
+                            onPickStart: _pickStart,
+                            onPickDue: _pickDue,
+                            onClearStart: () => setState(() {
+                              _startsAt = null;
+                              _scheduleCustom = true;
+                              _quickDeadlinePreset = null;
+                            }),
+                            onClearDue: () => setState(() {
+                              _deadline = null;
+                              _scheduleCustom = true;
+                              _quickDeadlinePreset = null;
+                            }),
+                            sourceLabel: _scheduleSourceLabel,
+                            custom: _scheduleCustom && _scheduleSource != null,
+                            onReset: _scheduleSource == null
+                                ? null
+                                : _resetToSource,
+                            warning: _scheduleWarning,
+                            error: _scheduleError,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Review: how it's prioritised and whether it repeats ─────────
+                    section(
+                      label: 'Review',
+                      icon: Icons.fact_check_outlined,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _FieldCaption('Priority'),
+                          const SizedBox(height: AppSpacing.sm),
+                          _Segmented<TaskPriority>(
+                            value: _priority,
+                            onChanged: (v) => setState(() => _priority = v),
+                            segments: const [
+                              _Seg(
+                                TaskPriority.low,
+                                'Low',
+                                icon: Icons.arrow_downward_rounded,
+                              ),
+                              _Seg(
+                                TaskPriority.normal,
+                                'Normal',
+                                icon: Icons.remove_rounded,
+                              ),
+                              _Seg(
+                                TaskPriority.high,
+                                'High',
+                                icon: Icons.priority_high_rounded,
+                              ),
+                            ],
+                          ),
+                          // Recurrence (new tasks only) — shift mode gets its own
+                          // Once/Daily/Weekly picker (daily/weekly saves as a recurring
+                          // shift-task template rather than a single task).
+                          if (isNew) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            if (shiftMode)
+                              ShiftRepeatPicker(
+                                value: _shiftRepeat,
+                                onChanged: (v) =>
+                                    setState(() => _shiftRepeat = v),
+                                weekday: _shiftWeekday,
+                                onWeekdayChanged: (w) =>
+                                    setState(() => _shiftWeekday = w),
+                              )
+                            else ...[
+                              const _FieldCaption('Repeats'),
+                              const SizedBox(height: AppSpacing.sm),
+                              _Segmented<RecurrenceFrequency>(
+                                value: _recurrence,
+                                onChanged: (v) =>
+                                    setState(() => _recurrence = v),
+                                segments: const [
+                                  _Seg(RecurrenceFrequency.none, 'None'),
+                                  _Seg(RecurrenceFrequency.daily, 'Daily'),
+                                  _Seg(RecurrenceFrequency.weekly, 'Weekly'),
+                                  _Seg(RecurrenceFrequency.monthly, 'Monthly'),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // ── Attachments: "what good looks like" ─────────────────────────
+                    section(
+                      label: 'Attachments',
+                      icon: Icons.image_outlined,
+                      child: AttachmentPickerField(
+                        attachments: _newRefs,
+                        allowVideo: false,
+                        title: 'Reference images',
+                        hint:
+                            'Attach photos showing how this should look — the employee '
+                            'sees them before starting. Photos are compressed before upload.',
+                        existing: _existingRefs,
+                        onRemoveExisting: (a) =>
+                            setState(() => _existingRefs.remove(a)),
+                        onChanged: (list) => setState(() => _newRefs = list),
+                      ),
+                    ),
+
+                    // ── Inline validation (the submit action lives in the
+                    // sticky footer, always in reach) ──────────────────────
+                    EntranceFade(
+                      delay: staggerDelay(step++),
+                      offset: 10,
+                      child: _FormErrorBanner(message: _error),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _StickyCreateBar(
+        isNew: isNew,
+        canSubmit: _canSubmit,
+        summary: _footerSummary(isNew, shiftMode),
+        onSubmit: _save,
+      ),
+    );
+  }
+}
+
+// ─── Full-screen chrome (elevates the form into a first-class page) ──────
+
+/// The pinned nav bar: a Cupertino **Cancel**, and a title that condenses in
+/// from the hero as the body scrolls. A hairline appears only once scrolled, so
+/// the bar is invisible at rest and orienting in motion.
+class _FormTopBar extends StatelessWidget {
+  const _FormTopBar({
+    required this.isNew,
+    required this.scrolled,
+    required this.onCancel,
+  });
+
+  final bool isNew;
+  final bool scrolled;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(top: top),
+      decoration: BoxDecoration(
+        color: AppColors.darkBg,
+        border: Border(
+          bottom: BorderSide(
+            color: scrolled ? AppColors.darkBorder : AppColors.transparent,
+          ),
+        ),
+      ),
+      child: SizedBox(
+        height: 50,
+        child: Stack(
+          children: [
+            Center(
+              child: AnimatedOpacity(
+                opacity: scrolled ? 1 : 0,
+                duration: const Duration(milliseconds: 180),
+                child: Text(
+                  isNew ? 'New Task' : 'Edit Task',
+                  style: AppTypography.label,
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                onPressed: onCancel,
+                child: Text(
+                  'Cancel',
+                  style: AppTypography.label.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The hero — the page's visual identity. An eyebrow beside a soft glyph tile,
+/// then a large title and a one-line intent. This is what makes the screen read
+/// as a destination, not a converted sheet.
+class _FormHero extends StatelessWidget {
+  const _FormHero({required this.isNew});
+  final bool isNew;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.lg),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          EntranceFade(
-            offset: 10,
-            duration: const Duration(milliseconds: 420),
-            child: _SheetHeader(
-              eyebrow: isNew ? 'CREATE · WORKFLOW' : 'EDIT · WORKFLOW',
-              title: isNew ? 'New Task' : 'Edit Task',
-              subtitle: isNew
-                  ? 'Compose the work, then choose who runs it.'
-                  : 'Update this task.',
-            ),
-          ),
-
-          // ── Overview: the defining choice, then the essentials ──────────
-          section(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Work type — the hero choice; regenerates the type-specific
-                // fields below it. Locked (static card) in edit mode.
-                WorkTypePicker(
-                  value: _workType,
-                  enabled: isNew,
-                  onChanged: (id) => setState(() {
-                    _workType = id;
-                    _workData = {}; // fields differ per type
-                    _workFieldErrors = const {};
-                  }),
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  gradient: AppColors.subtleGradient,
+                  borderRadius: AppRadius.mdAll,
+                  border: Border.all(color: AppColors.darkBorder),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  controller: _title,
-                  label: 'Title',
-                  prefixIcon: Icons.title_rounded,
-                  autofocus: true,
+                child: Icon(
+                  isNew ? Icons.add_task_rounded : Icons.edit_note_rounded,
+                  size: 19,
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                // Type-specific fields (collapses to nothing for a general task).
-                DynamicWorkForm(
-                  definition: WorkTypeRegistry.instance.byId(_workType),
-                  initialData: _workData,
-                  errors: _workFieldErrors,
-                  onChanged: (data) => _workData = data,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Text(
+                isNew ? 'CREATE · WORKFLOW' : 'EDIT · WORKFLOW',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textTertiary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  controller: _desc,
-                  label: 'Description (optional)',
-                  prefixIcon: Icons.notes_rounded,
-                  maxLines: 4,
-                  minLines: 1,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-
-          // ── Steps: the checklist builder ────────────────────────────────
-          section(
-            label: 'Steps',
-            icon: Icons.checklist_rounded,
-            child: _ChecklistBuilder(
-              controllers: _itemControllers,
-              required: _itemRequired,
-              onAdd: _addChecklistItem,
-              onRemove: _removeChecklistItem,
-              onToggleRequired: _toggleRequired,
-            ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            isNew ? 'New Task' : 'Edit Task',
+            style: AppTypography.displayMedium,
           ),
-
-          // ── Assignment: branch, mode, and who ───────────────────────────
-          section(
-            label: 'Assignment',
-            icon: Icons.group_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.isAdmin) ...[
-                  _BranchField(
-                    future: _branchesFuture,
-                    value: _branchId,
-                    onChanged: (v) => setState(() {
-                      _branchId = v;
-                      _assignees.clear(); // employees differ per branch
-                      _syncEmployeesFuture();
-                    }),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-                if (isNew) ...[
-                  const _FieldCaption('Assigned to'),
-                  const SizedBox(height: AppSpacing.sm),
-                  _Segmented<TaskAssignmentType>(
-                    value: _assignmentType,
-                    onChanged: (t) {
-                      setState(() {
-                        _assignmentType = t;
-                        if (t == TaskAssignmentType.shift) _mixedShifts = false;
-                      });
-                      // Switching to individual/team re-resolves the roster.
-                      if (t != TaskAssignmentType.shift) {
-                        _resolveAssigneeSchedule();
-                      }
-                    },
-                    segments: [
-                      for (final t in TaskAssignmentType.values)
-                        _Seg(t, t.label, icon: _assignmentIcon(t)),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-                if (shiftMode)
-                  ShiftChipPicker(
-                    value: _shift,
-                    onChanged: (s) => setState(() {
-                      _shift = s;
-                      // Picking a shift pre-fills the schedule as a smart default
-                      // (never a lock — the manager can still edit or reset).
-                      _suggestFromShift(s);
-                    }),
-                  )
-                else
-                  _AssigneeField(
-                    future: _employeesFuture,
-                    selected: _assignees,
-                    onChanged: (next) {
-                      setState(() {
-                        _assignees
-                          ..clear()
-                          ..addAll(next);
-                      });
-                      // Pre-fill the schedule from the assignees' rostered shift.
-                      _resolveAssigneeSchedule();
-                    },
-                  ),
-              ],
-            ),
-          ),
-
-          // ── Schedule: when the work starts and is due ───────────────────
-          section(
-            label: 'Schedule',
-            icon: Icons.event_note_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_mixedShifts) ...[
-                  _MixedShiftChooser(
-                    onPick: (shift) => setState(() {
-                      _suggestFromShift(shift);
-                      _mixedShifts = false;
-                    }),
-                    onCustom: () => setState(() => _mixedShifts = false),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-                _ScheduleField(
-                  start: _startsAt,
-                  due: _deadline,
-                  resolving: _resolvingShift,
-                  onQuickDeadline: isNew ? _applyQuickDeadline : null,
-                  quickDeadlineDuration: _quickDeadlinePreset,
-                  onPickStart: _pickStart,
-                  onPickDue: _pickDue,
-                  onClearStart: () => setState(() {
-                    _startsAt = null;
-                    _scheduleCustom = true;
-                    _quickDeadlinePreset = null;
-                  }),
-                  onClearDue: () => setState(() {
-                    _deadline = null;
-                    _scheduleCustom = true;
-                    _quickDeadlinePreset = null;
-                  }),
-                  sourceLabel: _scheduleSourceLabel,
-                  custom: _scheduleCustom && _scheduleSource != null,
-                  onReset: _scheduleSource == null ? null : _resetToSource,
-                  warning: _scheduleWarning,
-                  error: _scheduleError,
-                ),
-              ],
-            ),
-          ),
-
-          // ── Review: how it's prioritised and whether it repeats ─────────
-          section(
-            label: 'Review',
-            icon: Icons.fact_check_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _FieldCaption('Priority'),
-                const SizedBox(height: AppSpacing.sm),
-                _Segmented<TaskPriority>(
-                  value: _priority,
-                  onChanged: (v) => setState(() => _priority = v),
-                  segments: const [
-                    _Seg(
-                      TaskPriority.low,
-                      'Low',
-                      icon: Icons.arrow_downward_rounded,
-                    ),
-                    _Seg(
-                      TaskPriority.normal,
-                      'Normal',
-                      icon: Icons.remove_rounded,
-                    ),
-                    _Seg(
-                      TaskPriority.high,
-                      'High',
-                      icon: Icons.priority_high_rounded,
-                    ),
-                  ],
-                ),
-                // Recurrence (new tasks only) — shift mode gets its own
-                // Once/Daily/Weekly picker (daily/weekly saves as a recurring
-                // shift-task template rather than a single task).
-                if (isNew) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  if (shiftMode)
-                    ShiftRepeatPicker(
-                      value: _shiftRepeat,
-                      onChanged: (v) => setState(() => _shiftRepeat = v),
-                      weekday: _shiftWeekday,
-                      onWeekdayChanged: (w) =>
-                          setState(() => _shiftWeekday = w),
-                    )
-                  else ...[
-                    const _FieldCaption('Repeats'),
-                    const SizedBox(height: AppSpacing.sm),
-                    _Segmented<RecurrenceFrequency>(
-                      value: _recurrence,
-                      onChanged: (v) => setState(() => _recurrence = v),
-                      segments: const [
-                        _Seg(RecurrenceFrequency.none, 'None'),
-                        _Seg(RecurrenceFrequency.daily, 'Daily'),
-                        _Seg(RecurrenceFrequency.weekly, 'Weekly'),
-                        _Seg(RecurrenceFrequency.monthly, 'Monthly'),
-                      ],
-                    ),
-                  ],
-                ],
-              ],
-            ),
-          ),
-
-          // ── Attachments: "what good looks like" ─────────────────────────
-          section(
-            label: 'Attachments',
-            icon: Icons.image_outlined,
-            child: AttachmentPickerField(
-              attachments: _newRefs,
-              allowVideo: false,
-              title: 'Reference images',
-              hint:
-                  'Attach photos showing how this should look — the employee '
-                  'sees them before starting. Photos are compressed before upload.',
-              existing: _existingRefs,
-              onRemoveExisting: (a) => setState(() => _existingRefs.remove(a)),
-              onChanged: (list) => setState(() => _newRefs = list),
-            ),
-          ),
-
-          // ── Validation + submit ─────────────────────────────────────────
-          EntranceFade(
-            delay: staggerDelay(step++),
-            offset: 10,
-            child: Column(
-              children: [
-                _FormErrorBanner(message: _error),
-                const SizedBox(height: AppSpacing.xl),
-                AppButton(
-                  label: isNew ? 'Create Task' : 'Save Changes',
-                  icon: const Icon(
-                    Icons.check_rounded,
-                    size: 20,
-                    color: AppColors.onAccent,
-                  ),
-                  onPressed: _save,
-                ),
-              ],
-            ),
+          const SizedBox(height: 6),
+          Text(
+            isNew
+                ? 'Compose the work, then choose who runs it.'
+                : 'Refine the details and reassign as needed.',
+            style: AppTypography.body,
           ),
         ],
       ),
     );
   }
+}
 
-  static IconData _assignmentIcon(TaskAssignmentType t) => switch (t) {
-    TaskAssignmentType.individual => Icons.person_outline_rounded,
-    TaskAssignmentType.team => Icons.groups_2_outlined,
-    TaskAssignmentType.shift => Icons.schedule_rounded,
+/// A short lead-in that frames the work type as the workflow's first decision
+/// rather than one field among many.
+class _WorkTypeIntro extends StatelessWidget {
+  const _WorkTypeIntro({required this.enabled});
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'What kind of work is this?',
+          style: AppTypography.labelLarge.copyWith(fontSize: 15),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          enabled
+              ? 'This shapes the fields below.'
+              : "A task's type is fixed once it's created.",
+          style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
+        ),
+      ],
+    );
+  }
+}
+
+/// The assignment-mode chooser as three interactive **cards** (Employee · Team ·
+/// Shift) — each with a glyph, label, and a one-line description, so choosing
+/// *how* the work is assigned feels like a decision, not a toggle.
+class _AssignmentModeCards extends StatelessWidget {
+  const _AssignmentModeCards({required this.value, required this.onChanged});
+
+  final TaskAssignmentType value;
+  final ValueChanged<TaskAssignmentType> onChanged;
+
+  static const _meta = {
+    TaskAssignmentType.individual: (
+      Icons.person_outline_rounded,
+      'Assign specific people',
+    ),
+    TaskAssignmentType.team: (
+      Icons.groups_2_outlined,
+      'Everyone in the branch',
+    ),
+    TaskAssignmentType.shift: (
+      Icons.schedule_rounded,
+      'Whoever is rostered on a shift',
+    ),
   };
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (final t in TaskAssignmentType.values) ...[
+          _AssignmentModeCard(
+            selected: t == value,
+            icon: _meta[t]!.$1,
+            label: t.label,
+            description: _meta[t]!.$2,
+            onTap: () => onChanged(t),
+          ),
+          if (t != TaskAssignmentType.values.last)
+            const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+}
+
+class _AssignmentModeCard extends StatelessWidget {
+  const _AssignmentModeCard({
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String label;
+  final String description;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.darkSurfaceElevated
+              : AppColors.darkSurface,
+          borderRadius: AppRadius.lgAll,
+          border: Border.all(
+            color: selected ? AppColors.accentBorder : AppColors.darkBorder,
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.darkBg,
+                borderRadius: AppRadius.mdAll,
+                border: Border.all(color: AppColors.darkBorder),
+              ),
+              child: Icon(
+                icon,
+                size: 17,
+                color: selected
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTypography.label.copyWith(
+                      color: selected
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    description,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _ModeRadio(selected: selected),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A minimal monochrome selection indicator (filled ring when chosen).
+class _ModeRadio extends StatelessWidget {
+  const _ModeRadio({required this.selected});
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? AppColors.accent : AppColors.transparent,
+        border: Border.all(
+          color: selected ? AppColors.accent : AppColors.textQuaternary,
+          width: 1.5,
+        ),
+      ),
+      child: selected
+          ? const Icon(Icons.check_rounded, size: 13, color: AppColors.onAccent)
+          : null,
+    );
+  }
+}
+
+/// The sticky Create action — always in reach at the bottom, riding above the
+/// keyboard. It reflects readiness live (disabled until the essentials are set)
+/// and states, in one line, what the manager is about to make.
+class _StickyCreateBar extends StatelessWidget {
+  const _StickyCreateBar({
+    required this.isNew,
+    required this.canSubmit,
+    required this.summary,
+    required this.onSubmit,
+  });
+
+  final bool isNew;
+  final bool canSubmit;
+  final String summary;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.darkBg,
+        border: Border(top: BorderSide(color: AppColors.darkBorder)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding,
+            AppSpacing.md,
+            AppSpacing.pagePadding,
+            AppSpacing.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppButton(
+                label: isNew ? 'Create Task' : 'Save Changes',
+                icon: const Icon(
+                  Icons.check_rounded,
+                  size: 20,
+                  color: AppColors.onAccent,
+                ),
+                onPressed: canSubmit ? onSubmit : null,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: Text(
+                  summary,
+                  key: ValueKey(summary),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

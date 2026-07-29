@@ -17,8 +17,8 @@ class _AssigneeField extends StatelessWidget {
 
   static String _name(UserEntity u) =>
       (u.displayName != null && u.displayName!.isNotEmpty)
-          ? u.displayName!
-          : u.email;
+      ? u.displayName!
+      : u.email;
 
   @override
   Widget build(BuildContext context) {
@@ -57,8 +57,8 @@ class _AssigneeField extends StatelessWidget {
         final value = chosen.isEmpty
             ? null
             : chosen.length == 1
-                ? _name(chosen.first)
-                : '${chosen.length} people';
+            ? _name(chosen.first)
+            : '${chosen.length} people';
         return _PickerTile(
           icon: Icons.group_add_outlined,
           label: 'Assignees',
@@ -122,9 +122,12 @@ class _AvatarStack extends StatelessWidget {
                     color: AppColors.darkBg,
                     shape: BoxShape.circle,
                   ),
-                  child: Text('+$extra',
-                      style: AppTypography.caption
-                          .copyWith(color: AppColors.textSecondary)),
+                  child: Text(
+                    '+$extra',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -134,13 +137,13 @@ class _AvatarStack extends StatelessWidget {
   }
 
   Widget _ringed({required Widget child}) => Container(
-        padding: const EdgeInsets.all(2),
-        decoration: const BoxDecoration(
-          color: AppColors.darkSurface,
-          shape: BoxShape.circle,
-        ),
-        child: child,
-      );
+    padding: const EdgeInsets.all(2),
+    decoration: const BoxDecoration(
+      color: AppColors.darkSurface,
+      shape: BoxShape.circle,
+    ),
+    child: child,
+  );
 }
 
 /// Searchable multi-select employee chooser opened from [_AssigneeField]. Owns a
@@ -168,8 +171,8 @@ class _AssigneePickerSheetState extends State<_AssigneePickerSheet> {
 
   String _name(UserEntity u) =>
       (u.displayName != null && u.displayName!.isNotEmpty)
-          ? u.displayName!
-          : u.email;
+      ? u.displayName!
+      : u.email;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +183,8 @@ class _AssigneePickerSheetState extends State<_AssigneePickerSheet> {
             for (final u in widget.employees)
               if ('${_name(u)} ${u.email}'.toLowerCase().contains(q)) u,
           ];
-    final allSelected = widget.employees.isNotEmpty &&
+    final allSelected =
+        widget.employees.isNotEmpty &&
         widget.employees.every((u) => _sel.contains(u.uid));
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -300,14 +304,18 @@ class _AssigneeRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name,
-                      style: AppTypography.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  Text(email,
-                      style: AppTypography.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    name,
+                    style: AppTypography.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    email,
+                    style: AppTypography.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -325,4 +333,3 @@ class _AssigneeRow extends StatelessWidget {
     );
   }
 }
-

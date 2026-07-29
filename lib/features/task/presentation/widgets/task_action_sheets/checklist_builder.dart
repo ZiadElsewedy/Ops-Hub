@@ -8,6 +8,7 @@ class _ChecklistBuilder extends StatelessWidget {
   const _ChecklistBuilder({
     required this.controllers,
     required this.required,
+    required this.lastAdded,
     required this.onAdd,
     required this.onRemove,
     required this.onToggleRequired,
@@ -15,6 +16,10 @@ class _ChecklistBuilder extends StatelessWidget {
 
   final List<TextEditingController> controllers;
   final List<bool> required;
+
+  /// The row index just added (or `-1`), so it can autofocus — adding a step
+  /// drops the cursor straight into it.
+  final int lastAdded;
   final VoidCallback onAdd;
   final void Function(int) onRemove;
   final void Function(int) onToggleRequired;
@@ -35,9 +40,12 @@ class _ChecklistBuilder extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Break the work into steps', 
-                  style: AppTypography.labelSmall
-                      .copyWith(color: AppColors.textSecondary)),
+              Text(
+                'Break the work into steps',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
               if (!empty) ...[
                 const SizedBox(width: AppSpacing.sm),
                 _CountPill(controllers.length),
@@ -61,6 +69,7 @@ class _ChecklistBuilder extends StatelessWidget {
                             index: i + 1,
                             controller: controllers[i],
                             isRequired: required[i],
+                            autofocus: i == lastAdded,
                             onToggleRequired: () => onToggleRequired(i),
                             onRemove: () => onRemove(i),
                           ),
@@ -85,8 +94,7 @@ class _ChecklistEmpty extends StatelessWidget {
       padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: Text(
         'Optional — add ordered steps the employee ticks off as they work.',
-        style:
-            AppTypography.caption.copyWith(color: AppColors.textTertiary),
+        style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
       ),
     );
   }
@@ -101,11 +109,13 @@ class _StepRow extends StatelessWidget {
     required this.isRequired,
     required this.onToggleRequired,
     required this.onRemove,
+    this.autofocus = false,
   });
 
   final int index;
   final TextEditingController controller;
   final bool isRequired;
+  final bool autofocus;
   final VoidCallback onToggleRequired;
   final VoidCallback onRemove;
 
@@ -125,22 +135,30 @@ class _StepRow extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.darkBorder),
             ),
-            child: Text('$index',
-                style: AppTypography.caption
-                    .copyWith(color: AppColors.textSecondary)),
+            child: Text(
+              '$index',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: TextField(
               controller: controller,
-              style: AppTypography.bodySmall
-                  .copyWith(color: AppColors.textPrimary),
+              autofocus: autofocus,
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
               decoration: InputDecoration(
                 hintText: 'Describe this step…',
-                hintStyle: AppTypography.bodySmall
-                    .copyWith(color: AppColors.textTertiary),
+                hintStyle: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md, vertical: 10),
+                  horizontal: AppSpacing.md,
+                  vertical: 10,
+                ),
                 filled: true,
                 fillColor: AppColors.darkBg,
                 isDense: true,
@@ -154,8 +172,7 @@ class _StepRow extends StatelessWidget {
                 ),
                 focusedBorder: const OutlineInputBorder(
                   borderRadius: AppRadius.smAll,
-                  borderSide:
-                      BorderSide(color: AppColors.textSecondary),
+                  borderSide: BorderSide(color: AppColors.textSecondary),
                 ),
               ),
             ),
@@ -185,8 +202,11 @@ class _StepRow extends StatelessWidget {
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 32, height: 32),
             onPressed: onRemove,
-            icon: const Icon(Icons.close_rounded,
-                size: 18, color: AppColors.textTertiary),
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: AppColors.textTertiary,
+            ),
           ),
         ],
       ),
@@ -205,7 +225,7 @@ class _AddStepButton extends StatelessWidget {
       borderRadius: AppRadius.smAll,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
           color: AppColors.darkBg,
           borderRadius: AppRadius.smAll,
@@ -214,12 +234,28 @@ class _AddStepButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.add_rounded,
-                size: 16, color: AppColors.textSecondary),
+            // The plus sits in a filled chip so the affordance invites a tap
+            // rather than reading as a disabled row.
+            Container(
+              width: 22,
+              height: 22,
+              decoration: const BoxDecoration(
+                color: AppColors.accent,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                size: 15,
+                color: AppColors.onAccent,
+              ),
+            ),
             const SizedBox(width: AppSpacing.sm),
-            Text('Add step',
-                style: AppTypography.labelSmall
-                    .copyWith(color: AppColors.textSecondary)),
+            Text(
+              'Add step',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
           ],
         ),
       ),
@@ -244,4 +280,3 @@ class _CountPill extends StatelessWidget {
     );
   }
 }
-

@@ -16,8 +16,8 @@ class _BranchField extends StatelessWidget {
 
   static String _label(BranchEntity b) =>
       (b.location == null || b.location!.isEmpty)
-          ? b.name
-          : '${b.name} · ${b.location}';
+      ? b.name
+      : '${b.name} · ${b.location}';
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +38,8 @@ class _BranchField extends StatelessWidget {
           placeholder: loading
               ? 'Loading branches…'
               : branches.isEmpty
-                  ? 'No branches — create one first'
-                  : 'Select a branch',
+              ? 'No branches — create one first'
+              : 'Select a branch',
           enabled: ready,
           onTap: () async {
             final picked = await showModalBottomSheet<String>(
@@ -122,8 +122,7 @@ class _BranchPickerSheetState extends State<_BranchPickerSheet> {
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: items.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: AppSpacing.sm),
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, i) {
                 final b = items[i];
                 return _BranchRow(
@@ -152,8 +151,7 @@ class _BranchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasLocation =
-        branch.location != null && branch.location!.isNotEmpty;
+    final hasLocation = branch.location != null && branch.location!.isNotEmpty;
     return InkWell(
       onTap: onTap,
       borderRadius: AppRadius.lgAll,
@@ -165,7 +163,8 @@ class _BranchRow extends StatelessWidget {
               : AppColors.darkSurfaceElevated,
           borderRadius: AppRadius.lgAll,
           border: Border.all(
-              color: selected ? AppColors.primary : AppColors.darkBorder),
+            color: selected ? AppColors.primary : AppColors.darkBorder,
+          ),
         ),
         child: Row(
           children: [
@@ -175,16 +174,20 @@ class _BranchRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(branch.name,
-                      style: AppTypography.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    branch.name,
+                    style: AppTypography.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   if (hasLocation) ...[
                     const SizedBox(height: 1),
-                    Text(branch.location!,
-                        style: AppTypography.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      branch.location!,
+                      style: AppTypography.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ],
               ),
@@ -203,4 +206,3 @@ class _BranchRow extends StatelessWidget {
     );
   }
 }
-
