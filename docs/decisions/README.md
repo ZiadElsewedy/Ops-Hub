@@ -21,6 +21,7 @@ probably already weighed. Reversing one is fine; doing it *unknowingly* is not.
 | [ADR-011](ADR-011-automation-observability.md) | Automation execution observability (scoped carve-out of ADR-009/010) | Accepted |
 | [ADR-012](ADR-012-chat-directory-is-flat.md) | Chat is not org-scoped: a flat participant directory | Accepted |
 | [ADR-013](ADR-013-task-grace-period.md) | A fixed 30-minute grace period before a task is Missed | Accepted |
+| [ADR-014](ADR-014-task-card-border-language.md) | The task card's 1px edge is the state; only a new task gets attention | Accepted |
 
 ## Writing a new one
 

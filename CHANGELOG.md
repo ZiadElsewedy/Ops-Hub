@@ -18,6 +18,30 @@ released — DROP ships from branches and has no version tags.
 
 ### 2026-07-29
 
+- **The task card's edge is now the state, and it stopped moving** (polish;
+  MED risk — replaces a lived-in UI on one surface). Owner-approved from a
+  high-fidelity mockup before any code was written; ruled in
+  [ADR-014](docs/decisions/ADR-014-task-card-border-language.md).
+  - **`LiveStatusBorder`'s perpetual orbit is gone from Employee Home.** Every
+    actionable card used to run a comet around its full border forever, so
+    nothing on the screen was ever still and nothing could be emphasised. Now a
+    single soft 1px hairline carries the status (`taskAttentionTone`), and it
+    does not animate: white (new) · blue (started) · amber (in review) · green
+    (approved) · red (missed/rejected) · grey (cancelled).
+  - **Only a genuinely new task gets attention** — new `TaskAttentionSurface`
+    gives an unopened `pending` card an Apple-quiet treatment: ambient white
+    bloom, a 3% bevel highlight, a specular hairline, and **one shimmer across a
+    short section of the top edge every 9 seconds**. It never reaches a corner,
+    which is what keeps it from reading as an orbit or a spinner. Reduced motion
+    drops the shimmer and keeps the static layers.
+  - **Opening or starting the task clears it permanently** (200ms). New
+    `TaskSeenStore` — a per-uid JSON file mirroring `CaseSeenStore`, so this is
+    **client-only: no schema change, no rules deploy**.
+  - New `AppColors.info` (the fourth and final semantic colour, hairline only);
+    `LiveStatusBorder` still runs on My Tasks, the admin dashboard, and
+    `AttentionTile` — deliberately out of scope. **On-device visual sign-off
+    still pending.**
+
 - **Fixed: the deployed rules denied every task creation** (bug; HIGH severity,
   LOW-risk fix). Reported from the running app as *"The caller does not have
   permission to execute the specified operation"* — a task would appear briefly,
