@@ -1,58 +1,145 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/stat_strip.dart';
-import 'package:drop/features/attendance/domain/attendance_analytics.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
+import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
 
-/// The Attendance History **summary strip** — the glanceable "here's the period"
-/// facts (present / late / absent / rate / average arrival / worked), computed by
-/// the pure [AttendanceStats] over the selected date window. Composes the shared
-/// [StatStrip] so it reads the same as every other DROP fact row; late/absent
-/// carry a semantic tint **only when non-zero** (calm at zero, like AttentionTile).
-class AttendanceHistorySummary extends StatelessWidget {
-  const AttendanceHistorySummary({super.key, required this.stats});
+/// The Attendance History summary strip, backed by the persisted
+/// `attendance_expectations` reporting ledger. It never reconstructs reporting
+/// numbers from raw attendance records or schedules.
+class AttendanceHistorySummary extends StatefulWidget {
+  const AttendanceHistorySummary({
+    super.key,
+    required this.isReview,
+    required this.userId,
+    required this.branchId,
+    required this.window,
+  });
 
-  final AttendanceStats stats;
+  final bool isReview;
+  final String? userId;
+  final String? branchId;
+  final AttendancePeriodWindow window;
+
+  @override
+  State<AttendanceHistorySummary> createState() =>
+      _AttendanceHistorySummaryState();
+}
+
+class _AttendanceHistorySummaryState extends State<AttendanceHistorySummary> {
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(covariant AttendanceHistorySummary oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isReview != widget.isReview ||
+        oldWidget.userId != widget.userId ||
+        oldWidget.branchId != widget.branchId ||
+        oldWidget.window != widget.window) {
+      _sync();
+    }
+  }
+
+  void _sync() {
+    final cubit = context.read<AttendanceReportCubit>();
+    if (widget.isReview) {
+      cubit.watchBranchWindow(branchId: widget.branchId, window: widget.window);
+    } else {
+      cubit.watchUserWindow(userId: widget.userId, window: widget.window);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final expected = stats.presentCount + stats.absentCount;
-    return StatStrip(
-      stats: [
-        Stat(label: 'Present', count: stats.presentCount),
-        Stat(
-          label: 'Late',
-          count: stats.lateCount,
-          tone: stats.lateCount > 0 ? AppColors.warning : null,
-        ),
-        Stat(
-          label: 'Absent',
-          count: stats.absentCount,
-          tone: stats.absentCount > 0 ? AppColors.error : null,
-        ),
-        // Only shown once there's something to report — a forgiven absence is
-        // benign, so it stays out of the strip on a clean period.
-        if (stats.excusedCount > 0)
-          Stat(label: 'Excused', count: stats.excusedCount),
-        Stat(
-          label: 'Rate',
-          value: expected == 0 ? '—' : '${stats.attendancePercent.round()}%',
-        ),
-        Stat(label: 'Avg arrival', value: _arrival(stats.avgArrivalMinuteOfDay)),
-        Stat(label: 'Worked', value: _worked(stats.workedMinutes)),
-      ],
+    return BlocBuilder<AttendanceReportCubit, AttendanceReportState>(
+      builder: (context, state) {
+        if (state.status == AttendanceReportStatus.error) {
+          return const StatStrip(
+            stats: [
+              Stat(label: 'Ledger status', value: 'Unavailable'),
+              Stat(label: 'Rows read', value: '--'),
+              Stat(label: 'Payroll blockers', value: '--'),
+            ],
+          );
+        }
+        if (state.status == AttendanceReportStatus.loading &&
+            !state.coverage.hasRows) {
+          return const StatStrip(
+            stats: [
+              Stat(label: 'Ledger status', value: 'Loading'),
+              Stat(label: 'Rows read', value: '--'),
+              Stat(label: 'Payroll blockers', value: '--'),
+            ],
+          );
+        }
+        if (state.coverage.awaitingClose) {
+          return const StatStrip(
+            stats: [
+              Stat(label: 'Period not closed', value: 'Awaiting close'),
+              Stat(label: 'Ledger rows', count: 0),
+              Stat(label: 'Payroll blockers', value: '--'),
+            ],
+          );
+        }
+        return _SummaryStrip(state: state);
+      },
+    );
+  }
+}
+
+class _SummaryStrip extends StatelessWidget {
+  const _SummaryStrip({required this.state});
+
+  final AttendanceReportState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = state.summary;
+    return Tooltip(
+      message: [
+        summary.showUpRate.describe(),
+        summary.punctualArrivalRate.describe(),
+      ].join('\n'),
+      child: StatStrip(
+        stats: [
+          Stat(label: 'Present', count: summary.present),
+          Stat(
+            label: 'Absent',
+            count: summary.absent,
+            tone: summary.absent > 0 ? AppColors.error : null,
+          ),
+          if (summary.excused > 0)
+            Stat(label: 'Excused', count: summary.excused),
+          Stat(label: 'Show-up rate', value: _rate(summary.showUpRate)),
+          Stat(
+            label: 'Punctual arrivals',
+            value: _rate(summary.punctualArrivalRate),
+          ),
+          Stat(label: 'Worked', value: _worked(summary.workedMinutes)),
+          Stat(
+            label: 'Payroll blockers',
+            count: state.coverage.blockingExceptionRowCount,
+            tone: state.coverage.blockingExceptionRowCount > 0
+                ? AppColors.warning
+                : null,
+          ),
+        ],
+      ),
     );
   }
 
-  /// Minutes-past-midnight → a 12-hour wall-clock string (e.g. `9:04 AM`), via
-  /// the single date formatter. `—` when nobody clocked in.
-  static String _arrival(double? minuteOfDay) {
-    if (minuteOfDay == null) return '—';
-    final m = minuteOfDay.round();
-    return AppDateFormatter.time(DateTime(2000, 1, 1, m ~/ 60, m % 60));
+  static String _rate(AttendanceRate rate) {
+    final percent = rate.percent;
+    return percent == null ? '--' : '${percent.round()}%';
   }
 
-  /// Total worked minutes as `Hh Mm` (e.g. `148h 30m`), or `0h` when none.
   static String _worked(int minutes) {
     if (minutes <= 0) return '0h';
     final h = minutes ~/ 60;

@@ -9,13 +9,14 @@ import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/features/attendance/domain/attendance_analytics.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_cubit.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_state.dart';
 import 'package:drop/features/attendance/presentation/history/widgets/attendance_history_filters.dart';
 import 'package:drop/features/attendance/presentation/history/widgets/attendance_history_summary.dart';
+import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/attendance/presentation/history/widgets/attendance_record_card.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
@@ -33,9 +34,9 @@ import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 /// existing repository reads. Tapping a card opens the record's Details screen.
 class AttendanceHistoryScreen extends StatelessWidget {
   const AttendanceHistoryScreen.self({super.key})
-      : mode = AttendanceHistoryMode.self,
-        initialBranchId = null,
-        initialSearch = null;
+    : mode = AttendanceHistoryMode.self,
+      initialBranchId = null,
+      initialSearch = null;
 
   const AttendanceHistoryScreen.review({
     super.key,
@@ -56,13 +57,20 @@ class AttendanceHistoryScreen extends StatelessWidget {
     // loads (handled in the view).
     final branchId = isReview ? (initialBranchId ?? user?.branchId) : null;
 
-    return BlocProvider<AttendanceHistoryCubit>(
-      create: (_) => AppDependencies.createAttendanceHistoryCubit(
-        mode: mode,
-        userId: user?.uid,
-        branchId: branchId,
-        initialSearch: initialSearch,
-      )..load(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AttendanceHistoryCubit>(
+          create: (_) => AppDependencies.createAttendanceHistoryCubit(
+            mode: mode,
+            userId: user?.uid,
+            branchId: branchId,
+            initialSearch: initialSearch,
+          )..load(),
+        ),
+        BlocProvider<AttendanceReportCubit>(
+          create: (_) => AppDependencies.createAttendanceReportCubit(),
+        ),
+      ],
       child: _HistoryView(mode: mode),
     );
   }
@@ -99,8 +107,10 @@ class _HistoryViewState extends State<_HistoryView> {
     if (historyCubit.branchId != null && historyCubit.branchId!.isNotEmpty) {
       return;
     }
-    final branches = branchCubit.state
-        .maybeWhen(loaded: (b, _) => b, orElse: () => const <BranchEntity>[]);
+    final branches = branchCubit.state.maybeWhen(
+      loaded: (b, _) => b,
+      orElse: () => const <BranchEntity>[],
+    );
     if (branches.isNotEmpty) historyCubit.selectBranch(branches.first.id);
   }
 
@@ -113,8 +123,8 @@ class _HistoryViewState extends State<_HistoryView> {
         builder: (context, state) => state.maybeMap(
           loaded: (s) => _Loaded(
             isReview: _isReview,
+            userId: context.currentUser?.uid,
             records: s.records,
-            stats: s.stats,
             query: s.query,
             branchId: s.branchId,
           ),
@@ -129,15 +139,15 @@ class _HistoryViewState extends State<_HistoryView> {
 class _Loaded extends StatelessWidget {
   const _Loaded({
     required this.isReview,
+    required this.userId,
     required this.records,
-    required this.stats,
     required this.query,
     required this.branchId,
   });
 
   final bool isReview;
+  final String? userId;
   final List<AttendanceEntity> records;
-  final AttendanceStats stats;
   final AttendanceHistoryQuery query;
   final String? branchId;
 
@@ -158,7 +168,12 @@ class _Loaded extends StatelessWidget {
             _BranchPicker(selectedId: branchId),
             const SizedBox(height: AppSpacing.md),
           ],
-          AttendanceHistorySummary(stats: stats),
+          AttendanceHistorySummary(
+            isReview: isReview,
+            userId: userId,
+            branchId: branchId,
+            window: _reportWindow(query.resolveRange(DateTime.now())),
+          ),
           const SizedBox(height: AppSpacing.lg),
           AttendanceHistoryFilters(
             query: query,
@@ -179,10 +194,8 @@ class _Loaded extends StatelessWidget {
                 child: AttendanceRecordCard(
                   record: r,
                   showEmployee: isReview,
-                  onTap: () => context.push(
-                    RouteNames.attendanceRecord(r.id),
-                    extra: r,
-                  ),
+                  onTap: () =>
+                      context.push(RouteNames.attendanceRecord(r.id), extra: r),
                 ),
               ),
         ],
@@ -190,6 +203,9 @@ class _Loaded extends StatelessWidget {
     );
   }
 }
+
+AttendancePeriodWindow _reportWindow(DateWindow window) =>
+    AttendancePeriodWindow(startDate: window.start, endDate: window.end);
 
 /// A calm inline empty state for the ledger — distinguishes "no matches for these
 /// filters" from "nothing recorded this period".
@@ -203,21 +219,25 @@ class _EmptyMessage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
       child: Column(
         children: [
-          const Icon(Icons.event_busy_outlined,
-              size: 40, color: AppColors.textTertiary),
+          const Icon(
+            Icons.event_busy_outlined,
+            size: 40,
+            color: AppColors.textTertiary,
+          ),
           const SizedBox(height: AppSpacing.md),
           Text(
             hasFacets ? 'No matches' : 'Nothing here',
             style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700),
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             hasFacets
                 ? 'No attendance matches these filters. Try widening the date '
-                    'range or clearing a filter.'
+                      'range or clearing a filter.'
                 : 'No attendance was recorded for this period.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: AppColors.textTertiary, fontSize: 13),
@@ -241,11 +261,15 @@ class _BranchPicker extends StatelessWidget {
     return BlocBuilder<BranchCubit, BranchState>(
       builder: (context, state) {
         final branches = state.maybeWhen(
-            loaded: (b, _) => b, orElse: () => const <BranchEntity>[]);
+          loaded: (b, _) => b,
+          orElse: () => const <BranchEntity>[],
+        );
         if (branches.length < 2) return const SizedBox.shrink();
         return Container(
           padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md, vertical: 2),
+            horizontal: AppSpacing.md,
+            vertical: 2,
+          ),
           decoration: BoxDecoration(
             color: AppColors.darkSurfaceElevated,
             borderRadius: AppRadius.mdAll,
@@ -253,19 +277,26 @@ class _BranchPicker extends StatelessWidget {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: branches.any((b) => b.id == selectedId) ? selectedId : null,
+              value: branches.any((b) => b.id == selectedId)
+                  ? selectedId
+                  : null,
               isExpanded: true,
               isDense: true,
               borderRadius: AppRadius.lgAll,
               dropdownColor: AppColors.darkSurfaceElevated,
-              hint: const Text('Select a branch',
-                  style: TextStyle(color: AppColors.textTertiary, fontSize: 14)),
-              icon: const Icon(Icons.expand_more_rounded,
-                  color: AppColors.textSecondary),
+              hint: const Text(
+                'Select a branch',
+                style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
+              ),
+              icon: const Icon(
+                Icons.expand_more_rounded,
+                color: AppColors.textSecondary,
+              ),
               style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700),
+                color: AppColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
               onChanged: (v) {
                 if (v != null) {
                   context.read<AttendanceHistoryCubit>().selectBranch(v);

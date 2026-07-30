@@ -100,10 +100,13 @@ import 'package:drop/features/requests/domain/usecases/upload_request_attachment
 import 'package:drop/features/requests/presentation/cubit/request_detail_cubit.dart';
 import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
 import 'package:drop/features/attendance/data/datasources/attendance_remote_datasource.dart';
+import 'package:drop/features/attendance/data/datasources/attendance_reporting_datasource.dart';
 import 'package:drop/features/attendance/data/repositories/attendance_repository_impl.dart';
+import 'package:drop/features/attendance/data/repositories/attendance_reporting_repository_impl.dart';
 import 'package:drop/features/attendance/data/services/geolocator_location_service.dart';
 import 'package:drop/features/attendance/domain/attendance_service.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
 import 'package:drop/features/attendance/domain/usecases/clock_in.dart';
 import 'package:drop/features/attendance/domain/usecases/clock_out.dart';
 import 'package:drop/features/attendance/domain/usecases/decide_correction.dart';
@@ -114,6 +117,7 @@ import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cub
 import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:drop/features/attendance/presentation/details/attendance_details_cubit.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_cubit.dart';
+import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/audit/data/datasources/audit_remote_datasource.dart';
 import 'package:drop/features/audit/data/repositories/audit_repository_impl.dart';
 import 'package:drop/features/audit/domain/repositories/audit_repository.dart';
@@ -410,6 +414,7 @@ class AppDependencies {
   // be built on demand (one per opened ledger / record), the same pattern as the
   // requests detail cubit. The employee/admin cubits above hold it internally.
   static late final AttendanceRepository _attendanceRepository;
+  static late final AttendanceReportingRepository _attendanceReportingRepository;
 
   /// Builds a fresh Attendance History ledger cubit — the employee's own history
   /// ([AttendanceHistoryMode.self]) or a manager/admin branch review
@@ -427,6 +432,12 @@ class AppDependencies {
         branchId: branchId,
         query: AttendanceHistoryQuery(text: initialSearch ?? ''),
       );
+
+  /// Builds a fresh Attendance Reporting cubit. Reporting reads only the
+  /// `attendance_expectations` ledger; raw attendance and schedules stay out of
+  /// this read path by contract (ADR-017).
+  static AttendanceReportCubit createAttendanceReportCubit() =>
+      AttendanceReportCubit(repository: _attendanceReportingRepository);
 
   /// Builds a fresh Attendance record Details cubit (record + server-derived
   /// audit trail + corrections), seeded from the tapped record for an instant
@@ -678,8 +689,13 @@ class AppDependencies {
         FirebaseStorage.instance,
       ),
     );
+    final AttendanceReportingRepository attendanceReportingRepository =
+        AttendanceReportingRepositoryImpl(
+          AttendanceReportingDataSourceImpl(FirebaseFirestore.instance),
+        );
     // Shared with the on-demand History / Details cubit factories.
     _attendanceRepository = attendanceRepository;
+    _attendanceReportingRepository = attendanceReportingRepository;
     attendanceCubit = AttendanceCubit(
       repository: attendanceRepository,
       scheduleRepository: scheduleRepository,

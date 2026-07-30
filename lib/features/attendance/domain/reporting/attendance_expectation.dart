@@ -41,7 +41,13 @@ enum ExpectedShiftOutcome {
       this == ExpectedShiftOutcome.noRecordYet;
 }
 
-/// One expected attendance row for a `(uid, business date, shift)` slot.
+/// Client-side parity model for the server close pipeline.
+///
+/// [ExpectedShiftRow] is computed from roster × raw attendance records so tests
+/// can keep the Flutter rules aligned with `closeAttendanceExpectations`. It is
+/// not a reporting read model. Attendance reports read the persisted
+/// `attendance_expectations` ledger instead, so numbers are durable, auditable,
+/// and identical for every reader.
 class ExpectedShiftRow {
   const ExpectedShiftRow({
     required this.uid,
@@ -94,18 +100,18 @@ class ExpectedShiftRow {
 
   @override
   int get hashCode => Object.hash(
-        uid,
-        branchId,
-        date,
-        shift,
-        scheduledStart,
-        scheduledEnd,
-        outcome,
-        recordId,
-        leaveType,
-        totals,
-        Object.hashAll(exceptions),
-      );
+    uid,
+    branchId,
+    date,
+    shift,
+    scheduledStart,
+    scheduledEnd,
+    outcome,
+    recordId,
+    leaveType,
+    totals,
+    Object.hashAll(exceptions),
+  );
 
   @override
   String toString() =>
@@ -137,7 +143,11 @@ List<ExpectedShiftRow> buildExpectedShiftRows({
 
     for (final shift in ScheduleShift.values) {
       final hours = schedule.hoursFor(day, shift);
-      final scheduledStart = ShiftWindow.startOf(schedule.weekStart, day, hours);
+      final scheduledStart = ShiftWindow.startOf(
+        schedule.weekStart,
+        day,
+        hours,
+      );
       final scheduledEnd = ShiftWindow.endOf(schedule.weekStart, day, hours);
       final employees = schedule.employeesFor(day, shift).toSet().toList()
         ..sort();
@@ -164,19 +174,21 @@ List<ExpectedShiftRow> buildExpectedShiftRows({
           scheduledEnd: scheduledEnd,
         );
 
-        rows.add(ExpectedShiftRow(
-          uid: uid,
-          branchId: schedule.branchId,
-          date: date,
-          shift: shift,
-          scheduledStart: scheduledStart,
-          scheduledEnd: scheduledEnd,
-          outcome: outcome,
-          recordId: record?.id,
-          leaveType: leaveType,
-          totals: totals,
-          exceptions: exceptions,
-        ));
+        rows.add(
+          ExpectedShiftRow(
+            uid: uid,
+            branchId: schedule.branchId,
+            date: date,
+            shift: shift,
+            scheduledStart: scheduledStart,
+            scheduledEnd: scheduledEnd,
+            outcome: outcome,
+            recordId: record?.id,
+            leaveType: leaveType,
+            totals: totals,
+            exceptions: exceptions,
+          ),
+        );
       }
     }
   }
@@ -201,7 +213,8 @@ List<ExpectedShiftRow> unscheduledWorkRows({
     if (record.isDeleted) continue;
     final recordWeekStart = ScheduleWeek.startOf(record.date);
     final day = ScheduleDay.fromDate(record.date);
-    final hasRosterSlot = recordWeekStart == scheduleWeekStart &&
+    final hasRosterSlot =
+        recordWeekStart == scheduleWeekStart &&
         schedule.isAssigned(record.userId, day, record.shift);
     if (!record.isUnscheduled && hasRosterSlot) continue;
 
@@ -215,22 +228,23 @@ List<ExpectedShiftRow> unscheduledWorkRows({
     final exceptions = <AttendanceExceptionCode>{
       ...baseExceptions,
       AttendanceExceptionCode.unscheduledWork,
-    }.toList()
-      ..sort((a, b) => a.index.compareTo(b.index));
+    }.toList()..sort((a, b) => a.index.compareTo(b.index));
 
-    rows.add(ExpectedShiftRow(
-      uid: record.userId,
-      branchId: record.branchId ?? schedule.branchId,
-      date: record.date,
-      shift: record.shift,
-      scheduledStart: record.scheduledStart,
-      scheduledEnd: record.scheduledEnd,
-      outcome: _classifyRecordOutcome(record, totals),
-      recordId: record.id,
-      leaveType: null,
-      totals: totals,
-      exceptions: exceptions,
-    ));
+    rows.add(
+      ExpectedShiftRow(
+        uid: record.userId,
+        branchId: record.branchId ?? schedule.branchId,
+        date: record.date,
+        shift: record.shift,
+        scheduledStart: record.scheduledStart,
+        scheduledEnd: record.scheduledEnd,
+        outcome: _classifyRecordOutcome(record, totals),
+        recordId: record.id,
+        leaveType: null,
+        totals: totals,
+        exceptions: exceptions,
+      ),
+    );
   }
 
   rows.sort(_compareRows);
@@ -258,7 +272,9 @@ ExpectedShiftOutcome _classifyExpectedOutcome({
         : ExpectedShiftOutcome.absent;
   }
   if (record.status.isAbsence) return ExpectedShiftOutcome.absent;
-  if (record.status == AttendanceStatus.onLeave) return ExpectedShiftOutcome.onLeave;
+  if (record.status == AttendanceStatus.onLeave) {
+    return ExpectedShiftOutcome.onLeave;
+  }
   return _classifyRecordOutcome(record, totals);
 }
 
@@ -284,7 +300,9 @@ int _compareRows(ExpectedShiftRow a, ExpectedShiftRow b) {
 bool _listEquals<T>(List<T> a, List<T> b) {
   if (a.length != b.length) return false;
   for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) return false;
+    if (a[i] != b[i]) {
+      return false;
+    }
   }
   return true;
 }

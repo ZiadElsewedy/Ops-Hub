@@ -28,6 +28,20 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-30
 
+- **Attendance reporting read layer** (feature; HIGH operational importance,
+  MED risk — payroll-facing numbers now depend on the materialized ledger).
+  Added the client read path for `attendance_expectations`: persisted
+  `AttendanceLedgerRow` + defensive Firestore model parsing, read-only
+  datasource/repository streams over the deployed `(branchId, dayKey)` and
+  `(userId, dayKey)` composites, `AttendanceReportSummary.fromLedger`, a plain
+  Cubit/state with explicit `LedgerCoverage`, and DI wiring. The existing
+  Attendance History summary strip now reads ledger-derived show-up and punctual
+  arrival metrics and renders **Awaiting close** for an empty ledger window
+  instead of dangerous real-looking zeroes. Added source-guard tests so reporting
+  files cannot re-import `AttendanceStats`, roster reconstruction, board code, or
+  schedule reads. Weekly/Monthly reports and export remain future slices; the
+  close Function still requires deployment before production periods have rows.
+
 - **Attendance expectation close pipeline** (feature; HIGH operational importance,
   MED risk — payroll-relevant server materialization, additive collection). Added
   the Cloud Functions pure module `functions/attendance_expectation.js`, mirroring

@@ -34,7 +34,7 @@ shift_swaps/{swapId}                     swap request between two employees
 
 attendance/{uid}_{yyyyMMdd}_{shift}      one record per person per shift per day
   └── events/{eventId}                   audit trail — ADMIN SDK ONLY, immutable
-attendance_expectations/{same id}        server-materialized expected slot row / no-show reporting fact (ADR-017)
+attendance_expectations/{same id}        server-materialized expected slot row / no-show reporting fact (ADR-017); client reporting reads this ledger only
 attendance_corrections/{id}              Pending → Approved/Rejected approval object
 
 cases/{caseId}                           private conversation (NO creator uid on the doc)
