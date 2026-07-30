@@ -193,8 +193,11 @@ with explicit denominators. The server-side close slice now mirrors that contrac
 writes one `attendance_expectations/{uid}_{yyyyMMdd}_{shift}` row per closed
 rostered slot, and restates rows by version when attendance inputs change. The
 week-wide sweep is self-healing for missed runs inside the active week, so a
-rostered day no longer falls permanently out of reach during that week. **Requires
-a functions deploy before this wider window takes effect in production.** The
+rostered day no longer falls permanently out of reach during that week. **The
+widened sweep is DEPLOYED** — `closeAttendanceExpectations` was updated in
+`us-central1` on 2026-07-30 23:20Z (revision `00005`, Node 22, 2nd Gen), so this
+is the one function no longer waiting on the standing backlog. Every *other*
+pending function still is. The
 previous production pipeline was verified on 2026-07-30 11:39Z with 3 real
 20260729 absent phantom no-show rows for branch `DDwedTHvI1sPHrMz06PI`, while
 branch `ikMkXApQQFeMsYFFu97X` legitimately had no recent rows because no roster
@@ -385,7 +388,7 @@ Nothing below works in production until it is deployed. The missing live
 
 | Target | Carries | Blocks |
 | --- | --- | --- |
-| `functions` | 24 functions incl. `onAttendanceWritten`, `onAttendanceCorrectionWritten`, `autoCloseAttendance`, **`closeAttendanceExpectations`** (30-min expected-slot/no-show materialization), `generateShiftTaskInstances`, **`autoEndRecurringShiftTasks`** (15-min missed close **+ the new notify-on-Missed**), **`onRecurringTemplateWritten`** (automation lifecycle audit), `onCase*`, `onRequest*`, `sendBroadcast`, `claimFcmToken`; **`sendNotification` now whitelists `taskCancelled` / `taskReportedIncorrect`** | Attendance audit · attendance reporting denominator · recurring deadlines · automation · **cancel + report notifications** · cases · requests · **all push** |
+| `functions` | 24 functions incl. `onAttendanceWritten`, `onAttendanceCorrectionWritten`, `autoCloseAttendance`, ~~`closeAttendanceExpectations`~~ (**deployed 2026-07-30 23:20Z** — the widened week sweep is live; the rest of this row is not), `generateShiftTaskInstances`, **`autoEndRecurringShiftTasks`** (15-min missed close **+ the new notify-on-Missed**), **`onRecurringTemplateWritten`** (automation lifecycle audit), `onCase*`, `onRequest*`, `sendBroadcast`, `claimFcmToken`; **`sendNotification` now whitelists `taskCancelled` / `taskReportedIncorrect`** | Attendance audit · attendance reporting denominator · recurring deadlines · automation · **cancel + report notifications** · cases · requests · **all push** |
 | `firestore:rules` | `shift_templates`; Task review-field freeze + non-decreasing `activityLog` + server-owned Missed lock; **task cancellation** (manager/admin-only, `pending`/`started` predecessor, mandatory picklist reason, cancelled record frozen) + the **admin terminal correction** carve-out + the **incorrect-report** guards + employee scheduled-start enforcement for `started`; attendance + corrections; cases; requests | **Schedule creation/configurable hours** · Task hardening (P0/P1) · recurring deadline integrity · **cancellation integrity + terminal correction + start-time integrity** · attendance · cases |
 | `firestore:indexes` | `tasks` composites (`branchId`+`assignmentType`+`shift`; `assignmentType`+`status`+`deadline`); `attendance_expectations` `(branchId,dayKey)` + `(userId,dayKey)`; **`automationRuns` `(branchId,templateId,startedAt)` + `(branchId,status,startedAt)`** | Employee shift-task stream (`failed-precondition` without it) · attendance reports · automatic recurring close · automation run history |
 | `storage` | `validMedia()` + orphan GC | Media hardening |
