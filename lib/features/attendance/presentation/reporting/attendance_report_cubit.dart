@@ -119,11 +119,23 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
   void _onStreamError(Object e, StackTrace st) {
     AppLog.error('attendance', 'report ledger stream error', e, st);
     if (!isClosed) {
-      final message = e is Failure
-          ? e.message
-          : 'Failed to load attendance report.';
+      final message = _messageForError(e);
       emit(AttendanceReportState.error(message));
     }
+  }
+
+  String _messageForError(Object e) {
+    if (e is Failure) return e.message;
+    final raw = e.toString();
+    final lower = raw.toLowerCase();
+    if (lower.contains('failed-precondition') ||
+        lower.contains('requires an index') ||
+        lower.contains('composite index')) {
+      return 'Attendance report query requires the deployed '
+          'attendance_expectations branch/dayKey or user/dayKey composite '
+          'index. Deploy firestore.indexes.json, then reload. $raw';
+    }
+    return 'Failed to load attendance report. $raw';
   }
 
   @override

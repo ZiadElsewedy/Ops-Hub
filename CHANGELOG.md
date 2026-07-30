@@ -28,6 +28,22 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-30
 
+- **Attendance Reports Dashboard** (feature; MED risk — first manager/admin
+  reporting surface over payroll-adjacent ledger facts). Added
+  `/attendance/reports` as the Attendance & Reports hub for admin and manager,
+  wired into the desktop sidebar label while employees keep the plain Attendance
+  entry and are route-guarded away. The screen reads only the
+  `attendance_expectations` reporting ledger via the existing
+  `AttendanceReportCubit`: branch scope lives in the header, managers are pinned
+  to their branch, branchless admins must choose one explicitly, Week/Month
+  windows use the reporting period helpers, and future-period navigation is
+  disabled. Empty ledger coverage renders **Awaiting close** with no rate or
+  zero-valued metric grid; rows present render denominated cards for expected
+  shifts, present, absent, show-up, punctual arrivals, worked time, and excluded
+  context. Later Weekly/Monthly/per-employee/export/exception surfaces are shown
+  as disabled **Coming next** entries. The reporting source guard now covers the
+  new screen and widgets.
+
 - **Attendance reporting read layer** (feature; HIGH operational importance,
   MED risk — payroll-facing numbers now depend on the materialized ledger).
   Added the client read path for `attendance_expectations`: persisted

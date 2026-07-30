@@ -117,8 +117,8 @@ class AppShell extends StatefulWidget {
               SidebarItem(
                 icon: Icons.fingerprint_rounded,
                 activeIcon: Icons.fingerprint_rounded,
-                label: 'Attendance',
-                route: RouteNames.adminAttendance,
+                label: 'Attendance & Reports',
+                route: RouteNames.attendanceReports,
               ),
               communications,
               chat,
@@ -182,8 +182,8 @@ class AppShell extends StatefulWidget {
               SidebarItem(
                 icon: Icons.fingerprint_rounded,
                 activeIcon: Icons.fingerprint_rounded,
-                label: 'Attendance',
-                route: RouteNames.attendanceReview,
+                label: 'Attendance & Reports',
+                route: RouteNames.attendanceReports,
               ),
               communications,
               chat,

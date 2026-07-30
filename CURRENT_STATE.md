@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1192 pass · 2 fail** across 171 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **60 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1195 pass · 2 fail** across 173 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **60 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -171,7 +171,7 @@ phases and committed; what remains is deployment and on-device verification.
 
 > Attendance minutes feed payroll. Do not ship it on a simulator's word.
 
-**Attendance Reporting System — DIRECTION ACCEPTED 2026-07-30, SERVER CLOSE PIPELINE + READ LAYER ADDED.**
+**Attendance Reporting System — DIRECTION ACCEPTED 2026-07-30, SERVER CLOSE PIPELINE + READ LAYER + FIRST HUB ADDED.**
 The owner accepted the reporting reframe, so
 [ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md) is **Accepted**:
 Attendance is an operational reporting ledger, a scoped carve-out of
@@ -191,7 +191,11 @@ with explicit denominators. The server-side close slice now mirrors that contrac
 30-minute Cloud Function that scans the current and previous Africa/Cairo business
 day, writes one `attendance_expectations/{uid}_{yyyyMMdd}_{shift}` row per closed
 rostered slot, and restates rows by version when attendance inputs change. This
-requires a functions/rules/indexes deploy before production reports can trust it.
+pipeline is live and verified in production as of 2026-07-30 11:39Z; the
+`attendance_expectations` ledger contains 3 real 20260729 absent phantom no-show
+rows for branch `DDwedTHvI1sPHrMz06PI`, while branch `ikMkXApQQFeMsYFFu97X`
+legitimately has no recent rows because no roster was published. The two reporting
+composites are deployed: `(branchId, dayKey)` and `(userId, dayKey)`.
 The client read layer now treats `attendance_expectations` as the only reporting
 source: `AttendanceLedgerRow`/`AttendanceLedgerModel`, read-only branch/dayKey and
 user/dayKey range streams, `AttendanceReportSummary.fromLedger`, and
@@ -201,6 +205,14 @@ close** when a period has no ledger rows, rather than showing `0%` or zero-prese
 figures. The History list and live board still read raw `attendance` records by
 design; the source guard forbids those reconstruction paths only inside the
 reporting read path.
+
+The first reporting surface now exists at `/attendance/reports`: the
+manager/admin **Attendance & Reports** hub. It is desktop-first with a stacked
+mobile form, pins managers to their branch, forces branchless admins to choose an
+explicit branch, supports Week/Month period windows, blocks future-period
+navigation, and renders the metric grid only when `LedgerCoverage.hasRows` is true.
+Weekly, Monthly, per-employee, exception queue, branch comparison, and export
+surfaces remain later slices and appear as disabled **Coming next** affordances.
 
 ### Removed — do not re-add
 
@@ -408,7 +420,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1192 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1195 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 60 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 46

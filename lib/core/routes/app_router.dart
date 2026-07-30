@@ -49,6 +49,7 @@ import 'package:drop/features/attendance/presentation/pages/attendance_screen.da
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_screen.dart';
 import 'package:drop/features/attendance/presentation/details/attendance_details_screen.dart';
+import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
 import 'package:drop/features/requests/presentation/pages/requests_screen.dart';
 import 'package:drop/features/requests/presentation/pages/create_request_screen.dart';
 import 'package:drop/features/requests/presentation/pages/request_detail_screen.dart';
@@ -340,6 +341,11 @@ GoRouter createRouter(
                 _slideTransition(state, const AdminAttendanceScreen()),
           ),
           GoRoute(
+            path: RouteNames.attendanceReports,
+            pageBuilder: (context, state) =>
+                _slideTransition(state, const AttendanceReportsScreen()),
+          ),
+          GoRoute(
             path: RouteNames.attendance,
             pageBuilder: (context, state) =>
                 _slideTransition(state, const AttendanceScreen()),
@@ -357,7 +363,9 @@ GoRouter createRouter(
             pageBuilder: (context, state) => _slideTransition(
               state,
               AttendanceHistoryScreen.review(
-                initialSearch: state.extra is String ? state.extra as String : null,
+                initialSearch: state.extra is String
+                    ? state.extra as String
+                    : null,
               ),
             ),
           ),
@@ -441,6 +449,11 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
     // Attendance branch review is admin + manager only; employees are bounced
     // (they still reach their OWN history at /attendance/history).
     if (_isAttendanceReviewArea(loc) && user.role.isEmployee) {
+      return roleHome;
+    }
+    // Attendance reports are manager/admin only; employees keep the clock and
+    // self-history surfaces.
+    if (_isAttendanceReportsArea(loc) && user.role.isEmployee) {
       return roleHome;
     }
     if (loc == RouteNames.home && !user.role.isEmployee) {
@@ -570,6 +583,13 @@ bool _isCommunicationsArea(String loc) =>
 bool _isAttendanceReviewArea(String loc) =>
     loc == RouteNames.attendanceReview ||
     loc.startsWith('${RouteNames.attendanceReview}/');
+
+/// True when [loc] is inside the Attendance & Reports reporting hub area.
+/// Employees are excluded here; manager/admin scope is enforced by the ledger
+/// rules and by explicit branch selection in the screen.
+bool _isAttendanceReportsArea(String loc) =>
+    loc == RouteNames.attendanceReports ||
+    loc.startsWith('${RouteNames.attendanceReports}/');
 
 class _AuthStateNotifier extends ChangeNotifier {
   _AuthStateNotifier(AuthCubit cubit) {

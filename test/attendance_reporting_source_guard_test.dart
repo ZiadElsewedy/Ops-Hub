@@ -18,6 +18,10 @@ void main() {
       'lib/features/attendance/data/repositories/attendance_reporting_repository_impl.dart',
       'lib/features/attendance/presentation/reporting/attendance_report_cubit.dart',
       'lib/features/attendance/presentation/reporting/attendance_report_state.dart',
+      'lib/features/attendance/presentation/reporting/attendance_reports_screen.dart',
+      'lib/features/attendance/presentation/reporting/widgets/attendance_report_coverage.dart',
+      'lib/features/attendance/presentation/reporting/widgets/attendance_report_metrics.dart',
+      'lib/features/attendance/presentation/reporting/widgets/attendance_report_scope_bar.dart',
       'lib/features/attendance/presentation/history/widgets/attendance_history_summary.dart',
     ];
 

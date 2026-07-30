@@ -73,6 +73,10 @@ class RouteNames {
   /// Employee GPS clock-in/out surface (also reachable by managers who clock).
   static const String attendance = '/attendance';
 
+  /// Attendance & Reports hub — manager/admin reporting surface backed only by
+  /// the materialized `attendance_expectations` ledger.
+  static const String attendanceReports = '/attendance/reports';
+
   /// Admin attendance dashboard — branch-scoped roster × attendance oversight +
   /// the correction queue (a future manager view reuses the same screen).
   static const String adminAttendance = '/admin/attendance';
