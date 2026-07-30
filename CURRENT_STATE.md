@@ -171,17 +171,24 @@ phases and committed; what remains is deployment and on-device verification.
 
 > Attendance minutes feed payroll. Do not ship it on a simulator's word.
 
-**Reporting-system audit (2026-07-30) — a PROPOSAL, nothing implemented.**
-[docs/design/ATTENDANCE_AUDIT_2026-07-30.md](docs/design/ATTENDANCE_AUDIT_2026-07-30.md)
-audits the module end to end and proposes refounding it as an operational reporting
-ledger (reports-first IA, period close/lock/export, rollups, PDF/CSV). It is owner-
-requested and **awaits a ruling** — it does not supersede the locked
-[ATTENDANCE_SPEC.md](docs/design/ATTENDANCE_SPEC.md) unless its draft **ADR-017**
-(which would amend [ADR-009](docs/decisions/ADR-009-no-analytics-pipeline.md),
-[ADR-010](docs/decisions/ADR-010-lean-over-enterprise.md), and spec §8) is accepted.
-Its P0 finding is a real defect independent of that decision: a lazy no-show writes
-no document, so the ledger's `Rate` is structurally ~always 100%
-(`attendance_analytics.dart` counts only materialized records).
+**Attendance Reporting System — DIRECTION ACCEPTED 2026-07-30, NO CODE YET.**
+The owner accepted the reporting reframe, so
+[ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md) is **Accepted**:
+Attendance is an operational reporting ledger, a scoped carve-out of
+[ADR-009](docs/decisions/ADR-009-no-analytics-pipeline.md) /
+[ADR-010](docs/decisions/ADR-010-lean-over-enterprise.md), and
+[ATTENDANCE_SPEC.md](docs/design/ATTENDANCE_SPEC.md) §8 is amended accordingly
+(the live board itself is unchanged). Rationale and the full end-to-end audit:
+[ATTENDANCE_AUDIT_2026-07-30.md](docs/design/ATTENDANCE_AUDIT_2026-07-30.md).
+Still refused: composite employee scores, leaderboards, client-authored payroll
+totals, persisted late/overtime statuses, DROP as a payroll processor.
+
+> **Nothing is implemented.** The blocking prerequisite is the audit's P0, which is a
+> **live bug** in shipped code, not a design question: a lazy no-show writes no
+> Firestore document while `attendance_analytics.dart` aggregates materialized
+> records only, so `absentCount` cannot grow and the ledger's `Rate` is structurally
+> ~always 100%. **No report surface may ship before absences are durable** — report
+> UI on today's denominator would only make wrong numbers look authoritative.
 
 ### Removed — do not re-add
 
@@ -345,6 +352,7 @@ unknowingly reversed:
 | [ADR-005](docs/decisions/ADR-005-server-authoritative-writes.md) — server-authoritative | Let a client write its own audit trail |
 | [ADR-010](docs/decisions/ADR-010-lean-over-enterprise.md) — lean | Reach for the enterprise shape |
 | [ADR-013](docs/decisions/ADR-013-task-grace-period.md) — fixed 30-min grace | Make grace configurable, add a *Completed Late* status, or let grace delay the **Late** visual (it must fire at the deadline) |
+| [ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md) — attendance reporting **ledger, not scoreboard** | Read it as licence for analytics generally (it is attendance-only), fuse attendance + tasks into one score, ship a leaderboard, persist late/overtime as statuses, compute payroll totals on the client, or ship a report before absences are durable |
 
 **Owner-frozen surfaces** — improve in-language, never replace without sign-off:
 

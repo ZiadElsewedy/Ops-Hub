@@ -24,6 +24,7 @@ probably already weighed. Reversing one is fine; doing it *unknowingly* is not.
 | [ADR-014](ADR-014-task-card-border-language.md) | The task card's 1px edge is the state; only a new task gets attention | Accepted |
 | [ADR-015](ADR-015-automation-business-timezone.md) | Automation uses the Egypt business civil day | Accepted |
 | [ADR-016](ADR-016-task-start-gate.md) | A task is visible when upcoming, startable only from `startsAt` | Accepted |
+| [ADR-017](ADR-017-attendance-reporting-ledger.md) | Attendance is an operational reporting ledger (scoped carve-out of ADR-009/010) | Accepted |
 
 ## Writing a new one
 

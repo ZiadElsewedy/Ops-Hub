@@ -233,7 +233,20 @@ late person.
 
 ---
 
-## 8. Operational Dashboard (not analytics)
+## 8. Operational Reporting Ledger
+
+> **Amended 2026-07-30 by [ADR-017](../decisions/ADR-017-attendance-reporting-ledger.md).**
+> This section was *"Operational Dashboard (not analytics)"*. Reports are now the
+> primary attendance surface; the board below remains exactly as ruled — it is the
+> **live today** view, and nothing in it changes. What changed is that the
+> "explicitly excluded" list at the end of this section is superseded: periodic
+> reports, trends over **closed** periods, and PDF/CSV export are now in scope,
+> fenced by ADR-017's metric bar (formula · denominator · computation owner ·
+> gameability · the decision it changes). Composite employee scores and
+> leaderboards remain refused. The rest of this spec is unchanged and still wins on
+> behaviour.
+
+### 8.1 The live board (unchanged)
 
 **One board, ranked by what needs a decision.** Order is fixed:
 
@@ -248,9 +261,16 @@ late person.
 auto-refresh (the board is time-derived), and a present/expected ratio. KPIs are
 **filters into the row list**, never standalone vanity numbers.
 
-**Explicitly excluded from this surface** (→ analytics, out of scope): attendance-
-rate trends, average lateness, overtime totals over time, punctuality scores,
-heatmaps.
+**Explicitly excluded from *this* surface** (they belong to the reporting surfaces,
+not the live board): attendance-rate trends, average lateness, overtime totals over
+time, punctuality scores, heatmaps.
+
+> Before [ADR-017](../decisions/ADR-017-attendance-reporting-ledger.md) this list was
+> excluded from the *product* as analytics. It is now a **placement** rule: the live
+> board stays decision-ranked and free of trend chrome, while trends and periodic
+> totals live on the report surfaces over closed periods. Punctuality *scores* as a
+> composite ranking remain refused outright; a named punctual-arrival **rate** with a
+> stated denominator is permitted on a report.
 
 ---
 
