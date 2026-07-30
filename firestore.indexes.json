@@ -43,6 +43,22 @@
       ]
     },
     {
+      "collectionGroup": "attendance_expectations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branchId", "order": "ASCENDING" },
+        { "fieldPath": "dayKey", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "attendance_expectations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "dayKey", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "attendance_corrections",
       "queryScope": "COLLECTION",
       "fields": [

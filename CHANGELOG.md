@@ -28,6 +28,24 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-30
 
+- **Attendance expectation close pipeline** (feature; HIGH operational importance,
+  MED risk — payroll-relevant server materialization, additive collection). Added
+  the Cloud Functions pure module `functions/attendance_expectation.js`, mirroring
+  the Dart reporting core's expected-row outcomes and exception codes while copying
+  persisted minute snapshots rather than recalculating payroll minutes. New
+  scheduled export `closeAttendanceExpectations` runs every 30 minutes in
+  `Africa/Cairo`, scans only the current and previous business day, resolves
+  rostered slots from `weekly_schedules`, materializes one
+  `attendance_expectations/{uid}_{yyyyMMdd}_{shift}` row per closed expected slot
+  (including phantom no-shows), skips locked rows, and restates changed rows with a
+  bumped version + `restatedAt`. Added read-only client rules for the new collection
+  (admin any, manager own branch, employee own row), denied every client write, and
+  added only the branch/day and user/day composites the future report queries need.
+  Cloud Functions tests are **60 pass** (was 46); Firestore rules are **37 pass**
+  (was 31), verified against the emulator. Requires a functions/rules/indexes
+  deploy. The legacy History/`AttendanceStats` reader still
+  ignores the expectation ledger until a later slice rewires it.
+
 - **Attendance Reporting Ledger P0 pure domain core** (feature; LOW risk — purely
   additive pure domain, no call sites yet, no existing file's behaviour changed).
   Added plain Dart value objects under

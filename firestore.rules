@@ -849,6 +849,17 @@ service cloud.firestore {
       }
     }
 
+    // ── Attendance expectations (`attendance_expectations/{rowId}`) ──
+    // Server-materialized reporting denominator rows (ADR-017). Clients may
+    // read only their scope; every write is Admin-SDK-only.
+    match /attendance_expectations/{rowId} {
+      allow read: if isAdmin()
+        || (isManager() && resource.data.branchId == selfBranch())
+        || isOwner(resource.data.userId);
+
+      allow create, update, delete: if false;
+    }
+
     // ── Attendance corrections (`attendance_corrections/{correctionId}`) ──
     // An employee disputes/fixes their OWN settled record; a manager (own branch)
     // or admin decides. The approved resolution is applied to the parent record

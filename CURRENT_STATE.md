@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1160 pass · 2 fail** across 163 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **46 pass**; **Firestore rules: 31 pass** (`cd firestore-tests && npm test`); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1160 pass · 2 fail** across 163 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **60 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -171,7 +171,7 @@ phases and committed; what remains is deployment and on-device verification.
 
 > Attendance minutes feed payroll. Do not ship it on a simulator's word.
 
-**Attendance Reporting System — DIRECTION ACCEPTED 2026-07-30, PURE DOMAIN CORE STARTED.**
+**Attendance Reporting System — DIRECTION ACCEPTED 2026-07-30, SERVER CLOSE PIPELINE ADDED.**
 The owner accepted the reporting reframe, so
 [ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md) is **Accepted**:
 Attendance is an operational reporting ledger, a scoped carve-out of
@@ -183,15 +183,18 @@ Attendance is an operational reporting ledger, a scoped carve-out of
 Still refused: composite employee scores, leaderboards, client-authored payroll
 totals, persisted late/overtime statuses, DROP as a payroll processor.
 
-The first pure, additive P0 core now exists under
+The first pure, additive P0 core exists under
 `lib/features/attendance/domain/reporting/`: period windows/ids, roster-derived
 expected-shift rows, no-show phantom rows, derived exceptions, and report summaries
-with explicit denominators. It is not wired to any read/write path. The shipped
-reporting bug remains live until a Cloud Function materializes these facts at close:
-a lazy no-show still writes no Firestore document while the legacy history summary
-aggregates materialized records only. **No report surface may ship before absences
-are durable** — report UI on today's persisted denominator would only make wrong
-numbers look authoritative.
+with explicit denominators. The server-side close slice now mirrors that contract in
+`functions/attendance_expectation.js` and exports `closeAttendanceExpectations`, a
+30-minute Cloud Function that scans the current and previous Africa/Cairo business
+day, writes one `attendance_expectations/{uid}_{yyyyMMdd}_{shift}` row per closed
+rostered slot, and restates rows by version when attendance inputs change. This
+requires a functions/rules/indexes deploy before production reports can trust it.
+The legacy History/`AttendanceStats` path still aggregates only `attendance`
+records, so it remains wrong for lazy no-shows until a later slice rewires readers to
+the expectation ledger.
 
 ### Removed — do not re-add
 
@@ -320,9 +323,9 @@ Nothing below works in production until it is deployed. The missing live
 
 | Target | Carries | Blocks |
 | --- | --- | --- |
-| `functions` | 23 functions incl. `onAttendanceWritten`, `onAttendanceCorrectionWritten`, `autoCloseAttendance`, `generateShiftTaskInstances`, **`autoEndRecurringShiftTasks`** (15-min missed close **+ the new notify-on-Missed**), **`onRecurringTemplateWritten`** (automation lifecycle audit), `onCase*`, `onRequest*`, `sendBroadcast`, `claimFcmToken`; **`sendNotification` now whitelists `taskCancelled` / `taskReportedIncorrect`** | Attendance audit · recurring deadlines · automation · **cancel + report notifications** · cases · requests · **all push** |
+| `functions` | 24 functions incl. `onAttendanceWritten`, `onAttendanceCorrectionWritten`, `autoCloseAttendance`, **`closeAttendanceExpectations`** (30-min expected-slot/no-show materialization), `generateShiftTaskInstances`, **`autoEndRecurringShiftTasks`** (15-min missed close **+ the new notify-on-Missed**), **`onRecurringTemplateWritten`** (automation lifecycle audit), `onCase*`, `onRequest*`, `sendBroadcast`, `claimFcmToken`; **`sendNotification` now whitelists `taskCancelled` / `taskReportedIncorrect`** | Attendance audit · attendance reporting denominator · recurring deadlines · automation · **cancel + report notifications** · cases · requests · **all push** |
 | `firestore:rules` | `shift_templates`; Task review-field freeze + non-decreasing `activityLog` + server-owned Missed lock; **task cancellation** (manager/admin-only, `pending`/`started` predecessor, mandatory picklist reason, cancelled record frozen) + the **admin terminal correction** carve-out + the **incorrect-report** guards + employee scheduled-start enforcement for `started`; attendance + corrections; cases; requests | **Schedule creation/configurable hours** · Task hardening (P0/P1) · recurring deadline integrity · **cancellation integrity + terminal correction + start-time integrity** · attendance · cases |
-| `firestore:indexes` | `tasks` composites (`branchId`+`assignmentType`+`shift`; `assignmentType`+`status`+`deadline`); **`automationRuns` `(branchId,templateId,startedAt)` + `(branchId,status,startedAt)`** | Employee shift-task stream (`failed-precondition` without it) · automatic recurring close · automation run history |
+| `firestore:indexes` | `tasks` composites (`branchId`+`assignmentType`+`shift`; `assignmentType`+`status`+`deadline`); `attendance_expectations` `(branchId,dayKey)` + `(userId,dayKey)`; **`automationRuns` `(branchId,templateId,startedAt)` + `(branchId,status,startedAt)`** | Employee shift-task stream (`failed-precondition` without it) · attendance reports · automatic recurring close · automation run history |
 | `storage` | `validMedia()` + orphan GC | Media hardening |
 
 ```bash
@@ -400,8 +403,8 @@ If you change status, gaps, or priorities, update this file **in the same task**
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
 flutter test                             # expect: 1160 pass, 2 fail (pre-existing: 2 splash-centering)
-(cd functions && node --test)            # expect: 46 pass
-(cd firestore-tests && npm test)         # expect: 31 pass — needs the Firebase CLI + a JDK
+(cd functions && node --test)            # expect: 60 pass
+(cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 46
 ls lib/features | wc -l                  # expect: 18
 ```

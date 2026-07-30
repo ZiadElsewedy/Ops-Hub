@@ -61,16 +61,26 @@ const REQUESTS = "requests";
 const COUNTERS = "counters";
 const ATTENDANCE = "attendance";
 const ATTENDANCE_CORRECTIONS = "attendance_corrections";
+const ATTENDANCE_EXPECTATIONS = "attendance_expectations";
 
 // Auto-close grace — mirrors AttendanceConfig.defaults.autoCloseGraceMinutes on
 // the client (the single knob until per-branch attendance config lands).
-const ATTENDANCE_AUTO_CLOSE_GRACE_MINUTES = 120;
+// The pure auto-close decision (unit-tested in test/auto_close.test.js).
+const { isAutoCloseDue } = require("./attendance_auto_close");
+const {
+  AUTO_CLOSE_GRACE_MINUTES,
+  buildExpectedShiftRows,
+  expectationInputsChanged,
+  isSlotClosable,
+  previousBusinessDay,
+  summarizeRows,
+  weekStartInfoForBusinessDay,
+} = require("./attendance_expectation");
+
+const ATTENDANCE_AUTO_CLOSE_GRACE_MINUTES = AUTO_CLOSE_GRACE_MINUTES;
 
 // Max session cap (R7 safety net) — mirrors AttendanceConfig.defaults.maxSessionMinutes.
 const ATTENDANCE_MAX_SESSION_MINUTES = 16 * 60;
-
-// The pure auto-close decision (unit-tested in test/auto_close.test.js).
-const { isAutoCloseDue } = require("./attendance_auto_close");
 const {
   BUSINESS_TIME_ZONE,
   TASK_GRACE_MS,
@@ -3683,6 +3693,252 @@ function tsMillis(v) {
   return v && typeof v.toMillis === "function" ? v.toMillis() : null;
 }
 
+function chunked(list, size) {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
+async function getAllRefs(refs) {
+  if (!refs.length) return [];
+  const out = [];
+  for (const slice of chunked(refs, 450)) {
+    out.push(...await db.getAll(...slice));
+  }
+  return out;
+}
+
+async function readSchedulesForBusinessDays(days) {
+  const weeks = new Map();
+  for (const day of days) {
+    const info = weekStartInfoForBusinessDay(day);
+    if (info) weeks.set(info.key, info);
+  }
+
+  const byWeek = new Map();
+  for (const info of weeks.values()) {
+    const snap = await db
+      .collection(WEEKLY_SCHEDULES)
+      .where("weekStart", "==", admin.firestore.Timestamp.fromMillis(info.weekStartMs))
+      .get();
+    byWeek.set(
+      info.key,
+      snap.docs.map((doc) => ({ id: doc.id, data: doc.data() || {} })),
+    );
+  }
+  return byWeek;
+}
+
+function candidateRowsForSchedules(days, schedulesByWeek, nowMs) {
+  const rows = [];
+  for (const day of days) {
+    const info = weekStartInfoForBusinessDay(day);
+    const schedules = info ? schedulesByWeek.get(info.key) || [] : [];
+    for (const sched of schedules) {
+      rows.push(...buildExpectedShiftRows({
+        schedule: { ...sched.data, id: sched.id },
+        businessDay: day,
+        nowMs,
+      }));
+    }
+  }
+  return rows;
+}
+
+async function readAttendanceRecordsById(rowIds) {
+  const refs = rowIds.map((id) => db.collection(ATTENDANCE).doc(id));
+  const snaps = await getAllRefs(refs);
+  const records = new Map();
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const data = snap.data() || {};
+    if (data.deletedAt) continue;
+    records.set(snap.id, { ...data, id: snap.id });
+  }
+  return records;
+}
+
+async function readOpenAttendanceCorrectionIds(rowIds) {
+  if (!rowIds.length) return new Set();
+  const open = new Set();
+  for (const ids of chunked(rowIds, 30)) {
+    const snap = await db
+      .collection(ATTENDANCE_CORRECTIONS)
+      .where("attendanceId", "in", ids)
+      .get();
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+      if (data.deletedAt) continue;
+      if (String(data.status || "pending") === "pending") {
+        const attendanceId = String(data.attendanceId || "");
+        if (attendanceId) open.add(attendanceId);
+      }
+    }
+  }
+  return open;
+}
+
+function groupRowsByClose(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = `${row.branchId}_${row.dayKey}_${row.shift}`;
+    const group = groups.get(key) || {
+      branchId: row.branchId,
+      dayKey: row.dayKey,
+      businessDate: row.businessDate,
+      shift: row.shift,
+      rows: [],
+    };
+    group.rows.push(row);
+    groups.set(key, group);
+  }
+  return groups;
+}
+
+function expectationAuditId(group) {
+  return `attendance_expectations_${group.branchId}_${group.dayKey}_${group.shift}`;
+}
+
+function expectationPayload(row, existing, serverTimestamp) {
+  const exists = !!existing;
+  const existingVersion = Number(existing && existing.version);
+  const changed = exists && expectationInputsChanged(row, existing);
+  const closedAt = existing && existing.closedAt ? existing.closedAt : serverTimestamp;
+  const version = exists
+    ? (changed ? (Number.isFinite(existingVersion) ? existingVersion + 1 : 2) :
+      (Number.isFinite(existingVersion) ? existingVersion : 1))
+    : 1;
+
+  return {
+    rowId: row.rowId,
+    userId: row.userId,
+    userName: row.userName,
+    branchId: row.branchId,
+    dayKey: row.dayKey,
+    businessDate: row.businessDate,
+    shift: row.shift,
+    scheduledStartAt: admin.firestore.Timestamp.fromMillis(row.scheduledStartAtMs),
+    scheduledEndAt: admin.firestore.Timestamp.fromMillis(row.scheduledEndAtMs),
+    outcome: row.outcome,
+    expected: row.expected,
+    recordId: row.recordId,
+    leaveType: row.leaveType,
+    workedMinutes: row.workedMinutes,
+    lateMinutes: row.lateMinutes,
+    earlyLeaveMinutes: row.earlyLeaveMinutes,
+    overtimeMinutes: row.overtimeMinutes,
+    exceptionCodes: row.exceptionCodes,
+    ...(exists ? {} : { locked: false }),
+    version,
+    closedAt,
+    restatedAt: changed ? serverTimestamp : ((existing && existing.restatedAt) || null),
+    source: "system",
+    schemaVersion: row.schemaVersion,
+  };
+}
+
+async function commitAttendanceExpectationGroups(rows) {
+  const serverTimestamp = admin.firestore.FieldValue.serverTimestamp();
+  let created = 0;
+  let restated = 0;
+  let skipped = 0;
+  let locked = 0;
+  let audits = 0;
+
+  for (const group of groupRowsByClose(rows).values()) {
+    const rowRefs = group.rows.map((row) => db.collection(ATTENDANCE_EXPECTATIONS).doc(row.rowId));
+    const auditRef = db.collection(AUDIT_LOGS).doc(expectationAuditId(group));
+    const snaps = await getAllRefs([...rowRefs, auditRef]);
+    const auditSnap = snaps[snaps.length - 1];
+    const rowSnaps = snaps.slice(0, -1);
+
+    const writes = [];
+    for (let i = 0; i < group.rows.length; i++) {
+      const row = group.rows[i];
+      const snap = rowSnaps[i];
+      const existing = snap && snap.exists ? (snap.data() || {}) : null;
+      if (existing && existing.locked === true) {
+        locked++;
+        continue;
+      }
+      if (existing && existing.closedAt && !expectationInputsChanged(row, existing)) {
+        skipped++;
+        continue;
+      }
+      if (existing) restated++;
+      else created++;
+      writes.push({ ref: rowRefs[i], data: expectationPayload(row, existing, serverTimestamp) });
+    }
+
+    if (writes.length === 0) continue;
+
+    const batches = chunked(writes, 449);
+    for (let i = 0; i < batches.length; i++) {
+      const batch = db.batch();
+      for (const write of batches[i]) {
+        batch.set(write.ref, write.data, { merge: true });
+      }
+      if (i === 0 && !(auditSnap && auditSnap.exists)) {
+        const counts = summarizeRows(group.rows);
+        batch.set(auditRef, {
+          eventType: "attendance.expectations_closed",
+          entityType: "attendance_expectations",
+          entityId: `${group.branchId}_${group.dayKey}_${group.shift}`,
+          actorId: "system",
+          actorName: "Attendance Close",
+          actorRole: "admin",
+          branchId: group.branchId,
+          metadata: {
+            businessDate: group.businessDate,
+            dayKey: group.dayKey,
+            shift: group.shift,
+            counts,
+          },
+          schemaVersion: 1,
+          isDeleted: false,
+          timestamp: serverTimestamp,
+        });
+        audits++;
+      }
+      await batch.commit();
+    }
+  }
+
+  return { created, restated, skipped, locked, audits };
+}
+
+async function buildClosableAttendanceExpectationRows(nowMs) {
+  const today = businessDayParts(nowMs);
+  if (!today) return [];
+  const yesterday = previousBusinessDay(today);
+  const days = [today, yesterday].filter(Boolean);
+  const schedulesByWeek = await readSchedulesForBusinessDays(days);
+  const candidates = candidateRowsForSchedules(days, schedulesByWeek, nowMs);
+  const closableCandidates = candidates.filter((row) =>
+    isSlotClosable(row, nowMs, AUTO_CLOSE_GRACE_MINUTES));
+  const rowIds = [...new Set(closableCandidates.map((row) => row.rowId))];
+  const [recordsById, openCorrectionIds] = await Promise.all([
+    readAttendanceRecordsById(rowIds),
+    readOpenAttendanceCorrectionIds(rowIds),
+  ]);
+
+  const rows = [];
+  for (const day of days) {
+    const info = weekStartInfoForBusinessDay(day);
+    const schedules = info ? schedulesByWeek.get(info.key) || [] : [];
+    for (const sched of schedules) {
+      rows.push(...buildExpectedShiftRows({
+        schedule: { ...sched.data, id: sched.id },
+        businessDay: day,
+        recordsById,
+        openCorrectionIds,
+        nowMs,
+      }).filter((row) => isSlotClosable(row, nowMs, AUTO_CLOSE_GRACE_MINUTES)));
+    }
+  }
+  return rows;
+}
+
 // Auto-close sessions the employee never clocked out of. A still-open session
 // (status inProgress, no clockOut) is flipped to `pendingReview` with source
 // `autoClose` — which onAttendanceWritten audits as `autoClosed` — when it is due
@@ -3741,3 +3997,48 @@ exports.autoCloseAttendance = onSchedule("every 30 minutes", async () => {
   }
   if (closed > 0) logger.info("autoCloseAttendance closed sessions", { closed });
 });
+
+// Materializes the durable attendance-reporting denominator at slot close
+// (ADR-017). The sweep is intentionally bounded to the current and previous
+// Africa/Cairo business day so a missed tick self-heals without scanning history.
+exports.closeAttendanceExpectations = onSchedule(
+  {
+    schedule: "every 30 minutes",
+    timeZone: BUSINESS_TIME_ZONE,
+    maxInstances: 1,
+    retryCount: 0,
+    timeoutSeconds: 540,
+  },
+  async () => {
+    const nowMs = Date.now();
+    let rows;
+    try {
+      rows = await buildClosableAttendanceExpectationRows(nowMs);
+    } catch (err) {
+      logger.error("attendance expectation close read failed", { error: String(err) });
+      return;
+    }
+
+    if (rows.length === 0) {
+      logger.info("attendance expectation close complete", {
+        rows: 0,
+        created: 0,
+        restated: 0,
+        skipped: 0,
+        locked: 0,
+        audits: 0,
+      });
+      return;
+    }
+
+    try {
+      const result = await commitAttendanceExpectationGroups(rows);
+      logger.info("attendance expectation close complete", {
+        rows: rows.length,
+        ...result,
+      });
+    } catch (err) {
+      logger.error("attendance expectation close write failed", { error: String(err) });
+    }
+  },
+);

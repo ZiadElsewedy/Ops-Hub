@@ -78,7 +78,7 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
 | Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
 | Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Caches metadata/URLs, **never image bytes** |
-| Server logic | Cloud Functions (Node.js, `functions/`) | 23 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
+| Server logic | Cloud Functions (Node.js, `functions/`) | 24 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS unconfigured — see CURRENT_STATE |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
 | Serialization | `json_serializable` | |
