@@ -171,7 +171,7 @@ phases and committed; what remains is deployment and on-device verification.
 
 > Attendance minutes feed payroll. Do not ship it on a simulator's word.
 
-**Attendance Reporting System — DIRECTION ACCEPTED 2026-07-30, NO CODE YET.**
+**Attendance Reporting System — DIRECTION ACCEPTED 2026-07-30, PURE DOMAIN CORE STARTED.**
 The owner accepted the reporting reframe, so
 [ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md) is **Accepted**:
 Attendance is an operational reporting ledger, a scoped carve-out of
@@ -183,12 +183,15 @@ Attendance is an operational reporting ledger, a scoped carve-out of
 Still refused: composite employee scores, leaderboards, client-authored payroll
 totals, persisted late/overtime statuses, DROP as a payroll processor.
 
-> **Nothing is implemented.** The blocking prerequisite is the audit's P0, which is a
-> **live bug** in shipped code, not a design question: a lazy no-show writes no
-> Firestore document while `attendance_analytics.dart` aggregates materialized
-> records only, so `absentCount` cannot grow and the ledger's `Rate` is structurally
-> ~always 100%. **No report surface may ship before absences are durable** — report
-> UI on today's denominator would only make wrong numbers look authoritative.
+The first pure, additive P0 core now exists under
+`lib/features/attendance/domain/reporting/`: period windows/ids, roster-derived
+expected-shift rows, no-show phantom rows, derived exceptions, and report summaries
+with explicit denominators. It is not wired to any read/write path. The shipped
+reporting bug remains live until a Cloud Function materializes these facts at close:
+a lazy no-show still writes no Firestore document while the legacy history summary
+aggregates materialized records only. **No report surface may ship before absences
+are durable** — report UI on today's persisted denominator would only make wrong
+numbers look authoritative.
 
 ### Removed — do not re-add
 

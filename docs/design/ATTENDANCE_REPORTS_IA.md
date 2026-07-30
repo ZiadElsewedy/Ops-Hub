@@ -3,7 +3,10 @@
 Date: 2026-07-30
 
 This is the decided information architecture for the Attendance & Reports module
-under ADR-017. It is design only; nothing here is implemented yet.
+under ADR-017. The pure reporting-domain core started on 2026-07-30
+(`features/attendance/domain/reporting/`), but the routes, UI, Cloud Function
+close pipeline, persistence rows, rules/indexes, exports, and dashboards in this
+document remain design only.
 
 Reading guide:
 

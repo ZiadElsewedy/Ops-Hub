@@ -28,6 +28,21 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-30
 
+- **Attendance Reporting Ledger P0 pure domain core** (feature; LOW risk — purely
+  additive pure domain, no call sites yet, no existing file's behaviour changed).
+  Added plain Dart value objects under
+  `features/attendance/domain/reporting/`: `AttendancePeriodWindow` and
+  deterministic period ids; roster-derived `ExpectedShiftRow`s that turn a
+  finished no-record roster slot into a phantom `absent` row; derived exception
+  codes including missing-punch, unscheduled-work, and implausible-record review
+  flags; and `AttendanceReportSummary` rates that carry numerator and
+  denominator. The implementation reuses `AttendanceCalculator`, `ShiftWindow`,
+  `ScheduleWeek`, `WeeklyScheduleEntity.hoursFor`, and attendance deterministic
+  ids. No Cloud Function, Firestore collection, rules/indexes, export, or UI was
+  added, and nothing imports the new files yet. +4 domain test files (+19 tests):
+  `flutter test` 1179 pass · 2 fail (the same pre-existing splash-centering pair),
+  `flutter analyze` unchanged at 1 pre-existing info.
+
 - **Scheduled tasks are visible but not startable before their start time**
   (feature; MED risk — client workflow + Firestore rules). Upcoming `pending`
   tasks already stayed in active/upcoming lists and read Scheduled rather than
