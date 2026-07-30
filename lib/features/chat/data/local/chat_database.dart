@@ -52,6 +52,11 @@ class ChatConversationRows extends Table {
   /// Lets an online scroll-back continue from where the cache ends.
   TextColumn get nextCursor => text().nullable()();
 
+  /// Server-authoritative unread count for the requester, as last read from the
+  /// list endpoint. Cached so a cold or offline inbox paint shows the real badge
+  /// instead of silently reporting zero unread until the network answers.
+  IntColumn get unreadCount => integer().withDefault(const Constant(0))();
+
   /// Local wall-clock of the last merge into this row (ms). Cache-invalidation
   /// bookkeeping only; never shown.
   IntColumn get syncedAtMs => integer().withDefault(const Constant(0))();
@@ -147,5 +152,23 @@ class ChatDatabase extends _$ChatDatabase {
   factory ChatDatabase.memory() => ChatDatabase(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  /// v1 → v2 adds [ChatConversationRows.unreadCount]. The cache is a *cache*:
+  /// the safe fallback for any migration failure would be to drop and re-sync,
+  /// but an added column with a default needs no data rewrite, so the upgrade is
+  /// a single additive `ALTER TABLE`. Existing rows land on the column default
+  /// (0) and are corrected by the next list read, which write-throughs the
+  /// server's authoritative count.
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(
+              chatConversationRows,
+              chatConversationRows.unreadCount,
+            );
+          }
+        },
+      );
 }

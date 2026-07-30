@@ -461,7 +461,7 @@ class _CompanySummary extends StatelessWidget {
           else
             _SummaryStat(
               value: '${metrics.overdue}',
-              label: 'Overdue',
+              label: 'Late',
               alert: metrics.overdue > 0,
             ),
           // The real failure signal (§10.2). Safe to show alongside the rate now
@@ -702,7 +702,7 @@ class _BranchOverviewCard extends StatelessWidget {
                             ),
                             _Metric(
                               value: '${m.overdue}',
-                              label: 'Overdue',
+                              label: 'Late',
                               alert: m.overdue > 0,
                             ),
                           ],
@@ -905,7 +905,7 @@ class _AttentionPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOverdue = overdue > 0;
-    final label = isOverdue ? '$overdue overdue' : '$pendingReview to review';
+    final label = isOverdue ? '$overdue late' : '$pendingReview to review';
     final color = isOverdue ? AppColors.error : AppColors.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(

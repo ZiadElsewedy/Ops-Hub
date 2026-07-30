@@ -88,7 +88,7 @@ class TaskCard extends StatelessWidget {
         _MetaChip(
           icon: overdue ? Icons.event_busy_outlined : Icons.event_outlined,
           label: overdue
-              ? 'Due ${AppDateFormatter.dayMonth(task.deadline!)} · Overdue'
+              ? 'Due ${AppDateFormatter.dayMonth(task.deadline!)} · Late'
               : 'Due ${AppDateFormatter.dayMonth(task.deadline!)}',
           tone: overdue ? AppColors.error : null,
         ),

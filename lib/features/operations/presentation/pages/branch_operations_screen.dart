@@ -446,7 +446,7 @@ class OperationsSummaryHeader extends StatelessWidget {
       ),
       _StatTile(
         value: summary.overdueTasks,
-        label: 'Overdue',
+        label: 'Late',
         icon: Icons.warning_amber_rounded,
         alert: summary.overdueTasks > 0,
         onTap: () => onSelect(OperationsMetric.overdue),

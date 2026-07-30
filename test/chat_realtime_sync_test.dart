@@ -272,6 +272,136 @@ void main() {
     await cubit.close();
   });
 
+  test(
+      'a reconnect closes a gap wider than one page instead of stranding it',
+      () async {
+    // The regression: when more messages arrive while the socket is down than
+    // one page holds, the newest page does not reach back to the loaded window.
+    // Reconcile used to merge that page and stop, leaving a hole in the middle
+    // of the thread that scroll-back could never fill (it pages from the *old*
+    // cursor, which walks away from the gap).
+    final rt = _FakeRealtime();
+    // Server truth after the outage: seq 1 (already held) then 2..7 missed.
+    // Pages are newest-first by cursor, 3 per page.
+    final pages = <String?, ChatMessagePage>{
+      null: ChatMessagePage(
+        items: [
+          _message('m5', 5, _them, 'five'),
+          _message('m6', 6, _them, 'six'),
+          _message('m7', 7, _them, 'seven'),
+        ],
+        nextCursor: 'c5',
+      ),
+      'c5': ChatMessagePage(
+        items: [
+          _message('m2', 2, _them, 'two'),
+          _message('m3', 3, _them, 'three'),
+          _message('m4', 4, _them, 'four'),
+        ],
+        nextCursor: 'c2',
+      ),
+    };
+    var firstLoad = true;
+    final cubit = _cubit(
+      _FakeChatRepository(onHistory: ({String? cursor}) async {
+        if (firstLoad) {
+          firstLoad = false;
+          return ChatMessagePage(items: [_message('m1', 1, _them, 'one')]);
+        }
+        return pages[cursor] ?? const ChatMessagePage(items: []);
+      }),
+      rt,
+    );
+    await _settle();
+    expect(_messagesOf(cubit).map((m) => m.id), ['m1']);
+
+    rt.controller.add(const ChatRealtimeDisconnected());
+    rt.controller.add(const ChatRealtimeConnected(isReconnect: true));
+    await _settle();
+
+    // Every missed message is present and in seq order — no hole at 2..4.
+    expect(
+      _messagesOf(cubit).map((m) => m.id),
+      ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7'],
+    );
+    await cubit.close();
+  });
+
+  test('a failed catch-up page still surfaces what was already merged',
+      () async {
+    // If a page mid-catch-up fails, everything merged before it is still valid
+    // and must reach the UI — dropping the emit would hide messages the client
+    // successfully fetched until something else happened to emit.
+    final rt = _FakeRealtime();
+    var firstLoad = true;
+    final cubit = _cubit(
+      _FakeChatRepository(onHistory: ({String? cursor}) async {
+        if (firstLoad) {
+          firstLoad = false;
+          return ChatMessagePage(items: [_message('m1', 1, _them, 'one')]);
+        }
+        if (cursor == null) {
+          // The newest page lands, leaving a gap down to m1.
+          return ChatMessagePage(
+            items: [_message('m9', 9, _them, 'nine')],
+            nextCursor: 'c9',
+          );
+        }
+        throw const ServerFailure('offline again');
+      }),
+      rt,
+    );
+    await _settle();
+
+    rt.controller.add(const ChatRealtimeDisconnected());
+    rt.controller.add(const ChatRealtimeConnected(isReconnect: true));
+    await _settle();
+
+    // m9 was merged before the catch-up page failed — it must be visible.
+    expect(_messagesOf(cubit).map((m) => m.id), ['m1', 'm9']);
+    await cubit.close();
+  });
+
+  test('a reconnect stops paging once the windows meet', () async {
+    // The catch-up must not keep walking into ancient history after it has
+    // reconnected the two windows — one page back is enough here.
+    final rt = _FakeRealtime();
+    var historyCalls = 0;
+    var firstLoad = true;
+    final cubit = _cubit(
+      _FakeChatRepository(onHistory: ({String? cursor}) async {
+        historyCalls++;
+        if (firstLoad) {
+          firstLoad = false;
+          return ChatMessagePage(
+            items: [_message('m1', 1, _them, 'one')],
+            nextCursor: 'ancient',
+          );
+        }
+        // The newest page still contains m1, so the windows already overlap.
+        return ChatMessagePage(
+          items: [
+            _message('m1', 1, _them, 'one'),
+            _message('m2', 2, _them, 'two'),
+          ],
+          nextCursor: 'ancient',
+        );
+      }),
+      rt,
+    );
+    await _settle();
+    final afterLoad = historyCalls;
+
+    rt.controller.add(const ChatRealtimeDisconnected());
+    rt.controller.add(const ChatRealtimeConnected(isReconnect: true));
+    await _settle();
+
+    expect(_messagesOf(cubit).map((m) => m.id), ['m1', 'm2']);
+    // Exactly one extra fetch: the newest page. No gap, so no extra paging.
+    expect(historyCalls, afterLoad + 1);
+    await cubit.close();
+  });
+
   test('the first connection does not trigger a redundant reconcile',
       () async {
     final rt = _FakeRealtime();
@@ -311,6 +441,55 @@ void main() {
     expect(message.deletedForEveryone, isTrue);
     expect(message.body, chatDeletedForEveryonePlaceholder);
     expect(message.seq, BigInt.one); // record preserved, only display changed
+    await cubit.close();
+  });
+
+  test('discardFailedSend drops a failed bubble and stops it being retried',
+      () async {
+    // Regression: a permanently-rejected send could only be retried, never
+    // discarded — "Delete for me" addressed the REST endpoint with a `local:`
+    // id the server has never seen, so the bubble survived and every reconnect
+    // re-dispatched it.
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+        onHistory: ({String? cursor}) async =>
+            const ChatMessagePage(items: []),
+        onSend: (content) async => throw const ServerFailure('rejected'),
+      ),
+      rt,
+    );
+    await _settle();
+
+    await cubit.sendMessage('doomed');
+    await _settle();
+    final failed = _messagesOf(cubit).single;
+    expect(failed.status, 'FAILED');
+    expect(failed.id, startsWith('local:'));
+
+    await cubit.discardFailedSend(failed.id);
+    expect(_messagesOf(cubit), isEmpty);
+
+    // A reconnect must not resurrect it.
+    rt.controller.add(const ChatRealtimeDisconnected());
+    rt.controller.add(const ChatRealtimeConnected(isReconnect: true));
+    await _settle();
+    expect(_messagesOf(cubit), isEmpty);
+    await cubit.close();
+  });
+
+  test('discardFailedSend leaves a confirmed message alone', () async {
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+          onHistory: ({String? cursor}) async =>
+              ChatMessagePage(items: [_message('m1', 1, _them, 'real')])),
+      rt,
+    );
+    await _settle();
+
+    await cubit.discardFailedSend('m1');
+    expect(_messagesOf(cubit).map((m) => m.id), ['m1']);
     await cubit.close();
   });
 

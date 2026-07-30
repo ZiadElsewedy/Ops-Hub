@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:drift/native.dart';
 import 'package:drop/core/enums/chat_attachment_kind.dart';
 import 'package:drop/core/enums/chat_message_type.dart';
 import 'package:drop/core/errors/exceptions.dart';
@@ -9,6 +12,8 @@ import 'package:drop/features/chat/data/repositories/chat_repository_impl.dart';
 import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
 import 'package:drop/features/chat/domain/entities/chat_message.dart';
 import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:drop/features/chat/domain/entities/chat_read_receipt.dart';
+import 'package:drop/features/chat/presentation/chat_thread_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Verifies the Drift offline cache: the [ChatLocalDataSource] on its own, and
@@ -42,13 +47,15 @@ ChatMessage _msg(
       deletedForEveryone: deleted,
     );
 
-ChatConversationSummary _summary({DateTime? lastAt}) => ChatConversationSummary(
+ChatConversationSummary _summary({DateTime? lastAt, int unread = 0}) =>
+    ChatConversationSummary(
       id: _conv,
       counterpartUserId: _them,
       counterpartExternalId: 'firebase-them',
       participantIds: const [_me, _them],
       createdAt: DateTime.utc(2026, 7, 24),
       lastMessageAt: lastAt,
+      unreadCount: unread,
     );
 
 void main() {
@@ -70,6 +77,18 @@ void main() {
       expect(list.first.id, _conv);
       expect(list.first.counterpartUserId, _them);
       expect(list.first.counterpartExternalId, 'firebase-them');
+    });
+
+    test('the server unread count survives a cold/offline paint', () async {
+      // Regression: unreadCount was never persisted, so every cached inbox
+      // paint reported zero unread until the network answered — unread
+      // messages were invisible on a cold offline open.
+      await local.upsertConversations([_summary(unread: 4)]);
+      expect((await local.readConversations()).single.unreadCount, 4);
+
+      // The count is server-owned, so a later list read refreshes it.
+      await local.upsertConversations([_summary(unread: 1)]);
+      expect((await local.readConversations()).single.unreadCount, 1);
     });
 
     test('messages read newest-first-window, oldest→newest within page',
@@ -209,6 +228,70 @@ void main() {
       expect(remote.historyCalls, 1); // only the first page touched the network
     });
 
+    test(
+        'an exhausted cache hands back the server cursor, not "end of history"',
+        () async {
+      // Regression: running out of cached messages was treated as reaching the
+      // start of the thread, so an offline open of a thread whose older history
+      // was simply never cached claimed "beginning of the conversation".
+      await local.upsertConversations([_summary()]);
+      await local.upsertMessages(_conv, [_msg(1), _msg(2)]);
+      await local.saveThreadMeta(_conv, nextCursor: 'server-cursor-1');
+      final remote = _FakeRemote()..failHistory = true;
+      final repo = ChatRepositoryImpl(remote, local);
+
+      final page = await repo.getMessageHistory(conversationId: _conv);
+      expect(page.items.map((m) => m.seq.toInt()), [1, 2]);
+      // The cache is exhausted, but the server still has older pages — so
+      // scroll-back must stay available and resume from the server cursor.
+      expect(page.nextCursor, 'server-cursor-1');
+    });
+
+    test('an exhausted cache stops when the server reported no more history',
+        () async {
+      // The other side of the same rule: a stored null cursor means the last
+      // online fetch genuinely reached the start, so stopping is correct.
+      await local.upsertConversations([_summary()]);
+      await local.upsertMessages(_conv, [_msg(1), _msg(2)]);
+      await local.saveThreadMeta(_conv, nextCursor: null);
+      final remote = _FakeRemote()..failHistory = true;
+      final repo = ChatRepositoryImpl(remote, local);
+
+      final page = await repo.getMessageHistory(conversationId: _conv);
+      expect(page.nextCursor, isNull);
+    });
+
+    test('a confirmed mark-read zeroes the cached unread count', () async {
+      // Caching unreadCount would otherwise introduce its own staleness: a
+      // thread read offline and reopened offline would keep showing its
+      // pre-read badge until the next successful list fetch.
+      await local.upsertConversations([_summary(unread: 3)]);
+      final repo = ChatRepositoryImpl(_FakeRemote(), local);
+
+      await repo.markMessagesRead(
+        conversationId: _conv,
+        upToSeq: BigInt.from(9),
+      );
+      expect((await local.readConversations()).single.unreadCount, 0);
+    });
+
+    test('discardPending removes a doomed send from the durable outbox',
+        () async {
+      // Regression: a send the server permanently rejects had no discard path.
+      // Its outbox row survived, so it was re-dispatched on every app open and
+      // every reconnect, forever, with no way for the user to be rid of it.
+      final cache = ChatThreadCache()..attachLocal(local);
+      await local.enqueuePending(const PendingChatSend(
+        idempotencyKey: 'doomed-key',
+        conversationId: _conv,
+        content: 'never accepted',
+      ));
+      expect(await local.readPending(_conv), hasLength(1));
+
+      await cache.discardPending('doomed-key');
+      expect(await local.readPending(_conv), isEmpty);
+    });
+
     test('offline conversation list falls back to the cached list', () async {
       await local.upsertConversations([_summary(lastAt: DateTime.utc(2026, 7))]);
       final remote = _FakeRemote()..failConversations = true;
@@ -252,6 +335,61 @@ void main() {
       expect(pending.single.content, 'unsent');
     });
   });
+
+  group('schema migration v1 → v2', () {
+    late Directory dir;
+    late File file;
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('drop_chat_migration');
+      file = File('${dir.path}/chat.sqlite');
+    });
+
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('adds unreadCount to an existing v1 database without losing data',
+        () async {
+      // Every other test opens `.memory()`, which runs onCreate — the upgrade
+      // path that real installs take was otherwise never executed. Build a
+      // genuine v1 file (v2 minus the new column, user_version rolled back),
+      // then let drift open it and run the migration for real.
+      final v1 = ChatDatabase(NativeDatabase(file));
+      await v1.customStatement(
+          'ALTER TABLE chat_conversation_rows DROP COLUMN unread_count');
+      await v1.customStatement('PRAGMA user_version = 1');
+      await v1.customStatement(
+        "INSERT INTO chat_conversation_rows "
+        "(id, participant_ids, counterpart_user_id, counterpart_external_id, "
+        " created_at_ms, last_message_at_ms, my_user_id, next_cursor, "
+        " synced_at_ms) "
+        "VALUES ('$_conv', '[\"$_me\",\"$_them\"]', '$_them', "
+        " 'firebase-them', 1000, 2000, '$_me', 'cursor-1', 3000)",
+      );
+      await v1.close();
+
+      // Reopen at the current schema: drift sees user_version 1 and upgrades.
+      final v2 = ChatDatabase(NativeDatabase(file));
+      final migrated = ChatLocalDataSourceImpl(v2);
+      final rows = await migrated.readConversations();
+
+      expect(rows, hasLength(1), reason: 'the v1 row must survive the upgrade');
+      final row = rows.single;
+      expect(row.id, _conv);
+      expect(row.counterpartUserId, _them);
+      expect(row.counterpartExternalId, 'firebase-them');
+      expect(row.participantIds, [_me, _them]);
+      // The new column lands on its default and is corrected by the next
+      // (server-authoritative) list read.
+      expect(row.unreadCount, 0);
+      // Locally-derived bookkeeping must be untouched by the migration.
+      expect((await migrated.readThreadMeta(_conv))?.nextCursor, 'cursor-1');
+
+      // And the column is genuinely usable afterwards.
+      await migrated.upsertConversations([_summary(unread: 7)]);
+      expect((await migrated.readConversations()).single.unreadCount, 7);
+      await v2.close();
+    });
+  });
 }
 
 class _FakeRemote implements ChatRemoteDataSource {
@@ -262,6 +400,17 @@ class _FakeRemote implements ChatRemoteDataSource {
   bool failConversations = false;
   bool failSend = false;
   int historyCalls = 0;
+
+  @override
+  Future<ChatReadReceipt> markRead({
+    required String conversationId,
+    required BigInt upToSeq,
+  }) async =>
+      ChatReadReceipt(
+        conversationId: conversationId,
+        markedCount: 1,
+        readAt: DateTime.utc(2026, 7, 24, 14),
+      );
 
   @override
   Future<ChatMessagePage> loadHistory({

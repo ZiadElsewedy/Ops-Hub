@@ -74,7 +74,7 @@ void main() {
 
     for (final entry in const <(String, OperationsMetric)>[
       ('Active tasks', OperationsMetric.activeTasks),
-      ('Overdue', OperationsMetric.overdue),
+      ('Late', OperationsMetric.overdue),
       ('Pending review', OperationsMetric.pendingReview),
       ('Staff active', OperationsMetric.staffActive),
     ]) {

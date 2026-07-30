@@ -228,8 +228,12 @@ rail thumb and animates the duration rail under the Start/Due rows.
 Overdue / Done, computed from the times + lifecycle in pure
 `domain/task_schedule.dart`. It is not a replacement for lifecycle state:
 `TaskStatus.missed` is the narrow server-only terminal result for an expired
-generated recurring shift task, while **Overdue** remains a derived phase for any
-other open task.
+generated recurring shift task, while the overdue phase remains a derived phase
+for any other open task. **The overdue phase surfaces to users as the word
+"Late"** — the whole product shows only two overdue-ish words, **Late** (open,
+past its deadline) and **Missed** (closed, unfinished); the label "Overdue" is
+not shown anywhere. The enum value and helpers keep the internal name
+`overdue` (`TaskSchedulePhase.overdue`, `isTaskOverdue`, `FeedPreset.overdue`).
 
 ### The start gate ([ADR-016](../decisions/ADR-016-task-start-gate.md))
 

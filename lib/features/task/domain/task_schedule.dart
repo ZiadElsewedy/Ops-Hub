@@ -25,7 +25,7 @@ extension TaskSchedulePhaseX on TaskSchedulePhase {
     TaskSchedulePhase.scheduled => 'Scheduled',
     TaskSchedulePhase.active => 'Active',
     TaskSchedulePhase.dueSoon => 'Due soon',
-    TaskSchedulePhase.overdue => 'Overdue',
+    TaskSchedulePhase.overdue => 'Late',
     TaskSchedulePhase.done => 'Done',
   };
 

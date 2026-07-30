@@ -185,6 +185,10 @@ class ChatListCubit extends Cubit<ChatListState> {
     _previewMessageIds.clear();
     _lastSeenSeq.clear();
     _unread.clear();
+    // Must be dropped with the rest: a rollback record left over from the
+    // previous account could otherwise restore that account's unread count into
+    // the next session's inbox when its in-flight mark-read finally fails.
+    _optimisticallyCleared.clear();
     if (!isClosed) emit(const ChatListState.initial());
   }
 
@@ -232,13 +236,39 @@ class ChatListCubit extends Cubit<ChatListState> {
     }
   }
 
-  /// Clears the unread badge for [conversationId] — called when the user
-  /// opens the conversation (the client counts unread itself; the backend
-  /// pushes no counts on this surface).
+  /// Unread counts cleared optimistically but not yet confirmed by a server
+  /// mark-read, keyed by conversation id — the rollback record for
+  /// [restoreUnread].
+  final Map<String, int> _optimisticallyCleared = {};
+
+  /// Clears the unread badge for [conversationId] — called when the user opens
+  /// the conversation, immediately, so the badge feels instant.
+  ///
+  /// This is optimistic: the authoritative count comes from the server and the
+  /// thread's mark-read call is what actually earns the clear. The previous
+  /// count is remembered so [restoreUnread] can put it back if that call fails.
   void clearUnread(String conversationId) {
-    if (_unread.remove(conversationId) == null) return;
+    final previous = _unread.remove(conversationId);
+    if (previous == null) return;
+    _optimisticallyCleared[conversationId] = previous;
     if (_hasLoaded) _emitLoaded();
   }
+
+  /// Puts back a badge cleared by [clearUnread] whose mark-read never landed, so
+  /// the inbox stops showing "read" for a thread the server still counts as
+  /// unread. No-op once the conversation has a fresh count (a later load, or a
+  /// newly delivered message, is more current than this rollback).
+  void restoreUnread(String conversationId) {
+    final previous = _optimisticallyCleared.remove(conversationId);
+    if (previous == null || _unread.containsKey(conversationId)) return;
+    _unread[conversationId] = previous;
+    if (_hasLoaded) _emitLoaded();
+  }
+
+  /// Confirms an optimistic clear — the server agreed, so there is nothing to
+  /// roll back any more.
+  void confirmUnreadCleared(String conversationId) =>
+      _optimisticallyCleared.remove(conversationId);
 
   // ─── Realtime (socket, shared with the thread cubits) ─────────────────
 

@@ -14,6 +14,126 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-30 — Chat: the five audited defects fixed (bug; LOW–MED risk)
+
+All findings from the chat workflow/cache audit, implemented behind the existing
+architecture — REST stays the source of truth, the socket stays delivery-only,
+the Drift cache stays metadata-only, and no backend contract moved.
+
+- **Reconnect no longer strands messages (HIGH).** `_reconcile` merged only the
+  newest page, so an outage that buried more than one page left a hole in the
+  middle of the thread that scroll-back could never reach — it pages from
+  `_nextCursor`, which points *below* the loaded window and walks away from the
+  gap. Reconcile now keeps paging older until the two windows meet (bounded at 5
+  pages); if the gap is wider it hands `_nextCursor` to the deepest page fetched
+  so scroll-back walks *into* the gap instead of past it. `seq` is allocated
+  globally by the server, so the gap test is window overlap, not arithmetic.
+- **A rejected send can be discarded (HIGH).** There was no local-only discard:
+  "Delete for me" called the REST endpoint with a `local:<key>` id the server has
+  never seen, so the bubble and its outbox row survived and `_retryFailedSends`
+  re-dispatched it on every app open and every reconnect, forever. New
+  `discardFailedSend` drops the bubble and drains the outbox row via
+  `ChatThreadCache.discardPending`. Both menus now hide every server-addressed
+  action (reply/forward/info/deletes) on an unsent message and offer Discard,
+  with its own confirmation copy.
+- **The unread badge is coupled to the mark-read ack (MED).** It still clears
+  instantly on open — the clear is now recorded, and `restoreUnread` puts it back
+  when the mark-read never lands, so the inbox stops showing "read" for a thread
+  the server still counts unread. A newer count always outranks a pending
+  rollback. Wired thread→inbox via a DI callback; no UI coupling.
+- **Cached inboxes show real unread counts (MED).** `unreadCount` was never
+  persisted, so every cold/offline paint reported zero. Added as a column
+  (schemaVersion 1→2, additive `ALTER TABLE`, existing rows default to 0 and are
+  corrected by the next list read, which is server-authoritative).
+- **Offline scroll-back stops lying about the start of history (MED).** Running
+  out of cached messages was read as reaching the beginning of the thread. An
+  exhausted cache now falls back to the stored server cursor, so scroll-back
+  resumes from the server; null — a real stop — only when the last online fetch
+  reported no further page.
+
+A follow-up self-review caught three more defects, now also fixed:
+
+- **`reset()` leaked the unread rollback record**, so a previous account's
+  in-flight mark-read could restore its count into the next session's inbox
+  after an account switch — the exact leak `reset()` exists to prevent.
+- **Caching `unreadCount` introduced its own staleness**: a thread read offline
+  and reopened offline kept showing its pre-read badge. A confirmed mark-read now
+  zeroes the cached count (`clearCachedUnread`), so the cache follows the server.
+- **A failed catch-up page discarded the pages already merged** — reconcile now
+  emits what it successfully fetched instead of dropping it.
+
++15 tests (multi-page reconnect, reconcile stop condition, partial catch-up
+failure, discard paths, unread rollback and its two precedence rules, the
+account-switch leak, cached unread, mark-read cache sync, both end-of-history
+sides, and a real **v1→v2 migration test** that downgrades a file database and
+lets drift upgrade it — the upgrade path every other test skipped via
+`.memory()`/`onCreate`). Every new test was verified to fail without its fix.
+Analyze clean; 1218 pass with the 2 known `splash_centering_test.dart` failures
+unchanged.
+
+## 2026-07-30 — Chat/network: stop logging Bearer tokens in release (bug; LOW risk)
+
+`core/network/api_client.dart` was printing every outgoing request's full
+`Authorization: Bearer <token>` header, plus every response status and every
+networking error, through `debugPrint` — three sites left over from the 401
+investigation and marked `⚠️ TEMPORARY DEBUG — remove after 401 probe`.
+**`debugPrint` is not compiled out in release builds**, so a signed-in staff
+member's live Firebase ID token was written to the device/OS log (`adb logcat`,
+Console.app, any log-scraping crash reporter) on every chat action in production.
+
+Deleted `_debugLogOutgoing` and its two call sites, the `onResponse` override
+(which did nothing but log and forward — removing it restores the identical
+default behaviour), the `onError` probe line, and the now-unused
+`package:flutter/foundation.dart` import. Pure deletion — the auth-retry
+contract (single force-refresh + replay via `extra['authRetried']`) is
+untouched. Found by a read-only audit of the chat workflow; the audit's other
+findings (reconnect history gap, undiscardable failed sends, offline
+end-of-history inference, uncached `unreadCount`) are recorded but **not** fixed
+here.
+
+## 2026-07-30 — Notifications: richer two-line header (polish; LOW risk)
+
+The Notification Center's app-bar title is now a two-line lockup — "Notifications"
+over a **live status line**: `N unread notification(s)` in the inbox, or
+`N archived` in the Archived view (and "You're all caught up" / "Nothing
+archived" at zero). It watches the cubit, so the count stays current as items are
+read, archived, or arrive; the subtitle line height is always reserved so the app
+bar never jumps on first load. Presentation only — no data/cubit/rules change.
+
+## 2026-07-30 — My Tasks: pinned "Late" and "Missed" groups (polish; LOW risk)
+
+The employee **My Tasks** screen now surfaces the two failure-adjacent readings
+as their own groups instead of scattering them:
+
+- **Active tab** — a dedicated **Late** section is pinned to the very top (above
+  "Needs attention"): every actionable task already past its deadline. Those
+  tasks are pulled out of "In progress" / "Today's tasks" so they no longer
+  appear twice. Rejected rework keeps its own "Needs attention" home.
+- **Done tab** — **Missed** tasks are pinned in their own group above the
+  recency buckets; Completed and Cancelled stay grouped by recency below.
+
+Presentation only — no new data, cubit, or rules; reuses the existing
+`_isOverdue` reading (Late fires at the raw deadline per ADR-013) and the
+terminal `missed` status. Also tightened "Upcoming" to strictly-future days so a
+task due later *today* no longer showed in both "Today's tasks" and "Upcoming".
+
+## 2026-07-30 — UI label: "Overdue" → "Late" (polish; LOW risk)
+
+Every user-facing "Overdue" string now reads **"Late"**, so the product shows
+exactly two overdue-ish words: **Late** (open task past its deadline) and
+**Missed** (closed, unfinished). The label "Overdue" no longer appears in any
+screen — task cards, feed group headers, feed preset, `TaskSchedulePhase` chip,
+admin/branch dashboards, operations metric, workload cards, and pending-actions.
+The push-notification title also changes ("Task Overdue" → "Task Late",
+"is overdue" → "is late") — **needs a functions deploy to take effect.**
+
+Presentation only: internal identifiers keep the name `overdue`
+(`TaskSchedulePhase.overdue`, `FeedPreset.overdue`, `isTaskOverdue`,
+`OperationsMetric.overdue`, group/preset keys, `usage_tracker` keys) so analytics
+keys and logic are untouched. Aligns the UI with the spec's own primary term —
+`AUTOMATED_TASKS_PRODUCT_SPEC.md` §3.1 already calls the derived visual
+"Late (Overdue)". Affected tests updated; 94 in the touched suites pass.
+
 ## 2026-07-29 — ATLAS developer navigation system (`.nav/`)
 
 Added `.nav/` — a code-navigation "operating system" (not prose docs): a boot README, 8 cross-cutting
