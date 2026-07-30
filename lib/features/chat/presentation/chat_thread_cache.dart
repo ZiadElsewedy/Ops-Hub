@@ -158,6 +158,24 @@ class ChatThreadCache {
     }
   }
 
+  /// Drops one queued send from the durable outbox, permanently — the local-only
+  /// discard for a message the server never accepted.
+  ///
+  /// Deliberately **not** a REST delete: the message has no server id (its id is
+  /// `local:<idempotencyKey>`), so the delete endpoints have nothing to address.
+  /// Without this, a permanently-rejected send is stuck forever — retried on
+  /// every app open and every reconnect, with no way for the user to be rid of
+  /// it. Best-effort: a failure is logged, never surfaced.
+  Future<void> discardPending(String idempotencyKey) async {
+    final local = _local;
+    if (local == null) return;
+    try {
+      await local.dequeuePending(idempotencyKey);
+    } catch (e) {
+      AppLog.warning('chat', 'discard pending failed: $e');
+    }
+  }
+
   /// Drops the in-memory tier (durable tier is cleared separately on sign-out
   /// via the local datasource).
   void clear() => _store.clear();

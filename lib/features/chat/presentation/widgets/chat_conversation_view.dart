@@ -315,6 +315,10 @@ class _ChatConversationViewState extends State<ChatConversationView> {
         await cubit.deleteMessageForMe(message.id);
       case ChatMessageAction.deleteForEveryone:
         await cubit.deleteMessageForEveryone(message.id);
+      case ChatMessageAction.discard:
+        // Local-only: the message has no server id, so this drops the bubble
+        // and its outbox row instead of calling a delete endpoint.
+        await cubit.discardFailedSend(message.id);
     }
   }
 }

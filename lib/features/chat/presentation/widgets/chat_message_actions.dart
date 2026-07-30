@@ -21,7 +21,13 @@ Future<ChatMessageAction?> showChatMessageActions(
   required ChatMessage message,
   required bool mine,
 }) async {
-  final canDeleteForEveryone = mine && !message.deletedForEveryone;
+  // An unsent (optimistic) message has no server id, so every server-addressed
+  // action would 404 on it — reply targets it, "message info" describes it, and
+  // both deletes call an endpoint with an id the backend has never seen. It
+  // gets Copy and a local-only Discard instead.
+  final unsent = message.id.startsWith('local:');
+  final canDeleteForEveryone =
+      mine && !message.deletedForEveryone && !unsent;
   // A tombstone has no content to reply to or copy — only the delete-for-me
   // escape hatch stays meaningful on it.
   final tombstone = message.deletedForEveryone;
@@ -49,7 +55,7 @@ Future<ChatMessageAction?> showChatMessageActions(
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          if (!tombstone)
+          if (!tombstone && !unsent)
             _ActionRow(
               icon: Icons.reply_rounded,
               label: 'Reply',
@@ -64,20 +70,31 @@ Future<ChatMessageAction?> showChatMessageActions(
               detail: 'Copy the message text.',
               onTap: () => Navigator.of(sheetContext).pop(ChatMessageAction.copy),
             ),
-          _ActionRow(
-            icon: Icons.info_outline_rounded,
-            label: 'Message info',
-            detail: 'Delivery details and identifiers.',
-            onTap: () =>
-                Navigator.of(sheetContext).pop(ChatMessageAction.messageInfo),
-          ),
-          _ActionRow(
-            icon: Icons.visibility_off_outlined,
-            label: 'Delete for me',
-            detail: 'Removes it from your view only.',
-            onTap: () =>
-                Navigator.of(sheetContext).pop(ChatMessageAction.deleteForMe),
-          ),
+          if (!unsent)
+            _ActionRow(
+              icon: Icons.info_outline_rounded,
+              label: 'Message info',
+              detail: 'Delivery details and identifiers.',
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(ChatMessageAction.messageInfo),
+            ),
+          if (!unsent)
+            _ActionRow(
+              icon: Icons.visibility_off_outlined,
+              label: 'Delete for me',
+              detail: 'Removes it from your view only.',
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(ChatMessageAction.deleteForMe),
+            ),
+          if (unsent)
+            _ActionRow(
+              icon: Icons.delete_outline_rounded,
+              label: 'Discard',
+              detail: "Removes this unsent message and stops retrying it.",
+              destructive: true,
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(ChatMessageAction.discard),
+            ),
           if (canDeleteForEveryone)
             _ActionRow(
               icon: Icons.delete_forever_outlined,
@@ -112,6 +129,10 @@ enum ChatMessageAction {
   messageInfo,
   deleteForMe,
   deleteForEveryone,
+
+  /// Drop an unsent (optimistic) message locally — it has no server id, so this
+  /// never calls a delete endpoint; it clears the bubble and its outbox row.
+  discard,
 }
 
 /// The desktop **right-click** context menu for a message — a native-feeling
@@ -127,7 +148,10 @@ Future<ChatMessageAction?> showChatMessageContextMenu(
 }) async {
   final tombstone = message.deletedForEveryone;
   final hasText = (message.body ?? '').trim().isNotEmpty && !tombstone;
-  final canDeleteForEveryone = mine && !tombstone;
+  // See showChatMessageActions: an unsent message has no server id, so every
+  // server-addressed action is meaningless on it.
+  final unsent = message.id.startsWith('local:');
+  final canDeleteForEveryone = mine && !tombstone && !unsent;
   final overlay =
       Overlay.of(context).context.findRenderObject() as RenderBox?;
   if (overlay == null) return null;
@@ -164,11 +188,16 @@ Future<ChatMessageAction?> showChatMessageContextMenu(
       Offset.zero & overlay.size,
     ),
     items: [
-      if (!tombstone) item(ChatMessageAction.reply, Icons.reply_rounded, 'Reply'),
+      if (!tombstone && !unsent)
+        item(ChatMessageAction.reply, Icons.reply_rounded, 'Reply'),
       if (hasText) item(ChatMessageAction.copy, Icons.copy_rounded, 'Copy'),
-      item(ChatMessageAction.forward, Icons.forward_rounded, 'Forward'),
-      item(ChatMessageAction.deleteForMe, Icons.visibility_off_outlined,
-          'Delete for me'),
+      if (!unsent) item(ChatMessageAction.forward, Icons.forward_rounded, 'Forward'),
+      if (!unsent)
+        item(ChatMessageAction.deleteForMe, Icons.visibility_off_outlined,
+            'Delete for me'),
+      if (unsent)
+        item(ChatMessageAction.discard, Icons.delete_outline_rounded, 'Discard',
+            destructive: true),
       if (canDeleteForEveryone)
         item(ChatMessageAction.deleteForEveryone,
             Icons.delete_forever_outlined, 'Delete for everyone',
@@ -178,7 +207,8 @@ Future<ChatMessageAction?> showChatMessageContextMenu(
   if (action == null || !context.mounted) return null;
   // Destructive actions get the same confirmation as the mobile sheet.
   if (action == ChatMessageAction.deleteForMe ||
-      action == ChatMessageAction.deleteForEveryone) {
+      action == ChatMessageAction.deleteForEveryone ||
+      action == ChatMessageAction.discard) {
     final confirmed = await _confirm(context, action);
     return confirmed ? action : null;
   }
@@ -187,16 +217,22 @@ Future<ChatMessageAction?> showChatMessageContextMenu(
 
 Future<bool> _confirm(BuildContext context, ChatMessageAction action) async {
   final forEveryone = action == ChatMessageAction.deleteForEveryone;
+  final discard = action == ChatMessageAction.discard;
   final ok = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: AppColors.darkSurfaceElevated,
-      title: Text(forEveryone ? 'Delete for everyone?' : 'Delete for me?'),
-      content: Text(forEveryone
-          ? 'Both of you will see "This message was deleted" instead. '
-              'This cannot be undone.'
-          : 'The message disappears from your view only — the other person '
-              'still sees it.'),
+      title: Text(discard
+          ? 'Discard message?'
+          : (forEveryone ? 'Delete for everyone?' : 'Delete for me?')),
+      content: Text(discard
+          ? 'It never reached the server, so nothing changes for the other '
+              'person. This removes it and stops it being retried.'
+          : forEveryone
+              ? 'Both of you will see "This message was deleted" instead. '
+                  'This cannot be undone.'
+              : 'The message disappears from your view only — the other person '
+                  'still sees it.'),
       actions: [
         TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -204,7 +240,7 @@ Future<bool> _confirm(BuildContext context, ChatMessageAction action) async {
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
           style: TextButton.styleFrom(foregroundColor: AppColors.error),
-          child: const Text('Delete'),
+          child: Text(discard ? 'Discard' : 'Delete'),
         ),
       ],
     ),

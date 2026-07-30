@@ -204,6 +204,13 @@ class AppDependencies {
         realtime: chatRealtime,
         cache: _chatThreadCache,
         getAttachmentUrl: _getChatAttachmentUrl,
+        // The inbox clears this conversation's badge the moment it is opened;
+        // the thread's mark-read is what earns that clear. Roll the badge back
+        // when the server never acknowledged, so the inbox never shows "read"
+        // for a thread the backend still counts as unread.
+        onReadSync: (acknowledged) => acknowledged
+            ? chatListCubit.confirmUnreadCleared(conversationId)
+            : chatListCubit.restoreUnread(conversationId),
       );
 
   /// Cache of opened threads — lets a re-opened conversation paint its last

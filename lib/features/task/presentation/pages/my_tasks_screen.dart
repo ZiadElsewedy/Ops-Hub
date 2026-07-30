@@ -325,6 +325,7 @@ class _ActiveTasksTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final late = _lateTasks(tasks);
     final today = _todayTasks(tasks);
     final inProgress = _inProgressTasks(tasks);
     final pending = _pendingTasks(tasks);
@@ -332,6 +333,7 @@ class _ActiveTasksTab extends StatelessWidget {
     final rejected = _rejectedTasks(tasks);
 
     final empty =
+        late.isEmpty &&
         today.isEmpty &&
         inProgress.isEmpty &&
         pending.isEmpty &&
@@ -355,6 +357,17 @@ class _ActiveTasksTab extends StatelessWidget {
           AppSpacing.xxxl,
         ),
         children: [
+          // Late — actionable work already past its deadline. Pinned to the
+          // very top: it is the most time-critical thing on the screen.
+          if (late.isNotEmpty) ...[
+            _SectionHeader(
+              label: 'Late',
+              count: late.length,
+              icon: Icons.warning_amber_rounded,
+              color: AppColors.error,
+            ),
+            _buildCards(context, late, directory),
+          ],
           if (rejected.isNotEmpty) ...[
             _SectionHeader(
               label: 'Needs attention',
@@ -422,10 +435,21 @@ class _ActiveTasksTab extends StatelessWidget {
     );
   }
 
+  /// Actionable work that has slipped past its deadline — pinned to the top of
+  /// the tab. A task is Late from its *raw* deadline (ADR-013): the grace period
+  /// only delays the server recording it Missed, never this reading. Rejected
+  /// rework keeps its own "Needs attention" home, so it is excluded here; every
+  /// other open state (started / pending) surfaces here once overdue, and is
+  /// therefore filtered out of "In progress" and "Today's tasks" below.
+  List<TaskEntity> _lateTasks(List<TaskEntity> all) => all
+      .where((t) => t.status != TaskStatus.rejected && _isOverdue(t))
+      .toList();
+
   List<TaskEntity> _todayTasks(List<TaskEntity> all) {
     final today = DateTime.now();
     return all.where((t) {
       if (t.status != TaskStatus.pending) return false;
+      if (_isOverdue(t)) return false; // overdue → "Late" section
       final d = t.deadline;
       if (d == null) return true; // no deadline = always "today"
       return d.year == today.year &&
@@ -434,16 +458,21 @@ class _ActiveTasksTab extends StatelessWidget {
     }).toList();
   }
 
-  List<TaskEntity> _inProgressTasks(List<TaskEntity> all) =>
-      all.where((t) => t.status == TaskStatus.started).toList();
+  List<TaskEntity> _inProgressTasks(List<TaskEntity> all) => all
+      .where((t) => t.status == TaskStatus.started && !_isOverdue(t))
+      .toList();
 
   List<TaskEntity> _pendingTasks(List<TaskEntity> all) {
-    final today = DateTime.now();
+    final now = DateTime.now();
+    // Strictly future days — a task due later *today* already lives in "Today's
+    // tasks", so Upcoming starts at tomorrow to avoid showing it twice.
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
     return all.where((t) {
       if (t.status != TaskStatus.pending) return false;
+      if (_isOverdue(t)) return false;
       final d = t.deadline;
       if (d == null) return false; // no deadline already shown in "today"
-      return d.isAfter(DateTime(today.year, today.month, today.day));
+      return d.isAfter(endOfToday);
     }).toList();
   }
 
@@ -480,9 +509,12 @@ class _DoneTasksTab extends StatelessWidget {
       );
     }
 
-    // Group closed tasks by recency so the timeline reads as a history rather
-    // than one long, dateless list. Buckets keep their natural order.
-    final groups = _groupByRecency(done);
+    // Missed work is pinned to the top in its own group so the employee can
+    // find it at a glance; everything else (Completed · Cancelled) is grouped
+    // by recency below so the timeline reads as a history, not one long list.
+    final missed = done.where((t) => t.status == TaskStatus.missed).toList();
+    final rest = done.where((t) => t.status != TaskStatus.missed).toList();
+    final groups = _groupByRecency(rest);
 
     return RefreshIndicator(
       onRefresh: () => context.read<TaskCubit>().refresh(),
@@ -494,28 +526,39 @@ class _DoneTasksTab extends StatelessWidget {
           AppSpacing.xxxl,
         ),
         children: [
+          if (missed.isNotEmpty) ...[
+            _SectionHeader(
+              label: 'Missed',
+              count: missed.length,
+              icon: Icons.error_outline_rounded,
+              color: AppColors.error,
+            ),
+            _grid(missed),
+          ],
           for (final entry in groups) ...[
             _DateGroupHeader(label: entry.key),
-            ResponsiveCardGrid(
-              runSpacing: 0, // EmployeeTaskCard carries its own bottom margin
-              maxItemWidth: 480,
-              children: [
-                for (var i = 0; i < entry.value.length; i++)
-                  _AnimatedCard(
-                    key: ValueKey(entry.value[i].id),
-                    index: i,
-                    child: EmployeeTaskCard(
-                      task: entry.value[i],
-                      directory: directory,
-                    ),
-                  ),
-              ],
-            ),
+            _grid(entry.value),
           ],
         ],
       ),
     );
   }
+
+  /// EmployeeTaskCard carries its own bottom margin, so the grid adds no extra
+  /// vertical spacing (runSpacing: 0) — it only lays cards side-by-side on wide
+  /// screens.
+  Widget _grid(List<TaskEntity> list) => ResponsiveCardGrid(
+    runSpacing: 0,
+    maxItemWidth: 480,
+    children: [
+      for (var i = 0; i < list.length; i++)
+        _AnimatedCard(
+          key: ValueKey(list[i].id),
+          index: i,
+          child: EmployeeTaskCard(task: list[i], directory: directory),
+        ),
+    ],
+  );
 
   /// Bucket terminal tasks into Today · Yesterday · This week · Earlier by their
   /// deadline (the closest date we hold). Undated tasks fall to "Earlier".

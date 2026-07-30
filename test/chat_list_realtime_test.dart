@@ -268,6 +268,101 @@ void main() {
     await cubit.close();
   });
 
+  test('an unacknowledged mark-read restores the badge it cleared', () async {
+    // Regression: the badge was cleared optimistically on open and never
+    // reconciled against the mark-read result, so a failed mark-read left the
+    // inbox showing "read" for a thread the server still counted as unread —
+    // until the next full refresh, which could be the rest of the session.
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+          onList: ({String? cursor}) async =>
+              ChatConversationPage(items: [_summary('a')])),
+      rt,
+    );
+    await cubit.load();
+    rt.controller.add(ChatMessageReceived(_live('a', 'm1', 1, 'Ping')));
+    expect(_loadedOf(cubit).unreadCounts['a'], 1);
+
+    cubit.clearUnread('a');
+    expect(_loadedOf(cubit).unreadCounts.containsKey('a'), isFalse);
+
+    // The thread's mark-read never landed.
+    cubit.restoreUnread('a');
+    expect(_loadedOf(cubit).unreadCounts['a'], 1);
+    await cubit.close();
+  });
+
+  test('a confirmed mark-read leaves nothing to roll back', () async {
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+          onList: ({String? cursor}) async =>
+              ChatConversationPage(items: [_summary('a')])),
+      rt,
+    );
+    await cubit.load();
+    rt.controller.add(ChatMessageReceived(_live('a', 'm1', 1, 'Ping')));
+
+    cubit.clearUnread('a');
+    cubit.confirmUnreadCleared('a');
+    // A late/duplicate rollback after the server agreed must not resurrect it.
+    cubit.restoreUnread('a');
+    expect(_loadedOf(cubit).unreadCounts.containsKey('a'), isFalse);
+    await cubit.close();
+  });
+
+  test('a message arriving after an open outranks a pending rollback',
+      () async {
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+          onList: ({String? cursor}) async =>
+              ChatConversationPage(items: [_summary('a')])),
+      rt,
+    );
+    await cubit.load();
+    rt.controller.add(ChatMessageReceived(_live('a', 'm1', 1, 'Ping')));
+    cubit.clearUnread('a');
+
+    // A new message lands while the mark-read is still in flight, then the
+    // mark-read fails: the fresher count must win, not the stale rollback.
+    rt.controller.add(ChatMessageReceived(_live('a', 'm2', 2, 'Again')));
+    expect(_loadedOf(cubit).unreadCounts['a'], 1);
+    cubit.restoreUnread('a');
+    expect(_loadedOf(cubit).unreadCounts['a'], 1);
+    await cubit.close();
+  });
+
+  test('reset() drops the rollback record too (no cross-account bleed)',
+      () async {
+    // reset() exists to drop all in-memory inbox state on account switch. A
+    // surviving rollback record would let the previous account's in-flight
+    // mark-read restore that account's unread count into the next session.
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+          onList: ({String? cursor}) async =>
+              ChatConversationPage(items: [_summary('a')])),
+      rt,
+    );
+    await cubit.load();
+    rt.controller.add(ChatMessageReceived(_live('a', 'm1', 1, 'Ping')));
+    cubit.clearUnread('a');
+    expect(_loadedOf(cubit).unreadCounts.containsKey('a'), isFalse);
+
+    // Account switch: reset, then the next session loads its own inbox.
+    cubit.reset();
+    await cubit.load();
+    expect(_loadedOf(cubit).unreadCounts.containsKey('a'), isFalse);
+
+    // Only NOW does the previous account's in-flight mark-read fail. Its
+    // rollback must not inject the old count into this session.
+    cubit.restoreUnread('a');
+    expect(_loadedOf(cubit).unreadCounts.containsKey('a'), isFalse);
+    await cubit.close();
+  });
+
   test('totalUnread sums per-conversation unread and drops on open', () async {
     final rt = _FakeRealtime();
     final cubit = _cubit(

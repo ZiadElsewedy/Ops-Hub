@@ -79,6 +79,13 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
   BigInt? _lastMarkedSeq;
   final ChatThreadCache? _cache;
 
+  /// Notified with the outcome of every attempted mark-read. The inbox clears a
+  /// conversation's unread badge optimistically the moment the thread is opened
+  /// (so it feels instant); this is how it learns the server never agreed, and
+  /// puts the badge back rather than showing "read" for a thread the server
+  /// still counts as unread until the next full inbox refresh.
+  final void Function(bool acknowledged)? _onReadSync;
+
   /// Prefix marking an optimistic (not-yet-confirmed) local message. The id is
   /// `local:<idempotencyKey>`, so a retry recovers the same key from the id and
   /// the server's dedupe guarantees no duplicate on a lost-response retry.
@@ -98,6 +105,7 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     this._realtime,
     this._cache,
     this._getAttachmentUrl,
+    this._onReadSync,
   })  : super(const ChatConversationState.loading()) {
     // Instant re-open: paint the last-known confirmed messages synchronously
     // from the cache, then refresh from REST in the background (load()).
@@ -329,6 +337,28 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
       attachment: attachment,
     ));
     return true;
+  }
+
+  /// Permanently discards a failed optimistic send — the local-only counterpart
+  /// to [retrySend], for a message the server will never accept (a rejected
+  /// payload, say, rather than a transient network failure).
+  ///
+  /// The bubble has no server id, so the delete endpoints cannot address it;
+  /// this drops it from the thread and from the durable outbox instead. Without
+  /// it such a send is immortal: [_retryFailedSends] re-dispatches it on every
+  /// load and every reconnect, forever, with no way to clear it.
+  Future<void> discardFailedSend(String localMessageId) async {
+    final index = _messages.indexWhere((m) => m.id == localMessageId);
+    if (index < 0) return;
+    final failed = _messages[index];
+    if (!_isLocal(failed) || failed.status != _statusFailed) return;
+
+    _messages = [..._messages]..removeAt(index);
+    _pendingAttachments.remove(localMessageId);
+    _emit();
+    await _cache?.discardPending(
+      localMessageId.substring(_localIdPrefix.length),
+    );
   }
 
   /// Re-sends a previously failed local message, reusing its idempotency key
@@ -711,20 +741,92 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     _emit();
   }
 
+  /// How many extra history pages a reconnect may pull to close a gap. A
+  /// disconnect long enough to bury more than this behind the newest window is
+  /// better served by scroll-back than by a long blocking catch-up.
+  static const _maxReconcilePages = 5;
+
   /// Post-reconnect catch-up: re-fetch the newest history page and merge it —
   /// new ids are inserted in `seq` order, known ids take the server's view.
-  /// A gap larger than one page is left for scroll-back to fill (the loaded
-  /// window stays contiguous at its newest edge, which is what the thread
-  /// shows). Failures are silent: the next reconnect or manual refresh
-  /// reconciles, and stale-but-consistent beats an error banner mid-thread.
+  ///
+  /// **Closing the gap.** If more messages arrived while the socket was down
+  /// than one page holds, the newest page does not reach back to the window we
+  /// already have, leaving a hole in the middle of the thread. Scroll-back
+  /// cannot fill it: `loadOlder()` pages from [_nextCursor], which still points
+  /// *below* our oldest message and walks away from the gap, so those messages
+  /// would stay invisible for the rest of the session. So we keep paging older
+  /// until the two windows meet.
+  ///
+  /// `seq` is allocated globally by the server, not per conversation, so a gap
+  /// cannot be detected arithmetically — the test is whether the page we just
+  /// fetched reaches back to (or past) the newest message we already held.
+  ///
+  /// If the gap is still open after [_maxReconcilePages], we hand [_nextCursor]
+  /// to the deepest page we fetched, so scroll-back walks *into* the gap and
+  /// heals it on demand rather than skipping it. Older history stays reachable —
+  /// paging simply continues down through it, deduped on the way.
+  ///
+  /// Failures are silent: the next reconnect or manual refresh reconciles, and
+  /// stale-but-consistent beats an error banner mid-thread.
   Future<void> _reconcile() async {
     if (_conversation == null) return; // first load hasn't succeeded yet
     try {
-      final page = await _loadHistory(conversationId: conversationId);
+      final hadNoMessages = _messages.isEmpty;
+      // The newest confirmed message we already hold — the point the refetched
+      // window has to reach back to for the thread to stay contiguous.
+      BigInt? knownNewest;
+      for (var i = _messages.length - 1; i >= 0; i--) {
+        if (!_isLocal(_messages[i])) {
+          knownNewest = _messages[i].seq;
+          break;
+        }
+      }
+
+      var page = await _loadHistory(conversationId: conversationId);
       for (final message in page.items) {
         _insertBySeq(message);
       }
-      if (_messages.isEmpty) _nextCursor = page.nextCursor;
+      // Nothing was loaded before, so this page *is* the window: adopt its
+      // cursor (checked against the pre-merge state — the merge just filled it).
+      if (hadNoMessages) _nextCursor = page.nextCursor;
+
+      var pagesPulled = 0;
+      bool gapRemains() =>
+          knownNewest != null &&
+          page.items.isNotEmpty &&
+          page.items.first.seq > knownNewest;
+
+      try {
+        while (gapRemains() &&
+            page.nextCursor != null &&
+            pagesPulled < _maxReconcilePages) {
+          if (isClosed) return;
+          pagesPulled++;
+          page = await _loadHistory(
+            conversationId: conversationId,
+            cursor: page.nextCursor,
+          );
+          for (final message in page.items) {
+            _insertBySeq(message);
+          }
+        }
+
+        // Still short of our old window: point scroll-back into the gap instead
+        // of at ancient history it has already passed.
+        if (gapRemains() && page.nextCursor != null) {
+          _nextCursor = page.nextCursor;
+          AppLog.warning(
+            'chat',
+            'reconnect gap wider than $_maxReconcilePages pages; '
+                'scroll-back will close it',
+          );
+        }
+      } catch (e) {
+        // A page mid-catch-up failed. Everything merged so far is still valid,
+        // so fall through to the emit rather than dropping it — the next
+        // reconnect or a scroll-back closes whatever remains.
+        AppLog.warning('chat', 'reconnect gap catch-up incomplete: $e');
+      }
       _emit();
     } on Failure catch (e) {
       AppLog.warning('chat', 'reconnect reconcile failed: ${e.message}');
@@ -755,12 +857,15 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     _lastMarkedSeq = upToSeq; // set first so concurrent calls no-op
     try {
       await _markRead(conversationId: conversationId, upToSeq: upToSeq);
+      _onReadSync?.call(true);
     } on Failure catch (e) {
       if (_lastMarkedSeq == upToSeq) _lastMarkedSeq = already;
       AppLog.warning('chat', 'mark-read failed: ${e.message}');
+      _onReadSync?.call(false);
     } catch (e) {
       if (_lastMarkedSeq == upToSeq) _lastMarkedSeq = already;
       AppLog.warning('chat', 'mark-read failed: $e');
+      _onReadSync?.call(false);
     }
   }
 }

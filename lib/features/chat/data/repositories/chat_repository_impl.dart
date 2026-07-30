@@ -249,16 +249,28 @@ class ChatRepositoryImpl implements ChatRepository {
     );
   }
 
-  /// A `local:` cursor for paging below [oldestServed] — but only if the cache
-  /// actually holds an older message than that (otherwise null: stop).
+  /// The cursor to page further back from [oldestServed].
+  ///
+  /// While the cache still holds older messages, that is a `local:` cursor and
+  /// scroll-back stays instant and network-free. Once the cache is exhausted the
+  /// **stored server cursor** takes over: the cache running out is not evidence
+  /// that the thread has no more history, only that we never cached it. Falling
+  /// back to it means an offline scroll-back that walks off the end of the cache
+  /// resumes from the server the moment connectivity returns, instead of the UI
+  /// claiming "beginning of the conversation" over history that plainly exists.
+  ///
+  /// Null — a genuine stop — is returned only when the cache is exhausted *and*
+  /// the last online first-page fetch reported no further page.
   Future<String?> _localCursorIfMore(
     String conversationId,
     BigInt oldestServed,
   ) async {
     final oldest = await _local!.oldestCachedSeq(conversationId);
-    return (oldest != null && oldest < oldestServed)
-        ? '$_localCursor$oldestServed'
-        : null;
+    if (oldest != null && oldest < oldestServed) {
+      return '$_localCursor$oldestServed';
+    }
+    final meta = await _local.readThreadMeta(conversationId);
+    return meta?.nextCursor;
   }
 
   @override
@@ -266,10 +278,18 @@ class ChatRepositoryImpl implements ChatRepository {
     required String conversationId,
     required BigInt upToSeq,
   }) =>
-      _guard(() => _remote.markRead(
-            conversationId: conversationId,
-            upToSeq: upToSeq,
-          ));
+      _readThrough(
+        remote: () => _remote.markRead(
+          conversationId: conversationId,
+          upToSeq: upToSeq,
+        ),
+        // The server has confirmed the read, so the cached badge must follow it.
+        // Otherwise a thread read offline and reopened offline would still show
+        // its pre-read count until the next successful list fetch. Best-effort,
+        // like every cache write; the next list read is authoritative anyway.
+        persist: (_) => _local?.clearCachedUnread(conversationId) ??
+            Future<void>.value(),
+      );
 
   @override
   Future<void> deleteMessageForMe({
