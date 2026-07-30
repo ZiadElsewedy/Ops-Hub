@@ -10,6 +10,7 @@ class AttendanceReportState {
     required this.summary,
     required this.coverage,
     this.message,
+    this.namesByUid = const {},
   });
 
   const AttendanceReportState.initial()
@@ -17,12 +18,14 @@ class AttendanceReportState {
       rows = const [],
       summary = AttendanceReportSummary.empty,
       coverage = LedgerCoverage.empty,
-      message = null;
+      message = null,
+      namesByUid = const {};
 
   const AttendanceReportState.loading({
     this.rows = const [],
     this.summary = AttendanceReportSummary.empty,
     this.coverage = LedgerCoverage.empty,
+    this.namesByUid = const {},
   }) : status = AttendanceReportStatus.loading,
        message = null;
 
@@ -30,6 +33,7 @@ class AttendanceReportState {
     required this.rows,
     required this.summary,
     required this.coverage,
+    this.namesByUid = const {},
   }) : status = AttendanceReportStatus.loaded,
        message = null;
 
@@ -38,6 +42,7 @@ class AttendanceReportState {
     this.rows = const [],
     this.summary = AttendanceReportSummary.empty,
     this.coverage = LedgerCoverage.empty,
+    this.namesByUid = const {},
   }) : status = AttendanceReportStatus.error;
 
   final AttendanceReportStatus status;
@@ -45,6 +50,12 @@ class AttendanceReportState {
   final AttendanceReportSummary summary;
   final LedgerCoverage coverage;
   final String? message;
+
+  /// uid -> display name for the report's branch, used only when a ledger row
+  /// carries no frozen `userName`. A phantom no-show has no attendance record to
+  /// copy a name from, so without this an absence renders as a raw Firebase uid.
+  /// Purely a label: every denominator still comes from the ledger alone.
+  final Map<String, String> namesByUid;
 
   bool get isAwaitingClose =>
       status == AttendanceReportStatus.loaded && coverage.awaitingClose;

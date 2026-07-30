@@ -14,6 +14,33 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-31 — Attendance: absence rows show a name, not a uid (bug; LOW risk)
+
+`attendance_expectations.userName` was copied from the attendance record, but a
+phantom no-show has no record by definition — so every absence, the rows ADR-017
+exists to surface, rendered a raw Firebase uid in the Weekly and Monthly reports.
+The roster stores uids only, so nothing downstream could recover the name.
+
+Fixed on both sides, because neither half is sufficient alone:
+
+- **Server** — `closeAttendanceExpectations` resolves the closable slots' uids
+  against `users/{uid}` (`displayName`, then `fullName`, matching the client
+  model) and freezes the name onto the row at close. Required regardless, since
+  ADR-017 puts CSV/PDF export in a Cloud Function and those artifacts need names.
+  **Needs a functions deploy.**
+- **Client** — `AttendanceReportCubit` resolves the branch directory through the
+  existing `GetUsersByBranch`, so the rows already in production stop showing
+  uids immediately without a backfill or a restatement. Best-effort: a directory
+  failure leaves the uid fallback and logs, never breaking a report whose numbers
+  are already right.
+
+Precedence is ledger name → directory → uid. The frozen value wins because a
+payroll artifact must reproduce the name as of close, not the name today. A
+missing name stays null rather than becoming the uid, so a reader can tell "no
+name known" from a person actually called that. The directory is a **label
+only** — every denominator still comes from the ledger, and the ADR-017 source
+guard is untouched.
+
 ## 2026-07-31 — Attendance: the Monthly Report (feature; LOW risk)
 
 The second per-period reporting destination, `/attendance/reports/monthly/:periodId`,

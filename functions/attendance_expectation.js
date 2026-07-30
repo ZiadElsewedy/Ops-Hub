@@ -299,6 +299,31 @@ function slotWindow({ schedule, businessDay, shift }) {
   };
 }
 
+/**
+ * The name frozen onto an expectation row.
+ *
+ * The attendance record wins when it carries one — it is the attendance fact for
+ * that slot. Otherwise fall back to the roster-resolved directory name, which is
+ * the only source a phantom no-show has. Returns null rather than the uid: the
+ * uid is already on the row, and a null lets a reader distinguish "no name known"
+ * from "the person is literally called that".
+ *
+ * @param {object|null} record attendance record for the slot, if one exists.
+ * @param {Object<string,string>} namesByUid uid -> display name.
+ * @param {string} uid the assigned user id.
+ * @return {string|null} the display name, or null when none is known.
+ */
+function resolveExpectedUserName(record, namesByUid, uid) {
+  if (record && record.userName != null) {
+    const fromRecord = String(record.userName).trim();
+    if (fromRecord) return fromRecord;
+  }
+  const fromDirectory = namesByUid && namesByUid[uid] != null
+    ? String(namesByUid[uid]).trim()
+    : "";
+  return fromDirectory || null;
+}
+
 function buildExpectedShiftRows({
   schedule,
   businessDay,
@@ -306,6 +331,11 @@ function buildExpectedShiftRows({
   nowMs,
   openCorrectionIds = new Set(),
   graceMinutes = AUTO_CLOSE_GRACE_MINUTES,
+  // uid -> display name, for the rows that have no attendance record to copy a
+  // name from. A phantom no-show is exactly that case by definition, so without
+  // this every absence — the rows this report exists to surface — renders as a
+  // raw Firebase uid. The roster stores uids only, so the caller resolves these.
+  namesByUid = {},
 } = {}) {
   const day = normalizeBusinessDay(businessDay);
   if (!schedule || !day || !Number.isFinite(Number(nowMs))) return [];
@@ -343,7 +373,7 @@ function buildExpectedShiftRows({
       rows.push({
         rowId,
         userId: uid,
-        userName: record && record.userName != null ? String(record.userName) : null,
+        userName: resolveExpectedUserName(record, namesByUid, uid),
         branchId,
         dayKey,
         businessDate: day.dateKey,

@@ -163,6 +163,7 @@ class _WeeklyReportLoader extends StatelessWidget {
             final report = WeeklyAttendanceReport.fromLedger(
               rows: state.rows,
               window: period.window,
+              namesByUid: state.namesByUid,
             );
             return _WeeklyReportContent(
               period: period,

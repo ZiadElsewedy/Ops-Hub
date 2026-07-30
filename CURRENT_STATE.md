@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1243 pass · 2 fail** across 177 files (~23s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **64 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1246 pass · 2 fail** across 177 files (~27s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -197,7 +197,8 @@ rostered day no longer falls permanently out of reach during that week. **The
 widened sweep is DEPLOYED** — `closeAttendanceExpectations` was updated in
 `us-central1` on 2026-07-30 23:20Z (revision `00005`, Node 22, 2nd Gen), so this
 is the one function no longer waiting on the standing backlog. Every *other*
-pending function still is. The
+pending function still is. **The later `namesByUid` change (below) landed after
+that deploy and needs another one** before the server stamps names. The
 previous production pipeline was verified on 2026-07-30 11:39Z with 3 real
 20260729 absent phantom no-show rows for branch `DDwedTHvI1sPHrMz06PI`, while
 branch `ikMkXApQQFeMsYFFu97X` legitimately had no recent rows because no roster
@@ -256,6 +257,18 @@ scans nothing, so the ADR-017 rollup Function can later add a `fromRollup(...)`
 factory additively with no UI change. The month range is served by the
 already-deployed `(branchId, dayKey)` composite, so this slice added **no
 function, rule, or index** and needs no deploy.
+
+**Absence rows now carry a name.** The ledger's `userName` was copied from the
+attendance record, but a phantom no-show has none by definition — so every
+absence, the rows the whole feature exists to surface, rendered a raw Firebase
+uid. Fixed on both sides: `closeAttendanceExpectations` resolves the roster's
+uids against `users/{uid}` and freezes the name onto new rows (**needs a
+functions deploy**), and `AttendanceReportCubit` resolves the branch directory
+via the existing `GetUsersByBranch` so rows already in production stop showing
+uids immediately, with no backfill. Precedence is ledger name → directory → uid:
+the frozen name wins because a payroll artifact must reproduce the name as of
+close. The directory read is a **label only** — every denominator still comes
+from the ledger alone, and the source guard is unchanged.
 
 Per-employee report, exception queue, branch comparison, close/lock, export, and
 month-over-month comparison remain later slices and appear as disabled **Coming
@@ -467,8 +480,8 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1243 pass, 2 fail (pre-existing: 2 splash-centering)
-(cd functions && node --test)            # expect: 64 pass
+flutter test                             # expect: 1246 pass, 2 fail (pre-existing: 2 splash-centering)
+(cd functions && node --test)            # expect: 68 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 49
 ls lib/features | wc -l                  # expect: 18

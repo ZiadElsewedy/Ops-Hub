@@ -3915,9 +3915,11 @@ async function buildClosableAttendanceExpectationRows(nowMs) {
   const closableCandidates = candidates.filter((row) =>
     isSlotClosable(row, nowMs, AUTO_CLOSE_GRACE_MINUTES));
   const rowIds = [...new Set(closableCandidates.map((row) => row.rowId))];
-  const [recordsById, openCorrectionIds] = await Promise.all([
+  const closableUids = [...new Set(closableCandidates.map((row) => row.userId))];
+  const [recordsById, openCorrectionIds, namesByUid] = await Promise.all([
     readAttendanceRecordsById(rowIds),
     readOpenAttendanceCorrectionIds(rowIds),
+    readUserNamesByUid(closableUids),
   ]);
 
   const rows = [];
@@ -3930,11 +3932,33 @@ async function buildClosableAttendanceExpectationRows(nowMs) {
         businessDay: day,
         recordsById,
         openCorrectionIds,
+        namesByUid,
         nowMs,
       }).filter((row) => isSlotClosable(row, nowMs, AUTO_CLOSE_GRACE_MINUTES)));
     }
   }
   return rows;
+}
+
+// Resolve display names for the uids a sweep is about to close. The roster
+// stores uids only and a phantom no-show has no attendance record, so without
+// this every absence row lands with a null `userName` and the report renders a
+// raw Firebase uid. Bounded by the closable slots in the swept week, batched
+// through the same `getAll` path as the record read.
+async function readUserNamesByUid(uids) {
+  if (!uids.length) return {};
+  const refs = uids.map((uid) => db.collection(USERS).doc(uid));
+  const snaps = await getAllRefs(refs);
+  const names = {};
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const data = snap.data() || {};
+    // Same precedence the client model uses: `displayName`, then the profile
+    // `fullName` key the same doc carries.
+    const name = String(data.displayName || data.fullName || "").trim();
+    if (name) names[snap.id] = name;
+  }
+  return names;
 }
 
 // Auto-close sessions the employee never clocked out of. A still-open session

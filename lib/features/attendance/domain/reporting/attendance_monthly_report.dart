@@ -38,6 +38,7 @@ class MonthlyAttendanceReport {
   factory MonthlyAttendanceReport.fromLedger({
     required List<AttendanceLedgerRow> rows,
     required AttendancePeriodWindow window,
+    Map<String, String> namesByUid = const {},
   }) {
     final scopedRows =
         rows.where((row) => _dayKeyInWindow(row.dayKey, window)).toList()
@@ -51,7 +52,7 @@ class MonthlyAttendanceReport {
       rows: List.unmodifiable(scopedRows),
       summary: AttendanceReportSummary.fromLedger(scopedRows),
       weekBuckets: List.unmodifiable(buckets),
-      employees: List.unmodifiable(_employeeAggregates(scopedRows)),
+      employees: List.unmodifiable(_employeeAggregates(scopedRows, namesByUid)),
       exceptionGroups: List.unmodifiable(_exceptionGroups(scopedRows)),
       coverage: MonthlyAttendanceCoverage.fromMonth(
         dayKeys: dayKeys,
@@ -298,6 +299,7 @@ List<String> _monthDayKeys(AttendancePeriodWindow window) => [
 // an exception identically. The weekly file is left untouched.
 List<WeeklyAttendanceEmployeeAggregate> _employeeAggregates(
   List<AttendanceLedgerRow> rows,
+  Map<String, String> namesByUid,
 ) {
   final builders = <String, _EmployeeAggregateBuilder>{};
   for (final row in rows) {
@@ -305,7 +307,7 @@ List<WeeklyAttendanceEmployeeAggregate> _employeeAggregates(
       row.userId,
       () => _EmployeeAggregateBuilder(
         userId: row.userId,
-        displayName: _employeeName(row),
+        displayName: _employeeName(row, namesByUid),
       ),
     );
     builder.add(row);
@@ -361,9 +363,20 @@ List<WeeklyAttendanceExceptionGroup> _exceptionGroups(
   return groups;
 }
 
-String _employeeName(AttendanceLedgerRow row) {
+/// Ledger-frozen name first, then the branch directory, then the uid.
+///
+/// The ledger value wins because it is the name as of close, which is what a
+/// payroll artifact must reproduce. The directory only fills the gap a phantom
+/// no-show leaves: it has no attendance record, so it has no frozen name, and
+/// the uid alone is unreadable to a manager.
+String _employeeName(
+  AttendanceLedgerRow row, [
+  Map<String, String> namesByUid = const {},
+]) {
   final name = row.userName?.trim();
   if (name != null && name.isNotEmpty) return name;
+  final fromDirectory = namesByUid[row.userId]?.trim();
+  if (fromDirectory != null && fromDirectory.isNotEmpty) return fromDirectory;
   return row.userId;
 }
 

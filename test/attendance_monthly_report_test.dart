@@ -355,6 +355,8 @@ void main() {
     );
   });
 
+  group('employee name resolution', _nameResolutionTests);
+
   // Egypt observes DST: clocks go forward on the last Friday of April and back
   // on the last Thursday of October. A month is the first reporting surface
   // that walks every date and groups by Schedule week, so it is the first place
@@ -413,5 +415,49 @@ void main() {
         30,
       );
     });
+  });
+}
+
+// The ledger's own `userName` is frozen at close and must win, because a payroll
+// artifact has to reproduce the name as of that close. The branch directory only
+// fills the gap a phantom no-show leaves behind — it has no attendance record, so
+// it has no frozen name, and a raw uid is unreadable to a manager.
+void _nameResolutionTests() {
+  final july = monthlyWindow(2026, 7);
+
+  test('a phantom no-show takes its name from the branch directory', () {
+    final report = MonthlyAttendanceReport.fromLedger(
+      rows: [_row(id: 'u1_20260715_morning', userId: 'u1', recordId: null)],
+      window: july,
+      namesByUid: const {'u1': 'Dina Mostafa'},
+    );
+
+    expect(report.employees.single.displayName, 'Dina Mostafa');
+  });
+
+  test('the ledger name outranks the directory', () {
+    final report = MonthlyAttendanceReport.fromLedger(
+      rows: [
+        _row(
+          id: 'u1_20260715_morning',
+          userId: 'u1',
+          userName: 'Name At Close',
+        ),
+      ],
+      window: july,
+      namesByUid: const {'u1': 'Renamed Later'},
+    );
+
+    expect(report.employees.single.displayName, 'Name At Close');
+  });
+
+  test('an unknown uid still falls back to the uid, never a blank row', () {
+    final report = MonthlyAttendanceReport.fromLedger(
+      rows: [_row(id: 'u9_20260715_morning', userId: 'u9')],
+      window: july,
+      namesByUid: const {'someoneElse': 'Not This Person'},
+    );
+
+    expect(report.employees.single.displayName, 'u9');
   });
 }

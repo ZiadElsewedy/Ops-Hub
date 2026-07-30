@@ -8,17 +8,28 @@ import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
+import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
 import 'attendance_report_state.dart';
 
 class AttendanceReportCubit extends Cubit<AttendanceReportState> {
-  AttendanceReportCubit({required AttendanceReportingRepository repository})
+  AttendanceReportCubit({
+    required AttendanceReportingRepository repository,
+    GetUsersByBranch? getUsersByBranch,
+  })
     // Named args read better at the DI call site than an underscored
     // initializing formal.
     // ignore: prefer_initializing_formals
     : _repository = repository,
+      // ignore: prefer_initializing_formals
+      _getUsersByBranch = getUsersByBranch,
       super(const AttendanceReportState.initial());
 
   final AttendanceReportingRepository _repository;
+
+  /// Optional on purpose: without it the report simply falls back to the uid,
+  /// which is the behaviour every existing caller and test already expects.
+  final GetUsersByBranch? _getUsersByBranch;
+  Map<String, String> _namesByUid = const {};
   StreamSubscription<List<AttendanceLedgerRow>>? _sub;
   _ReportRequest? _activeRequest;
 
@@ -38,6 +49,7 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
         attendanceDayKey(window.endDate),
       ),
     );
+    _loadBranchNames(id);
   }
 
   void watchUserWindow({
@@ -93,6 +105,36 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
     _sub = stream.listen(_emitRows, onError: _onStreamError);
   }
 
+  /// Best-effort: a directory failure must never take down a report whose
+  /// numbers are already correct, so it leaves the uid fallback in place and
+  /// logs rather than emitting an error state.
+  Future<void> _loadBranchNames(String branchId) async {
+    final resolve = _getUsersByBranch;
+    if (resolve == null) return;
+    try {
+      final users = await resolve(branchId);
+      if (isClosed) return;
+      final names = <String, String>{};
+      for (final user in users) {
+        final name = (user.displayName ?? user.email).trim();
+        if (name.isNotEmpty) names[user.uid] = name;
+      }
+      _namesByUid = Map.unmodifiable(names);
+      if (state.status == AttendanceReportStatus.loaded) {
+        emit(
+          AttendanceReportState.loaded(
+            rows: state.rows,
+            summary: state.summary,
+            coverage: state.coverage,
+            namesByUid: _namesByUid,
+          ),
+        );
+      }
+    } catch (e, st) {
+      AppLog.error('attendance', 'report name directory failed', e, st);
+    }
+  }
+
   void _emitRows(List<AttendanceLedgerRow> rows) {
     if (isClosed) return;
     emit(
@@ -100,6 +142,7 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
         rows: rows,
         summary: AttendanceReportSummary.fromLedger(rows),
         coverage: LedgerCoverage.fromRows(rows),
+        namesByUid: _namesByUid,
       ),
     );
   }

@@ -423,6 +423,10 @@ class AppDependencies {
   static late final AttendanceRepository _attendanceRepository;
   static late final AttendanceReportingRepository _attendanceReportingRepository;
 
+  /// Branch member directory used by the reporting screens to put a name on a
+  /// phantom no-show, which has no attendance record to carry one.
+  static late final GetUsersByBranch _reportUsersByBranch;
+
   /// Builds a fresh Attendance History ledger cubit — the employee's own history
   /// ([AttendanceHistoryMode.self]) or a manager/admin branch review
   /// ([AttendanceHistoryMode.review]). Owned + disposed by its `BlocProvider`.
@@ -444,7 +448,13 @@ class AppDependencies {
   /// `attendance_expectations` ledger; raw attendance and schedules stay out of
   /// this read path by contract (ADR-017).
   static AttendanceReportCubit createAttendanceReportCubit() =>
-      AttendanceReportCubit(repository: _attendanceReportingRepository);
+      AttendanceReportCubit(
+        repository: _attendanceReportingRepository,
+        // Labels only. A phantom no-show has no attendance record to carry a
+        // name, so without this every absence renders as a raw uid. Denominators
+        // still come from the ledger alone.
+        getUsersByBranch: _reportUsersByBranch,
+      );
 
   /// Builds a fresh Attendance record Details cubit (record + server-derived
   /// audit trail + corrections), seeded from the tapped record for an instant
@@ -536,6 +546,7 @@ class AppDependencies {
     // Chat directory (every active user but the caller — flat, no branch/role)
     // — the picker and the inbox share it.
     _getChatDirectory = GetChatDirectory(authRepository);
+    _reportUsersByBranch = GetUsersByBranch(authRepository);
 
     final ProfileRepository profileRepository =
         ProfileRepositoryImpl(profileRemoteDataSource, authRemoteDataSource);

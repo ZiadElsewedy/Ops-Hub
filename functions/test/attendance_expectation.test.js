@@ -153,6 +153,60 @@ test("a missing rostered record after grace becomes an absent phantom row", () =
   assert.deepEqual(row.exceptionCodes, []);
 });
 
+test("an absent phantom row takes its name from the roster directory", () => {
+  // The roster stores uids only and a phantom no-show has no attendance record
+  // to copy a name from, so without `namesByUid` every absence renders as a raw
+  // Firebase uid in the report.
+  const nowMs = Date.parse("2026-07-30T15:30:00Z");
+  const rows = buildExpectedShiftRows({
+    schedule: schedule(),
+    businessDay: THURSDAY,
+    namesByUid: { emp1: "Employee One" },
+    nowMs,
+  });
+  const row = rows.find((r) => r.userId === "emp1" && r.shift === "morning");
+  assert.equal(row.outcome, OUTCOMES.absent);
+  assert.equal(row.recordId, null);
+  assert.equal(row.userName, "Employee One");
+});
+
+test("a name is null, never the uid, when no source knows it", () => {
+  const rows = buildExpectedShiftRows({
+    schedule: schedule(),
+    businessDay: THURSDAY,
+    namesByUid: { someoneElse: "Not This Person" },
+    nowMs: Date.parse("2026-07-30T15:30:00Z"),
+  });
+  const row = rows.find((r) => r.userId === "emp1" && r.shift === "morning");
+  // Null lets a reader tell "no name known" apart from a person actually named
+  // after their uid; the uid is already carried on the row.
+  assert.equal(row.userName, null);
+});
+
+test("the attendance record's own name outranks the directory", () => {
+  const rowId = "emp1_20260730_morning";
+  const rows = buildExpectedShiftRows({
+    schedule: schedule(),
+    businessDay: THURSDAY,
+    recordsById: { [rowId]: record() },
+    namesByUid: { emp1: "Stale Directory Name" },
+    nowMs: Date.parse("2026-07-30T15:30:00Z"),
+  });
+  const row = rows.find((r) => r.rowId === rowId);
+  assert.equal(row.userName, "Employee One");
+});
+
+test("a blank directory name does not mask a missing name", () => {
+  const rows = buildExpectedShiftRows({
+    schedule: schedule(),
+    businessDay: THURSDAY,
+    namesByUid: { emp1: "   " },
+    nowMs: Date.parse("2026-07-30T15:30:00Z"),
+  });
+  const row = rows.find((r) => r.userId === "emp1" && r.shift === "morning");
+  assert.equal(row.userName, null);
+});
+
 test("worked late rows copy persisted minutes and derive exceptions", () => {
   const rowId = "emp1_20260730_morning";
   const rows = buildExpectedShiftRows({

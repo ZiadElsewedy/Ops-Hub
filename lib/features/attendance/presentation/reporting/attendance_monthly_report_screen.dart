@@ -167,6 +167,7 @@ class _MonthlyReportLoader extends StatelessWidget {
             final report = MonthlyAttendanceReport.fromLedger(
               rows: state.rows,
               window: period.window,
+              namesByUid: state.namesByUid,
             );
             return _MonthlyReportContent(
               period: period,
