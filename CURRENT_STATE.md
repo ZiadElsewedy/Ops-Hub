@@ -171,6 +171,18 @@ phases and committed; what remains is deployment and on-device verification.
 
 > Attendance minutes feed payroll. Do not ship it on a simulator's word.
 
+**Reporting-system audit (2026-07-30) — a PROPOSAL, nothing implemented.**
+[docs/design/ATTENDANCE_AUDIT_2026-07-30.md](docs/design/ATTENDANCE_AUDIT_2026-07-30.md)
+audits the module end to end and proposes refounding it as an operational reporting
+ledger (reports-first IA, period close/lock/export, rollups, PDF/CSV). It is owner-
+requested and **awaits a ruling** — it does not supersede the locked
+[ATTENDANCE_SPEC.md](docs/design/ATTENDANCE_SPEC.md) unless its draft **ADR-017**
+(which would amend [ADR-009](docs/decisions/ADR-009-no-analytics-pipeline.md),
+[ADR-010](docs/decisions/ADR-010-lean-over-enterprise.md), and spec §8) is accepted.
+Its P0 finding is a real defect independent of that decision: a lazy no-show writes
+no document, so the ledger's `Rate` is structurally ~always 100%
+(`attendance_analytics.dart` counts only materialized records).
+
 ### Removed — do not re-add
 
 | Feature | Removed | Why |
