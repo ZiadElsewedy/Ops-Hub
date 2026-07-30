@@ -447,6 +447,31 @@ function previousBusinessDay(day) {
   return midnight == null ? null : businessDayParts(midnight);
 }
 
+function businessDaysToSweep(nowMs) {
+  const today = businessDayParts(nowMs);
+  if (!today) return [];
+  const weekStart = weekStartInfoForBusinessDay(today);
+  if (!weekStart) return [];
+
+  const daysByKey = new Map();
+  let cursor = today;
+  while (cursor) {
+    if (daysByKey.size >= 8) break;
+    daysByKey.set(cursor.dateKey, cursor);
+    if (cursor.dateKey === weekStart.key) break;
+    cursor = previousBusinessDay(cursor);
+  }
+
+  const previous = previousBusinessDay(today);
+  if (previous) daysByKey.set(previous.dateKey, previous);
+
+  const days = [...daysByKey.values()].sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  if (days.length > 8) {
+    throw new Error(`businessDaysToSweep exceeded bounded window: ${days.length}`);
+  }
+  return Object.freeze(days);
+}
+
 function weekStartInfoForBusinessDay(day) {
   const current = normalizeBusinessDay(day);
   if (!current) return null;
@@ -471,6 +496,7 @@ module.exports = {
   SCHEDULE_SHIFTS,
   attendanceDayKey,
   attendanceDocId,
+  businessDaysToSweep,
   buildExpectedShiftRows,
   classifyExceptions,
   classifyExpectedOutcome,

@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1203 pass · 2 fail** across 175 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **60 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1203 pass · 2 fail** across 175 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **64 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -188,14 +188,18 @@ The first pure, additive P0 core exists under
 expected-shift rows, no-show phantom rows, derived exceptions, and report summaries
 with explicit denominators. The server-side close slice now mirrors that contract in
 `functions/attendance_expectation.js` and exports `closeAttendanceExpectations`, a
-30-minute Cloud Function that scans the current and previous Africa/Cairo business
-day, writes one `attendance_expectations/{uid}_{yyyyMMdd}_{shift}` row per closed
-rostered slot, and restates rows by version when attendance inputs change. This
-pipeline is live and verified in production as of 2026-07-30 11:39Z; the
-`attendance_expectations` ledger contains 3 real 20260729 absent phantom no-show
-rows for branch `DDwedTHvI1sPHrMz06PI`, while branch `ikMkXApQQFeMsYFFu97X`
-legitimately has no recent rows because no roster was published. The two reporting
-composites are deployed: `(branchId, dayKey)` and `(userId, dayKey)`.
+30-minute Cloud Function that scans the current Africa/Cairo business week
+(Sunday through today) plus the previous business day for the Sunday boundary,
+writes one `attendance_expectations/{uid}_{yyyyMMdd}_{shift}` row per closed
+rostered slot, and restates rows by version when attendance inputs change. The
+week-wide sweep is self-healing for missed runs inside the active week, so a
+rostered day no longer falls permanently out of reach during that week. **Requires
+a functions deploy before this wider window takes effect in production.** The
+previous production pipeline was verified on 2026-07-30 11:39Z with 3 real
+20260729 absent phantom no-show rows for branch `DDwedTHvI1sPHrMz06PI`, while
+branch `ikMkXApQQFeMsYFFu97X` legitimately had no recent rows because no roster
+was published. The two reporting composites are deployed: `(branchId, dayKey)`
+and `(userId, dayKey)`.
 The client read layer now treats `attendance_expectations` as the only reporting
 source: `AttendanceLedgerRow`/`AttendanceLedgerModel`, read-only branch/dayKey and
 user/dayKey range streams, `AttendanceReportSummary.fromLedger`, and
@@ -226,12 +230,12 @@ row-present no-show day renders `0%`, and a day with no rows reads **No ledger
 data** rather than zero attendance. Verified against production on 2026-07-30, the
 live roster week `weekly_schedules/DDwedTHvI1sPHrMz06PI_2026-07-26` has no Sunday,
 Friday, or Saturday assignments, so reports will show ledger data gaps on those
-dates until the roster is published for them. Separate backend gap: the current
-`closeAttendanceExpectations` sweep only covers the current and previous business
-day, so older rostered slots such as that live Monday/Tuesday never receive ledger
-rows without a wider sweep window or a backfill. Monthly, per-employee, exception
-queue, branch comparison, close/lock, and export remain later slices and appear as
-disabled **Coming next** affordances.
+dates until the roster is published for them. After the functions deploy for the
+week-wide sweep, older rostered slots inside the current business week, including
+that live Monday/Tuesday, will be materialized on the next close run once past
+grace. Weeks entirely in the past still require a separate backfill. Monthly,
+per-employee, exception queue, branch comparison, close/lock, and export remain
+later slices and appear as disabled **Coming next** affordances.
 
 ### Removed — do not re-add
 
@@ -440,7 +444,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
 flutter test                             # expect: 1203 pass, 2 fail (pre-existing: 2 splash-centering)
-(cd functions && node --test)            # expect: 60 pass
+(cd functions && node --test)            # expect: 64 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 48
 ls lib/features | wc -l                  # expect: 18

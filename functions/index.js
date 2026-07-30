@@ -69,10 +69,10 @@ const ATTENDANCE_EXPECTATIONS = "attendance_expectations";
 const { isAutoCloseDue } = require("./attendance_auto_close");
 const {
   AUTO_CLOSE_GRACE_MINUTES,
+  businessDaysToSweep,
   buildExpectedShiftRows,
   expectationInputsChanged,
   isSlotClosable,
-  previousBusinessDay,
   summarizeRows,
   weekStartInfoForBusinessDay,
 } = require("./attendance_expectation");
@@ -3908,10 +3908,8 @@ async function commitAttendanceExpectationGroups(rows) {
 }
 
 async function buildClosableAttendanceExpectationRows(nowMs) {
-  const today = businessDayParts(nowMs);
-  if (!today) return [];
-  const yesterday = previousBusinessDay(today);
-  const days = [today, yesterday].filter(Boolean);
+  const days = businessDaysToSweep(nowMs);
+  if (!days.length) return [];
   const schedulesByWeek = await readSchedulesForBusinessDays(days);
   const candidates = candidateRowsForSchedules(days, schedulesByWeek, nowMs);
   const closableCandidates = candidates.filter((row) =>
@@ -4009,14 +4007,16 @@ exports.autoCloseAttendance = onSchedule("every 30 minutes", async () => {
  * expected roster slot into a persisted fact, including the **phantom** rows for
  * slots nobody ever clocked.
  *
- * THE SWEEP. Every 30 minutes it resolves the current and previous
- * `Africa/Cairo` business day (bounded so a missed tick self-heals without ever
- * scanning history), reads those business weeks' `weekly_schedules`, expands
- * rostered slots, and keeps only slots already past `scheduledEnd + grace`.
- * Attendance documents are fetched with one `getAll` on deterministic ids — not
- * a query per row — and pending corrections in chunked `attendanceId in (...)`
- * reads, so cost is `O(branches × 2 days × shifts × staff)` with no unbounded
- * scan.
+ * THE SWEEP. Every 30 minutes it resolves every `Africa/Cairo` business day from
+ * the current business week's Sunday through today, plus the previous business
+ * day for the Sunday boundary, then reads those business weeks'
+ * `weekly_schedules`, expands rostered slots, and keeps only slots already past
+ * `scheduledEnd + grace`. The window is intentionally capped at 8 days: wide
+ * enough to self-heal after a missed run or deploy delay so a rostered day never
+ * falls out of reach during its active week, but still bounded. Attendance
+ * documents are fetched with one `getAll` on deterministic ids — not a query per
+ * row — and pending corrections in chunked `attendanceId in (...)` reads, so
+ * cost is `O(branches × ≤8 days × shifts × staff)` with no unbounded scan.
  *
  * IDEMPOTENCY + RESTATEMENT. Each row id equals the attendance record's own
  * deterministic id (`{uid}_{yyyyMMdd}_{shift}`), so a retry overwrites rather

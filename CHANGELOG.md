@@ -28,6 +28,19 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-30
 
+- **Attendance expectation sweep widened to the current business week** (bug; HIGH
+  operational importance, LOW implementation risk — payroll-reporting denominator
+  recovery). Added pure `businessDaysToSweep(nowMs)` in
+  `functions/attendance_expectation.js`: newest-first Africa/Cairo business days
+  from the current Schedule week Sunday through today, plus the previous business
+  day for the Sunday boundary, deduplicated and hard-capped at 8 entries. The
+  scheduled `closeAttendanceExpectations` consumer now uses that helper while
+  keeping the same schedule reads, deterministic attendance ids, single `getAll`,
+  chunked correction query, locked-row skip, and restatement signature. This makes
+  the sweep self-healing after a missed run or deploy delay for rostered days still
+  in the active business week; weeks entirely in the past still need a separate
+  backfill. **Requires a functions deploy before production behavior changes.**
+
 - **Attendance reporting zero-attendance semantics** (bug/product semantics; MED
   risk — payroll-adjacent wording and close readiness). Owner rule recorded:
   a materialized expected shift with no clock-ins is a real **0%** attendance
@@ -95,7 +108,8 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   the Dart reporting core's expected-row outcomes and exception codes while copying
   persisted minute snapshots rather than recalculating payroll minutes. New
   scheduled export `closeAttendanceExpectations` runs every 30 minutes in
-  `Africa/Cairo`, scans only the current and previous business day, resolves
+  `Africa/Cairo`; the initial version scanned only the current and previous
+  business day before the week-wide self-healing window later the same day. It resolves
   rostered slots from `weekly_schedules`, materializes one
   `attendance_expectations/{uid}_{yyyyMMdd}_{shift}` row per closed expected slot
   (including phantom no-shows), skips locked rows, and restates changed rows with a

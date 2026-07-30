@@ -7,6 +7,7 @@ const {
   EXCEPTION_CODES,
   OUTCOMES,
   attendanceDocId,
+  businessDaysToSweep,
   buildExpectedShiftRows,
   classifyExceptions,
   expectationInputsChanged,
@@ -70,6 +71,61 @@ test("deterministic expectation row ids mirror attendance document ids", () => {
     attendanceDocId({ uid: "u1", dayKey: "20260730", shift: "night" }),
     "u1_20260730_night",
   );
+});
+
+test("business days to sweep returns the current week through mid-week, newest first", () => {
+  assert.deepEqual(
+    businessDaysToSweep(Date.parse("2026-07-30T09:00:00Z")).map((day) => day.dateKey),
+    [
+      "2026-07-30",
+      "2026-07-29",
+      "2026-07-28",
+      "2026-07-27",
+      "2026-07-26",
+    ],
+  );
+});
+
+test("business days to sweep includes previous Saturday only on Sunday boundary", () => {
+  assert.deepEqual(
+    businessDaysToSweep(Date.parse("2026-07-26T09:00:00Z")).map((day) => day.dateKey),
+    [
+      "2026-07-26",
+      "2026-07-25",
+    ],
+  );
+});
+
+test("business days to sweep returns all seven days at week end", () => {
+  assert.deepEqual(
+    businessDaysToSweep(Date.parse("2026-08-01T09:00:00Z")).map((day) => day.dateKey),
+    [
+      "2026-08-01",
+      "2026-07-31",
+      "2026-07-30",
+      "2026-07-29",
+      "2026-07-28",
+      "2026-07-27",
+      "2026-07-26",
+    ],
+  );
+});
+
+test("business days to sweep is capped and unique", () => {
+  const sampleNowMs = [
+    "2026-07-26T09:00:00Z",
+    "2026-07-27T09:00:00Z",
+    "2026-07-28T09:00:00Z",
+    "2026-07-29T09:00:00Z",
+    "2026-07-30T09:00:00Z",
+    "2026-07-31T09:00:00Z",
+    "2026-08-01T09:00:00Z",
+  ];
+  for (const now of sampleNowMs) {
+    const keys = businessDaysToSweep(Date.parse(now)).map((day) => day.dateKey);
+    assert.ok(keys.length <= 8);
+    assert.equal(new Set(keys).size, keys.length);
+  }
 });
 
 test("a missing rostered record before close remains noRecordYet and is not closable", () => {
