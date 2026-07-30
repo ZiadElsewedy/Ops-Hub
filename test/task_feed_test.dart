@@ -317,7 +317,7 @@ void main() {
           now,
         ).map((g) => g.label);
         expect(labels, [
-          'Overdue',
+          'Late',
           'Today',
           'This week',
           'Later',

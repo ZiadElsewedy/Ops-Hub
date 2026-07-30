@@ -1449,8 +1449,8 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
     if (!kind) continue;
 
     const type = kind === "overdue" ? "taskOverdue" : "taskReminder";
-    const title = kind === "overdue" ? "Task Overdue" : "Task Reminder";
-    const dueLabel = kind === "overdue" ? "is overdue" : "is due soon";
+    const title = kind === "overdue" ? "Task Late" : "Task Reminder";
+    const dueLabel = kind === "overdue" ? "is late" : "is due soon";
     const body = `${t.title || "A task"} ${dueLabel}`;
     const payload = { taskId: doc.id, route: "task_details", kind };
 

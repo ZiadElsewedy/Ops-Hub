@@ -362,12 +362,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         count: overdue,
         accent: AppColors.error,
         icon: Icons.event_busy_outlined,
-        label: 'Overdue',
+        label: 'Late',
         sublabel: 'Past the deadline',
         onTap: () => _openFiltered(
-          'Overdue',
+          'Late',
           const TaskFeedFilter(preset: FeedPreset.overdue),
-          empty: 'No overdue work. Nicely done.',
+          empty: 'No late work. Nicely done.',
         ),
       ),
       _Signal(
@@ -1510,7 +1510,7 @@ class _AllClearPanel extends StatelessWidget {
                   // The zeroed facts, quiet and inline (medium grey) — proof the
                   // calm state is real, not a failed load.
                   Text(
-                    '0 pending review · 0 overdue · 0 unassigned · '
+                    '0 pending review · 0 late · 0 unassigned · '
                     '0 sent back · 0 swaps',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.textTertiary,

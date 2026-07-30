@@ -60,7 +60,7 @@ class PendingActions extends StatelessWidget {
       if (overdue > 0)
         _ActionRow(
           icon: Icons.warning_amber_rounded,
-          label: overdue == 1 ? '1 Overdue Task' : '$overdue Overdue Tasks',
+          label: overdue == 1 ? '1 Late Task' : '$overdue Late Tasks',
           detail: 'Past the deadline',
           accent: AppColors.error,
           onTap: onOverdue,
@@ -95,7 +95,7 @@ class PendingActions extends StatelessWidget {
                   const Text('Nothing queued', style: AppTypography.label),
                   const SizedBox(height: 2),
                   Text(
-                    'No swaps, reviews or overdue tasks.',
+                    'No swaps, reviews or late tasks.',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -127,7 +127,7 @@ class PendingActions extends StatelessWidget {
       if (overdue > 0)
         MetricPill(
           value: '$overdue',
-          label: 'overdue',
+          label: 'late',
           icon: Icons.warning_amber_rounded,
           tone: AppColors.error,
         ),

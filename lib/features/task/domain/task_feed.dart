@@ -30,7 +30,7 @@ enum FeedSort { smart, dueDate, priority, newest }
 
 extension FeedPresetX on FeedPreset {
   String get label => switch (this) {
-    FeedPreset.overdue => 'Overdue',
+    FeedPreset.overdue => 'Late',
     FeedPreset.needsReview => 'Needs review',
     FeedPreset.dueToday => 'Due today',
     FeedPreset.unassigned => 'Unassigned',
@@ -334,7 +334,7 @@ int _epoch(DateTime? d) => d?.millisecondsSinceEpoch ?? 0;
     case FeedGrouping.dueTime:
       if (_isDone(t)) return (key: 'done', label: 'Done today', order: 5);
       if (isTaskOverdue(t, now)) {
-        return (key: 'overdue', label: 'Overdue', order: 0);
+        return (key: 'overdue', label: 'Late', order: 0);
       }
       final d = t.deadline;
       if (d == null) return (key: 'nodate', label: 'No due date', order: 4);

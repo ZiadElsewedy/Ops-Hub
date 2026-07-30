@@ -113,7 +113,7 @@ class _MetricRow extends StatelessWidget {
         children: [
           _MetricCell(value: w.active, label: 'Active'),
           _cellDivider(),
-          _MetricCell(value: w.overdue, label: 'Overdue', alert: w.overdue > 0),
+          _MetricCell(value: w.overdue, label: 'Late', alert: w.overdue > 0),
           _cellDivider(),
           _MetricCell(value: w.submitted, label: 'Review'),
           _cellDivider(),

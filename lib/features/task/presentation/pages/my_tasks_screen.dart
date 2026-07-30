@@ -1096,7 +1096,7 @@ String? _metaLine(TaskEntity task, bool isOverdue) {
   final d = task.deadline;
   if (d != null) {
     if (isOverdue) {
-      parts.add('Overdue · ${_dateLabel(d)}');
+      parts.add('Late · ${_dateLabel(d)}');
     } else {
       parts.add('Due ${_dateLabel(d)}');
     }

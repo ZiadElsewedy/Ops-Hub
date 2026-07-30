@@ -36,7 +36,8 @@
       "Bash(flutter test *)",
       "Bash(command -v codex)",
       "Bash(codex --version)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(grep -i \"title\\\\|body\\\\|'.*due\\\\|\\\\`\")"
     ]
   }
 }

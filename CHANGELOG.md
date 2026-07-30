@@ -14,6 +14,23 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-30 — UI label: "Overdue" → "Late" (polish; LOW risk)
+
+Every user-facing "Overdue" string now reads **"Late"**, so the product shows
+exactly two overdue-ish words: **Late** (open task past its deadline) and
+**Missed** (closed, unfinished). The label "Overdue" no longer appears in any
+screen — task cards, feed group headers, feed preset, `TaskSchedulePhase` chip,
+admin/branch dashboards, operations metric, workload cards, and pending-actions.
+The push-notification title also changes ("Task Overdue" → "Task Late",
+"is overdue" → "is late") — **needs a functions deploy to take effect.**
+
+Presentation only: internal identifiers keep the name `overdue`
+(`TaskSchedulePhase.overdue`, `FeedPreset.overdue`, `isTaskOverdue`,
+`OperationsMetric.overdue`, group/preset keys, `usage_tracker` keys) so analytics
+keys and logic are untouched. Aligns the UI with the spec's own primary term —
+`AUTOMATED_TASKS_PRODUCT_SPEC.md` §3.1 already calls the derived visual
+"Late (Overdue)". Affected tests updated; 94 in the touched suites pass.
+
 ## 2026-07-29 — ATLAS developer navigation system (`.nav/`)
 
 Added `.nav/` — a code-navigation "operating system" (not prose docs): a boot README, 8 cross-cutting

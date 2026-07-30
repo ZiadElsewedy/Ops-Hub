@@ -36,7 +36,7 @@ enum OperationsMetric { activeTasks, overdue, pendingReview, staffActive }
 extension OperationsMetricPresentation on OperationsMetric {
   String get title => switch (this) {
     OperationsMetric.activeTasks => 'Active tasks',
-    OperationsMetric.overdue => 'Overdue tasks',
+    OperationsMetric.overdue => 'Late tasks',
     OperationsMetric.pendingReview => 'Pending review',
     OperationsMetric.staffActive => 'Staff active',
   };
@@ -357,7 +357,7 @@ class OperationsMetricScreen extends StatelessWidget {
     OperationsMetric.activeTasks =>
       'No active tasks in the current branch and shift lens.',
     OperationsMetric.overdue =>
-      'Nothing overdue. The current shift is on track.',
+      'Nothing late. The current shift is on track.',
     OperationsMetric.pendingReview =>
       'No completed work is waiting for review.',
     OperationsMetric.staffActive => 'No staff are rostered today.',

@@ -1477,7 +1477,7 @@ class _MetaRow extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final due = DateTime(d.year, d.month, d.day);
     final diff = due.difference(today).inDays;
-    if (diff < 0) return 'Overdue';
+    if (diff < 0) return 'Late';
     if (diff == 0) return 'Due today';
     if (diff == 1) return 'Due tomorrow';
     if (diff < 7) return 'Due in ${diff}d';
