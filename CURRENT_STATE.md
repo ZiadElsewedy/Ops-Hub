@@ -3,7 +3,7 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-07-30.
+> **Last verified against the code:** 2026-07-31.
 
 ## At a glance
 
@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1203 pass · 2 fail** across 175 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **64 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1243 pass · 2 fail** across 177 files (~23s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **64 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -47,7 +47,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | Feature | Notes |
 | --- | --- |
 | **Auth** | Admin-provisioned email/password. No registration/Google/OTP/approval. First-login gate: force password change → profile completion → (employees) Welcome → role home |
-| **Roles & routing** | 48 routes, role-guarded. admin ⊇ manager |
+| **Roles & routing** | 49 routes, role-guarded. admin ⊇ manager |
 | **Profile** | View/edit, avatar/cover upload, contact + payment (payment in a private subdoc; hidden for admin) |
 | **Tasks** | Full workflow: create → execute (checklist · notes · proof) → review. Multi-assignee, recurrence, activity timeline, templates, shift assignment, work-type framework, Scheduling V2 (start/due windows + quick deadline presets). Upcoming tasks are visible immediately but `Start Task` / `Start Rework` stays disabled until `startsAt` (client gate + Firestore rules; no rework exception). Generated recurring shift tasks now persist their resolved weekly window and unfinished `pending`/`started` instances automatically close as server-owned **Missed** at shift end; the status is closed, visible, and excluded from active/overdue queues. **Automation business-day fix** (2026-07-30, uncommitted): recurring-shift generation keys and windows now use the Egypt business civil day, the generator is pinned to 01:00 Africa/Cairo, the client refuses to materialize a shift instance after its deadline, and per-task recurrence rolls successors forward until their deadline is future. **Requires a functions deploy for the server path.** **Cancelled** (2026-07-28, uncommitted) is the third terminal outcome — a manager/admin business decision taken from `pending`/`started` only, carrying a mandatory picklist reason, excluded from every count. The recurring-shift Automation Center is productionized: skeleton loading, premium header, slim tap-through cards, a per-routine details sheet (overview/schedule/next execution/history/failure info/generated task/actions), and confirmed delete. |
 | **Schedule** | Weekly roster, shift swaps, leave, day notes, configurable shift hours, shift templates, Final View + PNG export |
@@ -233,9 +233,30 @@ Friday, or Saturday assignments, so reports will show ledger data gaps on those
 dates until the roster is published for them. After the functions deploy for the
 week-wide sweep, older rostered slots inside the current business week, including
 that live Monday/Tuesday, will be materialized on the next close run once past
-grace. Weeks entirely in the past still require a separate backfill. Monthly,
-per-employee, exception queue, branch comparison, close/lock, and export remain
-later slices and appear as disabled **Coming next** affordances.
+grace. Weeks entirely in the past still require a separate backfill.
+
+The **Monthly Report** is the second per-period destination, at
+`/attendance/reports/monthly/:periodId`. Per the decided IA §7.1 it is not
+"Weekly with more days": it reads the same branch/dayKey ledger range over the
+calendar month and partitions it into the Schedule weeks (Sunday→Saturday) that
+overlap the month, marking a week that only partly overlaps as **Partial** so a
+short week is never read as a full one. It renders header, payroll readiness,
+denominated metrics, weekly buckets, employee rows, exception groups, and a
+disabled export/restatement panel. Coverage semantics are identical to Weekly's,
+including the owner rule (rows with zero clock-ins → a real `0%`; no rows → **No
+ledger data** and no percentage).
+
+**Aggregation is client-side by design of the value object, not by accident.**
+Every aggregate is folded by the single row-scanning factory
+`MonthlyAttendanceReport.fromLedger` and passed to a private constructor that
+scans nothing, so the ADR-017 rollup Function can later add a `fromRollup(...)`
+factory additively with no UI change. The month range is served by the
+already-deployed `(branchId, dayKey)` composite, so this slice added **no
+function, rule, or index** and needs no deploy.
+
+Per-employee report, exception queue, branch comparison, close/lock, export, and
+month-over-month comparison remain later slices and appear as disabled **Coming
+next** affordances.
 
 ### Removed — do not re-add
 
@@ -443,10 +464,10 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1203 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1243 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 64 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
-grep -c "static const String" lib/core/routes/route_names.dart   # expect: 48
+grep -c "static const String" lib/core/routes/route_names.dart   # expect: 49
 ls lib/features | wc -l                  # expect: 18
 ```
 

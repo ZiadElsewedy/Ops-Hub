@@ -86,6 +86,16 @@ class RouteNames {
   static String attendanceWeekly(String periodId) =>
       '/attendance/reports/weekly/$periodId';
 
+  /// The monthly attendance report destination. The `periodId` is
+  /// `{branchId}_monthly_{startKey}_{endKey}_v{version}` and must cover one
+  /// whole calendar month.
+  static const String attendanceMonthlyPattern =
+      '/attendance/reports/monthly/:periodId';
+
+  /// The concrete monthly attendance report path for [periodId].
+  static String attendanceMonthly(String periodId) =>
+      '/attendance/reports/monthly/$periodId';
+
   /// Admin attendance dashboard — branch-scoped roster × attendance oversight +
   /// the correction queue (a future manager view reuses the same screen).
   static const String adminAttendance = '/admin/attendance';

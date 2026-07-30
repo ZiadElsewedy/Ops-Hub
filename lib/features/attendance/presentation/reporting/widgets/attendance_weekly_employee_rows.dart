@@ -7,9 +7,18 @@ import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
 
 class AttendanceWeeklyEmployeeRows extends StatelessWidget {
-  const AttendanceWeeklyEmployeeRows({super.key, required this.employees});
+  const AttendanceWeeklyEmployeeRows({
+    super.key,
+    required this.employees,
+    this.emptyMessage =
+        'No employee ledger rows are available for this week yet.',
+  });
 
   final List<WeeklyAttendanceEmployeeAggregate> employees;
+
+  /// The Monthly report renders the same employee facts over a month window and
+  /// only needs different empty-state copy.
+  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +38,7 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           if (employees.isEmpty)
             Text(
-              'No employee ledger rows are available for this week yet.',
+              emptyMessage,
               style: AppTypography.bodySmall.copyWith(
                 color: AppColors.textSecondary,
               ),

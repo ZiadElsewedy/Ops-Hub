@@ -199,13 +199,21 @@ class _MetricCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  metric.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textTertiary,
-                    fontWeight: FontWeight.w600,
+                // Flexible, not a bare Text: `maxLines`/`ellipsis` only engage
+                // once the text is actually constrained. Unwrapped beside a
+                // Spacer it sizes to its natural width and overflows the card
+                // instead of ellipsizing — the monthly metric labels are the
+                // longest in the app and overflowed a single-column card by 9px.
+                Flexible(
+                  child: Text(
+                    metric.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],

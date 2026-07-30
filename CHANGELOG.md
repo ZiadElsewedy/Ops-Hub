@@ -14,6 +14,41 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-31 — Attendance: the Monthly Report (feature; LOW risk)
+
+The second per-period reporting destination, `/attendance/reports/monthly/:periodId`,
+under [ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md) and the
+decided IA §7. Ledger-exclusive like Weekly: one `attendance_expectations`
+branch/dayKey range over the calendar month, served by the already-deployed
+`(branchId, dayKey)` composite — **no new function, rule, or index**.
+
+- **Monthly is not "Weekly with more days" (IA §7.1).** The month is partitioned
+  into the Schedule weeks (Sunday→Saturday) that overlap it, and a week that only
+  partly overlaps is marked **Partial** and never read as a full week.
+- **Structured for the rollup swap.** Every aggregate is folded by the single
+  row-scanning factory `MonthlyAttendanceReport.fromLedger` and handed to a
+  private constructor that scans nothing, so the future rollup Function adds a
+  `fromRollup(...)` factory additively with no UI change. Deliberately no
+  interface or strategy seam with one implementation.
+- **The owner's rule holds:** rows present with zero clock-ins render a real
+  **0%**; a date or month with no rows renders **No ledger data** and no
+  percentage. Both directions are asserted in the widget tests.
+- **Two Africa/Cairo DST defects found and fixed** — a month is the first surface
+  that walks every date and groups by week, so `Duration`-based week math became
+  visible here for the first time. Clocks back (Thu 29 Oct 2026) resolved one
+  Schedule week to both `00:00` and `01:00`, splitting it into a phantom sixth
+  bucket; clocks forward (Fri 24 Apr 2026, when `00:00` does not exist) landed on
+  `Apr 18 23:00`, forking a sixth bucket out of a five-week month and counting 37
+  days in a 30-day month. Week grouping is now pure calendar arithmetic and the
+  covered-day count is measured in UTC. Both months are locked in as regression
+  tests. Shared `ScheduleWeek.startOf` is untouched — repairing it is wider than
+  this report.
+- **Two latent overflow bugs fixed** in shared widgets that only a long label
+  exposed: the metric card's label and `PremiumButton`'s label now ellipsize
+  instead of painting overflow stripes at a 390pt viewport.
+- Month-over-month comparison, the restatement log, per-employee drill-down, and
+  export stay deferred and render as disabled affordances.
+
 ## 2026-07-30 — Chat: the five audited defects fixed (bug; LOW–MED risk)
 
 All findings from the chat workflow/cache audit, implemented behind the existing

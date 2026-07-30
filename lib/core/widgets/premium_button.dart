@@ -86,11 +86,20 @@ class _PremiumButtonState extends State<PremiumButton> {
           Icon(widget.icon, size: 16, color: disabled ? AppColors.textTertiary : fg),
           const SizedBox(width: 6),
         ],
-        Text(
-          widget.label,
-          style: AppTypography.caption.copyWith(
-            color: disabled ? AppColors.textTertiary : fg,
-            fontWeight: FontWeight.w700,
+        // Flexible so a long label ellipsizes instead of overflowing the pill.
+        // The Row is `MainAxisSize.min`, so this is inert whenever the label
+        // fits — it only engages once the parent is narrower than the natural
+        // width, which previously painted overflow stripes (a long label in a
+        // narrow Wrap at 390pt width did exactly that).
+        Flexible(
+          child: Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.caption.copyWith(
+              color: disabled ? AppColors.textTertiary : fg,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],

@@ -513,6 +513,15 @@ class _ComingNextGrid extends StatelessWidget {
       scopeKey: branchId,
       window: window,
     );
+    // [window] is whatever period the hub has selected, so it may be a *weekly*
+    // window. The monthly report parses its own id and rejects anything that is
+    // not a whole calendar month, so the month is derived explicitly from the
+    // selected period's start date rather than reused.
+    final monthlyPeriodId = attendancePeriodId(
+      type: AttendancePeriodType.monthly,
+      scopeKey: branchId,
+      window: monthlyWindow(window.startDate.year, window.startDate.month),
+    );
     final items = [
       _NextItem(
         'Weekly report',
@@ -520,7 +529,13 @@ class _ComingNextGrid extends StatelessWidget {
         Icons.calendar_view_week,
         onTap: () => context.push(RouteNames.attendanceWeekly(weeklyPeriodId)),
       ),
-      _NextItem('Monthly report', 'Coming next', Icons.calendar_month),
+      _NextItem(
+        'Monthly report',
+        'Open report',
+        Icons.calendar_month,
+        onTap: () =>
+            context.push(RouteNames.attendanceMonthly(monthlyPeriodId)),
+      ),
       _NextItem('Per-employee report', 'Coming next', Icons.badge_outlined),
       _NextItem('Period close', 'Coming next', Icons.lock_clock_outlined),
       _NextItem('Export ledger', 'Coming next', Icons.file_download_outlined),

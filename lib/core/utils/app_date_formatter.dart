@@ -50,6 +50,10 @@ class AppDateFormatter {
   static String dayMonthYear(DateTime dt) =>
       '${dt.day} ${_mon(dt.month)} ${dt.year}';
 
+  /// Abbreviated month + year — e.g. `Jul 2026`. Used where a whole calendar
+  /// month is the subject (the monthly attendance report period).
+  static String monthYear(DateTime dt) => '${_mon(dt.month)} ${dt.year}';
+
   /// Abbreviated month + day + year — e.g. `Jul 6, 2026`.
   static String monthDayYear(DateTime dt) =>
       '${_mon(dt.month)} ${dt.day}, ${dt.year}';
