@@ -3998,9 +3998,57 @@ exports.autoCloseAttendance = onSchedule("every 30 minutes", async () => {
   if (closed > 0) logger.info("autoCloseAttendance closed sessions", { closed });
 });
 
-// Materializes the durable attendance-reporting denominator at slot close
-// (ADR-017). The sweep is intentionally bounded to the current and previous
-// Africa/Cairo business day so a missed tick self-heals without scanning history.
+/**
+ * Materializes the durable attendance-reporting denominator at slot close
+ * ([ADR-017](../docs/decisions/ADR-017-attendance-reporting-ledger.md)).
+ *
+ * WHY THIS EXISTS. A rostered no-show writes no `attendance` document (lazy
+ * Absent, deliberate — the live board derives it in memory). Reporting therefore
+ * had no durable denominator: aggregating only materialized records means
+ * absence can never grow and a show-up rate pins at ~100%. This sweep turns each
+ * expected roster slot into a persisted fact, including the **phantom** rows for
+ * slots nobody ever clocked.
+ *
+ * THE SWEEP. Every 30 minutes it resolves the current and previous
+ * `Africa/Cairo` business day (bounded so a missed tick self-heals without ever
+ * scanning history), reads those business weeks' `weekly_schedules`, expands
+ * rostered slots, and keeps only slots already past `scheduledEnd + grace`.
+ * Attendance documents are fetched with one `getAll` on deterministic ids — not
+ * a query per row — and pending corrections in chunked `attendanceId in (...)`
+ * reads, so cost is `O(branches × 2 days × shifts × staff)` with no unbounded
+ * scan.
+ *
+ * IDEMPOTENCY + RESTATEMENT. Each row id equals the attendance record's own
+ * deterministic id (`{uid}_{yyyyMMdd}_{shift}`), so a retry overwrites rather
+ * than duplicating, and joining to `attendance/{id}` needs no lookup. A row
+ * marked `locked` is never overwritten. A row whose inputs changed — typically
+ * an approved correction landing after close — is **restated**: same id, `version`
+ * incremented, `restatedAt` stamped. Values are never silently mutated, because a
+ * period may already have been exported to payroll.
+ *
+ * MINUTES ARE NOT RECOMPUTED HERE. Worked/late/early/overtime are copied from the
+ * record's persisted snapshot, which the single Flutter `AttendanceCalculator`
+ * produced. Two implementations in two languages would drift, and these minutes
+ * feed pay. An open session at close time therefore carries stale minutes plus a
+ * `missingPunch` code that blocks the close; the authoritative figures arrive when
+ * `autoCloseAttendance` or a correction closes the session, which restates the row.
+ *
+ * Time math is delegated entirely to `recurring_task_deadline.js`
+ * (`businessDayParts` / `businessCivilMidnightMs` / `resolveShiftHours`) — no Cairo
+ * offset or DST arithmetic is written here. Egypt observes DST, so a hand-rolled
+ * offset would be a silent one-hour payroll error twice a year. Overnight shifts
+ * (`endMinutes > 1440`) end on the next calendar day but belong to their
+ * scheduled-start business day.
+ *
+ * Writes are batched ≤450 ops and emit one deterministic `audit_logs` entry per
+ * (branch, businessDate, shift) close with the materialized counts, per
+ * [ADR-005](../docs/decisions/ADR-005-server-authoritative-writes.md). Clients may
+ * only ever read `attendance_expectations`; every client write is denied in
+ * `firestore.rules`.
+ *
+ * Requires the `(branchId, dayKey)` and `(userId, dayKey)` composites in
+ * `firestore.indexes.json` for the client read layer to query these rows.
+ */
 exports.closeAttendanceExpectations = onSchedule(
   {
     schedule: "every 30 minutes",
