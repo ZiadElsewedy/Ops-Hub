@@ -35,7 +35,8 @@
       "Bash(node --test)",
       "Bash(flutter test *)",
       "Bash(command -v codex)",
-      "Bash(codex --version)"
+      "Bash(codex --version)",
+      "Bash(git branch *)"
     ]
   }
 }
