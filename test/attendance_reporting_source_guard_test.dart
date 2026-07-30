@@ -19,9 +19,13 @@ void main() {
       'lib/features/attendance/presentation/reporting/attendance_report_cubit.dart',
       'lib/features/attendance/presentation/reporting/attendance_report_state.dart',
       'lib/features/attendance/presentation/reporting/attendance_reports_screen.dart',
+      'lib/features/attendance/domain/reporting/attendance_weekly_report.dart',
+      'lib/features/attendance/presentation/reporting/attendance_weekly_report_screen.dart',
       'lib/features/attendance/presentation/reporting/widgets/attendance_report_coverage.dart',
       'lib/features/attendance/presentation/reporting/widgets/attendance_report_metrics.dart',
       'lib/features/attendance/presentation/reporting/widgets/attendance_report_scope_bar.dart',
+      'lib/features/attendance/presentation/reporting/widgets/attendance_weekly_daily_table.dart',
+      'lib/features/attendance/presentation/reporting/widgets/attendance_weekly_employee_rows.dart',
       'lib/features/attendance/presentation/history/widgets/attendance_history_summary.dart',
     ];
 

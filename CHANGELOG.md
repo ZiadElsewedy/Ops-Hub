@@ -28,6 +28,22 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-30
 
+- **Weekly Attendance Report** (feature; MED risk — first per-period report
+  destination over payroll-adjacent ledger facts). Added
+  `/attendance/reports/weekly/:periodId` for admin/manager, wired the hub's
+  Weekly entry to a real route using the current branch + Sunday-Saturday period
+  id, and kept employees behind the existing Attendance & Reports guard. The
+  report reads only `attendance_expectations` through the existing
+  `AttendanceReportCubit` branch/dayKey stream; no rollup collection, period
+  document, Cloud Function, roster read, or raw attendance reconstruction was
+  added. A new pure `WeeklyAttendanceReport` aggregates the seven-day ledger
+  window into summary metrics, daily buckets, employee facts, exception groups,
+  evidence rows, and conservative coverage. The UI renders IA §6's weekly
+  sections, hides rates for an empty ledger, marks row-present incomplete weeks
+  as **Partially closed**, and shows zero-row days as **Not closed**. Monthly,
+  per-employee, exception queue, branch comparison, close/lock, and PDF/CSV
+  export remain disabled **Coming next** surfaces.
+
 - **Attendance Reports Dashboard** (feature; MED risk — first manager/admin
   reporting surface over payroll-adjacent ledger facts). Added
   `/attendance/reports` as the Attendance & Reports hub for admin and manager,

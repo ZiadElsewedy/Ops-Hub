@@ -77,6 +77,15 @@ class RouteNames {
   /// the materialized `attendance_expectations` ledger.
   static const String attendanceReports = '/attendance/reports';
 
+  /// The first per-period attendance report destination. The `periodId` is
+  /// `{branchId}_weekly_{startKey}_{endKey}_v{version}`.
+  static const String attendanceWeeklyPattern =
+      '/attendance/reports/weekly/:periodId';
+
+  /// The concrete weekly attendance report path for [periodId].
+  static String attendanceWeekly(String periodId) =>
+      '/attendance/reports/weekly/$periodId';
+
   /// Admin attendance dashboard — branch-scoped roster × attendance oversight +
   /// the correction queue (a future manager view reuses the same screen).
   static const String adminAttendance = '/admin/attendance';

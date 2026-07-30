@@ -7,56 +7,22 @@ import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
 
 class AttendanceReportMetrics extends StatelessWidget {
-  const AttendanceReportMetrics({super.key, required this.summary});
+  const AttendanceReportMetrics({
+    super.key,
+    required this.summary,
+    this.weekly = false,
+    this.exceptionCount,
+    this.exceptionDenominator,
+  });
 
   final AttendanceReportSummary summary;
+  final bool weekly;
+  final int? exceptionCount;
+  final String? exceptionDenominator;
 
   @override
   Widget build(BuildContext context) {
-    final metrics = [
-      _Metric(
-        label: 'Expected work shifts',
-        value: '${summary.expectedWorkShifts}',
-        denominator: summary.excused + summary.onLeave > 0
-            ? '${summary.excused + summary.onLeave} excluded from roster'
-            : 'Rostered ledger rows after exclusions',
-      ),
-      _Metric(
-        label: 'Present',
-        value: '${summary.present}',
-        denominator:
-            '${summary.present} / ${summary.expectedWorkShifts} expected work shifts',
-      ),
-      _Metric(
-        label: 'Absent',
-        value: '${summary.absent}',
-        denominator:
-            '${summary.absent} / ${summary.expectedWorkShifts} expected work shifts',
-        tone: summary.absent > 0 ? AppColors.error : null,
-      ),
-      _Metric(
-        label: 'Show-up rate',
-        value: _rateValue(summary.showUpRate),
-        denominator: _rateDenominator(summary.showUpRate),
-      ),
-      _Metric(
-        label: 'Punctual arrivals',
-        value: _rateValue(summary.punctualArrivalRate),
-        denominator: _rateDenominator(summary.punctualArrivalRate),
-      ),
-      _Metric(
-        label: 'Worked time',
-        value: _worked(summary.workedMinutes),
-        denominator: 'Across ${summary.present} present rows',
-      ),
-      if (summary.excused > 0 || summary.onLeave > 0)
-        _Metric(
-          label: 'Excluded context',
-          value: '${summary.excused + summary.onLeave}',
-          denominator:
-              '${summary.excused} excused · ${summary.onLeave} on leave',
-        ),
-    ];
+    final metrics = weekly ? _weeklyMetrics() : _dashboardMetrics();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -87,6 +53,88 @@ class AttendanceReportMetrics extends StatelessWidget {
       },
     );
   }
+
+  List<_Metric> _dashboardMetrics() => [
+    _Metric(
+      label: 'Expected work shifts',
+      value: '${summary.expectedWorkShifts}',
+      denominator: summary.excused + summary.onLeave > 0
+          ? '${summary.excused + summary.onLeave} excluded from roster'
+          : 'Rostered ledger rows after exclusions',
+    ),
+    _Metric(
+      label: 'Present',
+      value: '${summary.present}',
+      denominator:
+          '${summary.present} / ${summary.expectedWorkShifts} expected work shifts',
+    ),
+    _Metric(
+      label: 'Absent',
+      value: '${summary.absent}',
+      denominator:
+          '${summary.absent} / ${summary.expectedWorkShifts} expected work shifts',
+      tone: summary.absent > 0 ? AppColors.error : null,
+    ),
+    _Metric(
+      label: 'Show-up rate',
+      value: _rateValue(summary.showUpRate),
+      denominator: _rateDenominator(summary.showUpRate),
+    ),
+    _Metric(
+      label: 'Punctual arrivals',
+      value: _rateValue(summary.punctualArrivalRate),
+      denominator: _rateDenominator(summary.punctualArrivalRate),
+    ),
+    _Metric(
+      label: 'Worked time',
+      value: _worked(summary.workedMinutes),
+      denominator: 'Across ${summary.present} present rows',
+    ),
+    if (summary.excused > 0 || summary.onLeave > 0)
+      _Metric(
+        label: 'Excluded context',
+        value: '${summary.excused + summary.onLeave}',
+        denominator: '${summary.excused} excused · ${summary.onLeave} on leave',
+      ),
+  ];
+
+  List<_Metric> _weeklyMetrics() => [
+    _Metric(
+      label: 'Show-up rate',
+      value: _rateValue(summary.showUpRate),
+      denominator: _rateDenominator(summary.showUpRate),
+    ),
+    _Metric(
+      label: 'Punctual arrivals',
+      value: _rateValue(summary.punctualArrivalRate),
+      denominator: _rateDenominator(summary.punctualArrivalRate),
+    ),
+    _Metric(
+      label: 'Unexcused absences',
+      value: '${summary.absent}',
+      denominator:
+          '${summary.absent} / ${summary.expectedWorkShifts} expected work shifts',
+      tone: summary.absent > 0 ? AppColors.error : null,
+    ),
+    _Metric(
+      label: 'Worked minutes',
+      value: '${summary.workedMinutes}',
+      denominator: 'Across ${summary.present} present rows',
+    ),
+    _Metric(
+      label: 'Overtime minutes',
+      value: '${summary.overtimeMinutes}',
+      denominator: 'Across ${summary.present} present rows',
+    ),
+    _Metric(
+      label: 'Exception count',
+      value: '${exceptionCount ?? 0}',
+      denominator:
+          exceptionDenominator ??
+          'Across ${summary.expectedWorkShifts} expected work shifts',
+      tone: (exceptionCount ?? 0) > 0 ? AppColors.warning : null,
+    ),
+  ];
 
   static String _rateValue(AttendanceRate rate) {
     final percent = rate.percent;
@@ -196,6 +244,10 @@ class _MetricCard extends StatelessWidget {
       'Show-up rate' => Icons.percent_rounded,
       'Punctual arrivals' => Icons.schedule_rounded,
       'Worked time' => Icons.timer_outlined,
+      'Unexcused absences' => Icons.person_off_outlined,
+      'Worked minutes' => Icons.timer_outlined,
+      'Overtime minutes' => Icons.more_time_rounded,
+      'Exception count' => Icons.report_problem_outlined,
       _ => Icons.remove_circle_outline_rounded,
     };
   }

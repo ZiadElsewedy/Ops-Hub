@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1195 pass · 2 fail** across 173 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **60 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1202 pass · 2 fail** across 175 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **60 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -211,8 +211,17 @@ manager/admin **Attendance & Reports** hub. It is desktop-first with a stacked
 mobile form, pins managers to their branch, forces branchless admins to choose an
 explicit branch, supports Week/Month period windows, blocks future-period
 navigation, and renders the metric grid only when `LedgerCoverage.hasRows` is true.
-Weekly, Monthly, per-employee, exception queue, branch comparison, and export
-surfaces remain later slices and appear as disabled **Coming next** affordances.
+Its Weekly entry now opens `/attendance/reports/weekly/:periodId`, the first
+per-period report destination. The Weekly Report reads the same branch/dayKey
+range from `attendance_expectations`, aggregates the seven-day Schedule week
+directly in pure Dart, and renders header, close readiness, denominated metrics,
+daily rhythm, exception groups, employee facts, shift evidence, and a disabled
+export/restatement panel. Coverage is conservative and ledger-exclusive: an empty
+week is **Awaiting close** with no percentages, a row-present week is
+**Partially closed** unless every business date has ledger rows and no blocking
+exceptions, and a day with no rows reads **Not closed** rather than zero
+attendance. Monthly, per-employee, exception queue, branch comparison, close/lock,
+and export remain later slices and appear as disabled **Coming next** affordances.
 
 ### Removed — do not re-add
 
@@ -420,7 +429,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1195 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1202 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 60 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 46

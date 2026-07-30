@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
+import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
@@ -186,7 +188,12 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
                         _selectedBranchId!.trim().isEmpty)
                       _NoBranchSelected(role: role)
                     else
-                      _ReportBody(state: reportState, branchLabel: branchLabel),
+                      _ReportBody(
+                        state: reportState,
+                        branchLabel: branchLabel,
+                        branchId: _selectedBranchId!,
+                        window: _window,
+                      ),
                   ],
                 ),
               );
@@ -231,10 +238,17 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
 }
 
 class _ReportBody extends StatelessWidget {
-  const _ReportBody({required this.state, required this.branchLabel});
+  const _ReportBody({
+    required this.state,
+    required this.branchLabel,
+    required this.branchId,
+    required this.window,
+  });
 
   final AttendanceReportState state;
   final String branchLabel;
+  final String branchId;
+  final AttendancePeriodWindow window;
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +271,11 @@ class _ReportBody extends StatelessWidget {
             totalRows: state.rows.length,
           ),
           const SizedBox(height: AppSpacing.xl),
-          _ComingNextGrid(branchLabel: branchLabel),
+          _ComingNextGrid(
+            branchLabel: branchLabel,
+            branchId: branchId,
+            window: window,
+          ),
         ],
       );
     }
@@ -283,7 +301,11 @@ class _ReportBody extends StatelessWidget {
           expected: state.summary.expectedWorkShifts,
         ),
         const SizedBox(height: AppSpacing.xl),
-        _ComingNextGrid(branchLabel: branchLabel),
+        _ComingNextGrid(
+          branchLabel: branchLabel,
+          branchId: branchId,
+          window: window,
+        ),
       ],
     );
   }
@@ -459,14 +481,30 @@ class _PeriodRow extends StatelessWidget {
 }
 
 class _ComingNextGrid extends StatelessWidget {
-  const _ComingNextGrid({required this.branchLabel});
+  const _ComingNextGrid({
+    required this.branchLabel,
+    required this.branchId,
+    required this.window,
+  });
 
   final String branchLabel;
+  final String branchId;
+  final AttendancePeriodWindow window;
 
   @override
   Widget build(BuildContext context) {
+    final weeklyPeriodId = attendancePeriodId(
+      type: AttendancePeriodType.weekly,
+      scopeKey: branchId,
+      window: window,
+    );
     final items = [
-      _NextItem('Weekly report', 'Coming next', Icons.calendar_view_week),
+      _NextItem(
+        'Weekly report',
+        'Open report',
+        Icons.calendar_view_week,
+        onTap: () => context.push(RouteNames.attendanceWeekly(weeklyPeriodId)),
+      ),
       _NextItem('Monthly report', 'Coming next', Icons.calendar_month),
       _NextItem('Per-employee report', 'Coming next', Icons.badge_outlined),
       _NextItem('Export ledger', 'Coming next', Icons.file_download_outlined),
@@ -498,8 +536,7 @@ class _ComingNextGrid extends StatelessWidget {
                   mainAxisSpacing: AppSpacing.md,
                   mainAxisExtent: 92,
                 ),
-                itemBuilder: (context, index) =>
-                    _DisabledNextTile(item: items[index]),
+                itemBuilder: (context, index) => _NextTile(item: items[index]),
               );
             },
           ),
@@ -509,50 +546,75 @@ class _ComingNextGrid extends StatelessWidget {
   }
 }
 
-class _DisabledNextTile extends StatelessWidget {
-  const _DisabledNextTile({required this.item});
+class _NextTile extends StatelessWidget {
+  const _NextTile({required this.item});
 
   final _NextItem item;
 
   @override
   Widget build(BuildContext context) {
+    final enabled = item.onTap != null;
     return Opacity(
-      opacity: 0.62,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
+      opacity: enabled ? 1 : 0.62,
+      child: Material(
+        color: AppColors.transparent,
+        child: InkWell(
           borderRadius: AppRadius.lgAll,
-          border: Border.all(color: AppColors.darkBorder),
-          color: AppColors.darkSurfaceElevated,
-        ),
-        child: Row(
-          children: [
-            Icon(item.icon, color: AppColors.textTertiary),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    item.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.label.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    item.subtitle,
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textQuaternary,
-                    ),
-                  ),
-                ],
+          onTap: item.onTap,
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.lgAll,
+              border: Border.all(
+                color: enabled ? AppColors.accentBorder : AppColors.darkBorder,
               ),
+              color: AppColors.darkSurfaceElevated,
             ),
-          ],
+            child: Row(
+              children: [
+                Icon(
+                  item.icon,
+                  color: enabled
+                      ? AppColors.textSecondary
+                      : AppColors.textTertiary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.label.copyWith(
+                          color: enabled
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        item.subtitle,
+                        style: AppTypography.caption.copyWith(
+                          color: enabled
+                              ? AppColors.textTertiary
+                              : AppColors.textQuaternary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (enabled)
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textTertiary,
+                    size: 18,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -560,11 +622,12 @@ class _DisabledNextTile extends StatelessWidget {
 }
 
 class _NextItem {
-  const _NextItem(this.title, this.subtitle, this.icon);
+  const _NextItem(this.title, this.subtitle, this.icon, {this.onTap});
 
   final String title;
   final String subtitle;
   final IconData icon;
+  final VoidCallback? onTap;
 }
 
 class _NoBranchSelected extends StatelessWidget {

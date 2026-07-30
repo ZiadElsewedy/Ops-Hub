@@ -50,6 +50,7 @@ import 'package:drop/features/attendance/presentation/pages/admin_attendance_scr
 import 'package:drop/features/attendance/presentation/history/attendance_history_screen.dart';
 import 'package:drop/features/attendance/presentation/details/attendance_details_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
+import 'package:drop/features/attendance/presentation/reporting/attendance_weekly_report_screen.dart';
 import 'package:drop/features/requests/presentation/pages/requests_screen.dart';
 import 'package:drop/features/requests/presentation/pages/create_request_screen.dart';
 import 'package:drop/features/requests/presentation/pages/request_detail_screen.dart';
@@ -344,6 +345,15 @@ GoRouter createRouter(
             path: RouteNames.attendanceReports,
             pageBuilder: (context, state) =>
                 _slideTransition(state, const AttendanceReportsScreen()),
+          ),
+          GoRoute(
+            path: RouteNames.attendanceWeeklyPattern,
+            pageBuilder: (context, state) => _slideTransition(
+              state,
+              AttendanceWeeklyReportScreen(
+                periodId: state.pathParameters['periodId'] ?? '',
+              ),
+            ),
           ),
           GoRoute(
             path: RouteNames.attendance,
