@@ -4,9 +4,9 @@ Date: 2026-07-30
 
 This is the decided information architecture for the Attendance & Reports module
 under ADR-017. The pure reporting-domain core started on 2026-07-30
-(`features/attendance/domain/reporting/`), but the routes, UI, Cloud Function
-close pipeline, persistence rows, rules/indexes, exports, and dashboards in this
-document remain design only.
+(`features/attendance/domain/reporting/`), and the P0 ledger read layer, reports
+hub, weekly report, close pipeline, rules, and indexes now exist. Exports,
+locks, monthly, per-employee, and comparison reports remain design only.
 
 Reading guide:
 
@@ -89,6 +89,9 @@ Attendance & Reports
    stable summary is useful to read or file.
 10. No report ships before the close pipeline materializes durable expected-shift
     rows and no-show rows.
+11. A materialized expected shift with zero clock-ins is a real **0%** attendance
+    result. A day or period with no ledger rows is **No ledger data**: a
+    data-completeness gap with no denominator, not a zero-attendance result.
 
 ### 1.4 Current facts this replaces
 
@@ -532,9 +535,10 @@ tap -> employee report
 
 | State | UI |
 | --- | --- |
-| Empty roster | "No expected shifts in this schedule week"; no rates, no export. |
-| Open week | Show provisional daily rows through yesterday; mark today/future as open. No PDF/CSV. |
-| Partially closed | Show closed days and blocker count; export disabled. |
+| No ledger data | "No ledger data"; no rates, no export. |
+| Awaiting close | Period-level empty-ledger state only; explain that rows have not materialized yet. |
+| Fully closed | Ledger rows exist and no blocking exception rows remain; row-backed no-shows render `0%`. |
+| Partially closed | Ledger rows exist, but blocking exceptions remain; export disabled. |
 | Ready | Close CTA enabled for manager/admin. |
 | Locked | Export enabled; report version immutable. |
 | Exported | File chips and export ledger link visible. |

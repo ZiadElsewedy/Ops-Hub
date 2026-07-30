@@ -145,7 +145,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('Awaiting close'), findsOneWidget);
+    expect(find.text('No ledger data'), findsOneWidget);
     expect(find.text('0%'), findsNothing);
     expect(find.text('Show-up rate'), findsNothing);
 

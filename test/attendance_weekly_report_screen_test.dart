@@ -182,36 +182,40 @@ void main() {
     FlutterError.onError = previousOnError;
   });
 
-  testWidgets('empty week renders awaiting-close and no rate percentage', (
+  testWidgets('empty week renders ledger gap and no rate percentage', (
     tester,
   ) async {
-    final (repo, reportCubit, branchCubit, authCubit) = await _pumpWeekly(
-      tester,
-      size: const Size(1280, 900),
-    );
+    for (final size in [const Size(1280, 900), const Size(390, 844)]) {
+      errors.clear();
+      final (repo, reportCubit, branchCubit, authCubit) = await _pumpWeekly(
+        tester,
+        size: size,
+      );
 
-    repo.push(const []);
-    await tester.pump();
+      repo.push(const []);
+      await tester.pump();
 
-    expect(repo.watchedBranchId, _branchId);
-    expect(repo.watchedStart, '20260726');
-    expect(repo.watchedEnd, '20260801');
-    expect(find.text('Awaiting close'), findsWidgets);
-    expect(find.text('Show-up rate'), findsNothing);
-    expect(find.text('0%'), findsNothing);
-    expect(find.text('Sunday 26 Jul'), findsOneWidget);
-    expect(find.text('Saturday 1 Aug'), findsOneWidget);
-    expect(find.text('Not closed'), findsNWidgets(7));
-    _expectNoFlutterErrors(errors);
+      expect(repo.watchedBranchId, _branchId);
+      expect(repo.watchedStart, '20260726');
+      expect(repo.watchedEnd, '20260801');
+      expect(find.text('Awaiting close'), findsWidgets);
+      expect(find.text('Show-up rate'), findsNothing);
+      expect(find.text('0%'), findsNothing);
+      expect(find.text('Sunday 26 Jul'), findsOneWidget);
+      expect(find.text('Saturday 1 Aug'), findsOneWidget);
+      expect(find.text('No ledger data'), findsNWidgets(7));
+      expect(find.text('Not closed'), findsNothing);
+      _expectNoFlutterErrors(errors);
 
-    await tester.pumpWidget(const SizedBox());
-    await reportCubit.close();
-    await branchCubit.close();
-    await authCubit.close();
-    await repo.close();
+      await tester.pumpWidget(const SizedBox());
+      await reportCubit.close();
+      await branchCubit.close();
+      await authCubit.close();
+      await repo.close();
+    }
   });
 
-  testWidgets('production-shape partial week is honest on desktop and mobile', (
+  testWidgets('production-shape no-shows render 0% on desktop and mobile', (
     tester,
   ) async {
     for (final size in [const Size(1280, 900), const Size(390, 844)]) {
@@ -228,13 +232,14 @@ void main() {
       ]);
       await tester.pump();
 
-      expect(find.text('Partially closed'), findsWidgets);
+      expect(find.text('Fully closed'), findsWidgets);
       expect(find.text('Show-up rate'), findsOneWidget);
-      expect(find.text('0%'), findsOneWidget);
+      expect(find.text('0%'), findsWidgets);
       expect(find.text('0 / 3 expected work shifts'), findsOneWidget);
       expect(find.text('3 / 3 expected work shifts'), findsOneWidget);
       expect(find.text('Wednesday 29 Jul'), findsOneWidget);
-      expect(find.text('Not closed'), findsNWidgets(6));
+      expect(find.text('No ledger data'), findsNWidgets(6));
+      expect(find.text('Not closed'), findsNothing);
       expect(find.text('No record - phantom row'), findsNWidgets(3));
       _expectNoFlutterErrors(errors);
 

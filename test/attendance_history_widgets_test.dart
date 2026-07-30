@@ -165,37 +165,41 @@ void main() {
   );
 
   testWidgets('empty-facet list still renders (no records)', (tester) async {
-    final repo = _FakeReportingRepository();
-    final cubit = AttendanceReportCubit(repository: repo);
+    for (final size in [const Size(1280, 900), const Size(390, 844)]) {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = _FakeReportingRepository();
+      final cubit = AttendanceReportCubit(repository: repo);
 
-    await tester.pumpWidget(
-      host(
-        ListView(
-          children: [
-            AttendanceHistorySummary(
-              isReview: false,
-              userId: 'u1',
-              branchId: null,
-              window: window,
-            ),
-            AttendanceHistoryFilters(
-              query: const AttendanceHistoryQuery(),
-              onRange: (_, {start, end}) {},
-              onStatus: (_) {},
-              onToggleShift: (_) {},
-            ),
-          ],
+      await tester.pumpWidget(
+        host(
+          ListView(
+            children: [
+              AttendanceHistorySummary(
+                isReview: false,
+                userId: 'u1',
+                branchId: null,
+                window: window,
+              ),
+              AttendanceHistoryFilters(
+                query: const AttendanceHistoryQuery(),
+                onRange: (_, {start, end}) {},
+                onStatus: (_) {},
+                onToggleShift: (_) {},
+              ),
+            ],
+          ),
+          cubit,
         ),
-        cubit,
-      ),
-    );
-    repo.push(const []);
-    await tester.pump(const Duration(seconds: 1));
-    expect(tester.takeException(), isNull);
-    expect(find.text('Awaiting close'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox());
-    await cubit.close();
-    await repo.close();
+      );
+      repo.push(const []);
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.takeException(), isNull);
+      expect(find.text('No ledger data'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await cubit.close();
+      await repo.close();
+    }
   });
 
   testWidgets('review-mode card leads with the employee name', (tester) async {

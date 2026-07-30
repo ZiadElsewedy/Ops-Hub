@@ -22,7 +22,7 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
           Text('Daily rhythm', style: AppTypography.h3),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Seven business dates are shown. A date with no ledger rows is not closed, not a zero-attendance day.',
+            'Seven business dates are shown. Rows with zero clock-ins report 0%; dates with no rows are ledger data gaps.',
             style: AppTypography.caption.copyWith(
               color: AppColors.textTertiary,
             ),
@@ -47,6 +47,7 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
                           'Close state',
                           'Expected',
                           'Present',
+                          'Show-up',
                           'Absent',
                           'Late min',
                           'Exceptions',
@@ -67,13 +68,23 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
 
   static List<String> _cellsFor(WeeklyAttendanceDayBreakdown day) {
     if (!day.hasRows) {
-      return [_dayLabel(day.date), 'Not closed', '--', '--', '--', '--', '--'];
+      return [
+        _dayLabel(day.date),
+        'No ledger data',
+        '--',
+        '--',
+        '--',
+        '--',
+        '--',
+        '--',
+      ];
     }
     return [
       _dayLabel(day.date),
       '${day.rows.length} ledger rows',
       '${day.expected}',
       '${day.present}',
+      _showUp(day),
       '${day.absent}',
       '${day.lateMinutes}',
       '${day.exceptionCount}',
@@ -83,6 +94,11 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
   static String _dayLabel(DateTime date) {
     final weekday = AppDateFormatter.weekdayDayMonth(date).split(',').first;
     return '$weekday ${AppDateFormatter.dayMonth(date)}';
+  }
+
+  static String _showUp(WeeklyAttendanceDayBreakdown day) {
+    if (day.expected == 0) return '--';
+    return '${((day.present / day.expected) * 100).round()}%';
   }
 }
 
@@ -119,7 +135,7 @@ class _DailyRow extends StatelessWidget {
                     .copyWith(
                       color: header
                           ? AppColors.textTertiary
-                          : i == 1 && cells[i] == 'Not closed'
+                          : i == 1 && cells[i] == 'No ledger data'
                           ? AppColors.warning
                           : AppColors.textSecondary,
                       fontWeight: header ? FontWeight.w600 : FontWeight.w500,

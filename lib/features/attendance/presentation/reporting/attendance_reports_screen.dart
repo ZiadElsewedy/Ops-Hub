@@ -14,7 +14,6 @@ import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/attention_tile.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/page_hero.dart';
-import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
@@ -163,12 +162,11 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
                       title: 'Attendance & Reports',
                       subtitle:
                           'Which periods and branches need attention before payroll, and can you trust these numbers yet?',
-                      primaryAction: PremiumButton(
-                        label: 'Run close · coming next',
-                        icon: Icons.lock_clock_outlined,
-                        onPressed: null,
-                        style: PremiumButtonStyle.filled,
-                      ),
+                      // No primaryAction: PageHero leaves the action slot too
+                      // little width beside this title/subtitle, and a disabled
+                      // button overflowed PremiumButton's Row by 175px. The
+                      // period-close affordance lives in the "coming next"
+                      // tiles below, where it lays out safely at every width.
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     AttendanceReportScopeBar(
@@ -295,7 +293,7 @@ class _ReportBody extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         _BranchPeriodPreview(
           branchLabel: branchLabel,
-          status: blockers > 0 ? 'Blocked' : 'Ready',
+          status: blockers > 0 ? 'Partially closed' : 'Fully closed',
           blockers: blockers,
           showUp: _rateValue(state.summary.showUpRate),
           expected: state.summary.expectedWorkShifts,
@@ -364,14 +362,31 @@ class _NeedsAttention extends StatelessWidget {
                 context.showInfo('Restatement history is coming next.'),
           ),
         ];
-        return GridView.count(
-          crossAxisCount: columns,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: AppSpacing.md,
-          mainAxisSpacing: AppSpacing.md,
-          childAspectRatio: columns == 1 ? 2.7 : 1.7,
-          children: children,
+        // Natural height, no fixed aspect ratio. AttentionTile's content varies
+        // with its sublabel, so any childAspectRatio is a guess that clips at
+        // some width — it overflowed by 45px at 390pt. This mirrors the
+        // no-fixed-card-extent pattern the Employees directory already uses.
+        if (columns == 1) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0) const SizedBox(height: AppSpacing.md),
+                children[i],
+              ],
+            ],
+          );
+        }
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.md),
+                Expanded(child: children[i]),
+              ],
+            ],
+          ),
         );
       },
     );
@@ -507,6 +522,7 @@ class _ComingNextGrid extends StatelessWidget {
       ),
       _NextItem('Monthly report', 'Coming next', Icons.calendar_month),
       _NextItem('Per-employee report', 'Coming next', Icons.badge_outlined),
+      _NextItem('Period close', 'Coming next', Icons.lock_clock_outlined),
       _NextItem('Export ledger', 'Coming next', Icons.file_download_outlined),
     ];
     return GlassContainer(
@@ -534,7 +550,11 @@ class _ComingNextGrid extends StatelessWidget {
                   crossAxisCount: columns,
                   crossAxisSpacing: AppSpacing.md,
                   mainAxisSpacing: AppSpacing.md,
-                  mainAxisExtent: 92,
+                  // Fits AppSpacing.md padding + a one-line title + the
+                  // sublabel. 92 left ~6px too little and the tile clipped its
+                  // own sublabel; see the same class of bug in
+                  // attendance_report_metrics.dart.
+                  mainAxisExtent: 104,
                 ),
                 itemBuilder: (context, index) => _NextTile(item: items[index]),
               );

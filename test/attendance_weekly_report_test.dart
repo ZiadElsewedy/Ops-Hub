@@ -67,42 +67,57 @@ void main() {
     expect(report.summary.showUpRate.percent, isNull);
   });
 
-  test(
-    'production-shape Wednesday phantom absences are partial, not full week',
-    () {
-      final report = WeeklyAttendanceReport.fromLedger(
-        rows: [
-          _row(id: 'u1_20260729_morning', userId: 'u1', userName: 'Amal'),
-          _row(id: 'u2_20260729_morning', userId: 'u2', userName: 'Basma'),
-          _row(id: 'u3_20260729_morning', userId: 'u3', userName: 'Youssef'),
-        ],
-        window: window,
-      );
+  test('production-shape Wednesday phantom absences are a real 0% result', () {
+    final report = WeeklyAttendanceReport.fromLedger(
+      rows: [
+        _row(id: 'u1_20260729_morning', userId: 'u1', userName: 'Amal'),
+        _row(id: 'u2_20260729_morning', userId: 'u2', userName: 'Basma'),
+        _row(id: 'u3_20260729_morning', userId: 'u3', userName: 'Youssef'),
+      ],
+      window: window,
+    );
 
-      expect(report.coverage.statusLabel, 'Partially closed');
-      expect(report.coverage.closedDayCount, 1);
-      expect(report.coverage.notClosedDayKeys, [
-        '20260726',
-        '20260727',
-        '20260728',
-        '20260730',
-        '20260731',
-        '20260801',
-      ]);
-      expect(report.summary.expectedWorkShifts, 3);
-      expect(report.summary.present, 0);
-      expect(report.summary.absent, 3);
-      expect(
-        report.summary.showUpRate.describe(),
-        '0% · 0 / 3 expected work shifts',
-      );
-      expect(
-        report.days.singleWhere((day) => day.dayKey == '20260729').absent,
-        3,
-      );
-      expect(report.days.where((day) => !day.hasRows), hasLength(6));
-    },
-  );
+    expect(report.coverage.statusLabel, 'Fully closed');
+    expect(report.coverage.isFullyClosed, isTrue);
+    expect(report.coverage.closedDayCount, 1);
+    expect(report.coverage.notClosedDayKeys, [
+      '20260726',
+      '20260727',
+      '20260728',
+      '20260730',
+      '20260731',
+      '20260801',
+    ]);
+    expect(report.summary.expectedWorkShifts, 3);
+    expect(report.summary.present, 0);
+    expect(report.summary.absent, 3);
+    expect(
+      report.summary.showUpRate.describe(),
+      '0% · 0 / 3 expected work shifts',
+    );
+    expect(
+      report.days.singleWhere((day) => day.dayKey == '20260729').absent,
+      3,
+    );
+    expect(report.days.where((day) => !day.hasRows), hasLength(6));
+  });
+
+  test('blocking exception keeps a row-present period partially closed', () {
+    final report = WeeklyAttendanceReport.fromLedger(
+      rows: [
+        _row(
+          id: 'u1_20260729_morning',
+          userId: 'u1',
+          exceptionCodes: const [AttendanceExceptionCode.missingPunch],
+        ),
+      ],
+      window: window,
+    );
+
+    expect(report.coverage.statusLabel, 'Partially closed');
+    expect(report.coverage.isFullyClosed, isFalse);
+    expect(report.coverage.ledgerCoverage.blockingExceptionRowCount, 1);
+  });
 
   test(
     'employee aggregates are alphabetical facts without performance ranking',

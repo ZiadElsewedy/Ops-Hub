@@ -326,10 +326,10 @@ class _ReadinessCopy extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           coverage.awaitingClose
-              ? 'Awaiting close: attendance_expectations has no rows for this branch-week.'
+              ? 'Awaiting close: no attendance_expectations rows exist for this branch-week yet.'
               : coverage.isFullyClosed
-              ? 'Every business date has ledger rows and no blocking exception rows.'
-              : 'Partially closed: ${coverage.closedDayCount} of ${coverage.totalDayCount} business dates have ledger rows.',
+              ? 'Fully closed: ledger rows exist and no blocking exception rows remain.'
+              : 'Partially closed: ${coverage.ledgerCoverage.blockingExceptionRowCount} blocking exception rows must be resolved.',
           style: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondary,
           ),
@@ -337,10 +337,10 @@ class _ReadinessCopy extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         Text(
           coverage.awaitingClose
-              ? 'Rates are hidden because unknown coverage is not zero attendance.'
+              ? 'Rates are hidden because missing ledger data has no attendance denominator.'
               : coverage.isFullyClosed
-              ? 'Export and lock still wait for the later close/export slice.'
-              : '${coverage.totalDayCount - coverage.closedDayCount} business dates are not closed in the ledger, so this is not a settled weekly result.',
+              ? _fullyClosedNote(coverage)
+              : 'Rates reflect materialized ledger rows; resolve blockers before lock or export.',
           style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -351,6 +351,13 @@ class _ReadinessCopy extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  static String _fullyClosedNote(WeeklyAttendanceCoverage coverage) {
+    if (coverage.notClosedDayKeys.isEmpty) {
+      return 'Export and lock still wait for the later close/export slice.';
+    }
+    return 'Days without ledger rows are shown as No ledger data; they are data-completeness gaps, not attendance results.';
   }
 }
 

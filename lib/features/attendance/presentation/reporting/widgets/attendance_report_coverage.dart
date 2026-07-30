@@ -110,7 +110,7 @@ class _StatusLockup extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     awaiting
-                        ? 'This period has no materialized ledger rows yet. It may not be closed, or no roster was published.'
+                        ? 'No ledger data is materialized for this period yet. This is a pipeline state, not a 0% attendance result.'
                         : '${coverage.closedRowCount} of $totalRows ledger rows are closed and backing these numbers.',
                     style: AppTypography.bodySmall.copyWith(
                       color: AppColors.textSecondary,
@@ -124,8 +124,8 @@ class _StatusLockup extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         Text(
           awaiting
-              ? 'Rates and zero-valued totals are hidden until attendance_expectations has rows for this scope and period.'
-              : 'If the period is partially closed, the row count above is the trust boundary for this report.',
+              ? 'Rates and zero-valued totals stay hidden until attendance_expectations has rows for this scope and period.'
+              : 'A row-backed zero show-up result is reported as 0%; scopes with no rows have no denominator.',
           style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
         ),
       ],
@@ -158,7 +158,7 @@ class _PayrollBlockers extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             coverage.awaitingClose
-                ? 'Not available'
+                ? 'No ledger data'
                 : '${coverage.blockingExceptionRowCount}',
             style: AppTypography.displayMedium.copyWith(
               color: active ? AppColors.warning : AppColors.textPrimary,
@@ -167,7 +167,7 @@ class _PayrollBlockers extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             coverage.awaitingClose
-                ? 'Blockers are known only after rows materialize.'
+                ? 'Blockers are known only after ledger rows materialize.'
                 : active
                 ? 'Resolve these before trusting payroll handoff.'
                 : 'No blocking exception rows in this ledger window.',
@@ -177,7 +177,7 @@ class _PayrollBlockers extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           PremiumButton(
-            label: 'Open exception queue · coming next',
+            label: 'Exception queue',
             icon: Icons.lock_clock_outlined,
             onPressed: null,
           ),

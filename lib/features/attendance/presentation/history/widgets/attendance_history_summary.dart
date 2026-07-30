@@ -82,7 +82,7 @@ class _AttendanceHistorySummaryState extends State<AttendanceHistorySummary> {
         if (state.coverage.awaitingClose) {
           return const StatStrip(
             stats: [
-              Stat(label: 'Period not closed', value: 'Awaiting close'),
+              Stat(label: 'Ledger data', value: 'No ledger data'),
               Stat(label: 'Ledger rows', count: 0),
               Stat(label: 'Payroll blockers', value: '--'),
             ],

@@ -117,7 +117,11 @@ AttendanceLedgerRow _phantomAbsent(String id) => AttendanceLedgerRow(
 Future<
   (_FakeReportingRepository, AttendanceReportCubit, BranchCubit, _FakeAuthCubit)
 >
-_pumpReports(WidgetTester tester) async {
+_pumpReports(WidgetTester tester, {required Size size}) async {
+  await tester.binding.setSurfaceSize(size);
+  // Reset inside test scope: `setSurfaceSize` asserts `inTest`, so a bare
+  // tearDown reset can fail outside the active widget test body.
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   final repo = _FakeReportingRepository();
   final reportCubit = AttendanceReportCubit(repository: repo);
   final branchCubit = BranchCubit(_FakeBranchRepository(const [_branch]));
@@ -141,49 +145,87 @@ _pumpReports(WidgetTester tester) async {
   return (repo, reportCubit, branchCubit, authCubit);
 }
 
+void _expectNoFlutterErrors(List<FlutterErrorDetails> errors) {
+  expect(
+    errors,
+    isEmpty,
+    reason: errors.map((error) => error.exceptionAsString()).join('\n'),
+  );
+}
+
 void main() {
+  final previousOnError = FlutterError.onError;
+  late List<FlutterErrorDetails> errors;
+
+  setUp(() {
+    errors = [];
+    FlutterError.onError = (details) {
+      errors.add(details);
+    };
+  });
+
+  tearDown(() {
+    FlutterError.onError = previousOnError;
+  });
+
   testWidgets('empty ledger renders awaiting-close without rate values', (
     tester,
   ) async {
-    final (repo, reportCubit, branchCubit, authCubit) = await _pumpReports(
-      tester,
-    );
+    for (final size in [const Size(1280, 900), const Size(390, 844)]) {
+      errors.clear();
+      final (repo, reportCubit, branchCubit, authCubit) = await _pumpReports(
+        tester,
+        size: size,
+      );
 
-    repo.push(const []);
-    await tester.pump();
+      repo.push(const []);
+      await tester.pump();
 
-    expect(repo.watchedBranchId, 'DDwedTHvI1sPHrMz06PI');
-    expect(find.text('Awaiting close'), findsOneWidget);
-    expect(find.text('Show-up rate'), findsNothing);
-    expect(find.text('0%'), findsNothing);
-    expect(find.textContaining('0 /'), findsNothing);
+      expect(repo.watchedBranchId, 'DDwedTHvI1sPHrMz06PI');
+      expect(find.text('Awaiting close'), findsOneWidget);
+      expect(find.text('No ledger data'), findsOneWidget);
+      expect(find.text('Show-up rate'), findsNothing);
+      expect(find.text('0%'), findsNothing);
+      expect(find.textContaining('0 /'), findsNothing);
+      _expectNoFlutterErrors(errors);
 
-    await tester.pumpWidget(const SizedBox());
-    await reportCubit.close();
-    await branchCubit.close();
-    await authCubit.close();
-    await repo.close();
+      await tester.pumpWidget(const SizedBox());
+      await reportCubit.close();
+      await branchCubit.close();
+      await authCubit.close();
+      await repo.close();
+    }
   });
 
   testWidgets('populated phantom rows render 0 percent over denominator 3', (
     tester,
   ) async {
-    final (repo, reportCubit, branchCubit, authCubit) = await _pumpReports(
-      tester,
-    );
+    for (final size in [const Size(1280, 900), const Size(390, 844)]) {
+      errors.clear();
+      final (repo, reportCubit, branchCubit, authCubit) = await _pumpReports(
+        tester,
+        size: size,
+      );
 
-    repo.push([_phantomAbsent('1'), _phantomAbsent('2'), _phantomAbsent('3')]);
-    await tester.pump();
+      repo.push([
+        _phantomAbsent('1'),
+        _phantomAbsent('2'),
+        _phantomAbsent('3'),
+      ]);
+      await tester.pump();
 
-    expect(find.text('Show-up rate'), findsOneWidget);
-    expect(find.text('0%'), findsWidgets);
-    expect(find.text('0 / 3 expected work shifts'), findsWidgets);
-    expect(find.text('3 / 3 expected work shifts'), findsOneWidget);
+      expect(find.text('Fully closed'), findsOneWidget);
+      expect(find.text('Show-up rate'), findsOneWidget);
+      expect(find.text('0%'), findsWidgets);
+      expect(find.text('0 / 3 expected work shifts'), findsWidgets);
+      expect(find.text('3 / 3 expected work shifts'), findsOneWidget);
+      _expectNoFlutterErrors(errors);
 
-    await tester.pumpWidget(const SizedBox());
-    await reportCubit.close();
-    await branchCubit.close();
-    await authCubit.close();
-    await repo.close();
+      await tester.pumpWidget(const SizedBox());
+      await reportCubit.close();
+      await branchCubit.close();
+      await authCubit.close();
+      await repo.close();
+    }
   });
 }

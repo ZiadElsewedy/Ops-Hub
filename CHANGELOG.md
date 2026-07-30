@@ -28,6 +28,20 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 ### 2026-07-30
 
+- **Attendance reporting zero-attendance semantics** (bug/product semantics; MED
+  risk — payroll-adjacent wording and close readiness). Owner rule recorded:
+  a materialized expected shift with no clock-ins is a real **0%** attendance
+  result, not unknown attendance and not a day-level close problem; a day or
+  period with no `attendance_expectations` rows is still a ledger data gap with
+  no denominator. Removed the Weekly report's closure-marker prescription and
+  the "known limitation" framing. `WeeklyAttendanceReport.isFullyClosed` now
+  requires ledger rows and no blocking exceptions, so a row-present no-show week
+  can reach **Fully closed**; blocking missing-punch / pending-correction /
+  unknown exception rows still keep it **Partially closed**. The hub, weekly
+  report, daily rhythm table, coverage card, and history summary now distinguish
+  **No ledger data** from row-backed `0%`, and tests assert both sides of that
+  rule.
+
 - **Weekly Attendance Report** (feature; MED risk — first per-period report
   destination over payroll-adjacent ledger facts). Added
   `/attendance/reports/weekly/:periodId` for admin/manager, wired the hub's
@@ -39,8 +53,9 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   added. A new pure `WeeklyAttendanceReport` aggregates the seven-day ledger
   window into summary metrics, daily buckets, employee facts, exception groups,
   evidence rows, and conservative coverage. The UI renders IA §6's weekly
-  sections, hides rates for an empty ledger, marks row-present incomplete weeks
-  as **Partially closed**, and shows zero-row days as **Not closed**. Monthly,
+  sections, hides rates for an empty ledger, marks row-present weeks without
+  blockers as **Fully closed**, and shows zero-row days as **No ledger data**.
+  Monthly,
   per-employee, exception queue, branch comparison, close/lock, and PDF/CSV
   export remain disabled **Coming next** surfaces.
 
@@ -68,7 +83,7 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   `(userId, dayKey)` composites, `AttendanceReportSummary.fromLedger`, a plain
   Cubit/state with explicit `LedgerCoverage`, and DI wiring. The existing
   Attendance History summary strip now reads ledger-derived show-up and punctual
-  arrival metrics and renders **Awaiting close** for an empty ledger window
+  arrival metrics and renders **No ledger data** for an empty ledger window
   instead of dangerous real-looking zeroes. Added source-guard tests so reporting
   files cannot re-import `AttendanceStats`, roster reconstruction, board code, or
   schedule reads. Weekly/Monthly reports and export remain future slices; the

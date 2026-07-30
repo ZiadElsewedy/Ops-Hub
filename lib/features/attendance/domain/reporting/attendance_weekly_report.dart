@@ -93,34 +93,14 @@ class WeeklyAttendanceCoverage {
 
   bool get awaitingClose => !ledgerCoverage.hasRows;
 
-  /// **KNOWN LIMITATION — read before gating close/lock/export on this.**
+  /// Owner rule: every materialized expected shift is a real attendance
+  /// denominator. Rows present with zero clock-ins report 0%, while a day with no
+  /// rows is only a ledger data gap and has no attendance rate.
   ///
-  /// This requires all seven days to carry ledger rows, so a week with any day
-  /// that has **no roster assignment** can never report `Fully closed`. That is
-  /// the common case, not an edge case: the live roster routinely leaves
-  /// Sunday/Friday/Saturday empty, so such a week reports `Partially closed`
-  /// forever.
-  ///
-  /// It cannot be fixed from the ledger alone. Reporting reads
-  /// `attendance_expectations` exclusively (ADR-017), and there "no shifts were
-  /// scheduled" and "shifts were scheduled but not yet closed" are *both* zero
-  /// rows — indistinguishable without reading the roster, which the ledger-only
-  /// rule forbids.
-  ///
-  /// Deliberately NOT weakened to "every day that has rows is complete": that
-  /// would report `Fully closed` on a week with a genuinely unclosed day, which
-  /// is the more dangerous error — it would let a period lock or export while
-  /// attendance facts were still missing.
-  ///
-  /// The fix belongs server-side: the close Function should emit a per-day
-  /// closure marker (a "closed, zero expectations" fact) so the client can tell
-  /// the two cases apart. That is a prerequisite for the close/lock/export
-  /// slice, not for this read-only report.
+  /// Under that rule, fully closed means this period has ledger rows and none of
+  /// them carries a blocking exception.
   bool get isFullyClosed =>
-      ledgerCoverage.hasRows &&
-      closedDayCount == totalDayCount &&
-      ledgerCoverage.closedRowCount > 0 &&
-      ledgerCoverage.blockingExceptionRowCount == 0;
+      ledgerCoverage.hasRows && ledgerCoverage.blockingExceptionRowCount == 0;
 
   bool get isPartiallyClosed => ledgerCoverage.hasRows && !isFullyClosed;
 

@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1202 pass · 2 fail** across 175 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **60 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1203 pass · 2 fail** across 175 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **60 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -47,7 +47,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | Feature | Notes |
 | --- | --- |
 | **Auth** | Admin-provisioned email/password. No registration/Google/OTP/approval. First-login gate: force password change → profile completion → (employees) Welcome → role home |
-| **Roles & routing** | 46 routes, role-guarded. admin ⊇ manager |
+| **Roles & routing** | 48 routes, role-guarded. admin ⊇ manager |
 | **Profile** | View/edit, avatar/cover upload, contact + payment (payment in a private subdoc; hidden for admin) |
 | **Tasks** | Full workflow: create → execute (checklist · notes · proof) → review. Multi-assignee, recurrence, activity timeline, templates, shift assignment, work-type framework, Scheduling V2 (start/due windows + quick deadline presets). Upcoming tasks are visible immediately but `Start Task` / `Start Rework` stays disabled until `startsAt` (client gate + Firestore rules; no rework exception). Generated recurring shift tasks now persist their resolved weekly window and unfinished `pending`/`started` instances automatically close as server-owned **Missed** at shift end; the status is closed, visible, and excluded from active/overdue queues. **Automation business-day fix** (2026-07-30, uncommitted): recurring-shift generation keys and windows now use the Egypt business civil day, the generator is pinned to 01:00 Africa/Cairo, the client refuses to materialize a shift instance after its deadline, and per-task recurrence rolls successors forward until their deadline is future. **Requires a functions deploy for the server path.** **Cancelled** (2026-07-28, uncommitted) is the third terminal outcome — a manager/admin business decision taken from `pending`/`started` only, carrying a mandatory picklist reason, excluded from every count. The recurring-shift Automation Center is productionized: skeleton loading, premium header, slim tap-through cards, a per-routine details sheet (overview/schedule/next execution/history/failure info/generated task/actions), and confirmed delete. |
 | **Schedule** | Weekly roster, shift swaps, leave, day notes, configurable shift hours, shift templates, Final View + PNG export |
@@ -200,11 +200,13 @@ The client read layer now treats `attendance_expectations` as the only reporting
 source: `AttendanceLedgerRow`/`AttendanceLedgerModel`, read-only branch/dayKey and
 user/dayKey range streams, `AttendanceReportSummary.fromLedger`, and
 `AttendanceReportCubit` with explicit `LedgerCoverage`. The existing History
-summary strip is rewired to those ledger-derived numbers and renders **Awaiting
-close** when a period has no ledger rows, rather than showing `0%` or zero-present
-figures. The History list and live board still read raw `attendance` records by
-design; the source guard forbids those reconstruction paths only inside the
-reporting read path.
+summary strip is rewired to those ledger-derived numbers and renders **No ledger
+data** when a period has no ledger rows, rather than showing `0%` or zero-present
+figures. Governing owner rule: a materialized expected shift with no clock-ins is
+a real **0%** attendance result; a day or period with no ledger rows is a
+data-completeness gap with no denominator. The History list and live board still
+read raw `attendance` records by design; the source guard forbids those
+reconstruction paths only inside the reporting read path.
 
 The first reporting surface now exists at `/attendance/reports`: the
 manager/admin **Attendance & Reports** hub. It is desktop-first with a stacked
@@ -217,11 +219,19 @@ range from `attendance_expectations`, aggregates the seven-day Schedule week
 directly in pure Dart, and renders header, close readiness, denominated metrics,
 daily rhythm, exception groups, employee facts, shift evidence, and a disabled
 export/restatement panel. Coverage is conservative and ledger-exclusive: an empty
-week is **Awaiting close** with no percentages, a row-present week is
-**Partially closed** unless every business date has ledger rows and no blocking
-exceptions, and a day with no rows reads **Not closed** rather than zero
-attendance. Monthly, per-employee, exception queue, branch comparison, close/lock,
-and export remain later slices and appear as disabled **Coming next** affordances.
+week is **Awaiting close** / **No ledger data** with no percentages, a row-present
+week with no blocking exceptions is **Fully closed** even if some dates have no
+rows, a row-present week with blocking exceptions is **Partially closed**, a
+row-present no-show day renders `0%`, and a day with no rows reads **No ledger
+data** rather than zero attendance. Verified against production on 2026-07-30, the
+live roster week `weekly_schedules/DDwedTHvI1sPHrMz06PI_2026-07-26` has no Sunday,
+Friday, or Saturday assignments, so reports will show ledger data gaps on those
+dates until the roster is published for them. Separate backend gap: the current
+`closeAttendanceExpectations` sweep only covers the current and previous business
+day, so older rostered slots such as that live Monday/Tuesday never receive ledger
+rows without a wider sweep window or a backfill. Monthly, per-employee, exception
+queue, branch comparison, close/lock, and export remain later slices and appear as
+disabled **Coming next** affordances.
 
 ### Removed — do not re-add
 
@@ -429,10 +439,10 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1202 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1203 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 60 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
-grep -c "static const String" lib/core/routes/route_names.dart   # expect: 46
+grep -c "static const String" lib/core/routes/route_names.dart   # expect: 48
 ls lib/features | wc -l                  # expect: 18
 ```
 
