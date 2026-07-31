@@ -12,13 +12,42 @@
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
 | **Tests** | **1312 pass · 2 fail** across 182 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **86 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
-| **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
+| **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · iOS push unconfigured · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
-DROP is **feature-complete for its intended scope** and gated on deployment and QA,
-not on code. The largest open risk is that a growing set of features depend on Cloud
-Functions and rules that have **never been deployed** — they fail at runtime, not at
-compile time.
+DROP is **feature-complete for its intended scope** and now gated on QA, not on
+deployment.
+
+**Firebase deploy DONE 2026-07-31** to `bazic-d9ad7` (the only project; there is no
+staging). What the deploy actually revealed is worth recording, because the docs
+had been wrong about it for weeks:
+
+| Target | Before | Result |
+| --- | --- | --- |
+| **Functions** | All 24 present but running **stale source** | **All 24 updated.** This is the real change |
+| **Firestore rules** | Believed missing | *"already up to date"* — the live ruleset already matched `firestore.rules` |
+| **Firestore indexes** | Believed missing | Deployed |
+| **Storage rules** | Believed missing | *"already up to date"* |
+
+So the long-standing "rules have never been deployed" claim — including the
+supposedly-missing `shift_templates` rule, the task `startsAt` enforcement, and
+`storage.rules` `validMedia()` — was **stale**: all of it was already live. The
+genuine gap was that the deployed *function source* lagged the repository. That
+is now closed, which activates the automation business-day fix (ADR-015), the
+widened `closeAttendanceExpectations` sweep, the task Missed/Cancelled server
+paths, and — for this module — `onAttendanceCorrectionWritten`, so a manager's
+Resolve / Add record / Excuse should now report **applied** rather than *saved,
+not applied yet*.
+
+⚠️ **Not independently verified at runtime.** `firebase functions:log` returned
+*"Failed to retrieve log entries"* for this CLI login (a Cloud Logging access
+problem, not a deploy failure), so the deploy's own success reports are the only
+confirmation. First real proof will be the next 01:00 Cairo close run and the
+next manager correction.
+
+Pre-deploy gates that did pass: Firestore rules **37/37** against the repo's own
+rules file via the emulator, Cloud Functions **86/86**, Dart **1312 pass / 2
+pre-existing splash failures**.
 
 ---
 

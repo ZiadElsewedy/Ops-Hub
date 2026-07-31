@@ -63,6 +63,31 @@ error: the correction is durable and applies on deploy.
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
 
+## 2026-07-31 — Deployed to production, and found the backlog was mostly a myth
+
+Deployed to `bazic-d9ad7` (the only project — there is no staging): Firestore
+indexes, all 24 Cloud Functions, Firestore rules, Storage rules.
+
+**Only the functions actually changed.** Firestore rules, Storage rules and the
+indexes all reported *"already up to date"*. The standing "rules have never been
+deployed" item — the supposedly-missing `shift_templates` rule, the task
+`startsAt` enforcement, `storage.rules` `validMedia()` — was **stale in our own
+docs**. All of it was already live. What genuinely lagged was the deployed
+*function source*, and every one of the 24 was running older code.
+
+Closing that activates the automation business-day fix (ADR-015), the widened
+`closeAttendanceExpectations` sweep, the task Missed/Cancelled server paths, and
+`onAttendanceCorrectionWritten` — so a manager's Resolve / Add record / Excuse
+should now report **applied** instead of *saved, not applied yet*.
+
+Gates run before deploying: Firestore rules 37/37 on the emulator against the
+repo's own rules file, Cloud Functions 86/86, Dart 1312 pass / 2 pre-existing.
+
+⚠️ Not verified at runtime: `firebase functions:log` returned "Failed to retrieve
+log entries" for this login, so the deploy's own success reports are the only
+confirmation. First real proof is the next 01:00 Cairo close run and the next
+manager correction.
+
 ## 2026-07-31 — The payroll file, and an honest reason it cannot be sent yet (feature; MED risk)
 
 Phase 4 of the attendance redesign plan, partially — and the part that is missing
