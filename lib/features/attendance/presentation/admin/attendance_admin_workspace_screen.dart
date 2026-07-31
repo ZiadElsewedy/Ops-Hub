@@ -3,6 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_export_gate.dart';
+import 'package:drop/core/widgets/premium_button.dart';
+import 'package:drop/core/extensions/context_extensions.dart';
+import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
@@ -163,6 +167,9 @@ class _Body extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
 
             _AcrossBranches(overview: overview),
+            const SizedBox(height: AppSpacing.xl),
+
+            _PayrollHandoff(overview: overview),
             const SizedBox(height: AppSpacing.xl),
 
             GlassContainer(
@@ -470,6 +477,72 @@ class _Fact extends StatelessWidget {
             Text(detail, maxLines: 2, style: AppTypography.caption),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Section 4 — the hand-off, and the only export with financial consequence.
+///
+/// **Gated on a locked period, admin-only, and deliberately nowhere near a
+/// manager's PDF button.** A pay figure that can still move is not a pay figure,
+/// and an export sitting one tap from a summary is eventually pressed by someone
+/// who meant to print one.
+class _PayrollHandoff extends StatelessWidget {
+  const _PayrollHandoff({required this.overview});
+
+  final AdminAttendanceOverview overview;
+
+  @override
+  Widget build(BuildContext context) {
+    final role = context.currentUser?.role ?? UserRole.employee;
+    final blocking = overview.branches.fold<int>(
+      0,
+      (total, b) => total + b.blockingRows,
+    );
+    final availability = attendanceExportAvailability(
+      kind: AttendanceExportKind.payrollCsv,
+      role: role,
+      hasRows: overview.hasRows,
+      // Period lock does not exist yet — it lands with the close pipeline, and
+      // the gate reports that honestly rather than pretending the week is final.
+      isLocked: false,
+      blockingRows: blocking,
+      serverReady: false,
+    );
+
+    return GlassContainer(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Payroll hand-off', style: AppTypography.h3),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            availability.message ??
+                'One row per shift, whole minutes, for the payroll system to '
+                    'round and price.',
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            // The division of labour, stated where it is easy to get wrong.
+            'DROP hands off a reconciled record. It does not calculate pay, and '
+            'it does not round to payroll increments — the payroll system owns '
+            'both.',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          PremiumButton(
+            label: AttendanceExportKind.payrollCsv.label,
+            icon: Icons.receipt_long_outlined,
+            onPressed: availability.isAllowed ? () {} : null,
+          ),
+        ],
       ),
     );
   }

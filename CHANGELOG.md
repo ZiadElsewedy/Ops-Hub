@@ -63,6 +63,41 @@ error: the correction is durable and applies on deploy.
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
 
+## 2026-07-31 — The payroll file, and an honest reason it cannot be sent yet (feature; MED risk)
+
+Phase 4 of the attendance redesign plan, partially — and the part that is missing
+is missing for a reason worth stating.
+
+ADR-005 and ADR-017 make a payroll artifact server-authored: a file the client
+assembled cannot be audited, because nothing outside the client saw the inputs.
+So the file has to come from a Cloud Function writing to Storage with an export
+ledger beside it, and none of that is verifiable without the deploy that has been
+the standing blocker throughout. Shipping it unverified on top of a backlog that
+already has 2 of 23 functions missing in production would add risk, not value.
+
+**What landed instead is the part that must be correct.**
+`functions/attendance_export.js` builds the payroll CSV: the 37-column §12.6
+schema in contract order, RFC4180 escaping, and **whole unrounded minutes**,
+because payroll owns 5/10/15-minute rounding and rounding twice is how two
+systems come to disagree about a person's pay. It is Firebase-free like
+`attendance_auto_close.js`, so 18 `node --test` cases cover it without an
+emulator or a deploy — including that an employee named `Amal, "A"` does not
+silently shift every later column by one.
+
+`AttendanceExportGate` mirrors the rule in Dart so the UI can be honest; the
+server remains the authority. Manager *Share this week* and the new admin
+**Payroll hand-off** now say why they are unavailable instead of "coming next",
+and payroll stays admin-only, lock-gated, and nowhere near the manager's PDF
+button.
+
+⚠️ Before deploying: the CSV names GPS columns and `correction_ids` that the
+close Function does not currently materialize, so they export empty. Either it
+starts writing them or the schema drops them — an empty column that looks like a
+value is worse than no column.
+
+Verified: build succeeds, analyze clean, **1312 pass / 2 pre-existing splash
+failures**, Cloud Functions **86 pass**.
+
 ## 2026-07-31 — Give the audit trail its own room (feature; MED risk)
 
 Phase 3 of the attendance redesign plan. Operational UX and audit UX are opposite

@@ -18,6 +18,7 @@ import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_export_gate.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
@@ -248,7 +249,7 @@ class _WeeklyReportContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
 
         // 5 — Share.
-        const _SharePanel(),
+        _SharePanel(report: report),
       ],
     );
   }
@@ -494,20 +495,37 @@ class _NoDataYetPanel extends StatelessWidget {
 // Workspace owns. A manager who needs one record reaches it through the person
 // or through the attendance history ledger at `/attendance/review`.
 
+/// **Payroll export is deliberately absent here.** It lives in the Admin
+/// Workspace behind a period lock, so it can never be pressed by someone who
+/// meant to print a summary (`ATTENDANCE_PRODUCT_REDESIGN_PLAN` §9.2). The word
+/// *restatement* went with it: it is an accounting term for correcting a
+/// published financial statement and had no business on a store screen.
 class _SharePanel extends StatelessWidget {
-  const _SharePanel();
+  const _SharePanel({required this.report});
+
+  final WeeklyAttendanceReport report;
 
   @override
   Widget build(BuildContext context) {
+    final role = context.currentUser?.role ?? UserRole.employee;
+    // Both manager artifacts share one gate, so a single lookup answers both.
+    final availability = attendanceExportAvailability(
+      kind: AttendanceExportKind.summaryPdf,
+      role: role,
+      hasRows: report.rows.isNotEmpty,
+      isLocked: false,
+      blockingRows: report.coverage.ledgerCoverage.blockingExceptionRowCount,
+      // File generation is a Cloud Function under ADR-005 and has never been
+      // deployed. Naming that is better than a button that fails.
+      serverReady: false,
+    );
+
     return GlassContainer(
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.file_download_off_outlined,
-            color: AppColors.textTertiary,
-          ),
+          const Icon(Icons.ios_share_rounded, color: AppColors.textTertiary),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -516,8 +534,9 @@ class _SharePanel extends StatelessWidget {
                 Text('Share this week', style: AppTypography.h3),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'A printable summary and a timesheet spreadsheet are coming '
-                  'next.',
+                  availability.message ??
+                      'A printable summary and a timesheet spreadsheet of this '
+                          'week.',
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -526,16 +545,16 @@ class _SharePanel extends StatelessWidget {
                 Wrap(
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
-                  children: const [
+                  children: [
                     PremiumButton(
-                      label: 'PDF',
+                      label: AttendanceExportKind.summaryPdf.label,
                       icon: Icons.picture_as_pdf_outlined,
-                      onPressed: null,
+                      onPressed: availability.isAllowed ? () {} : null,
                     ),
                     PremiumButton(
-                      label: 'Spreadsheet',
+                      label: AttendanceExportKind.timesheetCsv.label,
                       icon: Icons.table_view_outlined,
-                      onPressed: null,
+                      onPressed: availability.isAllowed ? () {} : null,
                     ),
                   ],
                 ),

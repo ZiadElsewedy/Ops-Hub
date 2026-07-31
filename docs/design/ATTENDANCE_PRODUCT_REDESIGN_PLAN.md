@@ -1253,9 +1253,39 @@ Phases 1–2.
 
 ---
 
-## Phase 4 — Exports
+## Phase 4 — Exports ⚠️ PARTIAL 2026-07-31 — blocked on deploy
 
-**Type:** feature · **Risk:** HIGH
+**Type:** feature · **Risk:** HIGH · **Status:** the *decisions* and the
+*payroll schema* have landed and are tested. The *transport* cannot land here.
+
+> **Why this phase could not be finished in code.** ADR-005 and ADR-017 make a
+> payroll artifact server-authored — a file the client assembled cannot be
+> audited, because nothing outside the client saw the inputs. So the file must
+> be produced by a Cloud Function, written to Storage, and recorded in an export
+> ledger. None of that can be verified without the Functions deploy that has
+> been the standing blocker throughout, and 2 of 23 functions are already
+> missing in production. Shipping an unverifiable server feature on top of that
+> backlog would be adding risk, not value.
+>
+> **Landed and verified:**
+> * `functions/attendance_export.js` — the payroll CSV builder: the 37-column
+>   §12.6 schema in order, RFC4180 escaping, whole unrounded minutes, and the
+>   `exportGate` that decides who may ask for what. Firebase-free, so 18
+>   `node --test` cases cover it with no emulator and no deploy.
+> * `AttendanceExportGate` in Dart — the same rule, so the UI can be honest
+>   rather than offering a button that would fail.
+> * Manager *Share this week* and the admin *Payroll hand-off* now state the
+>   real reason they are unavailable instead of the word "soon".
+>
+> **Explicitly not landed:** the Function wiring to Storage, the
+> `attendance_exports` ledger, the period-lock write, and restatement
+> versioning. Each needs the deploy plus a rules change.
+>
+> **The one thing to check before deploying:** the CSV names GPS columns and
+> `correction_ids`, which the expectation row does not currently materialize.
+> They export empty today. Either the close Function starts writing them or the
+> schema drops them — an empty column that looks like a value is worse than no
+> column.
 
 ### Goals
 Ship the four exports with correct permissions and lifecycle gating (§9).

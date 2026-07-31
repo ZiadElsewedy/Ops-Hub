@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1304 pass · 2 fail** across 181 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1312 pass · 2 fail** across 182 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **86 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -439,6 +439,30 @@ real seconds per write.
 
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
+
+**Phase 4 (Exports) is PARTIAL 2026-07-31 — uncommitted, and the rest is
+blocked on the deploy, not on code.** ADR-005/ADR-017 make a payroll artifact
+server-authored, so the file must come from a Cloud Function writing to Storage
+with an export ledger — none of which can be verified without the standing
+Functions deploy.
+
+Landed and tested: **`functions/attendance_export.js`** — the §12.6 payroll CSV
+(37 columns in contract order, RFC4180 escaping, **whole unrounded minutes**
+because payroll owns 5/10/15-minute rounding and rounding twice is how two
+systems disagree about someone's pay) plus `exportGate`. Firebase-free like
+`attendance_auto_close.js`, so **18 new `node --test` cases** cover it with no
+emulator (**86 pass**, up from 68). Dart-side `AttendanceExportGate` mirrors the
+same rule so the UI is honest; the server stays the authority. Manager *Share
+this week* and the new admin **Payroll hand-off** section now name the real
+reason they are unavailable rather than saying "coming next" — and the payroll
+button is admin-only, lock-gated, and deliberately nowhere near the manager's
+PDF button.
+
+**Not landed, needing the deploy + a rules change:** Function→Storage wiring, the
+`attendance_exports` ledger, the period-lock write, restatement versioning.
+⚠️ **Check before deploying:** the CSV names GPS columns and `correction_ids`
+that `attendance_expectation.js` does not currently materialize — they export
+empty. Either the close Function starts writing them or the schema drops them.
 
 **Phase 3 (Admin Workspace) is DONE 2026-07-31 — uncommitted, partial.** New
 admin-only destination at `/admin/attendance/workspace` (covered by the existing
