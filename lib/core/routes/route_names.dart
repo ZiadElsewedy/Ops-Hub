@@ -96,6 +96,17 @@ class RouteNames {
   static String attendanceMonthly(String periodId) =>
       '/attendance/reports/monthly/$periodId';
 
+  /// **Daily review** — settle one past business day for one branch.
+  ///
+  /// Operational, not reporting: it reads the roster × records board, and the
+  /// live board still owns *today*. `dayKey` is `yyyyMMdd`.
+  static const String attendanceDailyReviewPattern =
+      '/attendance/daily/:branchId/:dayKey';
+
+  /// The concrete daily-review path for [branchId] on [dayKey] (`yyyyMMdd`).
+  static String attendanceDailyReview(String branchId, String dayKey) =>
+      '/attendance/daily/$branchId/$dayKey';
+
   /// Admin attendance dashboard — branch-scoped roster × attendance oversight +
   /// the correction queue (a future manager view reuses the same screen).
   static const String adminAttendance = '/admin/attendance';

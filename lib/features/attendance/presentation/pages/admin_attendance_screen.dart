@@ -16,8 +16,7 @@ import 'package:drop/features/attendance/domain/attendance_gps.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_admin_state.dart';
-import 'package:drop/features/attendance/presentation/widgets/attendance_action_sheet.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:drop/features/attendance/presentation/widgets/attendance_manager_actions.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/pages/branch_geofence_editor_screen.dart';
 
@@ -619,7 +618,12 @@ void _showDetails(BuildContext context, AttendanceBoardRow row) {
                 label: 'Resolve shift',
                 icon: Icons.fact_check_outlined,
                 style: PremiumButtonStyle.filled,
-                onPressed: () => _resolve(context, sheetContext, cubit, r),
+                onPressed: () => resolveShiftDirectly(
+                  context,
+                  cubit,
+                  r,
+                  dismissContext: sheetContext,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
@@ -628,14 +632,24 @@ void _showDetails(BuildContext context, AttendanceBoardRow row) {
                 label: 'Add record',
                 icon: Icons.add_task_rounded,
                 style: PremiumButtonStyle.filled,
-                onPressed: () => _addRecord(context, sheetContext, cubit, row),
+                onPressed: () => addAttendanceRecord(
+                  context,
+                  cubit,
+                  row,
+                  dismissContext: sheetContext,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               PremiumButton(
                 label: 'Excuse absence',
                 icon: Icons.event_available_outlined,
                 style: PremiumButtonStyle.tonal,
-                onPressed: () => _excuse(context, sheetContext, cubit, row),
+                onPressed: () => excuseAttendanceAbsence(
+                  context,
+                  cubit,
+                  row,
+                  dismissContext: sheetContext,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
@@ -661,68 +675,6 @@ void _showDetails(BuildContext context, AttendanceBoardRow row) {
       ),
     ),
   );
-}
-
-Future<void> _resolve(BuildContext context, BuildContext sheetContext,
-    AttendanceAdminCubit cubit, AttendanceEntity record) async {
-  final ok = await showAttendanceActionSheet(
-    context,
-    title: 'Resolve shift',
-    subtitle: 'Set the real times — applied immediately with an audit note.',
-    submitLabel: 'Resolve',
-    askTimes: true,
-    day: record.date,
-    seedClockIn: record.clockIn ?? record.scheduledStart,
-    seedClockOut: record.clockOut ?? record.scheduledEnd,
-    onSubmit: (r) {
-      final start = r.clockIn;
-      if (start == null) return Future.value(false);
-      return cubit.resolveDirectly(record,
-          clockIn: start, clockOut: r.clockOut, reason: r.reason);
-    },
-  );
-  if (ok != true) return;
-  if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-  if (context.mounted) AppSnackbar.success(context, 'Shift resolved.');
-}
-
-Future<void> _addRecord(BuildContext context, BuildContext sheetContext,
-    AttendanceAdminCubit cubit, AttendanceBoardRow row) async {
-  final ok = await showAttendanceActionSheet(
-    context,
-    title: 'Add attendance record',
-    subtitle: 'Record the shift ${row.name} worked — applied with an audit note.',
-    submitLabel: 'Add record',
-    askTimes: true,
-    day: DateTime.now(),
-    seedClockIn: row.entry.scheduledStart,
-    seedClockOut: row.entry.scheduledEnd,
-    onSubmit: (r) {
-      final start = r.clockIn;
-      if (start == null) return Future.value(false);
-      return cubit.addRecord(row,
-          clockIn: start, clockOut: r.clockOut, reason: r.reason);
-    },
-  );
-  if (ok != true) return;
-  if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-  if (context.mounted) AppSnackbar.success(context, 'Record added.');
-}
-
-Future<void> _excuse(BuildContext context, BuildContext sheetContext,
-    AttendanceAdminCubit cubit, AttendanceBoardRow row) async {
-  final ok = await showAttendanceActionSheet(
-    context,
-    title: 'Excuse absence',
-    subtitle: 'Forgive ${row.name}\'s missed shift — zero worked hours.',
-    submitLabel: 'Excuse',
-    askTimes: false,
-    day: DateTime.now(),
-    onSubmit: (r) => cubit.excuseAbsence(row, reason: r.reason),
-  );
-  if (ok != true) return;
-  if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-  if (context.mounted) AppSnackbar.success(context, 'Absence excused.');
 }
 
 class _DetailClock extends StatelessWidget {

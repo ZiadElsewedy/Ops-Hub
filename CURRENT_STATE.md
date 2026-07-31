@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1274 pass · 2 fail** across 179 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1289 pass · 2 fail** across 180 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -244,10 +244,9 @@ shared with the Weekly and Monthly reports, which stay visually unchanged, so it
 `weekly: false` dashboard variant now has no app caller and survives only under
 `test/attendance_report_metrics_test.dart`. The Weekly Report reads the same branch/dayKey
 range from `attendance_expectations`, aggregates the seven-day Schedule week
-directly in pure Dart, and renders header, week status, denominated metrics, a
-by-day table, exception groups, per-person facts, every-shift detail, and a
-disabled share panel. Coverage is conservative and ledger-exclusive: a
-row-present no-show day renders a real `0%`, and a day with no rows reads **No
+directly in pure Dart. **Its section inventory is the Phase 1 five — see the
+redesign entry below.** Coverage is conservative and ledger-exclusive: a
+row-present no-show day is a real result, and a day with no rows reads **No
 data** rather than zero attendance.
 
 **Manager-facing status vocabulary changed 2026-07-31 (Phase 0 of the redesign
@@ -343,12 +342,10 @@ defensive captions deleted — *"Alphabetical facts only. This report does not r
 people…"* and *"data-completeness gaps, not attendance results."* Empty exception
 sections and the empty attention panel no longer render at all. Index-missing
 error copy now leads with what the reader can act on and keeps the raw cause
-after it. **Sorting, section inventory, KPI selection, and audit placement are
-deliberately unchanged — those are Phases 1–3.** Verified: `dart analyze lib test`
-clean (1 pre-existing test-style lint), suite **1272 pass / 2 pre-existing splash
-failures**, +7 tests (new `attendance_coverage_status_test.dart` incl. a guard
-that no manager-facing status label contains internal vocabulary, plus metric
-suppression cases).
+after it. Verified: `dart analyze lib test` clean (1 pre-existing test-style
+lint), suite **1272 pass / 2 pre-existing splash failures**, +7 tests (new
+`attendance_coverage_status_test.dart` incl. a guard that no manager-facing
+status label contains internal vocabulary, plus metric suppression cases).
 
 **Phase 1 (Weekly Report rebuild) is DONE 2026-07-31 — uncommitted.** The gating
 deliverable landed first: **`ATTENDANCE_REPORTS_IA` §6.4–§6.10 are replaced in
@@ -389,6 +386,59 @@ list** (§11 D2 defers Monthly entirely).
 Verified: analyze clean, suite **1274 pass / 2 pre-existing splash failures**,
 +3 tests including one that pins the ordering reversal (a clean person early in
 the alphabet sorts below a no-show late in it) and the source guard still green.
+
+**Phase 2 (Daily Review) is PARTIALLY DONE 2026-07-31 — uncommitted.** New
+manager/admin surface at `/attendance/daily/:branchId/:dayKey`
+(`presentation/daily/attendance_daily_review_screen.dart`), reachable from a
+Weekly day row, guarded like the reports area and scoped to the manager's own
+branch. Three zones — **Needs you** (only zone with verbs, ordered by cost of
+being wrong via the pure `domain/daily_review.dart`), **The day** (one line,
+counts not percentages), **Everyone** (collapsed). A clean day renders one line.
+
+**It reads the roster × records board, not the ledger** — Daily Review is
+operational, and `attendance_expectations` is the *reporting* truth for closed
+periods. That keeps the ADR-017 source guard untouched: reporting still reads the
+ledger only.
+
+⚠️ **A real defect was fixed here.** `AttendanceAdminCubit.addRecord` /
+`resolveDirectly` / `excuseAbsence` resolved the attendance document id from
+`_today()` **at action time**, so reviewing a past day — or a live board left
+open across midnight — would write the correction against the wrong date, on data
+that feeds pay. `load(...)` now takes an optional `businessDate` that is pinned
+at scope and used everywhere `_today()` was; the live board (no date passed) is
+unchanged. Two tests hold both halves. The per-day tick is also skipped for a
+past date, which cannot change.
+
+The three write helpers moved from `admin_attendance_screen.dart` into
+`presentation/widgets/attendance_manager_actions.dart` so both surfaces share one
+path. **No decision semantics changed** — validation, the approved-correction
+apply path, and the no-self-approval rule all still live in the cubit.
+
+**Deliberately not built:** exception kinds *pending correction* (already has a
+working queue on the live board), *unusual overtime* (needs a threshold nobody
+has set), and *unscheduled work* (does not exist until the redesign plan's §11 D1
+is decided); the daily notification (server-side, waits on the standing functions
+deploy); and 48-hour escalation (its destination is Phase 3's Admin Workspace).
+⚠️ **The manager actions no longer claim success they cannot see.** A manager
+write creates an approved correction; `onAttendanceCorrectionWritten` is what
+applies it to the record and stamps `resolvedAt` (spec T3/T4). Undeployed, the
+correction is stored and the record never moves — but the UI said *"Absence
+excused."* anyway, so a manager was told a shift was settled while the person
+was still marked absent. This is **pre-existing behaviour on the live board**,
+surfaced by Daily Review because that screen is meant for daily use.
+`addRecord` / `resolveDirectly` / `excuseAbsence` now return
+`AttendanceWriteOutcome` (`applied` · `awaitingBackend` · `failed`) instead of
+`bool`: after writing, the cubit re-reads the record and looks for a **new**
+`resolvedAt` (compared with the value before the write, since a
+previously-corrected record already carries one), polling ~5s. Not confirmed →
+the manager is told *"Saved, but not applied yet — waiting on an administrator to
+finish setup. Nothing is lost."* Deliberately **not** an error: the correction is
+durable and applies on deploy, and calling it a failure would push managers to
+redo a write that succeeded. Poll interval is injectable so tests do not spend
+real seconds per write.
+
+Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
+tests.
 
 ### Removed — do not re-add
 

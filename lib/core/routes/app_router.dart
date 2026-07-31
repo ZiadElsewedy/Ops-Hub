@@ -49,6 +49,7 @@ import 'package:drop/features/attendance/presentation/pages/attendance_screen.da
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_screen.dart';
 import 'package:drop/features/attendance/presentation/details/attendance_details_screen.dart';
+import 'package:drop/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_monthly_report_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_weekly_report_screen.dart';
@@ -357,6 +358,16 @@ GoRouter createRouter(
             ),
           ),
           GoRoute(
+            path: RouteNames.attendanceDailyReviewPattern,
+            pageBuilder: (context, state) => _slideTransition(
+              state,
+              AttendanceDailyReviewScreen(
+                branchId: state.pathParameters['branchId'] ?? '',
+                dayKey: state.pathParameters['dayKey'] ?? '',
+              ),
+            ),
+          ),
+          GoRoute(
             path: RouteNames.attendanceMonthlyPattern,
             pageBuilder: (context, state) => _slideTransition(
               state,
@@ -609,7 +620,10 @@ bool _isAttendanceReviewArea(String loc) =>
 /// rules and by explicit branch selection in the screen.
 bool _isAttendanceReportsArea(String loc) =>
     loc == RouteNames.attendanceReports ||
-    loc.startsWith('${RouteNames.attendanceReports}/');
+    loc.startsWith('${RouteNames.attendanceReports}/') ||
+    // Daily review settles other people's shifts, so it is a manager/admin
+    // surface for the same reason the branch review ledger is.
+    loc.startsWith('/attendance/daily/');
 
 class _AuthStateNotifier extends ChangeNotifier {
   _AuthStateNotifier(AuthCubit cubit) {

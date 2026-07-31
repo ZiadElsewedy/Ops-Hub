@@ -427,6 +427,11 @@ class AppDependencies {
   /// phantom no-show, which has no attendance record to carry one.
   static late final GetUsersByBranch _reportUsersByBranch;
 
+  // Kept so Daily Review can build its own board cubit for a past day without
+  // re-scoping the live board's singleton underneath it.
+  static late final ScheduleRepository _scheduleRepositoryRef;
+  static late final BranchRepository _branchRepositoryRef;
+
   /// Builds a fresh Attendance History ledger cubit — the employee's own history
   /// ([AttendanceHistoryMode.self]) or a manager/admin branch review
   /// ([AttendanceHistoryMode.review]). Owned + disposed by its `BlocProvider`.
@@ -442,6 +447,22 @@ class AppDependencies {
         userId: userId,
         branchId: branchId,
         query: AttendanceHistoryQuery(text: initialSearch ?? ''),
+      );
+
+  /// Builds a **fresh** attendance board cubit for Daily Review.
+  ///
+  /// Deliberately not the `attendanceAdminCubit` singleton: that one is pinned
+  /// to today for the live board, and Daily Review scopes itself to a past
+  /// business day. Sharing the instance would re-scope the live board underneath
+  /// whoever else is looking at it.
+  static AttendanceAdminCubit createAttendanceDailyReviewCubit() =>
+      AttendanceAdminCubit(
+        repository: _attendanceRepository,
+        scheduleRepository: _scheduleRepositoryRef,
+        branchRepository: _branchRepositoryRef,
+        getUsersByBranch: _reportUsersByBranch,
+        decideCorrection: DecideCorrection(_attendanceRepository),
+        service: const AttendanceService(),
       );
 
   /// Builds a fresh Attendance Reporting cubit. Reporting reads only the
@@ -724,6 +745,8 @@ class AppDependencies {
       clockOut: ClockOut(attendanceRepository),
       requestCorrection: RequestCorrection(attendanceRepository),
     );
+    _scheduleRepositoryRef = scheduleRepository;
+    _branchRepositoryRef = branchRepository;
     attendanceAdminCubit = AttendanceAdminCubit(
       repository: attendanceRepository,
       scheduleRepository: scheduleRepository,

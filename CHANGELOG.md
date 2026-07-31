@@ -14,6 +14,55 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-31 — Daily review: settle yesterday before it becomes a weekly surprise (feature; HIGH risk)
+
+Phase 2 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md)
+— the layer whose absence is why the weekly report was trying to be three
+products at once.
+
+New `/attendance/daily/:branchId/:dayKey`, reachable from a day row on the weekly
+report. Three zones: **Needs you** (the only zone with verbs, ordered by cost of
+being wrong — an unknown clock-out outranks a no-show because unknown hours are a
+payroll problem), **The day** (one line, counts not percentages), **Everyone**
+(collapsed). A clean day renders one line and nothing else; that is the common
+case and it should be the fastest to read.
+
+Rows name a person and state a fact — "Sara didn't clock out" — never a record
+id, a severity label, or an exception code. Priority is expressed by order.
+
+**A real bug fixed on the way.** Every manager write (`addRecord`,
+`resolveDirectly`, `excuseAbsence`) resolved its document id from `_today()` at
+*action* time. A board left open across midnight, or any review of a past day,
+would write against the wrong date — on data that feeds pay. The business date is
+now pinned when the board is scoped; the live board is unchanged and both halves
+are tested.
+
+The three write helpers moved out of the admin board into
+`attendance_manager_actions.dart` so both surfaces share one path — two copies of
+a pay-affecting write is how they drift. No decision semantics changed:
+validation, the approved-correction apply path, and no-self-approval are all
+still the cubit's.
+
+**Partial by design.** Three of the six exception kinds are built (missing
+clock-in, missing clock-out, no-show) — the ones that stop a week settling.
+Pending corrections already have a working queue; overtime review needs a
+threshold nobody has set; unscheduled work does not exist until §11 D1 is
+decided. The daily notification is server-side and waits on the standing
+functions deploy; 48-hour escalation belongs to Phase 3's Admin Workspace.
+
+**The actions no longer report success they cannot see.** A manager write
+creates an approved correction; a Cloud Function applies it and stamps
+`resolvedAt`. Undeployed, the record never moves — yet the UI said "Absence
+excused.", telling a manager a shift was settled while the person was still
+absent. Pre-existing on the live board; Daily Review would have made it a daily
+occurrence. The three actions now return `AttendanceWriteOutcome` and the cubit
+confirms by re-reading the record for a **new** `resolvedAt`. Unconfirmed reads
+"Saved, but not applied yet — nothing is lost", which is deliberately not an
+error: the correction is durable and applies on deploy.
+
+Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
+tests.
+
 ## 2026-07-31 — Weekly attendance answers a manager's four questions (feature; MED risk)
 
 Phase 1 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md).

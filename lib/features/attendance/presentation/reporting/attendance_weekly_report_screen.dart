@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
+import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
@@ -235,8 +237,14 @@ class _WeeklyReportContent extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        // 4 — By day.
-        AttendanceWeeklyDailyTable(days: report.days),
+        // 4 — By day. A day row opens Daily Review for that date, which is
+        // where the day actually gets settled (IA §6.8).
+        AttendanceWeeklyDailyTable(
+          days: report.days,
+          onOpenDay: (day) => context.push(
+            RouteNames.attendanceDailyReview(period.branchId, day.dayKey),
+          ),
+        ),
         const SizedBox(height: AppSpacing.xl),
 
         // 5 — Share.

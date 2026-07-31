@@ -25,6 +25,22 @@ String attendanceDayKey(DateTime date) {
   return '$y$m$d';
 }
 
+/// The calendar date a `yyyyMMdd` [key] names, or `null` if it is not one.
+///
+/// The inverse of [attendanceDayKey], for surfaces that take a day key from a
+/// route. Rejects a malformed length, non-numeric parts, and dates the calendar
+/// normalizes away (`20260231`) — a route parameter is user input.
+DateTime? parseAttendanceDayKey(String key) {
+  if (key.length != 8) return null;
+  final year = int.tryParse(key.substring(0, 4));
+  final month = int.tryParse(key.substring(4, 6));
+  final day = int.tryParse(key.substring(6, 8));
+  if (year == null || month == null || day == null) return null;
+  final date = DateTime(year, month, day);
+  if (date.year != year || date.month != month || date.day != day) return null;
+  return date;
+}
+
 /// The deterministic document id for [uid]'s [shift] on [date].
 String attendanceDocId({
   required String uid,

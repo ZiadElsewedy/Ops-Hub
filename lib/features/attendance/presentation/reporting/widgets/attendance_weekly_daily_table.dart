@@ -8,9 +8,17 @@ import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
 
 class AttendanceWeeklyDailyTable extends StatelessWidget {
-  const AttendanceWeeklyDailyTable({super.key, required this.days});
+  const AttendanceWeeklyDailyTable({
+    super.key,
+    required this.days,
+    this.onOpenDay,
+  });
 
   final List<WeeklyAttendanceDayBreakdown> days;
+
+  /// Opens Daily Review for that business date (`ATTENDANCE_REPORTS_IA` §6.8).
+  /// Null leaves the rows inert — Monthly has no day rows to open.
+  final void Function(WeeklyAttendanceDayBreakdown day)? onOpenDay;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +66,10 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
                         _DailyRow(
                           cells: _cellsFor(day),
                           nobodyCame: _nobodyCame(day),
+                          // A day with nothing recorded has nothing to settle.
+                          onTap: onOpenDay == null || !day.hasRows
+                              ? null
+                              : () => onOpenDay!(day),
                         ),
                     ],
                   ),
@@ -112,14 +124,22 @@ class _DailyRow extends StatelessWidget {
     required this.cells,
     this.header = false,
     this.nobodyCame = false,
+    this.onTap,
   });
 
   final List<String> cells;
   final bool header;
   final bool nobodyCame;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final row = _row(context);
+    if (onTap == null) return row;
+    return InkWell(onTap: onTap, child: row);
+  }
+
+  Widget _row(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(minHeight: 48),
       padding: const EdgeInsets.symmetric(

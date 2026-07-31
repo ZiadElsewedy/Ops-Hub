@@ -1096,7 +1096,6 @@ splash failures.
 > six-metric grid, the alphabetical person list, and the evidence surface. Only
 > the shared vocabulary and status from Phase 0 apply to it.
 
-
 ### Goals
 Restructure Weekly around the manager's four questions. **Amend the specification
 first** — otherwise RC1 guarantees the eight sections regenerate.
@@ -1131,9 +1130,45 @@ Phase 0. IA amendment accepted.
 
 ---
 
-## Phase 2 — Daily Review
+## Phase 2 — Daily Review ⚠️ PARTIALLY DONE 2026-07-31
 
-**Type:** feature · **Risk:** HIGH · **Engine-touching** · **The actual fix**
+**Type:** feature · **Risk:** HIGH · **Engine-touching** · **The actual fix** ·
+**Status:** the surface and its decisions are built (uncommitted). Analyze clean;
+1286 pass / 2 pre-existing splash failures.
+
+> **Built:** the three-zone surface at `/attendance/daily/:branchId/:dayKey`,
+> reachable from a Weekly day row; the pure `DailyReview` ordering; resolve /
+> add-record / excuse wired through the *existing* `AttendanceAdminCubit` paths;
+> the fast empty state; manager/admin route guard and own-branch scoping.
+>
+> **A real bug fixed on the way.** Every manager write resolved its document id
+> from `_today()` *at action time*. Reviewing a past day would have written that
+> day's correction against today's id — a wrong-date write on data that feeds
+> pay. The business date is now pinned when the board is scoped, and two tests
+> hold both halves (scoped writes to the day under review; unscoped still writes
+> to today). The live board's behaviour is unchanged.
+>
+> **Not built, and why:**
+> * **Exception kinds 1, 5, 6** (pending corrections · unusual overtime ·
+>   unscheduled work). Pending corrections already have a working queue on the
+>   live board; overtime review needs a threshold nobody has set; unscheduled
+>   work does not exist until §11 D1 is decided. Kinds 2–4 (missing clock-in,
+>   missing clock-out, no-show) are the ones that block a week from settling, and
+>   they are done.
+> * **The daily notification.** Server-side, and it needs the standing
+>   functions deploy. Adding a client-side approximation would mean a second
+>   notification path to reconcile later.
+> * **48-hour escalation.** Its destination is the Phase 3 Admin Workspace, so
+>   it lands there rather than being built twice.
+>
+> **The deploy gate is now visible instead of hidden.** A manager write creates
+> an approved correction and a Cloud Function applies it; undeployed, the record
+> never moves. The UI used to report success anyway — telling a manager a shift
+> was settled while the person was still marked absent. The actions now confirm
+> by re-reading the record and say *"Saved, but not applied yet"* when it has not
+> landed. That is not an error state: the correction is durable and applies on
+> deploy. The deploy is still the gate, as `ATTENDANCE_SPEC` T3 says — it just no
+> longer lies about it.
 
 ### Goals
 Build the missing daily layer (§6). Restores the IA's intended build order and lets
