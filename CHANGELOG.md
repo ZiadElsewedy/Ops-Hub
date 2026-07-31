@@ -14,6 +14,48 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-31 — Attendance & Reports hub: information-architecture redesign (polish; LOW risk)
+
+Owner-commissioned IA pass on `/attendance/reports` only. **Presentation-only** —
+no cubit, state, domain, repository, route, rule, index, or function change, and
+no threshold, rounding, or classification change.
+
+The hub rendered a *multi-branch* design in a *single-branch* reality (the
+`ATTENDANCE_REPORTS_IA` §13.5 wireframe was drawn for an estate view that does
+not exist), so components built to compare branches always rendered one row.
+~12 unique facts were rendered ~18 times across ~2.5 screens.
+
+Five sections became four, in the order the page's question implies:
+
+- **Header** — the duplicate `PageHero` title/eyebrow is gone; the chrome header
+  already names the page. Only the question line survives, as the lead-in.
+- **Scope & period** — `AttendanceReportScopeBar` keeps its exact function but is
+  reframed as a control bar (no `GlassContainer`, closing hairline, quieter
+  legends) so it stops competing with data.
+- **The verdict** — `_NeedsAttention` and `AttendanceReportCoverage` merged into
+  one card: a trust line (`Fully closed · 3 of 3 ledger rows closed`, or
+  `Awaiting close · No ledger data`) and an action line. **Exceptions are
+  reported by exception:** zero blockers cost one muted line, a real blocker
+  earns weight, amber and the Exception-queue affordance.
+- **The numbers** — show-up rate as the headline with its denominator inline,
+  Expected · Present · Absent beneath it as its *components*, and punctual
+  arrivals / worked time only when they have a real denominator (they used to
+  show `--` over `0 / 0` at full tile weight).
+- **Go deeper** — Weekly and Monthly as two real actions; the three unbuilt
+  surfaces collapse to one muted line instead of three inert tiles.
+
+**Removed:** `_BranchPeriodPreview` (the single-row "Branch periods" table),
+which carried no information not already above it. A code comment records that a
+branch-comparison table returns only if an "All branches" scope is added.
+
+`AttendanceReportMetrics` is **untouched** — it is shared with the Weekly and
+Monthly reports, which must stay visually unchanged, so the hub got its own
+`AttendanceReportHeadline` instead of a new variant on the shared widget.
+
+The owner's rule is unchanged and now has paired coverage: rows with zero
+clock-ins are a real **0%** with its denominator disclosed; no rows at all is
+**No ledger data**, never a zero-valued figure.
+
 ## 2026-07-31 — Attendance: absence rows show a name, not a uid (bug; LOW risk)
 
 `attendance_expectations.userName` was copied from the attendance record, but a

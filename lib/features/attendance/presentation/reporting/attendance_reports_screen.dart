@@ -11,16 +11,13 @@ import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/attention_tile.dart';
 import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_coverage.dart';
-import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_metrics.dart';
+import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_headline.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_scope_bar.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
@@ -138,9 +135,6 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
             loaded: (items, _) => items,
             orElse: () => const <BranchEntity>[],
           );
-          final selectedBranch = _branchById(branches, _selectedBranchId);
-          final branchLabel =
-              selectedBranch?.name ?? _selectedBranchId ?? 'No branch selected';
 
           return BlocBuilder<AttendanceReportCubit, AttendanceReportState>(
             builder: (context, reportState) {
@@ -157,18 +151,26 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
                     context.isDesktop ? AppSpacing.xxxl : AppSpacing.xxxl * 2,
                   ),
                   children: [
-                    PageHero(
-                      eyebrow: 'Attendance reporting ledger',
-                      title: 'Attendance & Reports',
-                      subtitle:
-                          'Which periods and branches need attention before payroll, and can you trust these numbers yet?',
-                      // No primaryAction: PageHero leaves the action slot too
-                      // little width beside this title/subtitle, and a disabled
-                      // button overflowed PremiumButton's Row by 175px. The
-                      // period-close affordance lives in the "coming next"
-                      // tiles below, where it lays out safely at every width.
+                    // The chrome header (AdaptiveScaffold title + subtitle)
+                    // already names this page. PageHero repeated that title and
+                    // eyebrow verbatim, costing ~120px of the first screen and
+                    // putting the word "ledger" on screen four times before any
+                    // number. Only the question the page exists to answer
+                    // survives, as the single lead-in.
+                    //
+                    // It also never carried a primaryAction: PageHero leaves the
+                    // action slot too little width beside a title/subtitle, and a
+                    // disabled button once overflowed PremiumButton's Row by
+                    // 175px here. Nothing below reintroduces an action in a Row
+                    // that cannot give it room.
+                    Text(
+                      'Which periods need attention before payroll, and can you '
+                      'trust these numbers yet?',
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
                     AttendanceReportScopeBar(
                       role: role,
                       branches: branches,
@@ -188,7 +190,6 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
                     else
                       _ReportBody(
                         state: reportState,
-                        branchLabel: branchLabel,
                         branchId: _selectedBranchId!,
                         window: _window,
                       ),
@@ -200,14 +201,6 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
         },
       ),
     );
-  }
-
-  static BranchEntity? _branchById(List<BranchEntity> branches, String? id) {
-    if (id == null) return null;
-    for (final branch in branches) {
-      if (branch.id == id) return branch;
-    }
-    return null;
   }
 
   static AttendancePeriodWindow _windowFor(
@@ -235,16 +228,27 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
   }
 }
 
+/// The hub's reading order, derived from the one question the page answers:
+/// *which periods need attention before payroll, and can you trust these
+/// numbers yet?*
+///
+/// 1. **The verdict** — [AttendanceReportCoverage] (trust + blockers).
+/// 2. **The numbers** — [AttendanceReportHeadline] (one headline + detail).
+/// 3. **Go deeper** — [_GoDeeper] (Weekly · Monthly).
+///
+/// Rhythm carries the grouping. The verdict and the numbers are separated by a
+/// tight [AppSpacing.md] because they are one answer read top to bottom; the
+/// jump to navigation is a wide [AppSpacing.xxl]. The old page put an identical
+/// [AppSpacing.xl] between five identical containers, so nothing read as
+/// belonging to anything.
 class _ReportBody extends StatelessWidget {
   const _ReportBody({
     required this.state,
-    required this.branchLabel,
     required this.branchId,
     required this.window,
   });
 
   final AttendanceReportState state;
-  final String branchLabel;
   final String branchId;
   final AttendancePeriodWindow window;
 
@@ -260,57 +264,36 @@ class _ReportBody extends StatelessWidget {
         !state.coverage.hasRows) {
       return const _LoadingDashboard();
     }
+
+    final verdict = AttendanceReportCoverage(
+      coverage: state.coverage,
+      totalRows: state.rows.length,
+    );
+    final deeper = _GoDeeper(branchId: branchId, window: window);
+
+    // No rows is a data-completeness gap, not a result: the numbers section is
+    // withheld entirely rather than rendered at zero.
     if (state.coverage.awaitingClose) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AttendanceReportCoverage(
-            coverage: state.coverage,
-            totalRows: state.rows.length,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          _ComingNextGrid(
-            branchLabel: branchLabel,
-            branchId: branchId,
-            window: window,
-          ),
+          verdict,
+          const SizedBox(height: AppSpacing.xxl),
+          deeper,
         ],
       );
     }
 
-    final blockers = state.coverage.blockingExceptionRowCount;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _NeedsAttention(blockers: blockers, branchLabel: branchLabel),
-        const SizedBox(height: AppSpacing.xl),
-        AttendanceReportCoverage(
-          coverage: state.coverage,
-          totalRows: state.rows.length,
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        AttendanceReportMetrics(summary: state.summary),
-        const SizedBox(height: AppSpacing.xl),
-        _BranchPeriodPreview(
-          branchLabel: branchLabel,
-          status: blockers > 0 ? 'Partially closed' : 'Fully closed',
-          blockers: blockers,
-          showUp: _rateValue(state.summary.showUpRate),
-          expected: state.summary.expectedWorkShifts,
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        _ComingNextGrid(
-          branchLabel: branchLabel,
-          branchId: branchId,
-          window: window,
-        ),
+        verdict,
+        const SizedBox(height: AppSpacing.md),
+        AttendanceReportHeadline(summary: state.summary),
+        const SizedBox(height: AppSpacing.xxl),
+        deeper,
       ],
     );
-  }
-
-  static String _rateValue(AttendanceRate rate) {
-    final percent = rate.percent;
-    return percent == null ? '--' : '${percent.round()}%';
   }
 
   static String _actionableError(String? message) {
@@ -325,184 +308,27 @@ class _ReportBody extends StatelessWidget {
   }
 }
 
-class _NeedsAttention extends StatelessWidget {
-  const _NeedsAttention({required this.blockers, required this.branchLabel});
+// `_BranchPeriodPreview` (a "Branch periods" table) lived here and was removed.
+// It came from the ATTENDANCE_REPORTS_IA §13.5 hub wireframe, which was drawn
+// for a multi-branch estate view — the one that compares Cairo A / Cairo B /
+// Giza. That view does not exist: managers are pinned to their own branch and a
+// branchless admin must choose exactly one, so the table always rendered a
+// single row and repeated the status, blocker count, show-up rate and expected
+// count already stated above it.
+//
+// Bring a branch-comparison table back **only** if an explicit "All branches"
+// scope is added to `AttendanceReportScopeBar`. Until there is more than one row
+// to compare, a table is a duplicate, not a comparison.
 
-  final int blockers;
-  final String branchLabel;
+/// **Go deeper.** The two report destinations that actually exist, as two
+/// primary actions — not five tiles of which three were inert placeholders.
+///
+/// The unbuilt surfaces cost one muted line. A placeholder tile spends real
+/// estate on something a manager cannot do, at the same visual weight as
+/// something they can.
+class _GoDeeper extends StatelessWidget {
+  const _GoDeeper({required this.branchId, required this.window});
 
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 840 ? 3 : 1;
-        final children = [
-          AttentionTile(
-            icon: Icons.block_outlined,
-            label: 'Payroll blockers',
-            count: blockers,
-            sublabel: 'Rows preventing a trustworthy report',
-            clearedMessage: 'No payroll blockers',
-            onTap: () => context.showInfo('Exception queue is coming next.'),
-          ),
-          AttentionTile(
-            icon: Icons.verified_outlined,
-            label: 'Ready periods',
-            count: blockers == 0 ? 1 : 0,
-            sublabel: branchLabel,
-            clearedMessage: 'Not ready yet',
-            onTap: () => context.showInfo('Period lock is coming next.'),
-          ),
-          AttentionTile(
-            icon: Icons.history_toggle_off_rounded,
-            label: 'Restatements',
-            count: 0,
-            clearedMessage: 'No restatements',
-            onTap: () =>
-                context.showInfo('Restatement history is coming next.'),
-          ),
-        ];
-        // Natural height, no fixed aspect ratio. AttentionTile's content varies
-        // with its sublabel, so any childAspectRatio is a guess that clips at
-        // some width — it overflowed by 45px at 390pt. This mirrors the
-        // no-fixed-card-extent pattern the Employees directory already uses.
-        if (columns == 1) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppSpacing.md),
-                children[i],
-              ],
-            ],
-          );
-        }
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) const SizedBox(width: AppSpacing.md),
-                Expanded(child: children[i]),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _BranchPeriodPreview extends StatelessWidget {
-  const _BranchPeriodPreview({
-    required this.branchLabel,
-    required this.status,
-    required this.blockers,
-    required this.showUp,
-    required this.expected,
-  });
-
-  final String branchLabel;
-  final String status;
-  final int blockers;
-  final String showUp;
-  final int expected;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassContainer(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Branch periods', style: AppTypography.h3),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.lgAll,
-              border: Border.all(color: AppColors.darkBorder),
-            ),
-            child: Column(
-              children: [
-                _PeriodRow(
-                  cells: const [
-                    'Branch',
-                    'Status',
-                    'Blockers',
-                    'Show-up',
-                    'Expected',
-                  ],
-                  header: true,
-                ),
-                _PeriodRow(
-                  cells: [
-                    branchLabel,
-                    status,
-                    '$blockers',
-                    showUp,
-                    '$expected',
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PeriodRow extends StatelessWidget {
-  const _PeriodRow({required this.cells, this.header = false});
-
-  final List<String> cells;
-  final bool header;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: header ? AppColors.darkBorder : AppColors.transparent,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          for (final cell in cells)
-            Expanded(
-              child: Text(
-                cell,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: (header ? AppTypography.caption : AppTypography.label)
-                    .copyWith(
-                      color: header
-                          ? AppColors.textTertiary
-                          : AppColors.textSecondary,
-                      fontWeight: header ? FontWeight.w600 : FontWeight.w500,
-                    ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ComingNextGrid extends StatelessWidget {
-  const _ComingNextGrid({
-    required this.branchLabel,
-    required this.branchId,
-    required this.window,
-  });
-
-  final String branchLabel;
   final String branchId;
   final AttendancePeriodWindow window;
 
@@ -522,147 +348,129 @@ class _ComingNextGrid extends StatelessWidget {
       scopeKey: branchId,
       window: monthlyWindow(window.startDate.year, window.startDate.month),
     );
-    final items = [
-      _NextItem(
-        'Weekly report',
-        'Open report',
-        Icons.calendar_view_week,
-        onTap: () => context.push(RouteNames.attendanceWeekly(weeklyPeriodId)),
-      ),
-      _NextItem(
-        'Monthly report',
-        'Open report',
-        Icons.calendar_month,
-        onTap: () =>
-            context.push(RouteNames.attendanceMonthly(monthlyPeriodId)),
-      ),
-      _NextItem('Per-employee report', 'Coming next', Icons.badge_outlined),
-      _NextItem('Period close', 'Coming next', Icons.lock_clock_outlined),
-      _NextItem('Export ledger', 'Coming next', Icons.file_download_outlined),
-    ];
-    return GlassContainer(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Next reporting surfaces', style: AppTypography.h3),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '$branchLabel stays on this hub until the later report slices ship.',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 780 ? 4 : 2;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: items.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  crossAxisSpacing: AppSpacing.md,
-                  mainAxisSpacing: AppSpacing.md,
-                  // Fits AppSpacing.md padding + a one-line title + the
-                  // sublabel. 92 left ~6px too little and the tile clipped its
-                  // own sublabel; see the same class of bug in
-                  // attendance_report_metrics.dart.
-                  mainAxisExtent: 104,
-                ),
-                itemBuilder: (context, index) => _NextTile(item: items[index]),
+
+    final weekly = _DeepLinkTile(
+      icon: Icons.calendar_view_week,
+      title: 'Weekly report',
+      subtitle: 'Seven-day close detail',
+      onTap: () => context.push(RouteNames.attendanceWeekly(weeklyPeriodId)),
+    );
+    final monthly = _DeepLinkTile(
+      icon: Icons.calendar_month,
+      title: 'Monthly report',
+      subtitle: 'Calendar month, week by week',
+      onTap: () => context.push(RouteNames.attendanceMonthly(monthlyPeriodId)),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Natural height throughout: no childAspectRatio, no
+            // mainAxisExtent. The previous grid pinned 104px after 92px clipped
+            // a sublabel — a magic number is a guess that breaks at some width
+            // or text scale.
+            if (constraints.maxWidth < 560) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  weekly,
+                  const SizedBox(height: AppSpacing.md),
+                  monthly,
+                ],
               );
-            },
-          ),
-        ],
-      ),
+            }
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: weekly),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(child: monthly),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Per-employee, period close, and export are coming next.',
+          style: AppTypography.caption,
+        ),
+      ],
     );
   }
 }
 
-class _NextTile extends StatelessWidget {
-  const _NextTile({required this.item});
+class _DeepLinkTile extends StatelessWidget {
+  const _DeepLinkTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
-  final _NextItem item;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = item.onTap != null;
-    return Opacity(
-      opacity: enabled ? 1 : 0.62,
-      child: Material(
-        color: AppColors.transparent,
-        child: InkWell(
-          borderRadius: AppRadius.lgAll,
-          onTap: item.onTap,
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.lgAll,
-              border: Border.all(
-                color: enabled ? AppColors.accentBorder : AppColors.darkBorder,
+    return Semantics(
+      button: true,
+      label: '$title. $subtitle',
+      child: GlassContainer(
+        onTap: onTap,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.mdAll,
+                border: Border.all(color: AppColors.darkBorder),
+                color: AppColors.primarySurface.withValues(alpha: 0.08),
               ),
-              color: AppColors.darkSurfaceElevated,
+              child: Icon(icon, size: 18, color: AppColors.textSecondary),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  item.icon,
-                  color: enabled
-                      ? AppColors.textSecondary
-                      : AppColors.textTertiary,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        item.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.label.copyWith(
-                          color: enabled
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        item.subtitle,
-                        style: AppTypography.caption.copyWith(
-                          color: enabled
-                              ? AppColors.textTertiary
-                              : AppColors.textQuaternary,
-                        ),
-                      ),
-                    ],
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.labelLarge,
                   ),
-                ),
-                if (enabled)
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textTertiary,
-                    size: 18,
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
+            const SizedBox(width: AppSpacing.sm),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textTertiary,
+              size: 18,
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-class _NextItem {
-  const _NextItem(this.title, this.subtitle, this.icon, {this.onTap});
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback? onTap;
 }
 
 class _NoBranchSelected extends StatelessWidget {
@@ -698,6 +506,9 @@ class _NoBranchSelected extends StatelessWidget {
   }
 }
 
+/// Structure-suggesting skeleton: it mirrors the real reading order and rhythm
+/// (verdict → numbers, tight; then the deep links, after a wide break) so the
+/// page does not visibly reflow when the ledger arrives.
 class _LoadingDashboard extends StatelessWidget {
   const _LoadingDashboard();
 
@@ -706,29 +517,61 @@ class _LoadingDashboard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SkeletonPanel(height: 164),
-        const SizedBox(height: AppSpacing.xl),
+        const _SkeletonPanel(height: 92),
+        const SizedBox(height: AppSpacing.md),
+        const _SkeletonPanel(height: 148),
+        const SizedBox(height: AppSpacing.xxl),
         LayoutBuilder(
           builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 960 ? 3 : 1;
-            return GridView.count(
-              crossAxisCount: columns,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: AppSpacing.md,
-              mainAxisSpacing: AppSpacing.md,
-              childAspectRatio: columns == 1 ? 2.6 : 1.7,
-              children: const [
-                _SkeletonPanel(),
-                _SkeletonPanel(),
-                _SkeletonPanel(),
+            if (constraints.maxWidth < 560) {
+              return const Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _SkeletonTile(),
+                  SizedBox(height: AppSpacing.md),
+                  _SkeletonTile(),
+                ],
+              );
+            }
+            return const Row(
+              children: [
+                Expanded(child: _SkeletonTile()),
+                SizedBox(width: AppSpacing.md),
+                Expanded(child: _SkeletonTile()),
               ],
             );
           },
         ),
-        const SizedBox(height: AppSpacing.xl),
-        const _SkeletonPanel(height: 220),
       ],
+    );
+  }
+}
+
+class _SkeletonTile extends StatelessWidget {
+  const _SkeletonTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassContainer(
+      elevated: false,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        children: const [
+          Skeleton(width: 36, height: 36, borderRadius: AppRadius.mdAll),
+          SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Skeleton(width: 120, height: 14, borderRadius: AppRadius.smAll),
+                SizedBox(height: AppSpacing.xs),
+                Skeleton(width: 90, height: 10, borderRadius: AppRadius.smAll),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

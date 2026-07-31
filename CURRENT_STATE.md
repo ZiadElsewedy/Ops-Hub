@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1246 pass · 2 fail** across 177 files (~27s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1248 pass · 2 fail** across 177 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -220,9 +220,29 @@ The first reporting surface now exists at `/attendance/reports`: the
 manager/admin **Attendance & Reports** hub. It is desktop-first with a stacked
 mobile form, pins managers to their branch, forces branchless admins to choose an
 explicit branch, supports Week/Month period windows, blocks future-period
-navigation, and renders the metric grid only when `LedgerCoverage.hasRows` is true.
+navigation, and renders the numbers only when `LedgerCoverage.hasRows` is true.
 Its Weekly entry now opens `/attendance/reports/weekly/:periodId`, the first
-per-period report destination. The Weekly Report reads the same branch/dayKey
+per-period report destination.
+
+**The hub was re-architected for reading order on 2026-07-31** (owner-commissioned,
+presentation-only, uncommitted). It had been rendering a multi-branch design in a
+single-branch reality — the `ATTENDANCE_REPORTS_IA` §13.5 wireframe assumes an
+estate view that does not exist — so components built to compare branches always
+rendered one row and ~12 facts appeared ~18 times. Now four sections in the order
+the page's question implies: **scope & period** (the scope bar reframed as a
+control bar, same function), **the verdict** (`AttendanceReportCoverage`, merging
+the old `_NeedsAttention` tiles — one trust line plus one action line, with a zero
+blocker count costing a single muted line and a real blocker earning weight, amber
+and the Exception-queue affordance), **the numbers** (new hub-only
+`AttendanceReportHeadline`: show-up rate as the headline with its denominator
+inline, Expected · Present · Absent beneath it as its components, and punctual
+arrivals / worked time only when they have a real denominator), and **go deeper**
+(Weekly and Monthly as two real actions, the three unbuilt surfaces as one muted
+line). The duplicate `PageHero` title and the single-row `_BranchPeriodPreview`
+table are removed. **`AttendanceReportMetrics` is deliberately untouched** — it is
+shared with the Weekly and Monthly reports, which stay visually unchanged, so its
+`weekly: false` dashboard variant now has no app caller and survives only under
+`test/attendance_report_metrics_test.dart`. The Weekly Report reads the same branch/dayKey
 range from `attendance_expectations`, aggregates the seven-day Schedule week
 directly in pure Dart, and renders header, close readiness, denominated metrics,
 daily rhythm, exception groups, employee facts, shift evidence, and a disabled
@@ -480,7 +500,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1246 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1248 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 68 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 49

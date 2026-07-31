@@ -1247,6 +1247,23 @@ Add one new primitive when implemented:
 
 ### 13.5 Reports hub wireframe
 
+> ⚠️ **This wireframe is the multi-branch estate view, and the hub as shipped
+> deliberately does not follow it.** It assumes an "All branches" scope —
+> `3 branches blocked`, `2 branches ready`, a Cairo A / Cairo B / Giza comparison
+> table. That scope does not exist: managers are pinned to their own branch and a
+> branchless admin must pick exactly one, so every branch-comparison component
+> rendered a single row and restated facts already stated above it.
+>
+> The built hub (2026-07-31, owner-commissioned IA redesign) is four sections —
+> **scope & period · the verdict · the numbers · go deeper** — described in
+> CURRENT_STATE. `Needs attention` and the coverage panel are merged into one
+> verdict card that reports exceptions by exception; the metric grid is replaced
+> by one headline (show-up rate with its denominator inline) plus its components;
+> the `Branch periods` table is removed.
+>
+> **This wireframe becomes correct again the day an "All branches" scope ships.**
+> Until then, treat it as the target for the estate view, not for the hub.
+
 ```text
 Attendance & Reports
 All branches        Period: July 2026        [Run close] [Exports]

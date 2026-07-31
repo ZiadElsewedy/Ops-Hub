@@ -24,6 +24,7 @@ void main() {
       'lib/features/attendance/presentation/reporting/attendance_weekly_report_screen.dart',
       'lib/features/attendance/presentation/reporting/attendance_monthly_report_screen.dart',
       'lib/features/attendance/presentation/reporting/widgets/attendance_report_coverage.dart',
+      'lib/features/attendance/presentation/reporting/widgets/attendance_report_headline.dart',
       'lib/features/attendance/presentation/reporting/widgets/attendance_report_metrics.dart',
       'lib/features/attendance/presentation/reporting/widgets/attendance_report_scope_bar.dart',
       'lib/features/attendance/presentation/reporting/widgets/attendance_weekly_daily_table.dart',

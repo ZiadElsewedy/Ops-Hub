@@ -6,7 +6,6 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 
@@ -52,9 +51,17 @@ class AttendanceReportScopeBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassContainer(
-      elevated: false,
-      padding: const EdgeInsets.all(AppSpacing.lg),
+    // A **control bar, not a content card.** Function is unchanged; only the
+    // framing is. Wrapped in a GlassContainer this read as another data panel
+    // and competed with the numbers for attention — and it put form controls
+    // inside a card inside a card, which the design system rules out. It now
+    // sits on the page ground and is closed by a hairline, so it reads as page
+    // chrome that scopes what follows.
+    return Container(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.darkBorder)),
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 860;
@@ -239,10 +246,13 @@ class _ControlShell extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Quieter than the old `labelSmall`: a control legend, not a heading.
+        // It must not compete with the section titles below it.
         Text(
           label.toUpperCase(),
-          style: AppTypography.labelSmall.copyWith(
+          style: AppTypography.caption.copyWith(
             color: AppColors.textTertiary,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.8,
           ),
         ),
