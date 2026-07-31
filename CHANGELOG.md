@@ -63,6 +63,41 @@ error: the correction is durable and applies on deploy.
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
 
+## 2026-07-31 — Give the audit trail its own room (feature; MED risk)
+
+Phase 3 of the attendance redesign plan. Operational UX and audit UX are opposite
+design targets — one optimises for speed and ruthless incompleteness, the other
+for completeness and permanence — and a single screen serving both serves
+neither. That was the original weekly report's defect. This is the other half.
+
+New admin-only `/admin/attendance/workspace`, covered by the existing
+`_isAdminArea` guard and reachable from an admin-only tile on the reports hub.
+Four sections: **Needs chasing** (branches whose oldest blocker is two days old
+or more) · **Data completeness** (per-branch days covered, worst first — the
+signal that used to be the loudest thing on a store manager's screen) · **Across
+branches** (the pooled rollup) · **Evidence** (the row-level table, relocated
+from Weekly intact, per-record link and all).
+
+**Show-up rate now has a home again.** Phase 1 removed it from the store surface
+because at one expected shift `0%` is meaningless and alarming. Pooled across
+every branch there is volume for a percentage to mean something, and comparing
+branches is a question only an admin has.
+
+`AdminAttendanceOverview` folds one weekly report per branch plus one summary
+over the union of rows, so the cross-branch rate cannot drift from the per-branch
+ones. The cubit fans out one branch stream per branch and merges — no
+collection-wide query, **no new index**. A branch with zero rows is seeded
+explicitly, because "this branch reported nothing" is the point and a missing key
+would render as a missing branch. All four new files join the reporting source
+guard.
+
+Deferred honestly: locks, restatement history and the export ledger do not exist
+yet, so there was nothing to relocate — they come with Phase 4. GPS detail stays
+on the admin live board, which is already an admin surface.
+
+Verified: build succeeds, analyze clean, **1304 pass / 2 pre-existing splash
+failures**, +7 tests.
+
 ## 2026-07-31 — An employee may always record real work (feature; MED risk)
 
 The two open product decisions, decided and recorded.

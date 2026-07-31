@@ -111,6 +111,11 @@ class RouteNames {
   /// the correction queue (a future manager view reuses the same screen).
   static const String adminAttendance = '/admin/attendance';
 
+  /// **Admin attendance workspace** — cross-branch data completeness, the
+  /// rollup, and the row-level evidence trail. Audit UX, not operational UX;
+  /// admin-only via `_isAdminArea`.
+  static const String adminAttendanceWorkspace = '/admin/attendance/workspace';
+
   /// Attendance History ledger — the employee's own history. Reachable by any
   /// authenticated role (a manager/admin who also clocks has their own here).
   static const String attendanceHistory = '/attendance/history';

@@ -117,6 +117,7 @@ import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cub
 import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:drop/features/attendance/presentation/details/attendance_details_cubit.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_cubit.dart';
+import 'package:drop/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/audit/data/datasources/audit_remote_datasource.dart';
 import 'package:drop/features/audit/data/repositories/audit_repository_impl.dart';
@@ -463,6 +464,14 @@ class AppDependencies {
         getUsersByBranch: _reportUsersByBranch,
         decideCorrection: DecideCorrection(_attendanceRepository),
         service: const AttendanceService(),
+      );
+
+  /// Builds the admin cross-branch attendance overview cubit. Ledger-only, like
+  /// every reporting read; it fans out one branch range stream per branch and
+  /// merges, so it needs no new index (ADR-017).
+  static AdminAttendanceOverviewCubit createAdminAttendanceOverviewCubit() =>
+      AdminAttendanceOverviewCubit(
+        repository: _attendanceReportingRepository,
       );
 
   /// Builds a fresh Attendance Reporting cubit. Reporting reads only the

@@ -49,6 +49,7 @@ import 'package:drop/features/attendance/presentation/pages/attendance_screen.da
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_screen.dart';
 import 'package:drop/features/attendance/presentation/details/attendance_details_screen.dart';
+import 'package:drop/features/attendance/presentation/admin/attendance_admin_workspace_screen.dart';
 import 'package:drop/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_monthly_report_screen.dart';
@@ -342,6 +343,13 @@ GoRouter createRouter(
             path: RouteNames.adminAttendance,
             pageBuilder: (context, state) =>
                 _slideTransition(state, const AdminAttendanceScreen()),
+          ),
+          GoRoute(
+            path: RouteNames.adminAttendanceWorkspace,
+            pageBuilder: (context, state) => _slideTransition(
+              state,
+              const AttendanceAdminWorkspaceScreen(),
+            ),
           ),
           GoRoute(
             path: RouteNames.attendanceReports,

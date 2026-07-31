@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1297 pass · 2 fail** across 180 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1304 pass · 2 fail** across 181 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -439,6 +439,34 @@ real seconds per write.
 
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
+
+**Phase 3 (Admin Workspace) is DONE 2026-07-31 — uncommitted, partial.** New
+admin-only destination at `/admin/attendance/workspace` (covered by the existing
+`_isAdminArea` guard, since it sits under `/admin/`), reachable from an
+admin-only tile on the reports hub. Four sections: **Needs chasing** (branches
+whose oldest blocker is ≥2 days old — a manager gets the day plus the next one
+before silence becomes a signal) · **Data completeness** (per-branch days
+covered/7, worst first; the signal that used to be the loudest thing on a store
+screen) · **Across branches** (the pooled rollup — **the only place show-up rate
+now lives**, because pooled across branches a percentage finally has volume
+behind it) · **Evidence** (the row-level table Phase 1 removed from Weekly,
+relocated intact with its per-record link, so no audit capability was lost).
+
+New pure `AdminAttendanceOverview` folds one `WeeklyAttendanceReport` per branch
+plus one `AttendanceReportSummary` over the union of rows — so the cross-branch
+rate cannot drift from the per-branch ones. `AdminAttendanceOverviewCubit`
+**fans out one branch range stream per branch and merges**; there is no
+collection-wide query and **no new index**, since the deployed
+`(branchId, dayKey)` composite already serves each leg. A branch with zero rows
+is seeded into the map explicitly — "this branch reported nothing" is the whole
+point, and a missing key would render as a missing branch. All four new files
+are added to `attendance_reporting_source_guard_test.dart`, so they stay
+ledger-only.
+
+**Deferred with reasons:** period locks, restatement history and the export
+ledger do not exist anywhere yet, so there was nothing to relocate — they arrive
+with Phase 4, which owns the lock. GPS detail stays put: it lives only on the
+admin live board's own detail sheet, which is already an admin surface.
 
 **Both remaining product decisions are now DECIDED (2026-07-31, uncommitted).**
 

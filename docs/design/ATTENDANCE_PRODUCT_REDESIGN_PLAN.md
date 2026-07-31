@@ -1204,9 +1204,22 @@ deploy.
 
 ---
 
-## Phase 3 — Admin Workspace
+## Phase 3 — Admin Workspace ✅ DONE 2026-07-31 (partial)
 
-**Type:** refactor (relocation) · **Risk:** MED
+**Type:** refactor (relocation) · **Risk:** MED · **Status:** shipped
+(uncommitted). Build succeeds; 1304 pass / 2 pre-existing splash failures.
+
+> **Built:** the workspace destination at `/admin/attendance/workspace`
+> (admin-only by `_isAdminArea`), cross-branch data completeness, the pooled
+> rollup where show-up rate finally has a denominator, a staleness-based
+> escalation list, and the relocated evidence table with its per-record link.
+>
+> **Not built, and honestly deferred:** period locks, restatement history, and
+> the export ledger — none of them exist yet anywhere, so there was nothing to
+> relocate. They arrive with Phase 4, which owns the lock. GPS detail also stays
+> where it is: it currently lives only on the admin live board's own detail
+> sheet, which is already an admin surface, so there was no manager-facing GPS
+> detail to reduce.
 
 ### Goals
 Give every audit capability its correct audience (§8). Largely a routing and permission

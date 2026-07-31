@@ -363,6 +363,17 @@ class _GoDeeper extends StatelessWidget {
       onTap: () => context.push(RouteNames.attendanceMonthly(monthlyPeriodId)),
     );
 
+    // Admin-only. The workspace answers "is the record complete and
+    // defensible?" — an auditor's question, asked deliberately. Putting it on a
+    // manager's surface is exactly what this redesign was correcting.
+    final isAdmin = (context.currentUser?.role ?? UserRole.employee).isAdmin;
+    final workspace = _DeepLinkTile(
+      icon: Icons.fact_check_outlined,
+      title: 'Admin workspace',
+      subtitle: 'Data completeness across branches',
+      onTap: () => context.push(RouteNames.adminAttendanceWorkspace),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -379,6 +390,10 @@ class _GoDeeper extends StatelessWidget {
                   weekly,
                   const SizedBox(height: AppSpacing.md),
                   monthly,
+                  if (isAdmin) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    workspace,
+                  ],
                 ],
               );
             }
@@ -389,6 +404,10 @@ class _GoDeeper extends StatelessWidget {
                   Expanded(child: weekly),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(child: monthly),
+                  if (isAdmin) ...[
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: workspace),
+                  ],
                 ],
               ),
             );
