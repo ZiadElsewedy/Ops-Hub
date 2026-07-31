@@ -1,6 +1,7 @@
 import 'package:drop/features/attendance/domain/attendance_id.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
 
@@ -128,16 +129,24 @@ class MonthlyAttendanceCoverage {
   ///
   /// Under that rule, fully closed means this month has ledger rows and none of
   /// them carries a blocking exception.
+  /// **A pipeline fact, not a manager-facing one** — see the same note on
+  /// [WeeklyAttendanceCoverage.isFullyClosed]. [status] decides the word a
+  /// manager reads.
   bool get isFullyClosed =>
       ledgerCoverage.hasRows && ledgerCoverage.blockingExceptionRowCount == 0;
 
   bool get isPartiallyClosed => ledgerCoverage.hasRows && !isFullyClosed;
 
-  String get statusLabel {
-    if (awaitingClose) return 'Awaiting close';
-    if (isFullyClosed) return 'Fully closed';
-    return 'Partially closed';
-  }
+  /// At least one business date in the month has no ledger row.
+  bool get hasDayGaps => notClosedDayKeys.isNotEmpty;
+
+  AttendanceCoverageStatus get status => AttendanceCoverageStatus.resolve(
+    hasRows: ledgerCoverage.hasRows,
+    blockingRowCount: ledgerCoverage.blockingExceptionRowCount,
+    hasDayGaps: hasDayGaps,
+  );
+
+  String get statusLabel => status.label;
 }
 
 /// One Schedule week (Sunday→Saturday) inside a month.
@@ -247,7 +256,7 @@ class MonthlyAttendanceWeekBucket {
   AttendanceRate get showUpRate => AttendanceRate(
     numerator: present,
     denominator: expected,
-    denominatorLabel: 'expected work shifts',
+    denominatorLabel: 'scheduled shifts',
   );
 }
 

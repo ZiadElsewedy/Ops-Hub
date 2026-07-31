@@ -25,9 +25,9 @@ import 'package:drop/features/attendance/domain/reporting/attendance_report.dart
 ///   present shift to have a denominator. With none they collapse to a single
 ///   muted line rather than showing `--` over `0 / 0` at full tile weight.
 ///
-/// The caller renders this only when the ledger has rows. A scope with no rows
-/// is a data-completeness gap, shown by the verdict card as **No ledger data** —
-/// never as `0%` and never as zero-valued totals.
+/// The caller renders this only when there are recorded shifts. A scope with
+/// none is missing data, shown by the verdict card as **No data yet** — never as
+/// `0%` and never as zero-valued totals.
 class AttendanceReportHeadline extends StatelessWidget {
   const AttendanceReportHeadline({super.key, required this.summary});
 
@@ -98,15 +98,15 @@ class AttendanceReportHeadline extends StatelessWidget {
                 _Fact(
                   value: _worked(summary.workedMinutes),
                   label: 'Worked time',
-                  detail: 'Across ${summary.present} present rows',
+                  detail: 'Across ${summary.present} shifts worked',
                 ),
               ],
             ),
           ] else ...[
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Punctual arrivals and worked time are not applicable this '
-              'period — no present shifts to measure them against.',
+              'Nobody has worked a shift in this period yet, so there is no '
+              'punctuality or worked time to show.',
               style: AppTypography.caption,
             ),
           ],
@@ -118,9 +118,9 @@ class AttendanceReportHeadline extends StatelessWidget {
   static String _componentsFootnote(AttendanceReportSummary summary) {
     final excluded = summary.excused + summary.onLeave;
     if (excluded == 0) {
-      return 'Expected work shifts are rostered ledger rows after exclusions.';
+      return 'Scheduled shifts count the roster, after leave and excused days.';
     }
-    return 'Expected work shifts are rostered ledger rows after exclusions — '
+    return 'Scheduled shifts count the roster, after leave and excused days — '
         '${summary.excused} excused · ${summary.onLeave} on leave.';
   }
 
@@ -157,9 +157,9 @@ class _ComponentRow extends StatelessWidget {
     final cells = <Widget>[
       _ComponentCell(
         value: '${summary.expectedWorkShifts}',
-        label: 'Expected',
+        label: 'Scheduled',
       ),
-      _ComponentCell(value: '${summary.present}', label: 'Present'),
+      _ComponentCell(value: '${summary.present}', label: 'Worked'),
       _ComponentCell(
         value: '${summary.absent}',
         label: 'Absent',

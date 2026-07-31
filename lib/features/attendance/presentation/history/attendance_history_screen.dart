@@ -118,7 +118,7 @@ class _HistoryViewState extends State<_HistoryView> {
   Widget build(BuildContext context) {
     return AdaptiveScaffold(
       title: _isReview ? 'Attendance history' : 'My attendance',
-      subtitle: _isReview ? 'Branch ledger' : 'Your record',
+      subtitle: _isReview ? 'Your branch' : 'Your record',
       body: BlocBuilder<AttendanceHistoryCubit, AttendanceHistoryState>(
         builder: (context, state) => state.maybeMap(
           loaded: (s) => _Loaded(

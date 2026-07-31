@@ -22,7 +22,15 @@ class AttendanceReportMetrics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final metrics = weekly ? _weeklyMetrics() : _dashboardMetrics();
+    // PP8: a metric that cannot be computed does not render a tile reading
+    // `--`. A rate with a zero denominator has no value to disclose, and a card
+    // showing a dash over `0 / 0` spends full tile weight saying nothing — the
+    // observed report had one of six cards in exactly that state. The hub's
+    // headline already suppressed these; the grid did not.
+    final metrics = (weekly ? _weeklyMetrics() : _dashboardMetrics())
+        .where((metric) => metric.isComputable)
+        .toList();
+    if (metrics.isEmpty) return const SizedBox.shrink();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -56,23 +64,23 @@ class AttendanceReportMetrics extends StatelessWidget {
 
   List<_Metric> _dashboardMetrics() => [
     _Metric(
-      label: 'Expected work shifts',
+      label: 'Scheduled shifts',
       value: '${summary.expectedWorkShifts}',
       denominator: summary.excused + summary.onLeave > 0
-          ? '${summary.excused + summary.onLeave} excluded from roster'
-          : 'Rostered ledger rows after exclusions',
+          ? '${summary.excused + summary.onLeave} excluded from the roster'
+          : 'Scheduled shifts, after leave and excused',
     ),
     _Metric(
       label: 'Present',
       value: '${summary.present}',
       denominator:
-          '${summary.present} / ${summary.expectedWorkShifts} expected work shifts',
+          '${summary.present} / ${summary.expectedWorkShifts} scheduled shifts',
     ),
     _Metric(
       label: 'Absent',
       value: '${summary.absent}',
       denominator:
-          '${summary.absent} / ${summary.expectedWorkShifts} expected work shifts',
+          '${summary.absent} / ${summary.expectedWorkShifts} scheduled shifts',
       tone: summary.absent > 0 ? AppColors.error : null,
     ),
     _Metric(
@@ -88,7 +96,7 @@ class AttendanceReportMetrics extends StatelessWidget {
     _Metric(
       label: 'Worked time',
       value: _worked(summary.workedMinutes),
-      denominator: 'Across ${summary.present} present rows',
+      denominator: 'Across ${summary.present} shifts worked',
     ),
     if (summary.excused > 0 || summary.onLeave > 0)
       _Metric(
@@ -113,25 +121,25 @@ class AttendanceReportMetrics extends StatelessWidget {
       label: 'Unexcused absences',
       value: '${summary.absent}',
       denominator:
-          '${summary.absent} / ${summary.expectedWorkShifts} expected work shifts',
+          '${summary.absent} / ${summary.expectedWorkShifts} scheduled shifts',
       tone: summary.absent > 0 ? AppColors.error : null,
     ),
     _Metric(
-      label: 'Worked minutes',
-      value: '${summary.workedMinutes}',
-      denominator: 'Across ${summary.present} present rows',
+      label: 'Hours worked',
+      value: _worked(summary.workedMinutes),
+      denominator: 'Across ${summary.present} shifts worked',
     ),
     _Metric(
-      label: 'Overtime minutes',
-      value: '${summary.overtimeMinutes}',
-      denominator: 'Across ${summary.present} present rows',
+      label: 'Overtime',
+      value: _worked(summary.overtimeMinutes),
+      denominator: 'Across ${summary.present} shifts worked',
     ),
     _Metric(
-      label: 'Exception count',
+      label: 'Needs attention',
       value: '${exceptionCount ?? 0}',
       denominator:
           exceptionDenominator ??
-          'Across ${summary.expectedWorkShifts} expected work shifts',
+          'Across ${summary.expectedWorkShifts} scheduled shifts',
       tone: (exceptionCount ?? 0) > 0 ? AppColors.warning : null,
     ),
   ];
@@ -165,6 +173,10 @@ class _Metric {
   final String value;
   final String denominator;
   final Color? tone;
+
+  /// A rate with no denominator renders `--`. That is not a number, so it is
+  /// not a metric card.
+  bool get isComputable => value != '--';
 }
 
 class _MetricCard extends StatelessWidget {
@@ -246,16 +258,16 @@ class _MetricCard extends StatelessWidget {
 
   static IconData _iconFor(String label) {
     return switch (label) {
-      'Expected work shifts' => Icons.event_available_outlined,
+      'Scheduled shifts' => Icons.event_available_outlined,
       'Present' => Icons.person_pin_circle_outlined,
       'Absent' => Icons.person_off_outlined,
       'Show-up rate' => Icons.percent_rounded,
       'Punctual arrivals' => Icons.schedule_rounded,
       'Worked time' => Icons.timer_outlined,
       'Unexcused absences' => Icons.person_off_outlined,
-      'Worked minutes' => Icons.timer_outlined,
-      'Overtime minutes' => Icons.more_time_rounded,
-      'Exception count' => Icons.report_problem_outlined,
+      'Hours worked' => Icons.timer_outlined,
+      'Overtime' => Icons.more_time_rounded,
+      'Needs attention' => Icons.report_problem_outlined,
       _ => Icons.remove_circle_outline_rounded,
     };
   }

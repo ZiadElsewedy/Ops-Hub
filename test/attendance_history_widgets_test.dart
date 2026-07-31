@@ -195,7 +195,7 @@ void main() {
       repo.push(const []);
       await tester.pump(const Duration(seconds: 1));
       expect(tester.takeException(), isNull);
-      expect(find.text('No ledger data'), findsOneWidget);
+      expect(find.text('No data yet'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await cubit.close();
       await repo.close();

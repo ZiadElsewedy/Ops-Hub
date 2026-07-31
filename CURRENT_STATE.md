@@ -244,14 +244,25 @@ shared with the Weekly and Monthly reports, which stay visually unchanged, so it
 `weekly: false` dashboard variant now has no app caller and survives only under
 `test/attendance_report_metrics_test.dart`. The Weekly Report reads the same branch/dayKey
 range from `attendance_expectations`, aggregates the seven-day Schedule week
-directly in pure Dart, and renders header, close readiness, denominated metrics,
-daily rhythm, exception groups, employee facts, shift evidence, and a disabled
-export/restatement panel. Coverage is conservative and ledger-exclusive: an empty
-week is **Awaiting close** / **No ledger data** with no percentages, a row-present
-week with no blocking exceptions is **Fully closed** even if some dates have no
-rows, a row-present week with blocking exceptions is **Partially closed**, a
-row-present no-show day renders `0%`, and a day with no rows reads **No ledger
-data** rather than zero attendance. Verified against production on 2026-07-30, the
+directly in pure Dart, and renders header, week status, denominated metrics, a
+by-day table, exception groups, per-person facts, every-shift detail, and a
+disabled share panel. Coverage is conservative and ledger-exclusive: a
+row-present no-show day renders a real `0%`, and a day with no rows reads **No
+data** rather than zero attendance.
+
+**Manager-facing status vocabulary changed 2026-07-31 (Phase 0 of the redesign
+plan; see below).** `AttendanceCoverageStatus` in
+`lib/features/attendance/domain/reporting/attendance_coverage_status.dart` is now
+the single source of the word a manager reads, shared by Weekly and Monthly: no
+rows → **No data yet** · blocking rows → **Needs attention** · rows with some
+dates uncovered → **In progress** · every date covered, nothing blocked →
+**Settled**. This **fixes a real data-honesty defect**: `isFullyClosed` is true
+whenever any row exists and nothing is blocked, so a week with rows on one day of
+seven was labelled *Fully closed*. That getter is unchanged and still means what
+the close pipeline means — it is simply no longer the manager's word.
+`AttendanceCoverageStatus.isActionable` also fixes the tone: only **Needs
+attention** is amber, so a week where nobody was rostered no longer renders as an
+alarm. Verified against production on 2026-07-30, the
 live roster week `weekly_schedules/DDwedTHvI1sPHrMz06PI_2026-07-26` has no Sunday,
 Friday, or Saturday assignments, so reports will show ledger data gaps on those
 dates until the roster is published for them. After the functions deploy for the
@@ -264,11 +275,11 @@ The **Monthly Report** is the second per-period destination, at
 "Weekly with more days": it reads the same branch/dayKey ledger range over the
 calendar month and partitions it into the Schedule weeks (Sunday→Saturday) that
 overlap the month, marking a week that only partly overlaps as **Partial** so a
-short week is never read as a full one. It renders header, payroll readiness,
-denominated metrics, weekly buckets, employee rows, exception groups, and a
-disabled export/restatement panel. Coverage semantics are identical to Weekly's,
-including the owner rule (rows with zero clock-ins → a real `0%`; no rows → **No
-ledger data** and no percentage).
+short week is never read as a full one. It renders header, month status,
+denominated metrics, weekly buckets, per-person rows, exception groups, and a
+disabled share panel. Coverage semantics are identical to Weekly's, including the
+owner rule (rows with zero clock-ins → a real `0%`; no rows → **No data** and no
+percentage) and the same `AttendanceCoverageStatus` vocabulary.
 
 **Aggregation is client-side by design of the value object, not by accident.**
 Every aggregate is folded by the single row-scanning factory
@@ -293,6 +304,51 @@ from the ledger alone, and the source guard is unchanged.
 Per-employee report, exception queue, branch comparison, close/lock, export, and
 month-over-month comparison remain later slices and appear as disabled **Coming
 next** affordances.
+
+**A redesign of the reporting presentation layer is PROPOSED, not accepted.** A
+real store manager was shown the Weekly Report on 2026-07-31 and could not read
+it: the surface exposes internal vocabulary (*ledger rows*, *phantom row*,
+*restatement*, *blocking/informational*), renders a week with no rostered shifts
+as six amber "No ledger data" rows plus `0%` and a red absence count, and labels
+a week that is 86% empty **Fully closed**. The root cause is that the screen is a
+*faithful build* of [ATTENDANCE_REPORTS_IA.md](docs/design/ATTENDANCE_REPORTS_IA.md)
+§6.4/§6.5 — so the fix is a spec amendment first, not a screen edit — and that
+the IA's own build order (Branch Workspace → Exception Queue → Weekly) was
+skipped straight to Weekly, leaving Weekly to absorb a daily surface's job.
+
+[ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md)
+is the PRD: five phases (language/honesty → Weekly rebuild → **Daily Review**, the
+missing layer → Admin Workspace → exports), 5 sections replacing 8, 4 KPIs
+replacing 6, and audit machinery relocated to an admin audience. It changes
+**presentation only** — [ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md)'s
+ledger scope and metric bar, and every rule in
+[ATTENDANCE_SPEC.md](docs/design/ATTENDANCE_SPEC.md), are untouched. Its §11
+carries eight open product decisions requiring owner sign-off before Phase 1.
+
+**Phase 0 (language and honesty) is DONE 2026-07-31 — uncommitted.** Presentation
+copy and state rendering only; no cubit, repository, rule, index, or Function
+touched, and no aggregate or denominator changed value. Five deliverables landed:
+(1) internal vocabulary retired at the manager boundary across Weekly, Monthly,
+the reports hub, the verdict card, the headline, and History — *ledger rows* →
+shifts, *phantom row* → **No clock-in recorded**, *blocking/informational* →
+**Needs a decision / Worth knowing**, *close readiness* → **Week status**,
+*export and restatement* → **Share this week**, plus a new
+`AttendanceLedgerOutcome.label` so the Outcome column stops printing wire values
+like `workedLate`; (2) day-state honesty — a day with no rows reads **No data** in
+tertiary grey, and only a day that was scheduled and worked by nobody is toned
+error-red; (3) the week-status fix described above; (4) uncomputable metric cards
+suppressed, so a rate with a zero denominator renders nothing instead of `--`
+(the weekly grid had one such card; the hub headline already did this); (5) the
+defensive captions deleted — *"Alphabetical facts only. This report does not rank
+people…"* and *"data-completeness gaps, not attendance results."* Empty exception
+sections and the empty attention panel no longer render at all. Index-missing
+error copy now leads with what the reader can act on and keeps the raw cause
+after it. **Sorting, section inventory, KPI selection, and audit placement are
+deliberately unchanged — those are Phases 1–3.** Verified: `dart analyze lib test`
+clean (1 pre-existing test-style lint), suite **1272 pass / 2 pre-existing splash
+failures**, +7 tests (new `attendance_coverage_status_test.dart` incl. a guard
+that no manager-facing status label contains internal vocabulary, plus metric
+suppression cases).
 
 ### Removed — do not re-add
 

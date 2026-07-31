@@ -203,11 +203,11 @@ void main() {
       expect(repo.watchedBranchId, _branchId);
       expect(repo.watchedStart, '20260701');
       expect(repo.watchedEnd, '20260731');
-      expect(find.text('Awaiting close'), findsWidgets);
+      expect(find.text('No data yet'), findsWidgets);
       expect(find.text('Show-up rate'), findsNothing);
       expect(find.text('0%'), findsNothing);
       // Five Schedule weeks overlap July 2026, none of them with rows.
-      expect(find.text('No ledger data'), findsNWidgets(5));
+      expect(find.text('No data'), findsNWidgets(5));
       expect(find.textContaining('Jul 2026'), findsWidgets);
       _expectNoFlutterErrors(errors);
 
@@ -234,13 +234,13 @@ void main() {
       ]);
       await tester.pump();
 
-      expect(find.text('Fully closed'), findsWidgets);
+      expect(find.text('In progress'), findsWidgets);
       expect(find.text('Show-up rate'), findsOneWidget);
       expect(find.text('0%'), findsWidgets);
-      expect(find.text('0 / 3 expected work shifts'), findsOneWidget);
-      expect(find.text('3 / 3 expected work shifts'), findsOneWidget);
+      expect(find.text('0 / 3 scheduled shifts'), findsOneWidget);
+      expect(find.text('3 / 3 scheduled shifts'), findsOneWidget);
       // Only the 12-18 July bucket carries rows.
-      expect(find.text('No ledger data'), findsNWidgets(4));
+      expect(find.text('No data'), findsNWidgets(4));
       expect(find.text('Partial · 4 of 7 days in month'), findsOneWidget);
       _expectNoFlutterErrors(errors);
 

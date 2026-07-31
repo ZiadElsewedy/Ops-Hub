@@ -174,9 +174,10 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
     if (lower.contains('failed-precondition') ||
         lower.contains('requires an index') ||
         lower.contains('composite index')) {
-      return 'Attendance report query requires the deployed '
-          'attendance_expectations branch/dayKey or user/dayKey composite '
-          'index. Deploy firestore.indexes.json, then reload. $raw';
+      // Lead with what the reader can act on; keep the raw cause for whoever
+      // actually runs the deploy.
+      return 'Attendance reports are not switched on yet — an administrator '
+          'needs to finish setting them up. Details: $raw';
     }
     return 'Failed to load attendance report. $raw';
   }

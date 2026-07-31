@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_exception.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_monthly_report.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 
@@ -57,7 +58,8 @@ void main() {
     );
 
     expect(report.coverage.awaitingClose, isTrue);
-    expect(report.coverage.statusLabel, 'Awaiting close');
+    expect(report.coverage.statusLabel, 'No data yet');
+    expect(report.coverage.status, AttendanceCoverageStatus.noData);
     expect(report.coverage.isFullyClosed, isFalse);
     expect(report.coverage.isPartiallyClosed, isFalse);
     expect(report.coverage.totalDayCount, 31);
@@ -84,14 +86,17 @@ void main() {
     );
 
     expect(report.coverage.awaitingClose, isFalse);
-    expect(report.coverage.statusLabel, 'Fully closed');
+    // 1 of 31 days carries rows, so the manager-facing word is a gap, not a
+    // close claim — even though the close pipeline's isFullyClosed is true.
+    expect(report.coverage.isFullyClosed, isTrue);
+    expect(report.coverage.statusLabel, 'In progress');
     expect(report.summary.expectedWorkShifts, 3);
     expect(report.summary.present, 0);
     expect(report.summary.absent, 3);
     expect(report.summary.showUpRate.percent, 0);
     expect(
       report.summary.showUpRate.describe(),
-      '0% · 0 / 3 expected work shifts',
+      '0% · 0 / 3 scheduled shifts',
     );
     expect(report.coverage.closedDayCount, 1);
     expect(report.coverage.notClosedDayKeys, hasLength(30));
@@ -204,14 +209,14 @@ void main() {
     expect(report.weekBuckets[0].present, 1);
     expect(
       report.weekBuckets[0].showUpRate.describe(),
-      '100% · 1 / 1 expected work shifts',
+      '100% · 1 / 1 scheduled shifts',
     );
     expect(report.weekBuckets[1].hasRows, isFalse);
     expect(report.weekBuckets[2].rows.map((row) => row.dayKey), ['20260715']);
     expect(report.weekBuckets[2].absent, 1);
     expect(
       report.weekBuckets[2].showUpRate.describe(),
-      '0% · 0 / 1 expected work shifts',
+      '0% · 0 / 1 scheduled shifts',
     );
   });
 
@@ -227,7 +232,7 @@ void main() {
       window: july,
     );
 
-    expect(report.coverage.statusLabel, 'Partially closed');
+    expect(report.coverage.statusLabel, 'Needs attention');
     expect(report.coverage.isFullyClosed, isFalse);
     expect(report.coverage.ledgerCoverage.blockingExceptionRowCount, 1);
     expect(report.weekBuckets[2].blockingExceptionCount, 1);

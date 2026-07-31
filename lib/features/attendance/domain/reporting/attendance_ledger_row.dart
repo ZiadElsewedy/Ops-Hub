@@ -25,6 +25,21 @@ enum AttendanceLedgerOutcome {
     AttendanceLedgerOutcome.unknown => 'unknown',
   };
 
+  /// What a manager reads. [wireValue] is the persisted contract and must never
+  /// be rendered — a shift outcome column showing `workedLate` / `noRecordYet`
+  /// is the data model leaking onto a store surface.
+  String get label => switch (this) {
+    AttendanceLedgerOutcome.worked => 'Worked',
+    AttendanceLedgerOutcome.workedLate => 'Worked, late',
+    AttendanceLedgerOutcome.absent => 'Absent',
+    AttendanceLedgerOutcome.excused => 'Excused',
+    AttendanceLedgerOutcome.onLeave => 'On leave',
+    AttendanceLedgerOutcome.openSession => 'Still clocked in',
+    AttendanceLedgerOutcome.needsReview => 'Needs review',
+    AttendanceLedgerOutcome.noRecordYet => 'No clock-in',
+    AttendanceLedgerOutcome.unknown => 'Unknown',
+  };
+
   bool get countsAsPresent =>
       this == AttendanceLedgerOutcome.worked ||
       this == AttendanceLedgerOutcome.workedLate ||

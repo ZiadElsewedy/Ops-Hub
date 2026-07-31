@@ -63,9 +63,9 @@ class _AttendanceHistorySummaryState extends State<AttendanceHistorySummary> {
         if (state.status == AttendanceReportStatus.error) {
           return const StatStrip(
             stats: [
-              Stat(label: 'Ledger status', value: 'Unavailable'),
-              Stat(label: 'Rows read', value: '--'),
-              Stat(label: 'Payroll blockers', value: '--'),
+              Stat(label: 'Attendance data', value: 'Unavailable'),
+              Stat(label: 'Shifts recorded', value: '--'),
+              Stat(label: 'Needs attention', value: '--'),
             ],
           );
         }
@@ -73,18 +73,18 @@ class _AttendanceHistorySummaryState extends State<AttendanceHistorySummary> {
             !state.coverage.hasRows) {
           return const StatStrip(
             stats: [
-              Stat(label: 'Ledger status', value: 'Loading'),
-              Stat(label: 'Rows read', value: '--'),
-              Stat(label: 'Payroll blockers', value: '--'),
+              Stat(label: 'Attendance data', value: 'Loading'),
+              Stat(label: 'Shifts recorded', value: '--'),
+              Stat(label: 'Needs attention', value: '--'),
             ],
           );
         }
         if (state.coverage.awaitingClose) {
           return const StatStrip(
             stats: [
-              Stat(label: 'Ledger data', value: 'No ledger data'),
-              Stat(label: 'Ledger rows', count: 0),
-              Stat(label: 'Payroll blockers', value: '--'),
+              Stat(label: 'Attendance data', value: 'No data yet'),
+              Stat(label: 'Shifts recorded', count: 0),
+              Stat(label: 'Needs attention', value: '--'),
             ],
           );
         }

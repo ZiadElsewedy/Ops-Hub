@@ -118,7 +118,7 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
     final role = user?.role ?? UserRole.employee;
     return AdaptiveScaffold(
       title: 'Attendance & Reports',
-      subtitle: 'Reporting ledger hub',
+      subtitle: 'Attendance reports',
       compactDesktopHeader: true,
       actions: [
         IconButton(
@@ -302,7 +302,8 @@ class _ReportBody extends StatelessWidget {
     if (lower.contains('failed-precondition') ||
         lower.contains('requires an index') ||
         lower.contains('composite index')) {
-      return 'Attendance report query requires the attendance_expectations branch/dayKey or user/dayKey composite index. Deploy firestore.indexes.json, then reload. $raw';
+      return 'Attendance reports are not switched on yet — an administrator '
+          'needs to finish setting them up. Details: $raw';
     }
     return raw;
   }
@@ -490,7 +491,7 @@ class _NoBranchSelected extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('Choose a branch to load the ledger', style: AppTypography.h3),
+          Text('Choose a branch to see its attendance', style: AppTypography.h3),
           const SizedBox(height: AppSpacing.xs),
           Text(
             role.isAdmin

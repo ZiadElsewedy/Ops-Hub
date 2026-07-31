@@ -99,7 +99,7 @@ void main() {
     expect(cubit.state.summary.present, 1);
     expect(
       cubit.state.summary.showUpRate.describe(),
-      '100% · 1 / 1 expected work shifts',
+      '100% · 1 / 1 scheduled shifts',
     );
 
     await cubit.close();
@@ -120,7 +120,7 @@ void main() {
     await repo.close();
   });
 
-  testWidgets('summary renders awaiting close instead of 0 percent', (
+  testWidgets('summary renders missing data instead of 0 percent', (
     tester,
   ) async {
     final repo = _FakeReportingRepository();
@@ -145,7 +145,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('No ledger data'), findsOneWidget);
+    expect(find.text('No data yet'), findsOneWidget);
     expect(find.text('0%'), findsNothing);
     expect(find.text('Show-up rate'), findsNothing);
 

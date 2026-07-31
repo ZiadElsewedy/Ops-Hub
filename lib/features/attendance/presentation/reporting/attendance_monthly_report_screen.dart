@@ -16,6 +16,7 @@ import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_monthly_report.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
@@ -104,7 +105,7 @@ class _AttendanceMonthlyReportViewState
     final period = widget.period;
     return AdaptiveScaffold(
       title: 'Monthly attendance',
-      subtitle: 'Reporting ledger',
+      subtitle: 'Who worked this month',
       compactDesktopHeader: true,
       actions: [
         IconButton(
@@ -219,7 +220,7 @@ class _MonthlyReportContent extends StatelessWidget {
             weekly: true,
             exceptionCount: report.exceptionCount,
             exceptionDenominator:
-                '${report.exceptionCount} / ${report.rows.length} ledger rows',
+                '${report.exceptionCount} of ${report.rows.length} shifts',
           ),
         const SizedBox(height: AppSpacing.xl),
         AttendanceMonthlyWeekBuckets(buckets: report.weekBuckets),
@@ -227,12 +228,14 @@ class _MonthlyReportContent extends StatelessWidget {
         AttendanceWeeklyEmployeeRows(
           employees: report.employees,
           emptyMessage:
-              'No employee ledger rows are available for this month yet.',
+              'Nobody has a recorded shift this month yet.',
         ),
         const SizedBox(height: AppSpacing.xl),
-        _ExceptionSummary(groups: report.exceptionGroups),
-        const SizedBox(height: AppSpacing.xl),
-        const _ExportRestatementPanel(),
+        if (report.exceptionGroups.isNotEmpty) ...[
+          _ExceptionSummary(groups: report.exceptionGroups),
+          const SizedBox(height: AppSpacing.xl),
+        ],
+        const _SharePanel(),
       ],
     );
   }
@@ -258,19 +261,18 @@ class _HeaderSection extends StatelessWidget {
         PageHero(
           eyebrow: 'Attendance & Reports / Monthly',
           title: branchName,
-          subtitle:
-              '${monthLabel(period.window)} · ${coverage.statusLabel} · Africa/Cairo · v${period.version}',
+          subtitle: '${monthLabel(period.window)} · ${coverage.statusLabel}',
           primaryAction: PremiumButton(
             label: 'Close month',
             icon: Icons.lock_outline_rounded,
             onPressed: null,
             style: PremiumButtonStyle.filled,
           ),
-          trailing: [_StatusPill(label: coverage.statusLabel)],
+          trailing: [_StatusPill(status: coverage.status)],
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Every figure below is folded from materialized attendance_expectations ledger rows for this month. Nothing is reconstructed from raw attendance records or the roster.',
+          'Every figure below comes from recorded shifts for this month.',
           style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
         ),
       ],
@@ -338,14 +340,14 @@ class _ReadinessCopy extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Payroll readiness', style: AppTypography.h3),
+        Text('Month status', style: AppTypography.h3),
         const SizedBox(height: AppSpacing.xs),
         Text(
           coverage.awaitingClose
-              ? 'Awaiting close: no attendance_expectations rows exist for this branch-month yet.'
-              : coverage.isFullyClosed
-              ? 'Fully closed: ledger rows exist and no blocking exception rows remain.'
-              : 'Partially closed: ${coverage.ledgerCoverage.blockingExceptionRowCount} blocking exception rows must be resolved before handoff.',
+              ? 'Nothing has been recorded for this month yet.'
+              : coverage.ledgerCoverage.blockingExceptionRowCount == 0
+              ? 'Nothing needs a decision this month.'
+              : '${coverage.ledgerCoverage.blockingExceptionRowCount} shifts need a decision before this month is settled.',
           style: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondary,
           ),
@@ -353,21 +355,18 @@ class _ReadinessCopy extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         Text(
           coverage.awaitingClose
-              ? 'Rates are hidden because missing ledger data has no attendance denominator.'
+              ? 'Percentages stay hidden until there is something to measure — this is missing data, not a zero attendance result.'
               : _missingDatesNote(coverage),
           style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Export stays disabled: lock, export, and restatement are owned by a later slice and by the server.',
-          style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        PremiumButton(
-          label: 'Open exception queue',
-          icon: Icons.fact_check_outlined,
-          onPressed: null,
-        ),
+        if (coverage.ledgerCoverage.blockingExceptionRowCount > 0) ...[
+          const SizedBox(height: AppSpacing.lg),
+          PremiumButton(
+            label: 'Review these',
+            icon: Icons.fact_check_outlined,
+            onPressed: null,
+          ),
+        ],
       ],
     );
   }
@@ -375,13 +374,13 @@ class _ReadinessCopy extends StatelessWidget {
   static String _missingDatesNote(MonthlyAttendanceCoverage coverage) {
     final missing = coverage.notClosedDayKeys;
     if (missing.isEmpty) {
-      return 'All ${coverage.totalDayCount} business dates in this month carry ledger rows.';
+      return 'Every day this month has shifts recorded.';
     }
     const shown = 6;
     final head = missing.take(shown).map(_readableDayKey).join(', ');
     final rest = missing.length - shown;
     final tail = rest > 0 ? ' and $rest more' : '';
-    return 'No ledger rows on ${missing.length} of ${coverage.totalDayCount} dates: $head$tail. These are data-completeness gaps, not attendance results.';
+    return 'No shifts recorded on ${missing.length} of ${coverage.totalDayCount} days: $head$tail. That usually means nobody was scheduled.';
   }
 
   static String _readableDayKey(String dayKey) {
@@ -412,20 +411,12 @@ class _BlockerCounts extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Blockers by type',
+            'What needs a decision',
             style: AppTypography.label.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
-          if (groups.isEmpty)
-            Text(
-              'No blocking exception rows.',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            )
-          else
-            for (final group in groups)
-              _MiniFact(label: group.label, value: '${group.count}'),
+          for (final group in groups)
+            _MiniFact(label: group.label, value: '${group.count}'),
         ],
       ),
     );
@@ -442,16 +433,19 @@ class _AwaitingClosePanel extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.hourglass_empty_rounded, color: AppColors.warning),
+          const Icon(
+            Icons.hourglass_empty_rounded,
+            color: AppColors.textTertiary,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Awaiting close', style: AppTypography.h3),
+                Text('No data yet', style: AppTypography.h3),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'No monthly rates, percentages, or zero-valued metric cards are rendered until ledger rows exist.',
+                  'Once shifts are recorded for this month, the numbers appear here.',
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -485,16 +479,16 @@ class _ExceptionSummary extends StatelessWidget {
               children: [
                 Expanded(
                   child: _ExceptionColumn(
-                    title: 'Blocking',
-                    empty: 'No blocking exception rows.',
+                    title: 'Needs a decision',
+                    empty: 'Nothing needs a decision.',
                     groups: blocking,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xl),
                 Expanded(
                   child: _ExceptionColumn(
-                    title: 'Informational',
-                    empty: 'No informational exception rows.',
+                    title: 'Worth knowing',
+                    empty: 'Nothing to note.',
                     groups: informational,
                   ),
                 ),
@@ -505,14 +499,14 @@ class _ExceptionSummary extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ExceptionColumn(
-                title: 'Blocking',
-                empty: 'No blocking exception rows.',
+                title: 'Needs a decision',
+                empty: 'Nothing needs a decision.',
                 groups: blocking,
               ),
               const SizedBox(height: AppSpacing.lg),
               _ExceptionColumn(
-                title: 'Informational',
-                empty: 'No informational exception rows.',
+                title: 'Worth knowing',
+                empty: 'Nothing to note.',
                 groups: informational,
               ),
             ],
@@ -556,8 +550,8 @@ class _ExceptionColumn extends StatelessWidget {
   }
 }
 
-class _ExportRestatementPanel extends StatelessWidget {
-  const _ExportRestatementPanel();
+class _SharePanel extends StatelessWidget {
+  const _SharePanel();
 
   @override
   Widget build(BuildContext context) {
@@ -575,10 +569,10 @@ class _ExportRestatementPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Export and restatement', style: AppTypography.h3),
+                Text('Share this month', style: AppTypography.h3),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'PDF, CSV, month lock, month-over-month comparison, and the restatement version log are coming next. Payroll artifacts are generated server-side, never by this client.',
+                  'A printable summary and a timesheet spreadsheet are coming next.',
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -594,13 +588,8 @@ class _ExportRestatementPanel extends StatelessWidget {
                       onPressed: null,
                     ),
                     PremiumButton(
-                      label: 'CSV',
+                      label: 'Spreadsheet',
                       icon: Icons.table_view_outlined,
-                      onPressed: null,
-                    ),
-                    PremiumButton(
-                      label: 'Restatement history',
-                      icon: Icons.history_toggle_off_rounded,
                       onPressed: null,
                     ),
                   ],
@@ -648,14 +637,14 @@ class _MiniFact extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
+  const _StatusPill({required this.status});
 
-  final String label;
+  final AttendanceCoverageStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final isPartial = label == 'Partially closed';
-    final isAwaiting = label == 'Awaiting close';
+    // Only a status with work behind it is toned — see the weekly report.
+    final toned = status.isActionable;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -664,18 +653,16 @@ class _StatusPill extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: AppRadius.fullAll,
         border: Border.all(
-          color: isPartial || isAwaiting
+          color: toned
               ? AppColors.warning.withValues(alpha: 0.46)
               : AppColors.darkBorder,
         ),
         color: AppColors.darkSurfaceElevated,
       ),
       child: Text(
-        label,
+        status.label,
         style: AppTypography.caption.copyWith(
-          color: isPartial || isAwaiting
-              ? AppColors.warning
-              : AppColors.textSecondary,
+          color: toned ? AppColors.warning : AppColors.textSecondary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -780,7 +767,8 @@ class _ErrorPanel extends StatelessWidget {
         lower.contains('failed-precondition') ||
             lower.contains('requires an index') ||
             lower.contains('composite index')
-        ? 'Attendance monthly report requires the deployed attendance_expectations branchId/dayKey composite index. Deploy firestore.indexes.json, then reload. $raw'
+        ? 'Attendance reports are not switched on yet — an administrator needs '
+              'to finish setting them up. Details: $raw'
         : raw;
     return _ProblemPanel(
       title: 'Monthly attendance unavailable',

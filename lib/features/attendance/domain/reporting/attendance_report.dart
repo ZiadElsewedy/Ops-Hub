@@ -87,7 +87,7 @@ class AttendanceReportSummary {
   AttendanceRate get showUpRate => AttendanceRate(
     numerator: present,
     denominator: expectedWorkShifts,
-    denominatorLabel: 'expected work shifts',
+    denominatorLabel: 'scheduled shifts',
   );
 
   /// Unexcused absences divided by expected work shifts. It drives ADR-017's
@@ -95,7 +95,7 @@ class AttendanceReportSummary {
   AttendanceRate get unexcusedAbsenceRate => AttendanceRate(
     numerator: absent,
     denominator: expectedWorkShifts,
-    denominatorLabel: 'expected work shifts',
+    denominatorLabel: 'scheduled shifts',
   );
 
   /// On-time present arrivals divided by present scheduled arrivals. It drives
@@ -103,7 +103,7 @@ class AttendanceReportSummary {
   AttendanceRate get punctualArrivalRate => AttendanceRate(
     numerator: present - lateArrivals,
     denominator: present,
-    denominatorLabel: 'present scheduled arrivals',
+    denominatorLabel: 'people who showed up',
   );
 
   factory AttendanceReportSummary.fromRows(List<ExpectedShiftRow> rows) {

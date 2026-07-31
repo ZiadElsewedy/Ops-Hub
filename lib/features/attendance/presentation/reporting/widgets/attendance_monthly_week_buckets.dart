@@ -24,7 +24,7 @@ class AttendanceMonthlyWeekBuckets extends StatelessWidget {
           Text('Weekly buckets', style: AppTypography.h3),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Sunday to Saturday roster weeks. A week that only partly overlaps this month is marked Partial and is never read as a full week. Weeks with zero clock-ins report 0%; weeks with no rows are ledger data gaps.',
+            'Sunday to Saturday roster weeks. A week that only partly overlaps this month is marked Partial and is never read as a full week. A week with shifts recorded but nobody in shows 0%; a week with nothing recorded shows No data.',
             style: AppTypography.caption.copyWith(
               color: AppColors.textTertiary,
             ),
@@ -47,7 +47,7 @@ class AttendanceMonthlyWeekBuckets extends StatelessWidget {
                         cells: [
                           'Week',
                           'Coverage',
-                          'Ledger',
+                          'Recorded',
                           'Expected',
                           'Present',
                           'Show-up',
@@ -76,7 +76,7 @@ class AttendanceMonthlyWeekBuckets extends StatelessWidget {
         ? 'Partial · ${bucket.coveredDayCount} of 7 days in month'
         : 'Full week';
     if (!bucket.hasRows) {
-      return [label, coverage, 'No ledger data', '--', '--', '--', '--', '--'];
+      return [label, coverage, 'No data', '--', '--', '--', '--', '--'];
     }
     return [
       label,
@@ -144,7 +144,8 @@ class _BucketRow extends StatelessWidget {
   }
 
   static Color _toneFor(int index, String value) {
-    if (index == 2 && value == 'No ledger data') return AppColors.warning;
+    // PP6: nothing recorded is the absence of a result, not a bad one.
+    if (index == 2 && value == 'No data') return AppColors.textTertiary;
     if (index == 1 && value.startsWith('Partial')) return AppColors.warning;
     return AppColors.textSecondary;
   }

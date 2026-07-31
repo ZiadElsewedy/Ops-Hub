@@ -13,11 +13,11 @@ void main() {
       const rate = AttendanceRate(
         numerator: 0,
         denominator: 0,
-        denominatorLabel: 'expected work shifts',
+        denominatorLabel: 'scheduled shifts',
       );
 
       expect(rate.percent, isNull);
-      expect(rate.describe(), '-- · 0 / 0 expected work shifts');
+      expect(rate.describe(), '-- · 0 / 0 scheduled shifts');
     });
   });
 
@@ -28,7 +28,7 @@ void main() {
       expect(AttendanceReportSummary.empty.punctualArrivalRate.percent, isNull);
     });
 
-    test('unscheduled work does not inflate expected work shifts', () {
+    test('unscheduled work does not inflate the expected-shift denominator', () {
       final date = DateTime(2026, 7, 26);
       final record = AttendanceEntity(
         id: attendanceDocId(

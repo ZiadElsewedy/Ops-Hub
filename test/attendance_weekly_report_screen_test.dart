@@ -198,12 +198,12 @@ void main() {
       expect(repo.watchedBranchId, _branchId);
       expect(repo.watchedStart, '20260726');
       expect(repo.watchedEnd, '20260801');
-      expect(find.text('Awaiting close'), findsWidgets);
+      expect(find.text('No data yet'), findsWidgets);
       expect(find.text('Show-up rate'), findsNothing);
       expect(find.text('0%'), findsNothing);
       expect(find.text('Sunday 26 Jul'), findsOneWidget);
       expect(find.text('Saturday 1 Aug'), findsOneWidget);
-      expect(find.text('No ledger data'), findsNWidgets(7));
+      expect(find.text('No data'), findsNWidgets(7));
       expect(find.text('Not closed'), findsNothing);
       _expectNoFlutterErrors(errors);
 
@@ -232,15 +232,21 @@ void main() {
       ]);
       await tester.pump();
 
-      expect(find.text('Fully closed'), findsWidgets);
+      // 3 rows on one day of seven: the pipeline calls that fully closed, the
+      // manager is told the week is still in progress.
+      expect(find.text('In progress'), findsWidgets);
+      expect(find.text('Fully closed'), findsNothing);
       expect(find.text('Show-up rate'), findsOneWidget);
       expect(find.text('0%'), findsWidgets);
-      expect(find.text('0 / 3 expected work shifts'), findsOneWidget);
-      expect(find.text('3 / 3 expected work shifts'), findsOneWidget);
+      expect(find.text('0 / 3 scheduled shifts'), findsOneWidget);
+      expect(find.text('3 / 3 scheduled shifts'), findsOneWidget);
       expect(find.text('Wednesday 29 Jul'), findsOneWidget);
-      expect(find.text('No ledger data'), findsNWidgets(6));
+      expect(find.text('No data'), findsNWidgets(6));
       expect(find.text('Not closed'), findsNothing);
-      expect(find.text('No record - phantom row'), findsNWidgets(3));
+      expect(find.text('No clock-in recorded'), findsNWidgets(3));
+      // The engine's wire values must never reach the screen.
+      expect(find.text('absent'), findsNothing);
+      expect(find.text('Absent'), findsWidgets);
       _expectNoFlutterErrors(errors);
 
       await tester.pumpWidget(const SizedBox());

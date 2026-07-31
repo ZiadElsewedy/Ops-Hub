@@ -253,8 +253,8 @@ void main() {
       await tester.pump();
 
       expect(repo.watchedBranchId, 'DDwedTHvI1sPHrMz06PI');
-      expect(find.text('Awaiting close'), findsOneWidget);
-      expect(find.text('No ledger data'), findsOneWidget);
+      expect(find.text('No data yet'), findsWidgets);
+      expect(find.text('No data yet'), findsWidgets);
       expect(find.text('Show-up rate'), findsNothing);
       expect(find.text('0%'), findsNothing);
       expect(find.textContaining('0 /'), findsNothing);
@@ -268,10 +268,10 @@ void main() {
       // Blockers are unknowable before rows materialize, so the page must not
       // claim there are none.
       expect(
-        find.text('Blockers are known only after ledger rows materialize.'),
+        find.text('Nothing to check until shifts are recorded.'),
         findsOneWidget,
       );
-      expect(find.text('No payroll blockers'), findsNothing);
+      expect(find.text('Nothing is waiting on you'), findsNothing);
 
       // Scope + period controls survive the restyle, including the
       // future-period block: 2026-07-30 sits in the current weekly window.
@@ -315,9 +315,9 @@ void main() {
 
       // The verdict: trust, then action. Closed-ness is stated once, in one
       // vocabulary, and a zero blocker count costs one quiet line.
-      expect(find.text('Fully closed'), findsOneWidget);
-      expect(find.text('3 of 3 ledger rows closed'), findsOneWidget);
-      expect(find.text('No payroll blockers'), findsOneWidget);
+      expect(find.text('Settled'), findsOneWidget);
+      expect(find.text('3 of 3 shifts settled'), findsOneWidget);
+      expect(find.text('Nothing is waiting on you'), findsOneWidget);
 
       // Rows present with zero clock-ins is a real 0% result, never the
       // no-data state — and the rate still discloses its denominator. Both
@@ -325,13 +325,13 @@ void main() {
       // fact is rendered once.
       expect(find.text('Show-up rate'), findsOneWidget);
       expect(find.text('0%'), findsOneWidget);
-      expect(find.text('0 / 3 expected work shifts'), findsOneWidget);
-      expect(find.text('No ledger data'), findsNothing);
+      expect(find.text('0 / 3 scheduled shifts'), findsOneWidget);
+      expect(find.text('No data yet'), findsNothing);
 
       // The components of that rate, at supporting weight. They are counts, so
       // they carry no denominator of their own — the headline owns it.
-      expect(find.text('Expected'), findsOneWidget);
-      expect(find.text('Present'), findsOneWidget);
+      expect(find.text('Scheduled'), findsOneWidget);
+      expect(find.text('Worked'), findsOneWidget);
       expect(find.text('Absent'), findsOneWidget);
       expect(find.text('3'), findsNWidgets(2)); // expected + absent
       expect(find.text('0'), findsOneWidget); // present
@@ -342,7 +342,7 @@ void main() {
       expect(find.text('Worked time'), findsNothing);
       expect(find.text('--'), findsNothing);
       expect(
-        find.textContaining('not applicable this period'),
+        find.textContaining('no punctuality or worked time to show'),
         findsOneWidget,
       );
 
@@ -391,29 +391,29 @@ void main() {
 
       // A real blocker earns weight, colour and the affordance — the inverse of
       // the zero-state's single muted line.
-      expect(find.text('Partially closed'), findsOneWidget);
-      expect(find.text('2 of 2 ledger rows closed'), findsOneWidget);
-      expect(find.text('Payroll blockers'), findsOneWidget);
+      expect(find.text('Needs attention'), findsOneWidget);
+      expect(find.text('2 of 2 shifts settled'), findsOneWidget);
+      expect(find.text('Needs your decision'), findsOneWidget);
       expect(
-        find.text('2 of 2 ledger rows are stopping this period from closing.'),
+        find.text('2 of 2 shifts still need a decision.'),
         findsOneWidget,
       );
-      expect(find.text('Exception queue'), findsOneWidget);
-      expect(find.text('No payroll blockers'), findsNothing);
+      expect(find.text('Review these'), findsOneWidget);
+      expect(find.text('Nothing is waiting on you'), findsNothing);
 
       // Every rate still discloses its denominator, exactly once each.
       expect(find.text('100%'), findsOneWidget);
-      expect(find.text('2 / 2 expected work shifts'), findsOneWidget);
+      expect(find.text('2 / 2 scheduled shifts'), findsOneWidget);
       expect(find.text('50%'), findsOneWidget);
-      expect(find.text('1 / 2 present scheduled arrivals'), findsOneWidget);
+      expect(find.text('1 / 2 people who showed up'), findsOneWidget);
 
       // With present rows the conditional pair has real denominators, so it
       // renders instead of collapsing.
       expect(find.text('Punctual arrivals'), findsOneWidget);
       expect(find.text('Worked time'), findsOneWidget);
       expect(find.text('15h 50m'), findsOneWidget);
-      expect(find.text('Across 2 present rows'), findsOneWidget);
-      expect(find.textContaining('not applicable this period'), findsNothing);
+      expect(find.text('Across 2 shifts worked'), findsOneWidget);
+      expect(find.textContaining('no punctuality or worked time to show'), findsNothing);
 
       _expectSingleTitle();
       _expectGoDeeper();

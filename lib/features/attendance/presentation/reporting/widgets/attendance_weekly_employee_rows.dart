@@ -10,8 +10,7 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
   const AttendanceWeeklyEmployeeRows({
     super.key,
     required this.employees,
-    this.emptyMessage =
-        'No employee ledger rows are available for this week yet.',
+    this.emptyMessage = 'Nobody has a recorded shift this week yet.',
   });
 
   final List<WeeklyAttendanceEmployeeAggregate> employees;
@@ -27,14 +26,14 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Employee rows', style: AppTypography.h3),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Alphabetical facts only. This report does not rank people or compute performance scores.',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
+          // The defensive sentence that used to sit here — "Alphabetical facts
+          // only. This report does not rank people or compute performance
+          // scores." — was written because we already suspected the table would
+          // be misread. A UI that has to explain what it is not is telling you
+          // the design is wrong; the fix is to remove the need for the
+          // disclaimer, not to word it better. Not ranking people is enforced by
+          // refusing to compute a score (ADR-017), not by a caption.
+          Text('By person', style: AppTypography.h3),
           const SizedBox(height: AppSpacing.lg),
           if (employees.isEmpty)
             Text(
@@ -60,13 +59,13 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
                         const _EmployeeRow(
                           cells: [
                             'Employee',
-                            'Expected',
-                            'Present',
+                            'Scheduled',
+                            'Worked',
                             'Absent',
                             'Late min',
-                            'Worked',
-                            'OT',
-                            'Exceptions',
+                            'Hours',
+                            'Overtime',
+                            'Issues',
                           ],
                           header: true,
                         ),

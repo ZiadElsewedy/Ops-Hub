@@ -18,6 +18,7 @@ import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
@@ -100,7 +101,7 @@ class _AttendanceWeeklyReportViewState
     final period = widget.period;
     return AdaptiveScaffold(
       title: 'Weekly attendance',
-      subtitle: 'Reporting ledger',
+      subtitle: 'Who worked this week',
       compactDesktopHeader: true,
       actions: [
         IconButton(
@@ -198,33 +199,39 @@ class _WeeklyReportContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final awaiting = report.coverage.awaitingClose;
+    // PP8: a section with nothing in it renders nothing. With Daily Review not
+    // built yet these two can both be empty on a healthy week, and an empty
+    // "Blocking / Informational" pair was pure furniture.
+    final hasExceptions = report.exceptionGroups.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _HeaderSection(branchName: branchName, period: period, report: report),
         const SizedBox(height: AppSpacing.xl),
-        _CloseReadiness(report: report),
+        _WeekStatusCard(report: report),
         const SizedBox(height: AppSpacing.xl),
         if (awaiting)
-          const _AwaitingClosePanel()
+          const _NoDataYetPanel()
         else
           AttendanceReportMetrics(
             summary: report.summary,
             weekly: true,
             exceptionCount: report.exceptionCount,
             exceptionDenominator:
-                '${report.exceptionCount} / ${report.rows.length} ledger rows',
+                '${report.exceptionCount} of ${report.rows.length} shifts',
           ),
         const SizedBox(height: AppSpacing.xl),
         AttendanceWeeklyDailyTable(days: report.days),
         const SizedBox(height: AppSpacing.xl),
-        _ExceptionSummary(groups: report.exceptionGroups),
-        const SizedBox(height: AppSpacing.xl),
+        if (hasExceptions) ...[
+          _ExceptionSummary(groups: report.exceptionGroups),
+          const SizedBox(height: AppSpacing.xl),
+        ],
         AttendanceWeeklyEmployeeRows(employees: report.employees),
         const SizedBox(height: AppSpacing.xl),
-        _EvidenceTable(rows: report.rows),
+        _ShiftDetailTable(rows: report.rows),
         const SizedBox(height: AppSpacing.xl),
-        const _ExportRestatementPanel(),
+        const _SharePanel(),
       ],
     );
   }
@@ -247,8 +254,10 @@ class _HeaderSection extends StatelessWidget {
     return PageHero(
       eyebrow: 'Attendance & Reports / Weekly',
       title: branchName,
-      subtitle:
-          '${_weekLabel(period.window)} · ${coverage.statusLabel} · Africa/Cairo · v${period.version}',
+      // Timezone and report version were provenance, not information: a store
+      // manager has one timezone and no decision to make about `v1`. Both move
+      // to the admin audit surface in Phase 3.
+      subtitle: '${_weekLabel(period.window)} · ${coverage.statusLabel}',
       primaryAction: PremiumButton(
         label: 'Close week',
         icon: Icons.lock_outline_rounded,
@@ -257,9 +266,9 @@ class _HeaderSection extends StatelessWidget {
       ),
       // Only the status pill travels in the hero. A third disabled action here
       // overflowed PageHero's stacked Row by 155px at mobile width, and the
-      // Export/restatement panel at the foot of the report already carries the
-      // PDF/CSV affordances — so this was redundant as well as too wide.
-      trailing: [_StatusPill(label: coverage.statusLabel)],
+      // share panel at the foot of the report already carries the PDF/CSV
+      // affordances — so this was redundant as well as too wide.
+      trailing: [_StatusPill(status: coverage.status)],
     );
   }
 
@@ -267,8 +276,8 @@ class _HeaderSection extends StatelessWidget {
       'Sun ${AppDateFormatter.dayMonth(window.startDate)} - Sat ${AppDateFormatter.dayMonth(window.endDate)}';
 }
 
-class _CloseReadiness extends StatelessWidget {
-  const _CloseReadiness({required this.report});
+class _WeekStatusCard extends StatelessWidget {
+  const _WeekStatusCard({required this.report});
 
   final WeeklyAttendanceReport report;
 
@@ -277,24 +286,26 @@ class _CloseReadiness extends StatelessWidget {
     final blockingGroups = report.exceptionGroups
         .where((group) => group.blocksClose)
         .toList();
-    final blockerCount =
-        report.coverage.ledgerCoverage.blockingExceptionRowCount;
+    final actionable = report.coverage.status.isActionable;
     return GlassContainer(
-      highlight: blockerCount > 0,
-      accent: blockerCount > 0 ? AppColors.warning : AppColors.textPrimary,
+      highlight: actionable,
+      accent: actionable ? AppColors.warning : AppColors.textPrimary,
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 820;
-          final status = _ReadinessCopy(report: report);
-          final blockers = _BlockerCounts(groups: blockingGroups);
+          final status = _WeekStatusCopy(report: report);
+          // PP8 again: the "what needs attention" panel is the answer to a
+          // question nobody asked when the answer is "nothing".
+          if (blockingGroups.isEmpty) return status;
+          final attention = _AttentionCounts(groups: blockingGroups);
           if (!wide) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 status,
                 const SizedBox(height: AppSpacing.lg),
-                blockers,
+                attention,
               ],
             );
           }
@@ -303,7 +314,7 @@ class _CloseReadiness extends StatelessWidget {
             children: [
               Expanded(flex: 3, child: status),
               const SizedBox(width: AppSpacing.xl),
-              Expanded(flex: 2, child: blockers),
+              Expanded(flex: 2, child: attention),
             ],
           );
         },
@@ -312,58 +323,81 @@ class _CloseReadiness extends StatelessWidget {
   }
 }
 
-class _ReadinessCopy extends StatelessWidget {
-  const _ReadinessCopy({required this.report});
+class _WeekStatusCopy extends StatelessWidget {
+  const _WeekStatusCopy({required this.report});
 
   final WeeklyAttendanceReport report;
 
   @override
   Widget build(BuildContext context) {
     final coverage = report.coverage;
+    final blockers = coverage.ledgerCoverage.blockingExceptionRowCount;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Close readiness', style: AppTypography.h3),
+        Text('Week status', style: AppTypography.h3),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          coverage.awaitingClose
-              ? 'Awaiting close: no attendance_expectations rows exist for this branch-week yet.'
-              : coverage.isFullyClosed
-              ? 'Fully closed: ledger rows exist and no blocking exception rows remain.'
-              : 'Partially closed: ${coverage.ledgerCoverage.blockingExceptionRowCount} blocking exception rows must be resolved.',
+          _headline(coverage, blockers),
           style: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          coverage.awaitingClose
-              ? 'Rates are hidden because missing ledger data has no attendance denominator.'
-              : coverage.isFullyClosed
-              ? _fullyClosedNote(coverage)
-              : 'Rates reflect materialized ledger rows; resolve blockers before lock or export.',
+          _detail(coverage),
           style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        PremiumButton(
-          label: 'Open exception queue',
-          icon: Icons.fact_check_outlined,
-          onPressed: null,
-        ),
+        if (blockers > 0) ...[
+          const SizedBox(height: AppSpacing.lg),
+          PremiumButton(
+            label: 'Review these',
+            icon: Icons.fact_check_outlined,
+            onPressed: null,
+          ),
+        ],
       ],
     );
   }
 
-  static String _fullyClosedNote(WeeklyAttendanceCoverage coverage) {
-    if (coverage.notClosedDayKeys.isEmpty) {
-      return 'Export and lock still wait for the later close/export slice.';
-    }
-    return 'Days without ledger rows are shown as No ledger data; they are data-completeness gaps, not attendance results.';
+  static String _headline(WeeklyAttendanceCoverage coverage, int blockers) =>
+      switch (coverage.status) {
+        AttendanceCoverageStatus.noData =>
+          'Nothing has been recorded for this week yet.',
+        AttendanceCoverageStatus.needsAttention =>
+          '$blockers ${blockers == 1 ? 'shift needs' : 'shifts need'} a decision '
+              'before this week is settled.',
+        AttendanceCoverageStatus.dataGap =>
+          'Nothing needs a decision. Some days of the week have no shifts '
+              'recorded.',
+        AttendanceCoverageStatus.settled =>
+          'Every day of this week is recorded and nothing needs a decision.',
+      };
+
+  /// The honest limit of what this report can currently tell a manager.
+  ///
+  /// The report reads only materialised shift records, so a day with no records
+  /// is genuinely ambiguous: nobody was scheduled, or somebody was and it was
+  /// never captured. Saying "no data" is true for both; the old copy picked the
+  /// alarming reading and coloured it amber. Splitting the two needs the roster,
+  /// which arrives with the Phase 1 rebuild.
+  static String _detail(WeeklyAttendanceCoverage coverage) {
+    return switch (coverage.status) {
+      AttendanceCoverageStatus.noData =>
+        'Percentages stay hidden until there is something to measure — this is '
+            'missing data, not a zero attendance result.',
+      AttendanceCoverageStatus.needsAttention =>
+        'Numbers below cover the shifts already recorded.',
+      AttendanceCoverageStatus.dataGap =>
+        'Days shown as No data had no shifts recorded. That usually means '
+            'nobody was scheduled.',
+      AttendanceCoverageStatus.settled => 'Numbers below cover the whole week.',
+    };
   }
 }
 
-class _BlockerCounts extends StatelessWidget {
-  const _BlockerCounts({required this.groups});
+class _AttentionCounts extends StatelessWidget {
+  const _AttentionCounts({required this.groups});
 
   final List<WeeklyAttendanceExceptionGroup> groups;
 
@@ -380,28 +414,20 @@ class _BlockerCounts extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Blockers by type',
+            'What needs a decision',
             style: AppTypography.label.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
-          if (groups.isEmpty)
-            Text(
-              'No blocking exception rows.',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            )
-          else
-            for (final group in groups)
-              _MiniFact(label: group.label, value: '${group.count}'),
+          for (final group in groups)
+            _MiniFact(label: group.label, value: '${group.count}'),
         ],
       ),
     );
   }
 }
 
-class _AwaitingClosePanel extends StatelessWidget {
-  const _AwaitingClosePanel();
+class _NoDataYetPanel extends StatelessWidget {
+  const _NoDataYetPanel();
 
   @override
   Widget build(BuildContext context) {
@@ -410,16 +436,20 @@ class _AwaitingClosePanel extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.hourglass_empty_rounded, color: AppColors.warning),
+          const Icon(
+            Icons.hourglass_empty_rounded,
+            color: AppColors.textTertiary,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Awaiting close', style: AppTypography.h3),
+                Text('No data yet', style: AppTypography.h3),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'No weekly rates, percentages, or zero-valued metric cards are rendered until ledger rows exist.',
+                  'Once shifts are recorded for this week, the numbers appear '
+                  'here.',
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -450,16 +480,16 @@ class _ExceptionSummary extends StatelessWidget {
           final children = [
             Expanded(
               child: _ExceptionColumn(
-                title: 'Blocking',
-                empty: 'No blocking exception rows.',
+                title: 'Needs a decision',
+                empty: 'Nothing needs a decision.',
                 groups: blocking,
               ),
             ),
             const SizedBox(width: AppSpacing.xl),
             Expanded(
               child: _ExceptionColumn(
-                title: 'Informational',
-                empty: 'No informational exception rows.',
+                title: 'Worth knowing',
+                empty: 'Nothing to note.',
                 groups: informational,
               ),
             ),
@@ -474,14 +504,14 @@ class _ExceptionSummary extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ExceptionColumn(
-                title: 'Blocking',
-                empty: 'No blocking exception rows.',
+                title: 'Needs a decision',
+                empty: 'Nothing needs a decision.',
                 groups: blocking,
               ),
               const SizedBox(height: AppSpacing.lg),
               _ExceptionColumn(
-                title: 'Informational',
-                empty: 'No informational exception rows.',
+                title: 'Worth knowing',
+                empty: 'Nothing to note.',
                 groups: informational,
               ),
             ],
@@ -525,8 +555,8 @@ class _ExceptionColumn extends StatelessWidget {
   }
 }
 
-class _EvidenceTable extends StatelessWidget {
-  const _EvidenceTable({required this.rows});
+class _ShiftDetailTable extends StatelessWidget {
+  const _ShiftDetailTable({required this.rows});
 
   final List<AttendanceLedgerRow> rows;
 
@@ -537,10 +567,10 @@ class _EvidenceTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Shift evidence table', style: AppTypography.h3),
+          Text('Every shift', style: AppTypography.h3),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'One row per materialized attendance_expectations ledger fact.',
+            'One line per shift this week, with what was recorded against it.',
             style: AppTypography.caption.copyWith(
               color: AppColors.textTertiary,
             ),
@@ -548,7 +578,7 @@ class _EvidenceTable extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           if (rows.isEmpty)
             Text(
-              'No ledger evidence rows yet.',
+              'No shifts recorded yet.',
               style: AppTypography.bodySmall.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -567,7 +597,7 @@ class _EvidenceTable extends StatelessWidget {
                     constraints: const BoxConstraints(minWidth: 920),
                     child: Column(
                       children: [
-                        const _EvidenceRow(
+                        const _ShiftDetailRow(
                           cells: [
                             'Date',
                             'Employee',
@@ -579,7 +609,7 @@ class _EvidenceTable extends StatelessWidget {
                           ],
                           header: true,
                         ),
-                        for (final row in rows) _EvidenceRow.forLedger(row),
+                        for (final row in rows) _ShiftDetailRow.forLedger(row),
                       ],
                     ),
                   ),
@@ -592,20 +622,28 @@ class _EvidenceTable extends StatelessWidget {
   }
 }
 
-class _EvidenceRow extends StatelessWidget {
-  const _EvidenceRow({required this.cells, this.header = false, this.recordId});
+class _ShiftDetailRow extends StatelessWidget {
+  const _ShiftDetailRow({
+    required this.cells,
+    this.header = false,
+    this.recordId,
+  });
 
-  factory _EvidenceRow.forLedger(AttendanceLedgerRow row) => _EvidenceRow(
+  factory _ShiftDetailRow.forLedger(AttendanceLedgerRow row) => _ShiftDetailRow(
     cells: [
       row.businessDate,
       row.userName?.trim().isNotEmpty ?? false
           ? row.userName!.trim()
           : row.userId,
       row.shift.label,
-      row.outcome.wireValue,
+      // `outcome.label`, never `wireValue`: the persisted contract is not
+      // English and a manager was reading `workedLate` / `noRecordYet`.
+      row.outcome.label,
       '${row.workedMinutes}',
       '${row.lateMinutes}',
-      row.recordId == null ? 'No record - phantom row' : 'Open record',
+      // "Phantom row" was an engineering term for a shift nobody clocked into.
+      // It said nothing true to a manager and everything about our data model.
+      row.recordId == null ? 'No clock-in recorded' : 'Open record',
     ],
     recordId: row.recordId,
   );
@@ -656,7 +694,7 @@ class _EvidenceRow extends StatelessWidget {
                               .copyWith(
                                 color: header
                                     ? AppColors.textTertiary
-                                    : i == 6 && cells[i].startsWith('No record')
+                                    : i == 6 && cells[i].startsWith('No clock-in')
                                     ? AppColors.warning
                                     : AppColors.textSecondary,
                                 fontWeight: header
@@ -671,8 +709,11 @@ class _EvidenceRow extends StatelessWidget {
   }
 }
 
-class _ExportRestatementPanel extends StatelessWidget {
-  const _ExportRestatementPanel();
+/// *Restatement* is an accounting term for correcting a published financial
+/// statement. It had no business on a store manager's screen; the panel now says
+/// what a manager would say — share the week.
+class _SharePanel extends StatelessWidget {
+  const _SharePanel();
 
   @override
   Widget build(BuildContext context) {
@@ -690,10 +731,11 @@ class _ExportRestatementPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Export and restatement', style: AppTypography.h3),
+                Text('Share this week', style: AppTypography.h3),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'PDF, CSV, close week, lock week, and restatement history are coming next.',
+                  'A printable summary and a timesheet spreadsheet are coming '
+                  'next.',
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -709,7 +751,7 @@ class _ExportRestatementPanel extends StatelessWidget {
                       onPressed: null,
                     ),
                     PremiumButton(
-                      label: 'CSV',
+                      label: 'Spreadsheet',
                       icon: Icons.table_view_outlined,
                       onPressed: null,
                     ),
@@ -758,14 +800,16 @@ class _MiniFact extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
+  const _StatusPill({required this.status});
 
-  final String label;
+  final AttendanceCoverageStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final isPartial = label == 'Partially closed';
-    final isAwaiting = label == 'Awaiting close';
+    // Only a status with work behind it is toned. "No data yet" and "In
+    // progress" used to be amber, which is how a week where nobody was
+    // scheduled came to look like a week that went badly.
+    final toned = status.isActionable;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -774,18 +818,16 @@ class _StatusPill extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: AppRadius.fullAll,
         border: Border.all(
-          color: isPartial || isAwaiting
+          color: toned
               ? AppColors.warning.withValues(alpha: 0.46)
               : AppColors.darkBorder,
         ),
         color: AppColors.darkSurfaceElevated,
       ),
       child: Text(
-        label,
+        status.label,
         style: AppTypography.caption.copyWith(
-          color: isPartial || isAwaiting
-              ? AppColors.warning
-              : AppColors.textSecondary,
+          color: toned ? AppColors.warning : AppColors.textSecondary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -890,7 +932,8 @@ class _ErrorPanel extends StatelessWidget {
         lower.contains('failed-precondition') ||
             lower.contains('requires an index') ||
             lower.contains('composite index')
-        ? 'Attendance weekly report requires the deployed attendance_expectations branchId/dayKey composite index. Deploy firestore.indexes.json, then reload. $raw'
+        ? 'Attendance reports are not switched on yet — an administrator needs '
+              'to finish setting them up. Details: $raw'
         : raw;
     return _ProblemPanel(
       title: 'Weekly attendance unavailable',

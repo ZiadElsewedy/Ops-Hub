@@ -1,6 +1,7 @@
 import 'package:drop/features/attendance/domain/attendance_id.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
 
 class WeeklyAttendanceReport {
@@ -100,16 +101,25 @@ class WeeklyAttendanceCoverage {
   ///
   /// Under that rule, fully closed means this period has ledger rows and none of
   /// them carries a blocking exception.
+  ///
+  /// **This is a pipeline fact, not a manager-facing one.** It stays true for a
+  /// week with rows on a single day, which is why [status] — not this — decides
+  /// the word a manager reads. See [AttendanceCoverageStatus].
   bool get isFullyClosed =>
       ledgerCoverage.hasRows && ledgerCoverage.blockingExceptionRowCount == 0;
 
   bool get isPartiallyClosed => ledgerCoverage.hasRows && !isFullyClosed;
 
-  String get statusLabel {
-    if (awaitingClose) return 'Awaiting close';
-    if (isFullyClosed) return 'Fully closed';
-    return 'Partially closed';
-  }
+  /// At least one business date in the window has no ledger row.
+  bool get hasDayGaps => notClosedDayKeys.isNotEmpty;
+
+  AttendanceCoverageStatus get status => AttendanceCoverageStatus.resolve(
+    hasRows: ledgerCoverage.hasRows,
+    blockingRowCount: ledgerCoverage.blockingExceptionRowCount,
+    hasDayGaps: hasDayGaps,
+  );
+
+  String get statusLabel => status.label;
 }
 
 class WeeklyAttendanceDayBreakdown {

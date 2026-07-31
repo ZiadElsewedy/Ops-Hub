@@ -14,6 +14,59 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-31 — Attendance reports speak to a manager (polish; LOW risk)
+
+Phase 0 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md).
+Presentation copy and state rendering only — no cubit, repository, rule, index,
+or Function touched, and **no aggregate or denominator changed value**.
+
+Internal vocabulary retired at the manager boundary: *ledger rows* → shifts,
+*phantom row* → **No clock-in recorded**, *blocking / informational* → **Needs a
+decision / Worth knowing**, *close readiness* → **Week status**, *export and
+restatement* → **Share this week**. New `AttendanceLedgerOutcome.label` stops the
+Outcome column printing wire values (`workedLate`, `noRecordYet`); `wireValue`
+remains the persisted contract and is no longer rendered anywhere.
+
+Two honesty fixes matter more than the wording. **A week with rows on one day of
+seven no longer reads "Fully closed"** — new `AttendanceCoverageStatus` (No data
+yet · Needs attention · In progress · Settled) is the single manager-facing
+status for Weekly and Monthly. `isFullyClosed` is unchanged and still means what
+the close pipeline means; it is simply not the manager's word. And **a day with
+nothing recorded is no longer amber** — it renders quiet grey, because it is the
+absence of a result, not a bad one. Only a day that was scheduled and worked by
+nobody is toned error-red. This is what made a week where six of seven days had
+no roster read as a catastrophic week.
+
+Also: metric cards that cannot be computed no longer render `--`; empty exception
+sections no longer render at all; the defensive captions are deleted.
+
+**Not in this change** (Phases 1–3): section inventory, KPI selection,
+exception-first sorting, and moving audit surfaces to an admin audience.
+
+Verified: analyze clean, **1272 pass / 2 pre-existing splash failures**, +7 tests.
+
+## 2026-07-31 — Attendance redesign PRD (docs only; no risk)
+
+Added [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md),
+a proposed PRD + roadmap for the Attendance presentation layer, after a real
+store manager could not read the shipped Weekly Report.
+
+The finding worth recording: the screen is a **faithful build of its own spec**
+(`ATTENDANCE_REPORTS_IA` §6.4 specifies exactly those eight sections, §6.5 those
+six KPIs), so screen-level fixes would regenerate it — the spec is the artefact
+that must change. Second finding: the IA's build order was skipped from step 2 to
+step 5, so Weekly is doing the job of the never-built Daily Close and Exception
+Queue.
+
+Proposes five phases, five sections replacing eight, four KPIs replacing six, a
+new **Daily Review** surface, and relocation of ledger/audit/restatement to an
+admin audience. **Presentation only** — ADR-017's ledger scope and metric bar and
+every rule in `ATTENDANCE_SPEC.md` are explicitly out of scope. Documents three
+deliberate reversals (show-up rate demoted, alphabetical sorting replaced by
+exception-first, Monthly deferred) and eight open decisions for owner sign-off.
+
+Nothing implemented; no code, rules, or functions touched.
+
 ## 2026-07-31 — Per-task lateness, rendered and findable (feature; LOW risk)
 
 A finished task carried its lateness only as raw timestamps — visible in the

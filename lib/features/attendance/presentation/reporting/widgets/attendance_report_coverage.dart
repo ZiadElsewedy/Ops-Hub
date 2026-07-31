@@ -22,9 +22,11 @@ import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.
 /// muted line; a real blocker earns weight, colour and the queue affordance. No
 /// space is spent announcing that nothing is wrong.
 ///
-/// Coverage semantics are fixed and unchanged: no rows ⇒ *Awaiting close* (a
-/// data-completeness gap, never a `0%` result), rows with no blocking exceptions
-/// ⇒ *Fully closed*, rows with blocking exceptions ⇒ *Partially closed*.
+/// Coverage semantics are unchanged; only the words are. No rows ⇒ *No data
+/// yet* (missing data, never a `0%` result), rows with no blocking exceptions ⇒
+/// *Settled*, rows with blocking exceptions ⇒ *Needs attention*. The old close-
+/// pipeline vocabulary (*Awaiting close · Partially closed · Fully closed*) is
+/// what the pipeline computes, not what a store manager says.
 class AttendanceReportCoverage extends StatelessWidget {
   const AttendanceReportCoverage({
     super.key,
@@ -39,16 +41,16 @@ class AttendanceReportCoverage extends StatelessWidget {
   int get _blockers => coverage.blockingExceptionRowCount;
 
   String get _trustTitle {
-    if (_awaiting) return 'Awaiting close';
-    return _blockers > 0 ? 'Partially closed' : 'Fully closed';
+    if (_awaiting) return 'No data yet';
+    return _blockers > 0 ? 'Needs attention' : 'Settled';
   }
 
-  /// The single closed-ness restatement. `No ledger data` is the owner's rule
-  /// made visible: a scope with no rows has no denominator at all, so it must
-  /// never be reported as a zero-valued result.
+  /// The single coverage restatement. `No data yet` is the owner's rule made
+  /// visible: a scope with no rows has no denominator at all, so it must never
+  /// be reported as a zero-valued result.
   String get _trustDetail {
-    if (_awaiting) return 'No ledger data';
-    return '${coverage.closedRowCount} of $totalRows ledger rows closed';
+    if (_awaiting) return 'No data yet';
+    return '${coverage.closedRowCount} of $totalRows shifts settled';
   }
 
   @override
@@ -157,8 +159,8 @@ class _TrustLine extends StatelessWidget {
                 // state with no denominator on screen to speak for itself. Once
                 // rows exist the metric denominators below say the same thing.
                 Text(
-                  'No rows are materialized for this scope and period yet — a '
-                  'pipeline state, not a 0% attendance result.',
+                  'Nothing has been recorded for this branch and period yet — '
+                  'missing data, not a 0% attendance result.',
                   style: AppTypography.caption.copyWith(
                     color: AppColors.textTertiary,
                   ),
@@ -183,14 +185,14 @@ class _ActionLine extends StatelessWidget {
     if (coverage.awaitingClose) {
       return const _QuietLine(
         icon: Icons.schedule_rounded,
-        message: 'Blockers are known only after ledger rows materialize.',
+        message: 'Nothing to check until shifts are recorded.',
       );
     }
     final blockers = coverage.blockingExceptionRowCount;
     if (blockers == 0) {
       return const _QuietLine(
         icon: Icons.check_circle_outline_rounded,
-        message: 'No payroll blockers',
+        message: 'Nothing is waiting on you',
       );
     }
 
@@ -208,11 +210,10 @@ class _ActionLine extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Payroll blockers', style: AppTypography.labelLarge),
+              Text('Needs your decision', style: AppTypography.labelLarge),
               const SizedBox(height: 2),
               Text(
-                '$blockers of $totalRows ledger rows are stopping this period '
-                'from closing.',
+                '$blockers of $totalRows shifts still need a decision.',
                 style: AppTypography.caption.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -227,9 +228,9 @@ class _ActionLine extends StatelessWidget {
     // explains itself rather than sitting inert: a disabled button tells a
     // manager nothing about why it cannot be used.
     final queue = PremiumButton(
-      label: 'Exception queue',
+      label: 'Review these',
       icon: Icons.lock_clock_outlined,
-      onPressed: () => context.showInfo('Exception queue is coming next.'),
+      onPressed: () => context.showInfo('Daily review is coming next.'),
     );
 
     return LayoutBuilder(

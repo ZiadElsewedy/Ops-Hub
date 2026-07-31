@@ -105,10 +105,10 @@ void main() {
     expect(summary.unscheduledWork, 1);
     expect(summary.lateArrivals, 1);
     expect(summary.workedMinutes, 930);
-    expect(summary.showUpRate.describe(), '67% · 2 / 3 expected work shifts');
+    expect(summary.showUpRate.describe(), '67% · 2 / 3 scheduled shifts');
     expect(
       summary.punctualArrivalRate.describe(),
-      '50% · 1 / 2 present scheduled arrivals',
+      '50% · 1 / 2 people who showed up',
     );
   });
 

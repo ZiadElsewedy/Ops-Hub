@@ -19,10 +19,11 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Daily rhythm', style: AppTypography.h3),
+          Text('By day', style: AppTypography.h3),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Seven business dates are shown. Rows with zero clock-ins report 0%; dates with no rows are ledger data gaps.',
+            'All seven days. A day with shifts recorded but nobody in shows 0%; '
+            'a day with nothing recorded shows No data.',
             style: AppTypography.caption.copyWith(
               color: AppColors.textTertiary,
             ),
@@ -44,17 +45,21 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
                       const _DailyRow(
                         cells: [
                           'Day',
-                          'Close state',
-                          'Expected',
-                          'Present',
+                          'Recorded',
+                          'Scheduled',
+                          'Worked',
                           'Show-up',
                           'Absent',
                           'Late min',
-                          'Exceptions',
+                          'Issues',
                         ],
                         header: true,
                       ),
-                      for (final day in days) _DailyRow(cells: _cellsFor(day)),
+                      for (final day in days)
+                        _DailyRow(
+                          cells: _cellsFor(day),
+                          nobodyCame: _nobodyCame(day),
+                        ),
                     ],
                   ),
                 ),
@@ -66,11 +71,22 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
     );
   }
 
+  /// A day that had scheduled shifts and nobody worked them. This is the only
+  /// day-level situation that is a genuine attendance *result*, and so the only
+  /// one that earns an alarm colour.
+  ///
+  /// A day with no records at all is not this. It is unknown — the report reads
+  /// recorded shifts only, so it cannot yet tell "nobody was scheduled" from
+  /// "somebody was and it was never captured". Colouring that amber is what made
+  /// a week with six unrostered days read as a disaster.
+  static bool _nobodyCame(WeeklyAttendanceDayBreakdown day) =>
+      day.hasRows && day.expected > 0 && day.present == 0;
+
   static List<String> _cellsFor(WeeklyAttendanceDayBreakdown day) {
     if (!day.hasRows) {
       return [
         _dayLabel(day.date),
-        'No ledger data',
+        'No data',
         '--',
         '--',
         '--',
@@ -81,7 +97,7 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
     }
     return [
       _dayLabel(day.date),
-      '${day.rows.length} ledger rows',
+      '${day.rows.length} ${day.rows.length == 1 ? 'shift' : 'shifts'}',
       '${day.expected}',
       '${day.present}',
       _showUp(day),
@@ -103,10 +119,15 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
 }
 
 class _DailyRow extends StatelessWidget {
-  const _DailyRow({required this.cells, this.header = false});
+  const _DailyRow({
+    required this.cells,
+    this.header = false,
+    this.nobodyCame = false,
+  });
 
   final List<String> cells;
   final bool header;
+  final bool nobodyCame;
 
   @override
   Widget build(BuildContext context) {
@@ -133,10 +154,16 @@ class _DailyRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: (header ? AppTypography.caption : AppTypography.label)
                     .copyWith(
+                      // Three states, three treatments (PP6). "No data" is
+                      // quieter than an ordinary row, not louder: it is the
+                      // absence of a result, not a bad one. Only a day that was
+                      // scheduled and worked by nobody is toned.
                       color: header
                           ? AppColors.textTertiary
-                          : i == 1 && cells[i] == 'No ledger data'
-                          ? AppColors.warning
+                          : cells[1] == 'No data'
+                          ? AppColors.textTertiary
+                          : nobodyCame && (i == 4 || i == 5)
+                          ? AppColors.error
                           : AppColors.textSecondary,
                       fontWeight: header ? FontWeight.w600 : FontWeight.w500,
                     ),

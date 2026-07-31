@@ -3,6 +3,7 @@ import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_exception.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
 
 const _branchId = 'DDwedTHvI1sPHrMz06PI';
@@ -64,6 +65,8 @@ void main() {
       '20260801',
     ]);
     expect(report.coverage.awaitingClose, isTrue);
+    expect(report.coverage.status, AttendanceCoverageStatus.noData);
+    expect(report.coverage.statusLabel, 'No data yet');
     expect(report.summary.showUpRate.percent, isNull);
   });
 
@@ -77,8 +80,13 @@ void main() {
       window: window,
     );
 
-    expect(report.coverage.statusLabel, 'Fully closed');
+    // The honesty fix: rows on one day out of seven still satisfies the close
+    // pipeline's `isFullyClosed`, but a week that is 6/7 empty is not something
+    // a manager should be told is closed.
     expect(report.coverage.isFullyClosed, isTrue);
+    expect(report.coverage.hasDayGaps, isTrue);
+    expect(report.coverage.status, AttendanceCoverageStatus.dataGap);
+    expect(report.coverage.statusLabel, 'In progress');
     expect(report.coverage.closedDayCount, 1);
     expect(report.coverage.notClosedDayKeys, [
       '20260726',
@@ -93,7 +101,7 @@ void main() {
     expect(report.summary.absent, 3);
     expect(
       report.summary.showUpRate.describe(),
-      '0% · 0 / 3 expected work shifts',
+      '0% · 0 / 3 scheduled shifts',
     );
     expect(
       report.days.singleWhere((day) => day.dayKey == '20260729').absent,
@@ -114,7 +122,8 @@ void main() {
       window: window,
     );
 
-    expect(report.coverage.statusLabel, 'Partially closed');
+    expect(report.coverage.statusLabel, 'Needs attention');
+    expect(report.coverage.status, AttendanceCoverageStatus.needsAttention);
     expect(report.coverage.isFullyClosed, isFalse);
     expect(report.coverage.ledgerCoverage.blockingExceptionRowCount, 1);
   });
