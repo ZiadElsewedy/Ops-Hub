@@ -1076,9 +1076,26 @@ None. Shippable immediately.
 
 ---
 
-## Phase 1 — Weekly Report rebuild
+## Phase 1 — Weekly Report rebuild ✅ DONE 2026-07-31
 
-**Type:** feature (IA amendment) · **Risk:** MED · **Engine:** untouched
+**Type:** feature (IA amendment) · **Risk:** MED · **Engine:** untouched ·
+**Status:** shipped (uncommitted). Analyze clean; 1274 pass / 2 pre-existing
+splash failures.
+
+> **The gating deliverable landed first.** `ATTENDANCE_REPORTS_IA` §6.4–§6.10
+> were replaced before any widget changed, because RC1 means the eight sections
+> regenerate from the spec otherwise.
+>
+> **One scope call worth recording.** The per-employee drill-down named in IA
+> §6.8 does not exist yet, and the evidence table that used to carry the only
+> per-record link is gone from the manager surface. Managers reach a record
+> through the attendance history ledger at `/attendance/review` until the
+> per-employee report is built. Nothing became unreachable.
+>
+> **Monthly was deliberately left alone** (§11 D2 defers it): it keeps the
+> six-metric grid, the alphabetical person list, and the evidence surface. Only
+> the shared vocabulary and status from Phase 0 apply to it.
+
 
 ### Goals
 Restructure Weekly around the manager's four questions. **Amend the specification

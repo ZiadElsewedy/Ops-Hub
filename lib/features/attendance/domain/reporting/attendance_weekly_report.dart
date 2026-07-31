@@ -44,7 +44,9 @@ class WeeklyAttendanceReport {
       rows: List.unmodifiable(scopedRows),
       summary: AttendanceReportSummary.fromLedger(scopedRows),
       days: List.unmodifiable(days),
-      employees: List.unmodifiable(_employeeAggregates(scopedRows, namesByUid)),
+      employees: List.unmodifiable(
+        sortByAttention(_employeeAggregates(scopedRows, namesByUid)),
+      ),
       exceptionGroups: List.unmodifiable(_exceptionGroups(scopedRows)),
       coverage: WeeklyAttendanceCoverage.fromDays(days: days, rows: scopedRows),
       version: _version(scopedRows),
@@ -62,6 +64,45 @@ class WeeklyAttendanceReport {
 
   int get exceptionCount =>
       exceptionGroups.fold(0, (total, group) => total + group.count);
+
+  /// People whose week needs the manager to do or check something.
+  int get peopleNeedingAttention =>
+      employees.where((e) => e.attentionBand.needsAttention).length;
+
+  /// Shifts worked out of shifts scheduled — the numerator and denominator of
+  /// the week's one-line summary. Counts, never a percentage: at store volumes a
+  /// rate is the least reliable and most alarming figure available
+  /// (`ATTENDANCE_REPORTS_IA` §6.5).
+  int get shiftsWorked => summary.present;
+
+  int get shiftsScheduled => summary.expectedWorkShifts;
+}
+
+/// Exceptions first, then alphabetical inside each band
+/// (`ATTENDANCE_REPORTS_IA` §6.5.1).
+///
+/// This replaces a purely alphabetical order. Alphabetical was chosen as a
+/// fairness measure, but it is not what stops the report ranking people —
+/// refusing to compute a score is, and that refusal is unchanged. All
+/// alphabetical order actually guaranteed was that the one person who did not
+/// show up sat several rows down.
+///
+/// Weekly only. Monthly keeps the alphabetical list: it is read as a roll of the
+/// month, not as a queue of things to act on this week.
+List<WeeklyAttendanceEmployeeAggregate> sortByAttention(
+  List<WeeklyAttendanceEmployeeAggregate> employees,
+) {
+  final sorted = [...employees];
+  sorted.sort((a, b) {
+    final byBand = a.attentionBand.index.compareTo(b.attentionBand.index);
+    if (byBand != 0) return byBand;
+    final byName = a.displayName.toLowerCase().compareTo(
+      b.displayName.toLowerCase(),
+    );
+    if (byName != 0) return byName;
+    return a.userId.compareTo(b.userId);
+  });
+  return sorted;
 }
 
 class WeeklyAttendanceCoverage {
@@ -183,6 +224,36 @@ class WeeklyAttendanceDayBreakdown {
   bool get hasRows => rows.isNotEmpty;
 }
 
+/// How much of a manager's attention a person's week needs.
+///
+/// Ordering, never scoring. The band is derived from facts already on the row —
+/// it weights nothing, invents no denominator, and produces no number. ADR-017's
+/// refusal of composite performance scores is untouched: this decides *what
+/// order rows appear in*, which is a property of the list, not of the person.
+enum AttendanceAttentionBand {
+  /// Something on this person's week needs a decision before the week settles.
+  needsDecision,
+
+  /// A shift was expected and unworked.
+  absent,
+
+  /// Worked, but arrived late at least once.
+  late,
+
+  /// Nothing to look at.
+  clean;
+
+  /// The word in the person row's Status column.
+  String get label => switch (this) {
+    AttendanceAttentionBand.needsDecision => 'Needs a decision',
+    AttendanceAttentionBand.absent => 'Absent',
+    AttendanceAttentionBand.late => 'Late',
+    AttendanceAttentionBand.clean => '—',
+  };
+
+  bool get needsAttention => this != AttendanceAttentionBand.clean;
+}
+
 class WeeklyAttendanceEmployeeAggregate {
   const WeeklyAttendanceEmployeeAggregate({
     required this.userId,
@@ -194,6 +265,8 @@ class WeeklyAttendanceEmployeeAggregate {
     required this.workedMinutes,
     required this.overtimeMinutes,
     required this.exceptionCount,
+    this.blockingExceptionCount = 0,
+    this.lateArrivals = 0,
   });
 
   final String userId;
@@ -205,6 +278,20 @@ class WeeklyAttendanceEmployeeAggregate {
   final int workedMinutes;
   final int overtimeMinutes;
   final int exceptionCount;
+
+  /// Exceptions on this person's rows that stop the period settling.
+  final int blockingExceptionCount;
+
+  /// Shifts this person arrived late for. A **count**, because that is what a
+  /// manager coaches to — summed minutes across a week is not actionable.
+  final int lateArrivals;
+
+  AttendanceAttentionBand get attentionBand {
+    if (blockingExceptionCount > 0) return AttendanceAttentionBand.needsDecision;
+    if (absent > 0) return AttendanceAttentionBand.absent;
+    if (lateArrivals > 0) return AttendanceAttentionBand.late;
+    return AttendanceAttentionBand.clean;
+  }
 }
 
 class WeeklyAttendanceExceptionGroup {
@@ -342,6 +429,8 @@ class _EmployeeAggregateBuilder {
   var workedMinutes = 0;
   var overtimeMinutes = 0;
   var exceptionCount = 0;
+  var blockingExceptionCount = 0;
+  var lateArrivals = 0;
 
   void add(AttendanceLedgerRow row) {
     final name = row.userName?.trim();
@@ -350,10 +439,12 @@ class _EmployeeAggregateBuilder {
     if (!row.isUnscheduledWork && row.outcome.countsAsPresent) present++;
     if (!row.isUnscheduledWork && row.outcome.countsAsAbsence) absent++;
     lateMinutes += row.lateMinutes;
+    if (row.lateMinutes > 0) lateArrivals++;
     workedMinutes += row.workedMinutes;
     overtimeMinutes += row.overtimeMinutes;
     exceptionCount += row.exceptionCodes.length;
     exceptionCount += row.unknownExceptionCodes.length;
+    if (row.hasBlockingException) blockingExceptionCount++;
   }
 
   WeeklyAttendanceEmployeeAggregate build() =>
@@ -367,6 +458,8 @@ class _EmployeeAggregateBuilder {
         workedMinutes: workedMinutes,
         overtimeMinutes: overtimeMinutes,
         exceptionCount: exceptionCount,
+        blockingExceptionCount: blockingExceptionCount,
+        lateArrivals: lateArrivals,
       );
 }
 

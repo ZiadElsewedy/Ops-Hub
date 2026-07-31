@@ -14,6 +14,45 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-31 — Weekly attendance answers a manager's four questions (feature; MED risk)
+
+Phase 1 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md).
+
+**The spec changed first, on purpose.** `ATTENDANCE_REPORTS_IA` §6.4–§6.10 are
+replaced in full, because the shipped eight sections were a faithful build of
+§6.4 and would have regenerated from it. §6.1–§6.3 and ADR-017 are unchanged.
+
+Weekly now renders five sections instead of eight: **Needs your attention**
+(only when something blocks — the page's only verb, absent in a healthy week),
+**The week in one line** (`42 of 45 shifts worked · 312h · 4h overtime` — counts,
+never a store-level percentage), **By person**, **By day**, **Share this week**.
+
+Four KPIs replace six: Hours worked · Overtime · Unexcused absences · Late
+arrivals as a **count**. Show-up rate and punctual arrivals leave the store
+surface — at one expected shift a percentage is the least reliable and most
+alarming number on the page; both survive on the hub headline, where volume
+exists. New `AttendanceWeeklyKpis` is owned by Weekly, so Monthly's
+`AttendanceReportMetrics` grid is untouched.
+
+**Person rows are ordered exceptions-first** (`AttendanceAttentionBand`:
+needs-decision → absent → late → clean, alphabetical inside each band), with a
+Status column. This reverses the old alphabetical rule and deletes its
+disclaimer. Ordering is not scoring — no weight, no composite, no rank — and
+alphabetical order was never what prevented ranking; refusing to compute a score
+is, and that refusal stands. All alphabetical order achieved was seating the one
+person who did not show up several rows down.
+
+The exception summary and shift evidence table leave the manager surface for
+Daily Close/Exception Queue (Phase 2) and Admin Workspace (Phase 3). ⚠️ The
+evidence table carried this screen's only per-record link; managers reach records
+through `/attendance/review` until the per-employee report is built. Monthly is
+deliberately untouched (§11 D2 defers it).
+
+Verified: analyze clean, **1274 pass / 2 pre-existing splash failures**, +3 tests
+including one pinning the ordering reversal. The ledger-only source guard is
+still green — the roster is still not read here, which is why the report still
+cannot tell "nobody was scheduled" from "scheduled but never captured".
+
 ## 2026-07-31 — Attendance reports speak to a manager (polish; LOW risk)
 
 Phase 0 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md).

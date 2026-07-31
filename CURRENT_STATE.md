@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1248 pass · 2 fail** across 177 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1274 pass · 2 fail** across 179 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -349,6 +349,46 @@ clean (1 pre-existing test-style lint), suite **1272 pass / 2 pre-existing splas
 failures**, +7 tests (new `attendance_coverage_status_test.dart` incl. a guard
 that no manager-facing status label contains internal vocabulary, plus metric
 suppression cases).
+
+**Phase 1 (Weekly Report rebuild) is DONE 2026-07-31 — uncommitted.** The gating
+deliverable landed first: **`ATTENDANCE_REPORTS_IA` §6.4–§6.10 are replaced in
+full** (§6.1–§6.3 — week definition, audience, close inputs — unchanged and still
+binding, as is ADR-017). Without that amendment the eight sections regenerate
+from the spec, which is the root cause the whole plan turns on.
+
+Weekly now renders **five sections**: *Needs your attention* (renders only when
+something blocks, carries the page's only verb) · *The week in one line*
+(`0 of 3 shifts worked · 0h`, counts never a store-level percentage, plus the
+plain-language week status) · *By person* · *By day* · *Share this week*. The
+exception summary and the shift evidence table are **gone from the manager
+surface, not from the product** — exceptions belong in Daily Close / the
+Exception Queue (Phase 2) and row-level evidence is an audit need Phase 3 owns.
+⚠️ The evidence table carried the only per-record link on this screen; until the
+per-employee report exists, managers reach a record through the history ledger at
+`/attendance/review`.
+
+**Four KPIs replace six**, in a new `AttendanceWeeklyKpis` widget that Weekly
+owns — Hours worked · Overtime · Unexcused absences · Late arrivals (**count**,
+not summed minutes). **`AttendanceReportMetrics` is untouched by this phase and
+is now Monthly-only** (its `weekly: false` dashboard variant still has no app
+caller). Show-up rate and punctual-arrival rate are **deliberately removed from
+the store surface** — at one expected shift a percentage is the least reliable
+and most alarming figure available; both survive on the hub headline and belong
+at admin/multi-branch level where a denominator exists. The per-day show-up
+column went with them.
+
+**Person rows are now ordered exceptions-first** via `AttendanceAttentionBand`
+(needsDecision → absent → late → clean), alphabetical inside each band, with a
+Status column. This **reverses** the previous alphabetical rule and its
+disclaimer. Ordering is not scoring: no weight, no composite, no rank — ADR-017's
+refusal of performance scores is untouched, and alphabetical order was never what
+enforced it. `WeeklyAttendanceEmployeeAggregate` gained additive
+`blockingExceptionCount` + `lateArrivals`; **Monthly keeps the alphabetical
+list** (§11 D2 defers Monthly entirely).
+
+Verified: analyze clean, suite **1274 pass / 2 pre-existing splash failures**,
++3 tests including one that pins the ordering reversal (a clean person early in
+the alphabet sorts below a no-show late in it) and the source guard still green.
 
 ### Removed — do not re-add
 

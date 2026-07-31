@@ -11,6 +11,7 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
     super.key,
     required this.employees,
     this.emptyMessage = 'Nobody has a recorded shift this week yet.',
+    this.showStatus = false,
   });
 
   final List<WeeklyAttendanceEmployeeAggregate> employees;
@@ -18,6 +19,13 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
   /// The Monthly report renders the same employee facts over a month window and
   /// only needs different empty-state copy.
   final String emptyMessage;
+
+  /// Adds the Status column and tones the rows that need attention.
+  ///
+  /// Weekly only. Monthly stays a plain alphabetical roll of the month: a status
+  /// word there would imply the month is a queue of things to act on, when the
+  /// week is where acting happens.
+  final bool showStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +42,15 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
           // disclaimer, not to word it better. Not ranking people is enforced by
           // refusing to compute a score (ADR-017), not by a caption.
           Text('By person', style: AppTypography.h3),
+          if (showStatus) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Anyone needing attention is listed first.',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           if (employees.isEmpty)
             Text(
@@ -53,10 +70,12 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 780),
+                    constraints: BoxConstraints(
+                      minWidth: showStatus ? 900 : 780,
+                    ),
                     child: Column(
                       children: [
-                        const _EmployeeRow(
+                        _EmployeeRow(
                           cells: [
                             'Employee',
                             'Scheduled',
@@ -65,12 +84,15 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
                             'Late min',
                             'Hours',
                             'Overtime',
-                            'Issues',
+                            if (showStatus) 'Status' else 'Issues',
                           ],
                           header: true,
                         ),
                         for (final employee in employees)
-                          _EmployeeRow(cells: _cellsFor(employee)),
+                          _EmployeeRow(
+                            cells: _cellsFor(employee, showStatus),
+                            band: showStatus ? employee.attentionBand : null,
+                          ),
                       ],
                     ),
                   ),
@@ -82,7 +104,10 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
     );
   }
 
-  static List<String> _cellsFor(WeeklyAttendanceEmployeeAggregate employee) => [
+  static List<String> _cellsFor(
+    WeeklyAttendanceEmployeeAggregate employee,
+    bool showStatus,
+  ) => [
     employee.displayName,
     '${employee.expected}',
     '${employee.present}',
@@ -90,7 +115,10 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
     '${employee.lateMinutes}',
     _minutes(employee.workedMinutes),
     _minutes(employee.overtimeMinutes),
-    '${employee.exceptionCount}',
+    if (showStatus)
+      employee.attentionBand.label
+    else
+      '${employee.exceptionCount}',
   ];
 
   static String _minutes(int minutes) {
@@ -102,13 +130,15 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
 }
 
 class _EmployeeRow extends StatelessWidget {
-  const _EmployeeRow({required this.cells, this.header = false});
+  const _EmployeeRow({required this.cells, this.header = false, this.band});
 
   final List<String> cells;
   final bool header;
+  final AttendanceAttentionBand? band;
 
   @override
   Widget build(BuildContext context) {
+    final last = cells.length - 1;
     return Container(
       constraints: const BoxConstraints(minHeight: 48),
       padding: const EdgeInsets.symmetric(
@@ -125,15 +155,24 @@ class _EmployeeRow extends StatelessWidget {
         children: [
           for (var i = 0; i < cells.length; i++)
             SizedBox(
-              width: i == 0 ? 180 : 82,
+              width: i == 0
+                  ? 180
+                  : i == last && band != null
+                  ? 150
+                  : 82,
               child: Text(
                 cells[i],
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: (header ? AppTypography.caption : AppTypography.label)
                     .copyWith(
+                      // Only the Status cell carries tone, and only when the
+                      // person needs something. Toning the whole row would make
+                      // a late arrival look like an emergency.
                       color: header
                           ? AppColors.textTertiary
+                          : i == last
+                          ? _statusColour(band)
                           : AppColors.textSecondary,
                       fontWeight: header ? FontWeight.w600 : FontWeight.w500,
                     ),
@@ -143,4 +182,12 @@ class _EmployeeRow extends StatelessWidget {
       ),
     );
   }
+
+  static Color _statusColour(AttendanceAttentionBand? band) => switch (band) {
+    null => AppColors.textSecondary,
+    AttendanceAttentionBand.needsDecision => AppColors.warning,
+    AttendanceAttentionBand.absent => AppColors.error,
+    AttendanceAttentionBand.late => AppColors.textSecondary,
+    AttendanceAttentionBand.clean => AppColors.textTertiary,
+  };
 }

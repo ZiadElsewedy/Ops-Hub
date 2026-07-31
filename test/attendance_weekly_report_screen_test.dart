@@ -236,16 +236,34 @@ void main() {
       // manager is told the week is still in progress.
       expect(find.text('In progress'), findsWidgets);
       expect(find.text('Fully closed'), findsNothing);
-      expect(find.text('Show-up rate'), findsOneWidget);
-      expect(find.text('0%'), findsWidgets);
-      expect(find.text('0 / 3 scheduled shifts'), findsOneWidget);
-      expect(find.text('3 / 3 scheduled shifts'), findsOneWidget);
+
+      // The week in one line — counts, never a store-level percentage.
+      expect(find.text('0 of 3 shifts worked · 0h'), findsOneWidget);
+      expect(find.text('Show-up rate'), findsNothing);
+      expect(find.text('0%'), findsNothing);
+
+      // The four KPIs, and only those four.
+      expect(find.text('Hours worked'), findsOneWidget);
+      // Also a column header in the person table, hence findsWidgets.
+      expect(find.text('Overtime'), findsWidgets);
+      expect(find.text('Unexcused absences'), findsOneWidget);
+      expect(find.text('Late arrivals'), findsOneWidget);
+      expect(find.text('Punctual arrivals'), findsNothing);
+      expect(find.text('Needs attention'), findsNothing);
+      // 3 of 3 expected shifts went unworked.
+      expect(find.text('3 of 3 scheduled shifts'), findsOneWidget);
+
       expect(find.text('Wednesday 29 Jul'), findsOneWidget);
       expect(find.text('No data'), findsNWidgets(6));
-      expect(find.text('Not closed'), findsNothing);
-      expect(find.text('No clock-in recorded'), findsNWidgets(3));
-      // The engine's wire values must never reach the screen.
-      expect(find.text('absent'), findsNothing);
+
+      // The evidence table left the manager surface with the eight-section
+      // structure, taking the per-row record link with it.
+      expect(find.text('Every shift'), findsNothing);
+      expect(find.text('No clock-in recorded'), findsNothing);
+      expect(find.text('Open record'), findsNothing);
+
+      // Everyone is absent, so every person row bands as Absent.
+      expect(find.text('By person'), findsOneWidget);
       expect(find.text('Absent'), findsWidgets);
       _expectNoFlutterErrors(errors);
 

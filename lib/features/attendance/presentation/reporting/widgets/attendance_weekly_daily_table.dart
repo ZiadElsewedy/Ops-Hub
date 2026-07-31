@@ -22,8 +22,8 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
           Text('By day', style: AppTypography.h3),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'All seven days. A day with shifts recorded but nobody in shows 0%; '
-            'a day with nothing recorded shows No data.',
+            'All seven days. A day with nothing recorded shows No data — that '
+            'usually means nobody was scheduled.',
             style: AppTypography.caption.copyWith(
               color: AppColors.textTertiary,
             ),
@@ -48,7 +48,6 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
                           'Recorded',
                           'Scheduled',
                           'Worked',
-                          'Show-up',
                           'Absent',
                           'Late min',
                           'Issues',
@@ -82,25 +81,19 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
   static bool _nobodyCame(WeeklyAttendanceDayBreakdown day) =>
       day.hasRows && day.expected > 0 && day.present == 0;
 
+  /// The per-day show-up percentage is gone with the weekly one
+  /// (`ATTENDANCE_REPORTS_IA` §6.5): a rate over a single day at store volumes
+  /// is the least reliable figure on the page. `Scheduled` and `Worked` sit
+  /// side by side and say the same thing without the false precision.
   static List<String> _cellsFor(WeeklyAttendanceDayBreakdown day) {
     if (!day.hasRows) {
-      return [
-        _dayLabel(day.date),
-        'No data',
-        '--',
-        '--',
-        '--',
-        '--',
-        '--',
-        '--',
-      ];
+      return [_dayLabel(day.date), 'No data', '--', '--', '--', '--', '--'];
     }
     return [
       _dayLabel(day.date),
       '${day.rows.length} ${day.rows.length == 1 ? 'shift' : 'shifts'}',
       '${day.expected}',
       '${day.present}',
-      _showUp(day),
       '${day.absent}',
       '${day.lateMinutes}',
       '${day.exceptionCount}',
@@ -112,10 +105,6 @@ class AttendanceWeeklyDailyTable extends StatelessWidget {
     return '$weekday ${AppDateFormatter.dayMonth(date)}';
   }
 
-  static String _showUp(WeeklyAttendanceDayBreakdown day) {
-    if (day.expected == 0) return '--';
-    return '${((day.present / day.expected) * 100).round()}%';
-  }
 }
 
 class _DailyRow extends StatelessWidget {
@@ -162,7 +151,7 @@ class _DailyRow extends StatelessWidget {
                           ? AppColors.textTertiary
                           : cells[1] == 'No data'
                           ? AppColors.textTertiary
-                          : nobodyCame && (i == 4 || i == 5)
+                          : nobodyCame && (i == 3 || i == 4)
                           ? AppColors.error
                           : AppColors.textSecondary,
                       fontWeight: header ? FontWeight.w600 : FontWeight.w500,

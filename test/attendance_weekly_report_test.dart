@@ -129,7 +129,7 @@ void main() {
   });
 
   test(
-    'employee aggregates are alphabetical facts without performance ranking',
+    'employee aggregates carry facts, never a rank or a score',
     () {
       final report = WeeklyAttendanceReport.fromLedger(
         rows: [
@@ -149,6 +149,8 @@ void main() {
         window: window,
       );
 
+      // Amal was absent, Ziad merely late — absent outranks late, and here
+      // that also happens to be alphabetical.
       expect(report.employees.map((employee) => employee.displayName), [
         'Amal',
         'Ziad',
@@ -157,10 +159,80 @@ void main() {
       expect(ziad.expected, 1);
       expect(ziad.present, 1);
       expect(ziad.lateMinutes, 20);
+      expect(ziad.lateArrivals, 1);
       expect(ziad.workedMinutes, 460);
       expect(ziad.overtimeMinutes, 5);
+      expect(ziad.attentionBand, AttendanceAttentionBand.late);
     },
   );
+
+  test('people needing attention come first, not people early in the alphabet', () {
+    // The reversal recorded in ATTENDANCE_REPORTS_IA §6.5.1. Alphabetical order
+    // was chosen so the report would not rank people, but ranking is prevented
+    // by refusing to compute a score — which this still does. All alphabetical
+    // order achieved was burying the one person who did not show up.
+    final report = WeeklyAttendanceReport.fromLedger(
+      rows: [
+        // Alphabetically first, and nothing wrong with their week.
+        _row(
+          id: 'a_20260729_morning',
+          userId: 'a',
+          userName: 'Amal',
+          outcome: AttendanceLedgerOutcome.worked,
+          recordId: 'a_20260729_morning',
+          workedMinutes: 480,
+        ),
+        // Alphabetically last, and the reason a manager opened this report.
+        _row(id: 'z_20260729_morning', userId: 'z', userName: 'Ziad'),
+        // A blocking exception outranks a plain absence.
+        _row(
+          id: 'm_20260729_morning',
+          userId: 'm',
+          userName: 'Mona',
+          outcome: AttendanceLedgerOutcome.needsReview,
+          recordId: 'm_20260729_morning',
+          workedMinutes: 200,
+          exceptionCodes: const [AttendanceExceptionCode.missingPunch],
+        ),
+      ],
+      window: window,
+    );
+
+    expect(report.employees.map((employee) => employee.displayName), [
+      'Mona',
+      'Ziad',
+      'Amal',
+    ]);
+    expect(
+      report.employees.map((employee) => employee.attentionBand),
+      [
+        AttendanceAttentionBand.needsDecision,
+        AttendanceAttentionBand.absent,
+        AttendanceAttentionBand.clean,
+      ],
+    );
+    expect(report.peopleNeedingAttention, 2);
+
+    // Ordering is not scoring: no rank, no weight, no composite number.
+    expect(report.employees.first.displayName, 'Mona');
+    expect(report.shiftsWorked, 2);
+    expect(report.shiftsScheduled, 3);
+  });
+
+  test('ties inside a band stay alphabetical and stable', () {
+    final report = WeeklyAttendanceReport.fromLedger(
+      rows: [
+        _row(id: 'c_20260729_morning', userId: 'c', userName: 'Carla'),
+        _row(id: 'b_20260729_morning', userId: 'b', userName: 'Basma'),
+      ],
+      window: window,
+    );
+
+    expect(report.employees.map((employee) => employee.displayName), [
+      'Basma',
+      'Carla',
+    ]);
+  });
 
   test('unknown exception wire values remain explicit unrecognized groups', () {
     final report = WeeklyAttendanceReport.fromLedger(

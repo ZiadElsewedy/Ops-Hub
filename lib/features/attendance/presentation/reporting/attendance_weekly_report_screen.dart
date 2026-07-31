@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
@@ -16,13 +14,12 @@ import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
-import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_metrics.dart';
+import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_weekly_kpis.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_weekly_daily_table.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_weekly_employee_rows.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
@@ -196,41 +193,53 @@ class _WeeklyReportContent extends StatelessWidget {
   final String branchName;
   final WeeklyAttendanceReport report;
 
+  /// Five sections, fixed order (`ATTENDANCE_REPORTS_IA` §6.4, amended
+  /// 2026-07-31). Section 1 carries the only verb on the page and is absent
+  /// whenever nothing is open, which in a healthy week is most of the time.
   @override
   Widget build(BuildContext context) {
     final awaiting = report.coverage.awaitingClose;
-    // PP8: a section with nothing in it renders nothing. With Daily Review not
-    // built yet these two can both be empty on a healthy week, and an empty
-    // "Blocking / Informational" pair was pure furniture.
-    final hasExceptions = report.exceptionGroups.isNotEmpty;
+    final blockingGroups = report.exceptionGroups
+        .where((group) => group.blocksClose)
+        .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _HeaderSection(branchName: branchName, period: period, report: report),
         const SizedBox(height: AppSpacing.xl),
-        _WeekStatusCard(report: report),
-        const SizedBox(height: AppSpacing.xl),
+
+        // 1 — Needs your attention.
+        if (blockingGroups.isNotEmpty) ...[
+          _NeedsAttention(report: report, groups: blockingGroups),
+          const SizedBox(height: AppSpacing.xl),
+        ],
+
+        // 2 — The week in one line: the sentence, then the four numbers behind
+        // it. One section, because the cards are the sentence's detail.
+        _WeekInOneLine(
+          branchName: branchName,
+          period: period,
+          report: report,
+        ),
+        const SizedBox(height: AppSpacing.md),
         if (awaiting)
           const _NoDataYetPanel()
         else
-          AttendanceReportMetrics(
-            summary: report.summary,
-            weekly: true,
-            exceptionCount: report.exceptionCount,
-            exceptionDenominator:
-                '${report.exceptionCount} of ${report.rows.length} shifts',
-          ),
+          AttendanceWeeklyKpis(summary: report.summary),
         const SizedBox(height: AppSpacing.xl),
+
+        // 3 — By person, exceptions first.
+        AttendanceWeeklyEmployeeRows(
+          employees: report.employees,
+          showStatus: true,
+        ),
+        const SizedBox(height: AppSpacing.xl),
+
+        // 4 — By day.
         AttendanceWeeklyDailyTable(days: report.days),
         const SizedBox(height: AppSpacing.xl),
-        if (hasExceptions) ...[
-          _ExceptionSummary(groups: report.exceptionGroups),
-          const SizedBox(height: AppSpacing.xl),
-        ],
-        AttendanceWeeklyEmployeeRows(employees: report.employees),
-        const SizedBox(height: AppSpacing.xl),
-        _ShiftDetailTable(rows: report.rows),
-        const SizedBox(height: AppSpacing.xl),
+
+        // 5 — Share.
         const _SharePanel(),
       ],
     );
@@ -276,45 +285,69 @@ class _HeaderSection extends StatelessWidget {
       'Sun ${AppDateFormatter.dayMonth(window.startDate)} - Sat ${AppDateFormatter.dayMonth(window.endDate)}';
 }
 
-class _WeekStatusCard extends StatelessWidget {
-  const _WeekStatusCard({required this.report});
+/// **Section 1 — the only part of this report with a verb.**
+///
+/// Renders only when something is genuinely open. In a week where Daily Close
+/// and the Exception Queue have done their job it is absent entirely, and its
+/// absence is the answer: nothing needs you. That is why it is first — not
+/// because it is the most common state, but because when it exists it outranks
+/// everything else on the page.
+class _NeedsAttention extends StatelessWidget {
+  const _NeedsAttention({required this.report, required this.groups});
 
   final WeeklyAttendanceReport report;
+  final List<WeeklyAttendanceExceptionGroup> groups;
 
   @override
   Widget build(BuildContext context) {
-    final blockingGroups = report.exceptionGroups
-        .where((group) => group.blocksClose)
-        .toList();
-    final actionable = report.coverage.status.isActionable;
+    final count = report.coverage.ledgerCoverage.blockingExceptionRowCount;
     return GlassContainer(
-      highlight: actionable,
-      accent: actionable ? AppColors.warning : AppColors.textPrimary,
+      highlight: true,
+      accent: AppColors.warning,
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 820;
-          final status = _WeekStatusCopy(report: report);
-          // PP8 again: the "what needs attention" panel is the answer to a
-          // question nobody asked when the answer is "nothing".
-          if (blockingGroups.isEmpty) return status;
-          final attention = _AttentionCounts(groups: blockingGroups);
-          if (!wide) {
+          final headline = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Needs your attention', style: AppTypography.h3),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '$count ${count == 1 ? 'shift needs' : 'shifts need'} a '
+                'decision before this week is done.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              for (final group in groups)
+                _MiniFact(label: group.label, value: '${group.count}'),
+            ],
+          );
+          // The queue itself is Phase 2. The affordance explains itself rather
+          // than sitting inert — a disabled button tells a manager nothing
+          // about why it cannot be used.
+          final action = PremiumButton(
+            label: 'Review these',
+            icon: Icons.fact_check_outlined,
+            onPressed: () => context.showInfo('Daily review is coming next.'),
+          );
+          if (constraints.maxWidth < 560) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                status,
+                headline,
                 const SizedBox(height: AppSpacing.lg),
-                attention,
+                action,
               ],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 3, child: status),
-              const SizedBox(width: AppSpacing.xl),
-              Expanded(flex: 2, child: attention),
+              Expanded(child: headline),
+              const SizedBox(width: AppSpacing.lg),
+              action,
             ],
           );
         },
@@ -323,108 +356,90 @@ class _WeekStatusCard extends StatelessWidget {
   }
 }
 
-class _WeekStatusCopy extends StatelessWidget {
-  const _WeekStatusCopy({required this.report});
+/// **Section 2 — the sentence a manager repeats to their district manager.**
+///
+/// Counts, never a percentage: `42 of 45 shifts worked` is honest at every
+/// volume, where `93%` stops meaning anything below about twenty shifts and
+/// becomes actively alarming at one (`ATTENDANCE_REPORTS_IA` §6.5).
+///
+/// The second line is the week's status in plain language, including the honest
+/// limit of what the report can currently tell — a day with no records is an
+/// unknown, not a bad result.
+class _WeekInOneLine extends StatelessWidget {
+  const _WeekInOneLine({
+    required this.branchName,
+    required this.period,
+    required this.report,
+  });
 
+  final String branchName;
+  final WeeklyAttendancePeriodRef period;
   final WeeklyAttendanceReport report;
 
   @override
   Widget build(BuildContext context) {
-    final coverage = report.coverage;
-    final blockers = coverage.ledgerCoverage.blockingExceptionRowCount;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Week status', style: AppTypography.h3),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          _headline(coverage, blockers),
-          style: AppTypography.bodySmall.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          _detail(coverage),
-          style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
-        ),
-        if (blockers > 0) ...[
-          const SizedBox(height: AppSpacing.lg),
-          PremiumButton(
-            label: 'Review these',
-            icon: Icons.fact_check_outlined,
-            onPressed: null,
-          ),
-        ],
-      ],
-    );
-  }
-
-  static String _headline(WeeklyAttendanceCoverage coverage, int blockers) =>
-      switch (coverage.status) {
-        AttendanceCoverageStatus.noData =>
-          'Nothing has been recorded for this week yet.',
-        AttendanceCoverageStatus.needsAttention =>
-          '$blockers ${blockers == 1 ? 'shift needs' : 'shifts need'} a decision '
-              'before this week is settled.',
-        AttendanceCoverageStatus.dataGap =>
-          'Nothing needs a decision. Some days of the week have no shifts '
-              'recorded.',
-        AttendanceCoverageStatus.settled =>
-          'Every day of this week is recorded and nothing needs a decision.',
-      };
-
-  /// The honest limit of what this report can currently tell a manager.
-  ///
-  /// The report reads only materialised shift records, so a day with no records
-  /// is genuinely ambiguous: nobody was scheduled, or somebody was and it was
-  /// never captured. Saying "no data" is true for both; the old copy picked the
-  /// alarming reading and coloured it amber. Splitting the two needs the roster,
-  /// which arrives with the Phase 1 rebuild.
-  static String _detail(WeeklyAttendanceCoverage coverage) {
-    return switch (coverage.status) {
-      AttendanceCoverageStatus.noData =>
-        'Percentages stay hidden until there is something to measure — this is '
-            'missing data, not a zero attendance result.',
-      AttendanceCoverageStatus.needsAttention =>
-        'Numbers below cover the shifts already recorded.',
-      AttendanceCoverageStatus.dataGap =>
-        'Days shown as No data had no shifts recorded. That usually means '
-            'nobody was scheduled.',
-      AttendanceCoverageStatus.settled => 'Numbers below cover the whole week.',
-    };
-  }
-}
-
-class _AttentionCounts extends StatelessWidget {
-  const _AttentionCounts({required this.groups});
-
-  final List<WeeklyAttendanceExceptionGroup> groups;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        borderRadius: AppRadius.lgAll,
-        border: Border.all(color: AppColors.darkBorder),
-        color: AppColors.darkSurface.withValues(alpha: 0.72),
-      ),
+    return GlassContainer(
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'What needs a decision',
-            style: AppTypography.label.copyWith(color: AppColors.textSecondary),
+            '$branchName · ${_HeaderSection._weekLabel(period.window)}',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textTertiary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          for (final group in groups)
-            _MiniFact(label: group.label, value: '${group.count}'),
+          const SizedBox(height: AppSpacing.sm),
+          Text(_summaryLine(report), style: AppTypography.h2),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            _statusLine(report.coverage),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );
   }
+
+  static String _summaryLine(WeeklyAttendanceReport report) {
+    if (report.coverage.awaitingClose) return 'Nothing recorded yet';
+    final worked = report.shiftsWorked;
+    final scheduled = report.shiftsScheduled;
+    final parts = <String>[
+      '$worked of $scheduled ${scheduled == 1 ? 'shift' : 'shifts'} worked',
+      _hours(report.summary.workedMinutes),
+    ];
+    if (report.summary.overtimeMinutes > 0) {
+      parts.add('${_hours(report.summary.overtimeMinutes)} overtime');
+    }
+    return parts.join(' · ');
+  }
+
+  static String _statusLine(WeeklyAttendanceCoverage coverage) =>
+      switch (coverage.status) {
+        AttendanceCoverageStatus.noData =>
+          'No shifts have been recorded for this week yet. Percentages stay '
+              'hidden until there is something to measure.',
+        AttendanceCoverageStatus.needsAttention =>
+          'Some shifts still need a decision — see above.',
+        AttendanceCoverageStatus.dataGap =>
+          'Nothing needs a decision. Some days have no shifts recorded, which '
+              'usually means nobody was scheduled.',
+        AttendanceCoverageStatus.settled =>
+          'Every day of this week is recorded and nothing needs a decision.',
+      };
+
+  static String _hours(int minutes) {
+    if (minutes <= 0) return '0h';
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    return mins == 0 ? '${hours}h' : '${hours}h ${mins}m';
+  }
 }
+
 
 class _NoDataYetPanel extends StatelessWidget {
   const _NoDataYetPanel();
@@ -463,255 +478,14 @@ class _NoDataYetPanel extends StatelessWidget {
   }
 }
 
-class _ExceptionSummary extends StatelessWidget {
-  const _ExceptionSummary({required this.groups});
+// `_ExceptionSummary` (Blocking / Informational) and the shift evidence table
+// used to live here. Both are removed from the manager surface by
+// `ATTENDANCE_REPORTS_IA` §6.4 (amended 2026-07-31), not deleted from the
+// product: exceptions belong in Daily Close / the Exception Queue where they
+// are resolved, and row-level evidence is an audit need that Phase 3's Admin
+// Workspace owns. A manager who needs one record reaches it through the person
+// or through the attendance history ledger at `/attendance/review`.
 
-  final List<WeeklyAttendanceExceptionGroup> groups;
-
-  @override
-  Widget build(BuildContext context) {
-    final blocking = groups.where((group) => group.blocksClose).toList();
-    final informational = groups.where((group) => !group.blocksClose).toList();
-    return GlassContainer(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 760;
-          final children = [
-            Expanded(
-              child: _ExceptionColumn(
-                title: 'Needs a decision',
-                empty: 'Nothing needs a decision.',
-                groups: blocking,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xl),
-            Expanded(
-              child: _ExceptionColumn(
-                title: 'Worth knowing',
-                empty: 'Nothing to note.',
-                groups: informational,
-              ),
-            ),
-          ];
-          if (wide) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: children,
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _ExceptionColumn(
-                title: 'Needs a decision',
-                empty: 'Nothing needs a decision.',
-                groups: blocking,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              _ExceptionColumn(
-                title: 'Worth knowing',
-                empty: 'Nothing to note.',
-                groups: informational,
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ExceptionColumn extends StatelessWidget {
-  const _ExceptionColumn({
-    required this.title,
-    required this.empty,
-    required this.groups,
-  });
-
-  final String title;
-  final String empty;
-  final List<WeeklyAttendanceExceptionGroup> groups;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: AppTypography.h3),
-        const SizedBox(height: AppSpacing.md),
-        if (groups.isEmpty)
-          Text(
-            empty,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          )
-        else
-          for (final group in groups)
-            _MiniFact(label: group.label, value: '${group.count}'),
-      ],
-    );
-  }
-}
-
-class _ShiftDetailTable extends StatelessWidget {
-  const _ShiftDetailTable({required this.rows});
-
-  final List<AttendanceLedgerRow> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassContainer(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Every shift', style: AppTypography.h3),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'One line per shift this week, with what was recorded against it.',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          if (rows.isEmpty)
-            Text(
-              'No shifts recorded yet.',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            )
-          else
-            ClipRRect(
-              borderRadius: AppRadius.lgAll,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.darkBorder),
-                  borderRadius: AppRadius.lgAll,
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 920),
-                    child: Column(
-                      children: [
-                        const _ShiftDetailRow(
-                          cells: [
-                            'Date',
-                            'Employee',
-                            'Shift',
-                            'Outcome',
-                            'Worked',
-                            'Late',
-                            'Record',
-                          ],
-                          header: true,
-                        ),
-                        for (final row in rows) _ShiftDetailRow.forLedger(row),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ShiftDetailRow extends StatelessWidget {
-  const _ShiftDetailRow({
-    required this.cells,
-    this.header = false,
-    this.recordId,
-  });
-
-  factory _ShiftDetailRow.forLedger(AttendanceLedgerRow row) => _ShiftDetailRow(
-    cells: [
-      row.businessDate,
-      row.userName?.trim().isNotEmpty ?? false
-          ? row.userName!.trim()
-          : row.userId,
-      row.shift.label,
-      // `outcome.label`, never `wireValue`: the persisted contract is not
-      // English and a manager was reading `workedLate` / `noRecordYet`.
-      row.outcome.label,
-      '${row.workedMinutes}',
-      '${row.lateMinutes}',
-      // "Phantom row" was an engineering term for a shift nobody clocked into.
-      // It said nothing true to a manager and everything about our data model.
-      row.recordId == null ? 'No clock-in recorded' : 'Open record',
-    ],
-    recordId: row.recordId,
-  );
-
-  final List<String> cells;
-  final bool header;
-  final String? recordId;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 50),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: header
-            ? AppColors.darkSurfaceElevated
-            : AppColors.darkSurface.withValues(alpha: 0.72),
-        border: const Border(bottom: BorderSide(color: AppColors.darkBorder)),
-      ),
-      child: Row(
-        children: [
-          for (var i = 0; i < cells.length; i++)
-            SizedBox(
-              width: i == 1
-                  ? 190
-                  : i == 6
-                  ? 180
-                  : 108,
-              child: i == 6 && recordId != null && !header
-                  ? Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: () => context.push(
-                          RouteNames.attendanceRecord(recordId!),
-                        ),
-                        child: const Text('Open record'),
-                      ),
-                    )
-                  : Text(
-                      cells[i],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          (header ? AppTypography.caption : AppTypography.label)
-                              .copyWith(
-                                color: header
-                                    ? AppColors.textTertiary
-                                    : i == 6 && cells[i].startsWith('No clock-in')
-                                    ? AppColors.warning
-                                    : AppColors.textSecondary,
-                                fontWeight: header
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                              ),
-                    ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// *Restatement* is an accounting term for correcting a published financial
-/// statement. It had no business on a store manager's screen; the panel now says
-/// what a manager would say — share the week.
 class _SharePanel extends StatelessWidget {
   const _SharePanel();
 
