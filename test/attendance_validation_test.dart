@@ -67,16 +67,20 @@ void main() {
       expect(check(leave: LeaveType.sick).reason, AttendanceBlock.onLeave);
     });
 
-    test('blocked when no shift and unscheduled clock-in is off', () {
-      expect(check(shift: null).reason, AttendanceBlock.noActiveShift);
+    test('no shift no longer blocks — ADR-018 flipped the default', () {
+      // A blocked punch does not prevent the work, it prevents the record.
+      expect(check(shift: null).allowed, isTrue);
     });
 
-    test('allowed with no shift when unscheduled clock-in is on', () {
+    test('a branch may still switch unscheduled shifts off', () {
       final c = check(
         shift: null,
-        config: const AttendanceConfig(enabled: true, allowUnscheduledClockIn: true),
+        config: const AttendanceConfig(
+          enabled: true,
+          allowUnscheduledClockIn: false,
+        ),
       );
-      expect(c.allowed, isTrue);
+      expect(c.reason, AttendanceBlock.noActiveShift);
     });
 
     test('blocked when already clocked in (open session)', () {

@@ -166,4 +166,39 @@ void main() {
       expect(parseAttendanceDayKey('yyyymmdd'), isNull);
     });
   });
+
+  group('unscheduled work (ADR-018)', () {
+    test('surfaces as its own item, above a no-show', () {
+      final board = computeAttendanceBoard(
+        roster: [roster('Zara')], // rostered, never clocked in → no-show
+        records: [rec('Adam')], // clocked in, no roster slot → unscheduled
+        now: nextMorning,
+      );
+
+      final review = DailyReview.fromBoard(board);
+
+      expect(review.items.map((i) => i.kind), [
+        DailyReviewKind.unscheduledWork,
+        DailyReviewKind.noShow,
+      ]);
+      expect(review.items.first.headline, contains('Adam'));
+      expect(review.items.first.headline, contains('not scheduled'));
+    });
+
+    test('stays out of the day denominator until approved', () {
+      // The roster did not ask for this shift, so it cannot make the day look
+      // better staffed than it was planned to be — the same exclusion the
+      // reporting aggregates make via `isUnscheduledWork`.
+      final board = computeAttendanceBoard(
+        roster: [roster('Rostered')],
+        records: [rec('Rostered'), rec('Walkin')],
+        now: nextMorning,
+      );
+
+      final review = DailyReview.fromBoard(board);
+
+      expect(review.scheduled, 1);
+      expect(review.summaryLine, '1 of 1 shift worked');
+    });
+  });
 }

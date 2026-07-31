@@ -281,6 +281,41 @@ class _ReviewRow extends StatelessWidget {
           style: PremiumButtonStyle.filled,
           onPressed: () => resolveShiftDirectly(context, cubit, record),
         ),
+      if (item.kind == DailyReviewKind.unscheduledWork && record != null) ...[
+        PremiumButton(
+          label: 'Approve',
+          icon: Icons.check_rounded,
+          style: PremiumButtonStyle.filled,
+          onPressed: () => resolveShiftDirectly(
+            context,
+            cubit,
+            record,
+            title: 'Approve unscheduled shift',
+            subtitle: 'Confirm the hours ${row.name} actually worked. Once '
+                'approved the time counts.',
+            submitLabel: 'Approve',
+            appliedMessage: 'Unscheduled shift approved.',
+          ),
+        ),
+        // Same single write path as an excused absence — zero worked minutes
+        // with a mandatory reason — but a manager rejecting an unrecognised
+        // punch is not "excusing" anything, so it must not say so.
+        PremiumButton(
+          label: 'Reject',
+          icon: Icons.block_rounded,
+          style: PremiumButtonStyle.tonal,
+          onPressed: () => excuseAttendanceAbsence(
+            context,
+            cubit,
+            row,
+            title: 'Reject unscheduled shift',
+            subtitle: 'Zero the hours and say why. ${row.name} sees the '
+                'reason.',
+            submitLabel: 'Reject',
+            appliedMessage: 'Unscheduled shift rejected.',
+          ),
+        ),
+      ],
       if (item.kind == DailyReviewKind.noShow) ...[
         PremiumButton(
           label: 'They worked',

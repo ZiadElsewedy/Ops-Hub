@@ -506,7 +506,7 @@ second branch demonstrably needs different values — not before.
 | | |
 |---|---|
 | **Immediate** | Derived and displayed past the 15-minute grace. Never auto-approved. |
-| **Daily Review** | **Is an exception** when it exceeds a threshold, because it costs money and a manager should confirm it was authorised. |
+| **Daily Review** | **Not an exception, at any size.** Visible in the day line; never a queue item. Confirming it would change no record, no payment and no export — see §5.3. |
 | **Weekly Report** | A **headline KPI** — one of only four. It is the number a manager is held accountable for. |
 | **Payroll** | Directly pay-relevant. Must be confirmed before export. |
 
@@ -546,12 +546,12 @@ second branch demonstrably needs different values — not before.
 | **Weekly Report** | Shown separately from unexcused absence. **These must never be summed.** |
 | **Payroll** | Zero worked minutes, but categorically different from an unexcused absence. Leave policy may treat it differently. |
 
-### R-J · Unscheduled shift — **PROPOSED, depends on §11 D1**
+### R-J · Unscheduled shift — **ACCEPTED, [ADR-018](../decisions/ADR-018-unscheduled-clock-in.md)**
 
 | | |
 |---|---|
-| **Immediate (today)** | Refused. No roster entry, no clock-in. The employee cannot record real work. |
-| **Immediate (proposed)** | **Accepted and flagged.** The punch lands, tagged as unscheduled. |
+| **Immediate (was)** | Refused. No roster entry, no clock-in — the employee could not record real work. |
+| **Immediate (accepted)** | **Accepted and flagged.** A deliberate secondary action with a mandatory reason; the full GPS gate applies. The punch lands, tagged as unscheduled. |
 | **Daily Review** | **Exception:** approve as worked, attach to a shift, or reject with a reason. |
 | **Weekly Report** | Approved unscheduled shifts count in hours. Unapproved ones block close. |
 | **Payroll** | Only approved unscheduled work is exported. Never auto-included. |
@@ -588,8 +588,7 @@ Review in this order:
 | 2 | Missing clock-in | Real work may be unrecorded | Add record · Mark absent · Excuse |
 | 3 | Missing clock-out | Hours are unknown | Confirm time · Resolve directly |
 | 4 | No-show | Coverage failed | Confirm unexcused · Excuse with reason |
-| 5 | Unusual overtime | Costs money, needs authorisation | Confirm · Flag |
-| 6 | Unscheduled work *(PROPOSED)* | Not planned, may be legitimate | Approve · Attach to shift · Reject |
+| 5 | Unscheduled work | Not planned, may be legitimate | Approve · Reject |
 
 **Deliberately not exceptions:** lateness (a fact), early arrival (irrelevant), early
 leave (visible in hours), normal overtime under threshold, and every GPS observation.
@@ -1299,7 +1298,7 @@ gantt
 
 # 11. Open Product Decisions
 
-## D1 — Should clock-in be allowed with no rostered shift?
+## D1 — Should clock-in be allowed with no rostered shift? ✅ **RESOLVED 2026-07-31 — [ADR-018](../decisions/ADR-018-unscheduled-clock-in.md)**
 
 **Today:** refused. Locked spec: *"a new clock-in without a shift is refused (no
 unscheduled by default)."*
@@ -1310,7 +1309,24 @@ unscheduled by default)."*
 | **B. Allow, flag for approval** | Real work is always recorded; matches Deputy/WhenIWork; the server already handles unscheduled sessions via the 16h cap | Needs an approval path; unapproved punches sit outside the denominator until resolved |
 | **C. Allow only if a manager pre-authorises** | Controlled | Requires a manager present and available at the moment of the punch. Fails the exact scenario that motivates the change |
 
-**Recommendation: B, sequenced after Phase 2.**
+**Decided: B.** Allow it, with five constraints — deliberate secondary action ·
+mandatory reason · full GPS gate · Daily Review approval · counts in nothing
+until approved. `allowUnscheduledClockIn` now defaults to `true`.
+
+**The argument that settled it was evidence quality, not convenience.** Today's
+workaround is manager *Add record*, which is a reconstruction: times from memory,
+no location proof, no server timestamp at the moment of presence. An unscheduled
+clock-in is a live, GPS-verified, server-timestamped punch. **The permissive path
+produces strictly better evidence than the workaround it replaces** — which moves
+this from an employee convenience to a record-quality decision.
+
+The rest of the system was already built for it: `allowUnscheduledClockIn`
+existed unused, `isUnscheduledWork` is already excluded from every aggregate,
+`AttendanceExceptionCode.unscheduledWork` already classifies, and R7's 16-hour
+cap exists only to close sessions that this feature creates.
+
+*(Original recommendation, retained: B, sequenced after Phase 2 — the sequencing
+precondition is met now that Daily Review exists.)*
 
 An unscheduled punch is safe once there is an exception queue to approve it in, and
 genuinely risky before — it would sit in limbo with no resolution path. So: **decide now,

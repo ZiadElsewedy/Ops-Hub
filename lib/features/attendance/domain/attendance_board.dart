@@ -33,7 +33,12 @@ enum AttendanceBoardStatus {
   excused,
 
   /// Auto-closed / flagged, waiting on a correction or review.
-  pendingReview;
+  pendingReview,
+
+  /// Clocked in with no rostered shift ([ADR-018]). Real, recorded work that
+  /// the roster does not vouch for — it needs a manager's decision before it
+  /// counts anywhere.
+  unscheduled;
 
   String get label => switch (this) {
         AttendanceBoardStatus.notStarted => 'Not started',
@@ -44,19 +49,23 @@ enum AttendanceBoardStatus {
         AttendanceBoardStatus.onLeave => 'On leave',
         AttendanceBoardStatus.excused => 'Excused',
         AttendanceBoardStatus.pendingReview => 'Needs review',
+        AttendanceBoardStatus.unscheduled => 'Unscheduled',
       };
 
   /// Sort weight — problems first (an admin scanning the board sees what needs
   /// action at the top), routine states last.
   int get priority => switch (this) {
         AttendanceBoardStatus.pendingReview => 0,
-        AttendanceBoardStatus.absent => 1,
-        AttendanceBoardStatus.late => 2,
-        AttendanceBoardStatus.working => 3,
-        AttendanceBoardStatus.notStarted => 4,
-        AttendanceBoardStatus.completed => 5,
-        AttendanceBoardStatus.onLeave => 6,
-        AttendanceBoardStatus.excused => 7,
+        // Above absent: an unrecognised punch means someone worked and the
+        // record does not yet count. That is money and hours, not just coverage.
+        AttendanceBoardStatus.unscheduled => 1,
+        AttendanceBoardStatus.absent => 2,
+        AttendanceBoardStatus.late => 3,
+        AttendanceBoardStatus.working => 4,
+        AttendanceBoardStatus.notStarted => 5,
+        AttendanceBoardStatus.completed => 6,
+        AttendanceBoardStatus.onLeave => 7,
+        AttendanceBoardStatus.excused => 8,
       };
 }
 
@@ -201,6 +210,33 @@ AttendanceBoard computeAttendanceBoard({
       status: status,
       isLate: isLate,
     ));
+  }
+
+  // Records with no roster slot — an unscheduled shift ([ADR-018]). The loop
+  // above walks the roster, so without this the punch exists in Firestore and is
+  // invisible to every manager surface. A synthesized entry carries the identity
+  // the record already holds and, deliberately, **no scheduled window** — that
+  // absence is what marks the shift unscheduled everywhere downstream.
+  for (final record in records) {
+    if (record.isDeleted) continue;
+    final matched = roster.any(
+      (e) => e.uid == record.userId && e.shift == record.shift,
+    );
+    if (matched) continue;
+    rows.add(
+      AttendanceBoardRow(
+        entry: AttendanceRosterEntry(
+          uid: record.userId,
+          name: record.userName ?? record.userId,
+          shift: record.shift,
+        ),
+        record: record,
+        status: record.status == AttendanceStatus.excused
+            ? AttendanceBoardStatus.excused
+            : AttendanceBoardStatus.unscheduled,
+        isLate: false, // nothing to be late for
+      ),
+    );
   }
 
   rows.sort((a, b) {

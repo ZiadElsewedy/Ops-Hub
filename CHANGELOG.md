@@ -63,6 +63,45 @@ error: the correction is durable and applies on deploy.
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
 
+## 2026-07-31 — An employee may always record real work (feature; MED risk)
+
+The two open product decisions, decided and recorded.
+
+**Overtime threshold: there is none.** Confirming overtime in DROP changes no
+record, no payment and no export — ADR-017 keeps pay out of scope and R17
+already says overtime is never fed anywhere — so an approval step fails ADR-017's
+own metric bar. The queue exists for shifts whose record is *wrong or missing*;
+an overtime row is complete and correct. Overtime is the most common
+non-standard outcome in retail, so making it an exception would have been the
+fastest way to flood a surface designed to stay at zero to three items. Struck
+from the plan, which proposed it in its first draft. Reverses the day a payroll
+export carries overtime hours.
+
+**Unscheduled clock-in: allowed** ([ADR-018](docs/decisions/ADR-018-unscheduled-clock-in.md),
+amending `ATTENDANCE_SPEC` §9, whose own wording — "no unscheduled by default" —
+was a deferral, not a ruling). `allowUnscheduledClockIn` defaults true; the flag
+stays for a branch that wants the stricter behaviour.
+
+The deciding argument was evidence quality, not convenience. Today's workaround
+is manager *Add record* — times typed from memory, no location proof. An
+unscheduled clock-in is server-timestamped and GPS-verified at the moment of
+presence, so the permissive path produces strictly better evidence than the one
+it replaces.
+
+Capture is permissive; counting is not. Deliberate secondary action on the
+no-shift state, mandatory reason, full GPS gate, and it counts in **nothing**
+until a manager approves it in Daily Review — `isUnscheduledWork` already
+excluded it from every reporting aggregate, and that exclusion is now guarded.
+
+⚠️ `computeAttendanceBoard` now appends records with no roster slot. It walks the
+roster, so without that pass the punch existed in Firestore and was invisible on
+every manager surface. Also: geofence resolution moved ahead of the schedule
+lookup, so an unpublished week no longer blocks the GPS gate for the wrong
+reason.
+
+Verified: build succeeds, analyze clean, **1297 pass / 2 pre-existing splash
+failures**, +10 tests.
+
 ## 2026-07-31 — Weekly attendance answers a manager's four questions (feature; MED risk)
 
 Phase 1 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md).

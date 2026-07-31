@@ -140,6 +140,18 @@ class _VM {
 
   bool get busyNow => busy || verifying;
 
+  /// Whether to offer an unscheduled shift ([ADR-018]).
+  ///
+  /// Only when the branch allows it, nothing is rostered, the employee is not
+  /// on leave, and the day has not already been clocked — leave loses to a real
+  /// punch (workflow 10), but it should not be the thing the screen *suggests*.
+  bool get canStartUnscheduled =>
+      config.allowUnscheduledClockIn &&
+      shift == null &&
+      leave == null &&
+      session == null &&
+      today == null;
+
   _Phase get phase {
     if (session != null) return _Phase.working;
     final t = today;
@@ -176,11 +188,26 @@ class _ClockView extends StatelessWidget {
         );
         break;
       case _Phase.noShift:
-        content = const _MessageCard(
-          icon: Icons.event_busy_outlined,
-          title: 'No shift today',
-          message: 'You have no shift scheduled today, so there\'s nothing to '
-              'clock in for.',
+        // ADR-018: the roster does not know about this day, but the person may
+        // genuinely be at work. The offer is deliberately *secondary* — opening
+        // the app on a day off must not be able to produce a shift.
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _MessageCard(
+              icon: Icons.event_busy_outlined,
+              title: 'No shift today',
+              message: 'You have no shift scheduled today.',
+            ),
+            if (vm.canStartUnscheduled) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _SecondaryButton(
+                label: 'Working anyway? Start an unscheduled shift',
+                icon: Icons.more_time_rounded,
+                onPressed: () => _openUnscheduledSheet(context),
+              ),
+            ],
+          ],
         );
         break;
       case _Phase.ready:
@@ -622,6 +649,32 @@ Future<void> _openCorrectionSheet(
   );
   if (ok == true && context.mounted) {
     AppSnackbar.success(context, 'Correction sent for review.');
+  }
+}
+
+/// Start an unscheduled shift ([ADR-018]).
+///
+/// Reason is mandatory — it is what makes the shift approvable by a manager
+/// afterwards, and what keeps this from becoming a casual second clock-in
+/// button. No times are asked for: this starts *now*, like any other clock-in.
+Future<void> _openUnscheduledSheet(BuildContext context) async {
+  final cubit = context.read<AttendanceCubit>();
+  final ok = await showAttendanceActionSheet(
+    context,
+    title: 'Start an unscheduled shift',
+    subtitle: 'You are working a shift that is not on the schedule. Your '
+        'manager reviews it before it counts.',
+    submitLabel: 'Start shift',
+    askTimes: false,
+    day: DateTime.now(),
+    onSubmit: (r) => cubit.clockInUnscheduled(reason: r.reason),
+  );
+  if (ok != true) return;
+  if (context.mounted) {
+    AppSnackbar.success(
+      context,
+      'Unscheduled shift started — your manager will review it.',
+    );
   }
 }
 

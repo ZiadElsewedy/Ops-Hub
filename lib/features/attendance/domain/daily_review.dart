@@ -11,6 +11,15 @@ enum DailyReviewKind {
   /// the hours are unknown. Unknown hours are a payroll problem.
   missingClockOut,
 
+  /// Someone clocked in with no rostered shift ([ADR-018]). The work is
+  /// recorded and GPS-verified, but the roster does not vouch for it, so it
+  /// counts in nothing until a manager approves it.
+  ///
+  /// Above [noShow] for the same reason [missingClockOut] is above both: real
+  /// hours that are not counting is a pay problem, where a no-show is a coverage
+  /// fact somebody already noticed on the day.
+  unscheduledWork,
+
   /// Rostered, the shift is over, nobody clocked in. Either they worked and
   /// forgot, or they did not come.
   noShow,
@@ -60,6 +69,16 @@ class DailyReview {
                 'unconfirmed.',
           ),
         );
+      } else if (row.status == AttendanceBoardStatus.unscheduled) {
+        items.add(
+          DailyReviewItem(
+            kind: DailyReviewKind.unscheduledWork,
+            row: row,
+            headline: '${row.name} worked a shift that was not scheduled',
+            detail: 'Recorded and location-checked, but it counts towards '
+                'nothing until you approve it.',
+          ),
+        );
       } else if (row.status == AttendanceBoardStatus.absent) {
         items.add(
           DailyReviewItem(
@@ -81,11 +100,15 @@ class DailyReview {
 
     // Excused and on-leave rows are not expected to work, so they are not part
     // of the day's denominator — the same exclusion the reporting summary makes.
+    // Unscheduled work is outside the roster, so it is outside the day's
+    // denominator until approved — the same exclusion the reporting aggregates
+    // make via `isUnscheduledWork` (ADR-018).
     final scheduled = board.rows
         .where(
           (r) =>
               r.status != AttendanceBoardStatus.onLeave &&
-              r.status != AttendanceBoardStatus.excused,
+              r.status != AttendanceBoardStatus.excused &&
+              r.status != AttendanceBoardStatus.unscheduled,
         )
         .length;
     final worked = board.rows
@@ -134,4 +157,5 @@ String dailyOutcomeLabel(AttendanceBoardRow row) => switch (row.status) {
   AttendanceBoardStatus.onLeave => 'On leave',
   AttendanceBoardStatus.late => 'Late, not in yet',
   AttendanceBoardStatus.notStarted => 'Not started',
+  AttendanceBoardStatus.unscheduled => 'Unscheduled',
 };

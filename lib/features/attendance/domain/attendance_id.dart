@@ -48,3 +48,19 @@ String attendanceDocId({
   required ScheduleShift shift,
 }) =>
     '${uid}_${attendanceDayKey(date)}_${shift.value}';
+
+/// Which shift band an **unscheduled** clock-in belongs to ([ADR-018]).
+///
+/// The record id is `{uid}_{yyyyMMdd}_{shift}` (T1), so an unscheduled shift
+/// still needs one of the two bands. It is chosen from the clock, using the
+/// same boundary as `ScheduleShift.timeRange`'s defaults (night starts 15:00).
+///
+/// Deliberately *not* a third enum value: `ScheduleShift` is persisted, and
+/// widening it to carry "unscheduled" would put a scheduling concept into a
+/// vocabulary the roster owns. What makes a shift unscheduled is the absence of
+/// a scheduled window on the record, not its band.
+///
+/// A collision is a feature: if the roster later adds that person to that band
+/// on that day, it resolves to the same record rather than a duplicate.
+ScheduleShift unscheduledShiftFor(DateTime now) =>
+    now.hour < 15 ? ScheduleShift.morning : ScheduleShift.night;

@@ -289,7 +289,7 @@ time, punctuality scores, heatmaps.
 | GPS at clock-out | Recorded, never blocks. |
 | Clock spam / double-tap | Idempotent doc + busy guard. |
 | Duplicate corrections | One open correction per record; extras blocked. |
-| Deleted schedule | Record's snapshot protects it; a new clock-in without a shift is refused (no unscheduled by default). |
+| Deleted schedule | Record's snapshot protects it. A clock-in with **no shift is accepted as unscheduled work** — deliberate action, mandatory reason, full GPS gate, counts in nothing until a manager approves it ([ADR-018](../decisions/ADR-018-unscheduled-clock-in.md), amends this row). |
 | Shift modified mid-shift | Snapshot at punch wins. |
 | Two shifts same day, both open | UI targets the open one, prompts to close before the next. |
 | Timezone / DST | Instant math immune mid-shift; date/week resolved from device local date (documented assumption T5). |

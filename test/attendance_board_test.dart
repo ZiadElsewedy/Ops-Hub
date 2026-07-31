@@ -150,4 +150,46 @@ void main() {
     // Problems first: pending review is the top row.
     expect(board.rows.first.status, AttendanceBoardStatus.pendingReview);
   });
+
+  group('unscheduled work (ADR-018)', () {
+    test('a record with no roster slot still reaches the board', () {
+      // The board walks the roster. Without the unmatched-record pass the punch
+      // exists in Firestore and is invisible on every manager surface.
+      final board = computeAttendanceBoard(
+        roster: [roster('rostered')],
+        records: [rec('rostered'), rec('walkin')],
+        now: now,
+      );
+
+      expect(board.rows, hasLength(2));
+      final walkin = board.rows.firstWhere((r) => r.uid == 'walkin');
+      expect(walkin.status, AttendanceBoardStatus.unscheduled);
+      expect(walkin.entry.scheduledStart, isNull);
+      expect(walkin.entry.scheduledEnd, isNull);
+      expect(walkin.isLate, isFalse, reason: 'nothing to be late for');
+    });
+
+    test('it outranks an absence — unrecorded hours beat a coverage gap', () {
+      final board = computeAttendanceBoard(
+        roster: [roster('zz_absent')],
+        records: [rec('aa_walkin')],
+        now: DateTime(2026, 7, 13, 18), // past shift end → absent
+      );
+
+      expect(board.rows.first.uid, 'aa_walkin');
+      expect(board.rows.first.status, AttendanceBoardStatus.unscheduled);
+      expect(board.rows.last.status, AttendanceBoardStatus.absent);
+    });
+
+    test('a rostered record is never duplicated as unscheduled', () {
+      final board = computeAttendanceBoard(
+        roster: [roster('u1')],
+        records: [rec('u1')],
+        now: now,
+      );
+
+      expect(board.rows, hasLength(1));
+      expect(board.rows.single.status, AttendanceBoardStatus.completed);
+    });
+  });
 }

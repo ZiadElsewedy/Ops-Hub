@@ -29,13 +29,18 @@ Future<AttendanceWriteOutcome> resolveShiftDirectly(
   AttendanceAdminCubit cubit,
   AttendanceEntity record, {
   BuildContext? dismissContext,
+  String title = 'Resolve shift',
+  String subtitle =
+      'Set the real times — applied immediately with an audit note.',
+  String submitLabel = 'Resolve',
+  String appliedMessage = 'Shift resolved.',
 }) async {
   var outcome = AttendanceWriteOutcome.failed;
   final submitted = await showAttendanceActionSheet(
     context,
-    title: 'Resolve shift',
-    subtitle: 'Set the real times — applied immediately with an audit note.',
-    submitLabel: 'Resolve',
+    title: title,
+    subtitle: subtitle,
+    submitLabel: submitLabel,
     askTimes: true,
     day: record.date,
     seedClockIn: record.clockIn ?? record.scheduledStart,
@@ -53,7 +58,7 @@ Future<AttendanceWriteOutcome> resolveShiftDirectly(
     },
   );
   if (!context.mounted) return outcome;
-  return _finish(context, submitted, outcome, dismissContext, 'Shift resolved.');
+  return _finish(context, submitted, outcome, dismissContext, appliedMessage);
 }
 
 /// Materialize a shift the employee worked but never clocked into (spec
@@ -101,13 +106,18 @@ Future<AttendanceWriteOutcome> excuseAttendanceAbsence(
   AttendanceAdminCubit cubit,
   AttendanceBoardRow row, {
   BuildContext? dismissContext,
+  String? title,
+  String? subtitle,
+  String? submitLabel,
+  String? appliedMessage,
 }) async {
   var outcome = AttendanceWriteOutcome.failed;
   final submitted = await showAttendanceActionSheet(
     context,
-    title: 'Excuse absence',
-    subtitle: "Forgive ${row.name}'s missed shift — zero worked hours.",
-    submitLabel: 'Excuse',
+    title: title ?? 'Excuse absence',
+    subtitle:
+        subtitle ?? "Forgive ${row.name}'s missed shift — zero worked hours.",
+    submitLabel: submitLabel ?? 'Excuse',
     askTimes: false,
     day: row.entry.scheduledStart ?? DateTime.now(),
     onSubmit: (r) async {
@@ -121,7 +131,7 @@ Future<AttendanceWriteOutcome> excuseAttendanceAbsence(
     submitted,
     outcome,
     dismissContext,
-    'Absence excused.',
+    appliedMessage ?? 'Absence excused.',
   );
 }
 

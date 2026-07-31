@@ -54,7 +54,15 @@ class AttendanceConfig {
   final bool requirePhoto;
 
   /// Whether an employee with **no rostered shift today** may still clock in.
-  /// Default false: no shift → no clock-in (blocked as `noActiveShift`).
+  ///
+  /// **Default true since [ADR-018].** A blocked punch does not prevent the
+  /// work, it prevents the record — and the workaround (a manager typing the
+  /// times in afterwards) is strictly worse evidence than a live, GPS-verified,
+  /// server-timestamped punch. The flag survives so a branch can choose the
+  /// stricter behaviour; the product's default is permissive.
+  ///
+  /// Permissive at *capture* only: an unscheduled shift counts in nothing until
+  /// a manager approves it in Daily Review.
   final bool allowUnscheduledClockIn;
 
   const AttendanceConfig({
@@ -67,7 +75,7 @@ class AttendanceConfig {
     this.maxSessionMinutes = 16 * 60,
     this.locationPolicy = AttendanceLocationPolicy.none,
     this.requirePhoto = false,
-    this.allowUnscheduledClockIn = false,
+    this.allowUnscheduledClockIn = true,
   });
 
   /// The standing defaults. `enabled` stays false here — a branch turns the

@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1289 pass · 2 fail** across 180 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1297 pass · 2 fail** across 180 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | Firebase deploy (rules · indexes · functions; live `shift_templates` rule missing; task scheduled-start enforcement requires a rules deploy; automation business-day fix requires a functions deploy) · recurring-template manager read isolation · iOS push unconfigured · attendance on-device QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -439,6 +439,34 @@ real seconds per write.
 
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
+
+**Both remaining product decisions are now DECIDED (2026-07-31, uncommitted).**
+
+*Overtime threshold — there is none, and exception kind #5 is struck.* Confirming
+overtime in DROP alters no record, no payment and no export (ADR-017: DROP hands
+off a ledger, R17: overtime is "never auto-approved, never fed anywhere"), so an
+approval step fails ADR-017's own metric bar. `overtimeGraceMinutes` (15) already
+defines when overtime *exists*; a second number for when it needs *approval*
+would be invented. Overtime stays a visible fact — weekly KPI, day line,
+per-person column. **Reverses this plan's own first draft.** Reversal trigger: a
+payroll export carrying overtime hours.
+
+*Unscheduled clock-in — allowed*
+([ADR-018](docs/decisions/ADR-018-unscheduled-clock-in.md), amends
+`ATTENDANCE_SPEC` §9). `AttendanceConfig.allowUnscheduledClockIn` now defaults
+**true**; the flag survives so a branch can switch it off. The deciding argument
+was evidence quality: today's workaround is a manager typing times from memory,
+where a live punch is server-timestamped and GPS-verified at the moment of
+presence. Five constraints — deliberate secondary action on the no-shift state ·
+mandatory reason (stored in `notes`) · full GPS gate · Daily Review approval ·
+**counts in nothing until approved**. New `AttendanceCubit.clockInUnscheduled`,
+`unscheduledShiftFor` (band from the clock; deliberately not a third
+`ScheduleShift` value), `AttendanceBoardStatus.unscheduled`, and
+`DailyReviewKind.unscheduledWork` ranked above `noShow`. ⚠️ **`computeAttendanceBoard`
+now appends records with no roster slot** — it walks the roster, so without that
+pass an unscheduled punch existed in Firestore and was invisible on every manager
+surface. Geofence resolution moved ahead of the schedule lookup so an unpublished
+week does not block the GPS gate for the wrong reason.
 
 ### Removed — do not re-add
 
