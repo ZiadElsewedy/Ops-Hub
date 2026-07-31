@@ -14,6 +14,45 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-31 — Per-task lateness, rendered and findable (feature; LOW risk)
+
+A finished task carried its lateness only as raw timestamps — visible in the
+Approved-only aggregate on Admin's branch overview, invisible on the task
+itself, and unrecoverable once submitted (the Operations "Late tasks" drill-down
+only lists *active* overdue work, which drops to zero the moment the employee
+finishes). The owner could tell a branch's completion rate but not point at
+which finished tasks had been late.
+
+This **implements** [ADR-013](docs/decisions/ADR-013-task-grace-period.md)'s
+existing "lateness is measured, never stated" position — it does not reopen or
+reverse it. No new `TaskStatus`, no schema/rules/Functions change; everything is
+derived at read time from `submittedAt`/`approvedAt`/`deadline`, already on
+every task document.
+
+- `taskLateness(TaskEntity)` (`task_outcomes.dart`) — the one source: the
+  positive overshoot past `deadline` for `completed`/`waitingReview`/`approved`
+  tasks (submitted-not-yet-reviewed reads late immediately), null for
+  `missed`/`cancelled`/on-time/no-deadline. `taskOutcomes()`'s Approved branch
+  now calls it instead of re-deriving the same comparison, so the aggregate and
+  the per-task signal can never drift apart; its counts are byte-identical to
+  before (regression-tested).
+- `formatLateness(Duration)` (`activity_format.dart`) — the one phrase (`45m
+  late` / `3h 12m late` / `2d 4h late`), used by every call site below.
+- Rendered as one quiet **secondary-grey** line (never `AppColors.error`, never
+  worded as a failure) on: the task card (`task_card.dart`), the activity feed
+  row (`task_activity_card.dart`), Task Details' status header, and the My
+  Tasks **Done** tab outcome badge.
+- `isOperationalFinishedLateTask(TaskEntity)` (`branch_workload.dart`, beside
+  `isOperationalOverdueTask`) + a new **"Finished late"** section on the
+  Operations "Late tasks" drill-down, below the existing "Past deadline" list,
+  sorted most-late-first — the actual fix for "I can't find which tasks were
+  late and still got done." The hero count and `_FactStrip` figures stay
+  active-overdue only; the section renders nothing when empty (no zero panel),
+  and the old "Nothing late" empty state now only shows when both lists are
+  empty.
+
+---
+
 ## 2026-07-31 — Attendance & Reports hub: information-architecture redesign (polish; LOW risk)
 
 Owner-commissioned IA pass on `/attendance/reports` only. **Presentation-only** —

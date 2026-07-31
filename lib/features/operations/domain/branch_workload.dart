@@ -7,6 +7,7 @@ import 'package:drop/features/operations/domain/employee_workload.dart';
 import 'package:drop/features/operations/domain/shift_filter.dart';
 import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
 
 /// The fully-derived state of the Branch Operations cockpit for one shift lens:
 /// the header [summary] plus the [employees] cards, already sorted
@@ -128,6 +129,15 @@ bool isOperationalOverdueTask(TaskEntity task, DateTime clock) =>
     isOperationalActiveTask(task) &&
     task.deadline != null &&
     task.deadline!.isBefore(clock);
+
+/// Finished work that missed its deadline — the complement to
+/// [isOperationalOverdueTask]: that predicate goes to zero the moment the
+/// employee finishes, which is exactly why a manager could never find a task
+/// that was late and then got done. Delegates entirely to [taskLateness] (the
+/// one lateness source, shared with the per-task badge) so this membership
+/// check can never disagree with what a task's own lateness line says.
+bool isOperationalFinishedLateTask(TaskEntity task) =>
+    taskLateness(task) != null;
 
 /// The employee's "current" task: the started one (else next-up rework, else
 /// next pending), tie-broken by soonest deadline. Null when nothing is open.

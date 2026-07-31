@@ -49,6 +49,54 @@ void main() {
     );
   });
 
+  test('isOperationalFinishedLateTask finds the work isOperationalOverdueTask stops counting', () {
+    final due = DateTime(2026, 7, 5, 16, 30);
+    final finishedLate = TaskEntity(
+      id: 'finished-late',
+      title: 'Finished after the deadline',
+      status: TaskStatus.approved,
+      deadline: due,
+      submittedAt: due.add(const Duration(minutes: 45)),
+    );
+    final finishedOnTime = TaskEntity(
+      id: 'finished-on-time',
+      title: 'Finished before the deadline',
+      status: TaskStatus.approved,
+      deadline: due,
+      submittedAt: due.subtract(const Duration(minutes: 5)),
+    );
+    final missed = TaskEntity(
+      id: 'missed',
+      title: 'Missed window',
+      status: TaskStatus.missed,
+      deadline: due,
+    );
+    final activeOverdue = TaskEntity(
+      id: 'active-overdue',
+      title: 'Still open, past due',
+      status: TaskStatus.started,
+      deadline: due,
+    );
+
+    expect(
+      isOperationalFinishedLateTask(finishedLate),
+      isTrue,
+      reason: 'the whole point — this is invisible to isOperationalOverdueTask'
+          ' once submitted',
+    );
+    expect(isOperationalFinishedLateTask(finishedOnTime), isFalse);
+    expect(
+      isOperationalFinishedLateTask(missed),
+      isFalse,
+      reason: 'Missed is a separate outcome, never late',
+    );
+    expect(
+      isOperationalFinishedLateTask(activeOverdue),
+      isFalse,
+      reason: 'still active work belongs to isOperationalOverdueTask, not this',
+    );
+  });
+
   testWidgets('all four KPI tiles are tappable metric entry points', (
     tester,
   ) async {

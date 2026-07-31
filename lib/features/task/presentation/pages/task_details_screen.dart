@@ -26,8 +26,10 @@ import 'package:drop/features/auth/presentation/widgets/app_button.dart';
 import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
 import 'package:drop/features/task/domain/entities/checklist_item.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
 import 'package:drop/features/task/domain/task_schedule.dart';
 import 'package:drop/features/task/domain/work_types/task_work_x.dart';
+import 'package:drop/features/task/presentation/activity_format.dart';
 import 'package:drop/features/task/presentation/attachment_format.dart';
 import 'package:drop/core/media/picked_attachment.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
@@ -851,6 +853,14 @@ class _StatusHeader extends StatelessWidget {
                   highlight: _isOverdue(task),
                 ),
               ],
+              // Finished work that missed its deadline — a timeliness signal
+              // (ADR-013), never the error/highlight treatment Missed or an
+              // active overdue pill wear.
+              if (taskLateness(task) case final lateness?)
+                _MetaPill(
+                  icon: Icons.timer_outlined,
+                  label: formatLateness(lateness),
+                ),
               // Current time-aware phase (Scheduled/Active/Due-soon/Overdue) for
               // in-flight work; a finished task's story is the status pill.
               if (schedulePhase(task, DateTime.now()).isActionable)

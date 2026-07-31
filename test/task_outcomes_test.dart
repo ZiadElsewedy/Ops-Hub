@@ -258,4 +258,123 @@ void main() {
     expect(o.lateCompletionPct, isNull);
     expect(o.cancelReasonsByFrequency, isEmpty);
   });
+
+  group('taskLateness (per-task) — the single source shared with taskOutcomes',
+      () {
+    final due = DateTime(2026, 7, 28, 16, 30);
+
+    test('on time → null', () {
+      final t = task(
+        status: TaskStatus.approved,
+        deadline: due,
+        submittedAt: due.subtract(const Duration(minutes: 5)),
+      );
+      expect(taskLateness(t), isNull);
+    });
+
+    test('late → the exact overshoot', () {
+      final t = task(
+        status: TaskStatus.approved,
+        deadline: due,
+        submittedAt: due.add(const Duration(hours: 2, minutes: 12)),
+      );
+      expect(taskLateness(t), const Duration(hours: 2, minutes: 12));
+    });
+
+    test('missing deadline → null', () {
+      final t = task(status: TaskStatus.approved, submittedAt: due);
+      expect(taskLateness(t), isNull);
+    });
+
+    test('missing both finish timestamps → null', () {
+      final t = task(status: TaskStatus.approved, deadline: due);
+      expect(taskLateness(t), isNull);
+    });
+
+    test('missed is never late — it is a separate outcome', () {
+      final t = task(
+        status: TaskStatus.missed,
+        deadline: due,
+        submittedAt: due.add(const Duration(hours: 5)),
+      );
+      expect(taskLateness(t), isNull);
+    });
+
+    test('cancelled is never late — it counts nowhere', () {
+      final t = task(
+        status: TaskStatus.cancelled,
+        cancelReason: TaskCancelReason.duplicate,
+        deadline: due,
+        submittedAt: due.add(const Duration(hours: 5)),
+      );
+      expect(taskLateness(t), isNull);
+    });
+
+    test('submittedAt is preferred over approvedAt when both are present', () {
+      final t = task(
+        status: TaskStatus.approved,
+        deadline: due,
+        submittedAt: due.subtract(const Duration(minutes: 10)), // on time
+        approvedAt: due.add(const Duration(hours: 1)), // would read late
+      );
+      expect(taskLateness(t), isNull);
+    });
+
+    test('a submitted-but-unreviewed task reads late immediately — it does '
+        'not wait for a manager\'s approval', () {
+      final t = task(
+        status: TaskStatus.waitingReview,
+        deadline: due,
+        submittedAt: due.add(const Duration(minutes: 45)),
+      );
+      expect(taskLateness(t), const Duration(minutes: 45));
+    });
+
+    test('a completed-not-yet-submitted-for-review task is judged the same '
+        'way', () {
+      final t = task(
+        status: TaskStatus.completed,
+        deadline: due,
+        submittedAt: due.add(const Duration(minutes: 10)),
+      );
+      expect(taskLateness(t), const Duration(minutes: 10));
+    });
+  });
+
+  test('taskOutcomes figures are unchanged now that the approved branch '
+      'shares taskLateness (regression)', () {
+    final due = DateTime(2026, 7, 28, 16, 30);
+    final tasks = [
+      task(
+        status: TaskStatus.approved,
+        deadline: due,
+        submittedAt: due.subtract(const Duration(minutes: 10)),
+      ),
+      task(
+        status: TaskStatus.approved,
+        deadline: due,
+        submittedAt: due.add(const Duration(minutes: 20)),
+      ),
+      task(
+        status: TaskStatus.approved,
+        deadline: due,
+        submittedAt: due.add(const Duration(minutes: 40)),
+      ),
+      task(status: TaskStatus.missed),
+      task(status: TaskStatus.cancelled, cancelReason: TaskCancelReason.duplicate),
+      task(status: TaskStatus.pending),
+    ];
+
+    final o = taskOutcomes(tasks);
+
+    expect(o.approved, 3);
+    expect(o.missed, 1);
+    expect(o.cancelled, 1);
+    expect(o.open, 1);
+    expect(o.completedOnTime, 1);
+    expect(o.completedLate, 2);
+    expect(o.totalLatenessMinutes, 60);
+    expect(o.completionRatePct, 75);
+    expect(o.lateCompletionPct, 67);
+  });
 }

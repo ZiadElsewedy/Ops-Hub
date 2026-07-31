@@ -7,6 +7,8 @@ import 'package:drop/core/widgets/status_badge.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
+import 'package:drop/features/task/presentation/activity_format.dart';
 import 'package:drop/features/task/presentation/widgets/task_preview_sheet.dart';
 
 /// Maps a [TaskEntity] onto the generic V2 [ActivityCard] — the clean,
@@ -77,7 +79,14 @@ class TaskActivityCard extends StatelessWidget {
     final branch = (branchName ?? '').trim();
     final subtitle = branch.isEmpty ? assignee : '$assignee · $branch';
     final when = task.updatedAt ?? task.createdAt;
-    final meta = when == null ? null : AppDateFormatter.relative(when);
+    final lateness = taskLateness(task);
+    // A finished-late task adds a quiet second meta line rather than replacing
+    // the timestamp — the card still answers "when", lateness is additional.
+    final meta = when == null
+        ? (lateness == null ? null : formatLateness(lateness))
+        : (lateness == null
+              ? AppDateFormatter.relative(when)
+              : '${AppDateFormatter.relative(when)} · ${formatLateness(lateness)}');
     final status = StatusBadge.task(task.status);
 
     return ActivityCard(

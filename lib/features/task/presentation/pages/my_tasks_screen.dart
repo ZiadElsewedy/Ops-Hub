@@ -13,6 +13,8 @@ import 'package:drop/core/widgets/responsive_card_grid.dart';
 import 'package:drop/core/widgets/segmented_tab_bar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
+import 'package:drop/features/task/presentation/activity_format.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/pages/task_details_screen.dart';
@@ -886,7 +888,7 @@ class _MinimalCard extends StatelessWidget {
                 // tab — a finished task needs its outcome, not its checklist).
                 if (isTerminal) ...[
                   const SizedBox(height: AppSpacing.md),
-                  _OutcomeBadge(task.status),
+                  _OutcomeBadge(task),
                 ]
                 // Checklist progress pill — actionable tasks only.
                 else if (task.hasChecklist) ...[
@@ -973,14 +975,17 @@ class _PriorityTag extends StatelessWidget {
   }
 }
 
-/// The closed outcome, stated plainly for the Done tab.
+/// The closed outcome, stated plainly for the Done tab — plus, when the task
+/// finished after its deadline, a quiet second line naming how late (ADR-013:
+/// a timeliness signal, never a fourth status, so it never borrows the badge's
+/// own colour or the error/red treatment).
 class _OutcomeBadge extends StatelessWidget {
-  const _OutcomeBadge(this.status);
-  final TaskStatus status;
+  const _OutcomeBadge(this.task);
+  final TaskEntity task;
 
   @override
   Widget build(BuildContext context) {
-    final (label, icon, color) = switch (status) {
+    final (label, icon, color) = switch (task.status) {
       TaskStatus.approved => (
         'Completed',
         Icons.check_circle_rounded,
@@ -998,17 +1003,35 @@ class _OutcomeBadge extends StatelessWidget {
       ),
       _ => ('Closed', Icons.circle, AppColors.textTertiary),
     };
-    return Row(
+    final lateness = taskLateness(task);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: AppTypography.caption.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTypography.caption.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
+        if (lateness != null) ...[
+          const SizedBox(height: 3),
+          Padding(
+            padding: const EdgeInsets.only(left: 20),
+            child: Text(
+              formatLateness(lateness),
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
