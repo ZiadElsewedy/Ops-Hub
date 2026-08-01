@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1421 pass · 2 fail** across 195 files (~40s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1440 pass · 2 fail** across 197 files (~40s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · iOS push unconfigured · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -701,6 +701,15 @@ handled as a separate backend/security task before the rules deploy.
 
 ### Attendance gaps found 2026-08-01 (code audit, not runtime)
 
+- **Today-first attendance IA is now wired (2026-08-01).** Attendance & Reports
+  opens the live Today board, not the reports hub: managers are pinned to their
+  branch, admins choose a branch first, and the board groups decision-needed,
+  present/working, late, and absent people. Reports and Person history are named
+  next steps; an unscheduled clock-in can be marked present through the existing
+  audited direct-resolution path. See [ADR-021](docs/decisions/ADR-021-attendance-today-first.md).
+  Person-history ranges now include rolling **Last 7 days** and **Last 30 days**;
+  a Today row opens that person's branch-pinned ledger.
+
 - ~~**`AttendanceLocationPolicy` is dead.**~~ **Fixed 2026-08-01 —
   [ADR-020](docs/decisions/ADR-020-location-policy-is-real.md)** (amends the locked
   `ATTENDANCE_SPEC` workflow 6). The policy now actually gates the punch: `none`
@@ -713,11 +722,8 @@ handled as a separate backend/security task before the rules deploy.
 - **A non-geofenced branch clocks in unverified.** The deliberate trade in
   ADR-020. Closed by an admin drawing the fence in Branches → geofence editor;
   nothing changes at a branch that already has one.
-- **`/admin/attendance` is orphaned.** `RouteNames.adminAttendance` is registered
-  and the screen is built — it holds a record list, the branch geofence editor and
-  the only push to `/attendance/review` — but **nothing in the app navigates to
-  it**. The geofence editor is still reachable via Branches; the review ledger now
-  has a real entry point (per-person drill-down, below).
+- **`/admin/attendance` is a legacy redirect.** It now redirects to Today; the
+  geofence editor remains reachable via Branches.
 - **Stale stub.** `attendance_weekly_report_screen.dart` says *"Daily review is
   coming next"* on the blockers button while the day table beside it already opens
   the real Daily Review.
@@ -851,7 +857,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1421 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1440 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 68 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 51

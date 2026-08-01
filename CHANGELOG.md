@@ -14,6 +14,62 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-01 — History showed "No matches" for a person it had just counted (bug; MED risk)
+
+Owner screenshot: searched **"ziad"** in Attendance history. The summary strip
+said **1 Absent**. The list underneath said **"No matches — try widening the date
+range or clearing a filter."** The range was fine.
+
+The two halves of that screen read different sources. The summary comes from the
+**expectation ledger**, which has a row for every rostered shift including the
+ones nobody worked. The list comes from **attendance records** — and an absence
+deliberately has no record (`ATTENDANCE_SPEC` R13: *"Absent stays virtual… No
+phantom documents"*). That is the right storage decision and the wrong reading
+decision: the one day a manager asks about is the one day that renders nothing,
+under an empty-state that blames the filters.
+
+- New pure `attendanceHistoryGaps()` (`attendance_history_gap.dart`) — the
+  rostered shifts in the already-streamed ledger that have **no record**, narrowed
+  by the same text / shift / status facets the record list uses, so the two halves
+  can never disagree again. No new read, no new query, no minute math.
+- The list interleaves records and gaps chronologically, newest first. A gap
+  renders as a quieter, **deliberately non-tappable** card — there is no record to
+  open, and a dead tap target teaches a manager the screen is broken.
+- A gap can only satisfy facets that describe *not working*; asking for "Late" or
+  "Overtime" is asking about a record, so gaps drop out rather than padding a
+  filtered list with rows that cannot match it.
+
+**Removed "Payroll blockers"** from the summary strip. DROP does no payroll — it is
+a named scope guardrail (ADR-009/ADR-010) — so putting the word on a ledger the
+owner reads daily promised something the product does not do. The same count now
+reads **"Needs a decision"** and appears only when it is non-zero.
+
+**Removed the Today subtitle** *"Who is here, late, absent, or needs a decision"* —
+the counts and the grouped rows underneath already say it.
+
+Tests: `test/attendance_history_gap_test.dart` (8 cases), including the literal
+reproduction — search "ziad" against a ledger holding one absence and no record.
+Suite **1440 pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+---
+
+## 2026-08-01 — Attendance starts with Today (feature; LOW risk)
+
+Attendance & Reports now opens the existing live board rather than the reporting
+hub. Managers see their own branch; admins explicitly choose a branch. The board
+groups people into needs a decision, present/working, late, and absent, with
+Reports and Person history as direct next steps. An unscheduled clock-in now has
+plain **Mark present** copy that reuses the existing audited direct-resolution
+path; an explicit **Leave unapproved** action preserves the exception. `/admin/attendance` redirects to
+Today, avoiding two live board destinations. [ADR-021](docs/decisions/ADR-021-attendance-today-first.md)
+records the IA decision.
+
+Follow-up: Person history now has rolling Last 7 days / Last 30 days presets,
+and a Today row's History action carries that employee and branch into the
+existing reviewer ledger. Today bootstrap also retries when auth resolves late.
+
+---
+
 ## 2026-08-01 — Daily Review: don't spend the one-shot on a pass that bailed out (hardening; LOW risk)
 
 Follow-up to the workspace hang. Auditing every screen for the same shape turned

@@ -48,11 +48,11 @@ import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/presentation/pages/attendance_screen.dart';
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
+import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_screen.dart';
 import 'package:drop/features/attendance/presentation/details/attendance_details_screen.dart';
 import 'package:drop/features/attendance/presentation/admin/attendance_admin_workspace_screen.dart';
 import 'package:drop/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
-import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_monthly_report_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_weekly_report_screen.dart';
 import 'package:drop/features/requests/presentation/pages/requests_screen.dart';
@@ -342,18 +342,20 @@ GoRouter createRouter(
           ),
           GoRoute(
             path: RouteNames.adminAttendance,
+            redirect: (context, state) => RouteNames.attendanceReports,
+          ),
+          GoRoute(
+            path: RouteNames.adminAttendanceWorkspace,
+            pageBuilder: (context, state) =>
+                _slideTransition(state, const AttendanceAdminWorkspaceScreen()),
+          ),
+          GoRoute(
+            path: RouteNames.attendanceReports,
             pageBuilder: (context, state) =>
                 _slideTransition(state, const AdminAttendanceScreen()),
           ),
           GoRoute(
-            path: RouteNames.adminAttendanceWorkspace,
-            pageBuilder: (context, state) => _slideTransition(
-              state,
-              const AttendanceAdminWorkspaceScreen(),
-            ),
-          ),
-          GoRoute(
-            path: RouteNames.attendanceReports,
+            path: RouteNames.attendanceReportsHub,
             pageBuilder: (context, state) =>
                 _slideTransition(state, const AttendanceReportsScreen()),
           ),

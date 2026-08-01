@@ -7,17 +7,21 @@ import 'package:drop/features/attendance/domain/entities/attendance_entity.dart'
 /// The date window a history view is scoped to. `custom` carries an explicit
 /// start/end; the presets are resolved against `now` in [AttendanceHistoryQuery].
 enum AttendanceDateRange {
+  last7Days,
+  last30Days,
   thisWeek,
   thisMonth,
   lastMonth,
   custom;
 
   String get label => switch (this) {
-        AttendanceDateRange.thisWeek => 'This week',
-        AttendanceDateRange.thisMonth => 'This month',
-        AttendanceDateRange.lastMonth => 'Last month',
-        AttendanceDateRange.custom => 'Custom',
-      };
+    AttendanceDateRange.last7Days => 'Last 7 days',
+    AttendanceDateRange.last30Days => 'Last 30 days',
+    AttendanceDateRange.thisWeek => 'This week',
+    AttendanceDateRange.thisMonth => 'This month',
+    AttendanceDateRange.lastMonth => 'Last month',
+    AttendanceDateRange.custom => 'Custom',
+  };
 }
 
 /// An inclusive day window `[start, end]` (local calendar days). `start` is that
@@ -68,28 +72,46 @@ class AttendanceHistoryQuery {
     AttendanceStatusFilter? status,
     Set<ScheduleShift>? shifts,
     String? text,
-  }) =>
-      AttendanceHistoryQuery(
-        range: range ?? this.range,
-        customStart: customStart ?? this.customStart,
-        customEnd: customEnd ?? this.customEnd,
-        status: status ?? this.status,
-        shifts: shifts ?? this.shifts,
-        text: text ?? this.text,
-      );
+  }) => AttendanceHistoryQuery(
+    range: range ?? this.range,
+    customStart: customStart ?? this.customStart,
+    customEnd: customEnd ?? this.customEnd,
+    status: status ?? this.status,
+    shifts: shifts ?? this.shifts,
+    text: text ?? this.text,
+  );
 
   /// True when nothing narrows the ledger — used to pick an "all clear" vs. a
   /// "no matches" empty state.
   bool get hasFacets =>
-      status != AttendanceStatusFilter.all || shifts.isNotEmpty || text.trim().isNotEmpty;
+      status != AttendanceStatusFilter.all ||
+      shifts.isNotEmpty ||
+      text.trim().isNotEmpty;
 
   /// Resolve the date [range] to an inclusive `[start, end]` day window against
   /// [now]. Weeks start Monday; month presets span the whole calendar month.
   DateWindow resolveRange(DateTime now) {
     switch (range) {
+      case AttendanceDateRange.last7Days:
+        final end = _startOfDay(now);
+        return (
+          start: end.subtract(const Duration(days: 6)),
+          end: _endOfDay(end),
+        );
+      case AttendanceDateRange.last30Days:
+        final end = _startOfDay(now);
+        return (
+          start: end.subtract(const Duration(days: 29)),
+          end: _endOfDay(end),
+        );
       case AttendanceDateRange.thisWeek:
-        final monday = _startOfDay(now).subtract(Duration(days: now.weekday - 1));
-        return (start: monday, end: _endOfDay(monday.add(const Duration(days: 6))));
+        final monday = _startOfDay(
+          now,
+        ).subtract(Duration(days: now.weekday - 1));
+        return (
+          start: monday,
+          end: _endOfDay(monday.add(const Duration(days: 6))),
+        );
       case AttendanceDateRange.thisMonth:
         return _monthWindow(now.year, now.month);
       case AttendanceDateRange.lastMonth:
@@ -127,7 +149,8 @@ class AttendanceHistoryQuery {
             !r.date.isAfter(window.end) &&
             (shifts.isEmpty || shifts.contains(r.shift)) &&
             matchesAttendanceStatusFilter(status, r) &&
-            (needle.isEmpty || (r.userName ?? '').toLowerCase().contains(needle)))
+            (needle.isEmpty ||
+                (r.userName ?? '').toLowerCase().contains(needle)))
           r,
     ];
     out.sort((a, b) => b.date.compareTo(a.date));

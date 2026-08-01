@@ -10,7 +10,7 @@
 /// all share one shape.
 class AttendanceReviewLink {
   const AttendanceReviewLink({
-    required this.employeeName,
+    this.employeeName = '',
     this.branchId,
     this.start,
     this.end,

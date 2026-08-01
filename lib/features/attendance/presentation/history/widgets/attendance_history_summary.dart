@@ -123,13 +123,17 @@ class _SummaryStrip extends StatelessWidget {
             value: _rate(summary.punctualArrivalRate),
           ),
           Stat(label: 'Worked', value: _worked(summary.workedMinutes)),
-          Stat(
-            label: 'Payroll blockers',
-            count: state.coverage.blockingExceptionRowCount,
-            tone: state.coverage.blockingExceptionRowCount > 0
-                ? AppColors.warning
-                : null,
-          ),
+          // "Payroll blockers" used to sit here. DROP does no payroll (ADR-009 /
+          // ADR-010 scope guardrail), so naming one on a ledger the owner reads
+          // daily promised something the product does not do. The same count is
+          // still available where it belongs — the week's close, which is the
+          // only place a "blocker" blocks anything.
+          if (state.coverage.blockingExceptionRowCount > 0)
+            Stat(
+              label: 'Needs a decision',
+              count: state.coverage.blockingExceptionRowCount,
+              tone: AppColors.warning,
+            ),
         ],
       ),
     );

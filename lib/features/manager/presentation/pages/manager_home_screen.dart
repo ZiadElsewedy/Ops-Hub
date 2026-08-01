@@ -105,35 +105,54 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         const SectionHeader('Team & shifts today'),
         EntranceFade(
           delay: staggerDelay(1),
-          child: StatGrid(items: [
-            StatItem('Employees', '${s.employeesInBranch}',
-                Icons.groups_outlined),
-            StatItem('Scheduled today', '${s.scheduledToday}',
-                Icons.event_available_outlined),
-            StatItem('Morning shift', '${s.morningShiftEmployees}',
-                Icons.wb_sunny_outlined),
-            StatItem('Night shift', '${s.nightShiftEmployees}',
-                Icons.nightlight_outlined),
-          ]),
+          child: StatGrid(
+            items: [
+              StatItem(
+                'Employees',
+                '${s.employeesInBranch}',
+                Icons.groups_outlined,
+              ),
+              StatItem(
+                'Scheduled today',
+                '${s.scheduledToday}',
+                Icons.event_available_outlined,
+              ),
+              StatItem(
+                'Morning shift',
+                '${s.morningShiftEmployees}',
+                Icons.wb_sunny_outlined,
+              ),
+              StatItem(
+                'Night shift',
+                '${s.nightShiftEmployees}',
+                Icons.nightlight_outlined,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: AppSpacing.xl),
         const SectionHeader('Attendance'),
-        EntranceFade(
-          delay: staggerDelay(2),
-          child: const _AttendanceTile(),
-        ),
+        EntranceFade(delay: staggerDelay(2), child: const _AttendanceTile()),
         const SizedBox(height: AppSpacing.xl),
         const SectionHeader('Tasks'),
         EntranceFade(
           delay: staggerDelay(3),
-          child: StatGrid(items: [
-            StatItem('Completed today', '${s.completedTasksToday}',
-                Icons.task_alt_outlined),
-            StatItem('Rejected', '${s.rejectedTasks}', Icons.cancel_outlined),
-            StatItem('Daily', '${s.dailyTasks}', Icons.event_repeat_outlined),
-            StatItem('Special', '${s.specialTasks}',
-                Icons.star_outline_rounded),
-          ]),
+          child: StatGrid(
+            items: [
+              StatItem(
+                'Completed today',
+                '${s.completedTasksToday}',
+                Icons.task_alt_outlined,
+              ),
+              StatItem('Rejected', '${s.rejectedTasks}', Icons.cancel_outlined),
+              StatItem('Daily', '${s.dailyTasks}', Icons.event_repeat_outlined),
+              StatItem(
+                'Special',
+                '${s.specialTasks}',
+                Icons.star_outline_rounded,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -170,7 +189,7 @@ class _AttendanceTile extends StatelessWidget {
       color: AppColors.darkSurface,
       borderRadius: AppRadius.cardAll,
       child: InkWell(
-        onTap: () => context.push(RouteNames.attendanceReview),
+        onTap: () => context.push(RouteNames.attendanceReports),
         borderRadius: AppRadius.cardAll,
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -180,24 +199,34 @@ class _AttendanceTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.fingerprint_rounded,
-                  size: 20, color: AppColors.textSecondary),
+              const Icon(
+                Icons.fingerprint_rounded,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Branch attendance',
-                        style: AppTypography.label
-                            .copyWith(color: AppColors.textPrimary)),
+                    Text(
+                      'Branch attendance',
+                      style: AppTypography.label.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text('Review your team\'s clock-in history',
-                        style: AppTypography.caption),
+                    Text(
+                      'Review your team\'s clock-in history',
+                      style: AppTypography.caption,
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textTertiary),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textTertiary,
+              ),
             ],
           ),
         ),
@@ -222,12 +251,17 @@ class _ErrorCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded,
-              size: 18, color: AppColors.error),
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 18,
+            color: AppColors.error,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(message,
-                style: AppTypography.bodySmall.copyWith(color: AppColors.error)),
+            child: Text(
+              message,
+              style: AppTypography.bodySmall.copyWith(color: AppColors.error),
+            ),
           ),
         ],
       ),

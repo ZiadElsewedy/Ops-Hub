@@ -25,8 +25,12 @@ class AttendanceHistoryFilters extends StatelessWidget {
   });
 
   final AttendanceHistoryQuery query;
-  final void Function(AttendanceDateRange range, {DateTime? start, DateTime? end})
-      onRange;
+  final void Function(
+    AttendanceDateRange range, {
+    DateTime? start,
+    DateTime? end,
+  })
+  onRange;
   final ValueChanged<AttendanceStatusFilter> onStatus;
   final ValueChanged<ScheduleShift> onToggleShift;
 
@@ -43,34 +47,46 @@ class AttendanceHistoryFilters extends StatelessWidget {
           _EmployeeSearch(initialText: query.text, onChanged: onSearch!),
           const SizedBox(height: AppSpacing.md),
         ],
-        _ChipRow(children: [
-          for (final r in AttendanceDateRange.values)
-            _Chip(
-              label: _rangeLabel(r),
-              selected: query.range == r,
-              onTap: () => r == AttendanceDateRange.custom
-                  ? _pickCustom(context)
-                  : onRange(r),
-            ),
-        ]),
+        _ChipRow(
+          children: [
+            for (final r in const [
+              AttendanceDateRange.last7Days,
+              AttendanceDateRange.last30Days,
+              AttendanceDateRange.thisMonth,
+              AttendanceDateRange.lastMonth,
+              AttendanceDateRange.custom,
+            ])
+              _Chip(
+                label: _rangeLabel(r),
+                selected: query.range == r,
+                onTap: () => r == AttendanceDateRange.custom
+                    ? _pickCustom(context)
+                    : onRange(r),
+              ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.sm),
-        _ChipRow(children: [
-          for (final s in AttendanceStatusFilter.values)
-            _Chip(
-              label: s.label,
-              selected: query.status == s,
-              onTap: () => onStatus(s),
-            ),
-        ]),
+        _ChipRow(
+          children: [
+            for (final s in AttendanceStatusFilter.values)
+              _Chip(
+                label: s.label,
+                selected: query.status == s,
+                onTap: () => onStatus(s),
+              ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.sm),
-        _ChipRow(children: [
-          for (final s in ScheduleShift.values)
-            _Chip(
-              label: s.label,
-              selected: query.shifts.contains(s),
-              onTap: () => onToggleShift(s),
-            ),
-        ]),
+        _ChipRow(
+          children: [
+            for (final s in ScheduleShift.values)
+              _Chip(
+                label: s.label,
+                selected: query.shifts.contains(s),
+                onTap: () => onToggleShift(s),
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -197,7 +213,9 @@ class _Chip extends StatelessWidget {
           borderRadius: AppRadius.fullAll,
           child: Container(
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: 9),
+              horizontal: AppSpacing.md,
+              vertical: 9,
+            ),
             decoration: BoxDecoration(
               borderRadius: AppRadius.fullAll,
               border: Border.all(

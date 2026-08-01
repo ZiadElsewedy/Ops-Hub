@@ -14,6 +14,7 @@ import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_coverage.dart';
@@ -362,6 +363,15 @@ class _GoDeeper extends StatelessWidget {
       subtitle: 'Calendar month, week by week',
       onTap: () => context.push(RouteNames.attendanceMonthly(monthlyPeriodId)),
     );
+    final person = _DeepLinkTile(
+      icon: Icons.person_search_rounded,
+      title: 'Person history',
+      subtitle: 'Find one employee and choose a date range',
+      onTap: () => context.push(
+        RouteNames.attendanceReview,
+        extra: AttendanceReviewLink(branchId: branchId),
+      ),
+    );
 
     // Admin-only. The workspace answers "is the record complete and
     // defensible?" — an auditor's question, asked deliberately. Putting it on a
@@ -383,13 +393,15 @@ class _GoDeeper extends StatelessWidget {
             // mainAxisExtent. The previous grid pinned 104px after 92px clipped
             // a sublabel — a magic number is a guess that breaks at some width
             // or text scale.
-            if (constraints.maxWidth < 560) {
+            if (constraints.maxWidth < 760) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   weekly,
                   const SizedBox(height: AppSpacing.md),
                   monthly,
+                  const SizedBox(height: AppSpacing.md),
+                  person,
                   if (isAdmin) ...[
                     const SizedBox(height: AppSpacing.md),
                     workspace,
@@ -404,6 +416,8 @@ class _GoDeeper extends StatelessWidget {
                   Expanded(child: weekly),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(child: monthly),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(child: person),
                   if (isAdmin) ...[
                     const SizedBox(width: AppSpacing.md),
                     Expanded(child: workspace),
@@ -415,7 +429,7 @@ class _GoDeeper extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Per-employee, period close, and export are coming next.',
+          'Period close and export remain the next reporting surfaces.',
           style: AppTypography.caption,
         ),
       ],
@@ -510,7 +524,10 @@ class _NoBranchSelected extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('Choose a branch to see its attendance', style: AppTypography.h3),
+          Text(
+            'Choose a branch to see its attendance',
+            style: AppTypography.h3,
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             role.isAdmin

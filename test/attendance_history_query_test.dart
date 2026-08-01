@@ -13,24 +13,42 @@ AttendanceEntity _rec({
   int late = 0,
   int overtime = 0,
   DateTime? deletedAt,
-}) =>
-    AttendanceEntity(
-      id: '${date.toIso8601String()}_${shift.name}',
-      userId: 'u1',
-      userName: userName,
-      shift: shift,
-      date: date,
-      status: status,
-      lateMinutes: late,
-      overtimeMinutes: overtime,
-      deletedAt: deletedAt,
-    );
+}) => AttendanceEntity(
+  id: '${date.toIso8601String()}_${shift.name}',
+  userId: 'u1',
+  userName: userName,
+  shift: shift,
+  date: date,
+  status: status,
+  lateMinutes: late,
+  overtimeMinutes: overtime,
+  deletedAt: deletedAt,
+);
 
 void main() {
   // A fixed "now": Friday, 17 July 2026.
   final now = DateTime(2026, 7, 17, 10, 30);
 
   group('resolveRange', () {
+    test(
+      'last 7 days is a rolling inclusive window across a month boundary',
+      () {
+        const q = AttendanceHistoryQuery(range: AttendanceDateRange.last7Days);
+        final window = q.resolveRange(DateTime(2026, 3, 3, 14));
+        expect(window.start, DateTime(2026, 2, 25));
+        expect(window.end, DateTime(2026, 3, 3, 23, 59, 59, 999));
+      },
+    );
+
+    test(
+      'last 30 days is a rolling inclusive window across a month boundary',
+      () {
+        const q = AttendanceHistoryQuery(range: AttendanceDateRange.last30Days);
+        final window = q.resolveRange(DateTime(2026, 3, 3, 14));
+        expect(window.start, DateTime(2026, 2, 2));
+        expect(window.end, DateTime(2026, 3, 3, 23, 59, 59, 999));
+      },
+    );
     test('thisMonth spans the whole calendar month', () {
       const q = AttendanceHistoryQuery(range: AttendanceDateRange.thisMonth);
       final w = q.resolveRange(now);
@@ -114,36 +132,42 @@ void main() {
     });
 
     test('composes status + shift + name facets', () {
-      final q = const AttendanceHistoryQuery(range: AttendanceDateRange.thisMonth)
-          .copyWith(
-        status: AttendanceStatusFilter.late,
-        shifts: {ScheduleShift.night},
-        text: 'ali',
-      );
+      final q =
+          const AttendanceHistoryQuery(
+            range: AttendanceDateRange.thisMonth,
+          ).copyWith(
+            status: AttendanceStatusFilter.late,
+            shifts: {ScheduleShift.night},
+            text: 'ali',
+          );
       final records = [
         // Matches all three facets.
         _rec(
-            date: DateTime(2026, 7, 4),
-            userName: 'Alice',
-            shift: ScheduleShift.night,
-            late: 10),
+          date: DateTime(2026, 7, 4),
+          userName: 'Alice',
+          shift: ScheduleShift.night,
+          late: 10,
+        ),
         // Wrong shift.
         _rec(
-            date: DateTime(2026, 7, 5),
-            userName: 'Alice',
-            shift: ScheduleShift.morning,
-            late: 10),
+          date: DateTime(2026, 7, 5),
+          userName: 'Alice',
+          shift: ScheduleShift.morning,
+          late: 10,
+        ),
         // Not late.
         _rec(
-            date: DateTime(2026, 7, 6),
-            userName: 'Alice',
-            shift: ScheduleShift.night),
+          date: DateTime(2026, 7, 6),
+          userName: 'Alice',
+          shift: ScheduleShift.night,
+        ),
         // Wrong name.
         _rec(
-            date: DateTime(2026, 7, 7),
-            userName: 'Bob',
-            shift: ScheduleShift.night,
-            late: 10),
+          date: DateTime(2026, 7, 7),
+          userName: 'Bob',
+          shift: ScheduleShift.night,
+          late: 10,
+        ),
       ];
       final out = q.apply(records, now: now);
       expect(out.length, 1);
@@ -151,8 +175,9 @@ void main() {
     });
 
     test('name match is case-insensitive and empty text matches all', () {
-      final base =
-          const AttendanceHistoryQuery(range: AttendanceDateRange.thisMonth);
+      final base = const AttendanceHistoryQuery(
+        range: AttendanceDateRange.thisMonth,
+      );
       final records = [
         _rec(date: DateTime(2026, 7, 4), userName: 'Alice'),
         _rec(date: DateTime(2026, 7, 5), userName: 'bob'),
@@ -165,7 +190,10 @@ void main() {
   test('hasFacets reflects any narrowing beyond the date range', () {
     const base = AttendanceHistoryQuery();
     expect(base.hasFacets, isFalse);
-    expect(base.copyWith(status: AttendanceStatusFilter.late).hasFacets, isTrue);
+    expect(
+      base.copyWith(status: AttendanceStatusFilter.late).hasFacets,
+      isTrue,
+    );
     expect(base.copyWith(shifts: {ScheduleShift.night}).hasFacets, isTrue);
     expect(base.copyWith(text: 'a').hasFacets, isTrue);
   });

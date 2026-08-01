@@ -6,25 +6,31 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
+import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/premium_button.dart';
+import 'package:drop/core/widgets/stat_strip.dart';
 import 'package:drop/features/attendance/domain/attendance_board.dart';
+import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/domain/attendance_gps.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_admin_state.dart';
 import 'package:drop/features/attendance/presentation/widgets/attendance_manager_actions.dart';
+import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 import 'package:drop/features/branch/presentation/pages/branch_geofence_editor_screen.dart';
 
-/// The **admin attendance dashboard** — all operational oversight for one branch:
-/// today's roster × attendance board (Working / Late / Absent, GPS-verified), the
-/// correction-request queue, and a shortcut to the branch geofence editor. Admins
-/// switch branches; a future Manager view renders the same screen pinned to their
-/// own branch (see [AttendanceAdminCubit]).
+/// The manager/admin **Today** destination. It is the live roster × attendance
+/// board: managers stay pinned to their own branch while admins choose a branch
+/// before the board loads. Reports and the per-person ledger are next steps, not
+/// competing landing pages.
 class AdminAttendanceScreen extends StatefulWidget {
   const AdminAttendanceScreen({super.key});
 
@@ -35,56 +41,117 @@ class AdminAttendanceScreen extends StatefulWidget {
 class _AdminAttendanceScreenState extends State<AdminAttendanceScreen> {
   int _tab = 0; // 0 = Today's board, 1 = Corrections
   AttendanceBoardStatus? _filter;
+  bool _bootstrapped = false;
+  String? _selectedBranchId;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStart());
+  }
+
+  Future<void> _maybeStart() async {
+    if (_bootstrapped) return;
     final user = context.currentUser;
-    if (user != null) {
-      WidgetsBinding.instance.addPostFrameCallback(
-          (_) => context.read<AttendanceAdminCubit>().load(user));
+    if (user == null) return;
+    _bootstrapped = true;
+    if (!user.role.isAdmin) {
+      await context.read<AttendanceAdminCubit>().load(
+        user,
+        branchId: user.branchId,
+      );
+      return;
     }
+    // BranchCubit is app-level. Await + read covers the already-loaded case,
+    // where loadIfNeeded deliberately emits nothing.
+    await context.read<BranchCubit>().loadIfNeeded();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _selectBranch(String branchId) async {
+    final user = context.currentUser;
+    if (user == null) return;
+    setState(() => _selectedBranchId = branchId);
+    await context.read<AttendanceAdminCubit>().load(user, branchId: branchId);
   }
 
   @override
   Widget build(BuildContext context) {
     return AdaptiveScaffold(
-      title: 'Attendance',
-      subtitle: 'Branch oversight',
+      title: 'Today',
+      // No subtitle: the counts and the grouped rows below say what this is
+      // better than a sentence restating them.
+      subtitle: null,
       actions: [
         IconButton(
-          tooltip: 'Attendance history',
+          tooltip: 'Find a person',
           onPressed: () => context.push(RouteNames.attendanceReview),
-          icon: const Icon(Icons.history_rounded,
-              color: AppColors.textSecondary),
+          icon: const Icon(
+            Icons.person_search_rounded,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        IconButton(
+          tooltip: 'Reports',
+          onPressed: () => context.push(RouteNames.attendanceReportsHub),
+          icon: const Icon(
+            Icons.assessment_outlined,
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
-      body: BlocConsumer<AttendanceAdminCubit, AttendanceAdminState>(
-        listenWhen: (_, s) => s.maybeMap(error: (_) => true, orElse: () => false),
-        listener: (context, state) => state.mapOrNull(
-          error: (e) => AppSnackbar.error(context, e.message),
-        ),
-        builder: (context, state) => state.maybeMap(
-          loaded: (s) => _Dashboard(
-            branchId: s.branchId,
-            branches: s.branches,
-            board: s.board,
-            corrections: s.corrections,
-            now: s.now,
-            deciding: s.deciding,
-            tab: _tab,
-            filter: _filter,
-            onTab: (t) => setState(() => _tab = t),
-            onFilter: (f) =>
-                setState(() => _filter = _filter == f ? null : f),
-          ),
-          error: (e) => _CenterMessage(message: e.message),
-          orElse: () => const Center(
-            child: Padding(
-              padding: EdgeInsets.all(AppSpacing.xxl),
-              child: CircularProgressIndicator(color: AppColors.primary),
+      body: BlocListener<AuthCubit, AuthState>(
+        listenWhen: (previous, next) =>
+            next.maybeWhen(authenticated: (_) => true, orElse: () => false) &&
+            !previous.maybeWhen(
+              authenticated: (_) => true,
+              orElse: () => false,
             ),
-          ),
+        listener: (context, _) => _maybeStart(),
+        child: BlocBuilder<BranchCubit, BranchState>(
+          builder: (context, branchState) {
+            final branches = branchState.maybeWhen(
+              loaded: (items, _) => items.where((b) => b.isActive).toList(),
+              orElse: () => const <BranchEntity>[],
+            );
+            final user = context.currentUser;
+            if (user?.role.isAdmin == true && _selectedBranchId == null) {
+              return _NoBranchSelected(
+                branches: branches,
+                onSelect: _selectBranch,
+              );
+            }
+            return BlocConsumer<AttendanceAdminCubit, AttendanceAdminState>(
+              listenWhen: (_, s) =>
+                  s.maybeMap(error: (_) => true, orElse: () => false),
+              listener: (context, state) => state.mapOrNull(
+                error: (e) => AppSnackbar.error(context, e.message),
+              ),
+              builder: (context, state) => state.maybeMap(
+                loaded: (s) => _Dashboard(
+                  branchId: s.branchId,
+                  branches: s.branches,
+                  board: s.board,
+                  corrections: s.corrections,
+                  now: s.now,
+                  deciding: s.deciding,
+                  tab: _tab,
+                  filter: _filter,
+                  onTab: (t) => setState(() => _tab = t),
+                  onFilter: (f) =>
+                      setState(() => _filter = _filter == f ? null : f),
+                  isAdmin: user?.role.isAdmin == true,
+                ),
+                error: (e) => _CenterMessage(message: e.message),
+                orElse: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.xxl),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -103,6 +170,7 @@ class _Dashboard extends StatelessWidget {
     required this.filter,
     required this.onTab,
     required this.onFilter,
+    required this.isAdmin,
   });
 
   final String branchId;
@@ -115,6 +183,7 @@ class _Dashboard extends StatelessWidget {
   final AttendanceBoardStatus? filter;
   final ValueChanged<int> onTab;
   final ValueChanged<AttendanceBoardStatus> onFilter;
+  final bool isAdmin;
 
   BranchEntity? get _branch {
     for (final b in branches) {
@@ -130,20 +199,25 @@ class _Dashboard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
-              AppSpacing.pagePadding, AppSpacing.pagePadding, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding,
+            AppSpacing.pagePadding,
+            AppSpacing.pagePadding,
+            0,
+          ),
           child: _Header(
             branches: branches,
             branchId: branchId,
             now: now,
             branch: _branch,
-            onSelect: cubit.selectBranch,
+            onSelect: isAdmin ? cubit.selectBranch : null,
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.pagePadding,
+          ),
           child: _Segmented(
             tab: tab,
             correctionCount: corrections.length,
@@ -157,7 +231,12 @@ class _Dashboard extends StatelessWidget {
             color: AppColors.primary,
             backgroundColor: AppColors.darkSurfaceElevated,
             child: tab == 0
-                ? _BoardView(board: board, filter: filter, onFilter: onFilter)
+                ? _BoardView(
+                    board: board,
+                    branchId: branchId,
+                    filter: filter,
+                    onFilter: onFilter,
+                  )
                 : _CorrectionsView(
                     corrections: corrections,
                     deciding: deciding,
@@ -167,6 +246,62 @@ class _Dashboard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _NoBranchSelected extends StatelessWidget {
+  const _NoBranchSelected({required this.branches, required this.onSelect});
+
+  final List<BranchEntity> branches;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (branches.isEmpty) {
+      return const Center(
+        child: Text(
+          'No branch is available yet.',
+          style: TextStyle(color: AppColors.textTertiary),
+        ),
+      );
+    }
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.pagePadding),
+        child: GlassContainer(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Choose a branch', style: AppTypography.h2),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Select a branch to see who is present, late, absent, or needs a decision today.',
+                  style: AppTypography.body,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                for (final branch in branches)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: PremiumButton(
+                        label: branch.name,
+                        icon: Icons.store_outlined,
+                        style: PremiumButtonStyle.tonal,
+                        onPressed: () => onSelect(branch.id),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -184,7 +319,7 @@ class _Header extends StatelessWidget {
   final String branchId;
   final DateTime now;
   final BranchEntity? branch;
-  final ValueChanged<String> onSelect;
+  final ValueChanged<String>? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -194,22 +329,28 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (branches.length > 1)
+              if (onSelect != null && branches.length > 1)
                 _BranchDropdown(
-                    branches: branches, branchId: branchId, onSelect: onSelect)
+                  branches: branches,
+                  branchId: branchId,
+                  onSelect: onSelect!,
+                )
               else
                 Text(
                   branch?.name ?? 'Branch',
                   style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800),
+                    color: AppColors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               const SizedBox(height: 2),
               Text(
                 'Today · ${AppDateFormatter.weekdayDayMonth(now)}',
                 style: const TextStyle(
-                    color: AppColors.textTertiary, fontSize: 13),
+                  color: AppColors.textTertiary,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -255,12 +396,15 @@ class _BranchDropdown extends StatelessWidget {
         isDense: true,
         borderRadius: AppRadius.lgAll,
         dropdownColor: AppColors.darkSurfaceElevated,
-        icon: const Icon(Icons.expand_more_rounded,
-            color: AppColors.textSecondary),
+        icon: const Icon(
+          Icons.expand_more_rounded,
+          color: AppColors.textSecondary,
+        ),
         style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 22,
-            fontWeight: FontWeight.w800),
+          color: AppColors.textPrimary,
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+        ),
         onChanged: (v) {
           if (v != null) onSelect(v);
         },
@@ -274,8 +418,11 @@ class _BranchDropdown extends StatelessWidget {
 }
 
 class _Segmented extends StatelessWidget {
-  const _Segmented(
-      {required this.tab, required this.correctionCount, required this.onTab});
+  const _Segmented({
+    required this.tab,
+    required this.correctionCount,
+    required this.onTab,
+  });
   final int tab;
   final int correctionCount;
   final ValueChanged<int> onTab;
@@ -292,10 +439,11 @@ class _Segmented extends StatelessWidget {
         children: [
           _seg('Today', 0),
           _seg(
-              correctionCount > 0
-                  ? 'Corrections ($correctionCount)'
-                  : 'Corrections',
-              1),
+            correctionCount > 0
+                ? 'Corrections ($correctionCount)'
+                : 'Corrections',
+            1,
+          ),
         ],
       ),
     );
@@ -330,119 +478,125 @@ class _Segmented extends StatelessWidget {
 
 // ─── Board tab: KPI strip + roster rows ───────────────────────────────────
 class _BoardView extends StatelessWidget {
-  const _BoardView(
-      {required this.board, required this.filter, required this.onFilter});
+  const _BoardView({
+    required this.board,
+    required this.branchId,
+    required this.filter,
+    required this.onFilter,
+  });
   final AttendanceBoard board;
+  final String branchId;
   final AttendanceBoardStatus? filter;
   final ValueChanged<AttendanceBoardStatus> onFilter;
 
   @override
   Widget build(BuildContext context) {
-    final rows = filter == null
-        ? board.rows
-        : (filter == AttendanceBoardStatus.late
-            ? board.rows.where((r) => r.isLate).toList()
-            : board.withStatus(filter!));
+    final needsDecision = board.rows
+        .where(
+          (row) =>
+              row.status == AttendanceBoardStatus.unscheduled ||
+              row.status == AttendanceBoardStatus.pendingReview,
+        )
+        .toList();
+    final present = board.rows
+        .where(
+          (row) =>
+              row.status == AttendanceBoardStatus.working ||
+              row.status == AttendanceBoardStatus.completed,
+        )
+        .toList();
+    final late = board.rows.where((row) => row.isLate).toList();
+    final absent = board.withStatus(AttendanceBoardStatus.absent);
+    final groups = <_BoardGroup>[
+      _BoardGroup('Needs a decision', needsDecision, AppColors.warning),
+      _BoardGroup('Present / working now', present, AppColors.success),
+      _BoardGroup('Late', late, AppColors.warning),
+      _BoardGroup('Absent', absent, AppColors.error),
+    ];
+    final visibleGroups = filter == null
+        ? groups
+        : groups
+              .where(
+                (group) => switch (filter) {
+                  AttendanceBoardStatus.working =>
+                    group.title == 'Present / working now',
+                  AttendanceBoardStatus.late => group.title == 'Late',
+                  AttendanceBoardStatus.absent => group.title == 'Absent',
+                  _ => true,
+                },
+              )
+              .toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, 0,
-          AppSpacing.pagePadding, AppSpacing.xl),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pagePadding,
+        0,
+        AppSpacing.pagePadding,
+        AppSpacing.xl,
+      ),
       children: [
-        Row(
-          children: [
-            _Kpi(
-                label: 'Working',
-                value: board.working,
-                tint: AppColors.success,
-                selected: filter == AttendanceBoardStatus.working,
-                onTap: () => onFilter(AttendanceBoardStatus.working)),
-            const SizedBox(width: AppSpacing.sm),
-            _Kpi(
-                label: 'Late',
-                value: board.late,
-                tint: AppColors.warning,
-                selected: filter == AttendanceBoardStatus.late,
-                onTap: () => onFilter(AttendanceBoardStatus.late)),
-            const SizedBox(width: AppSpacing.sm),
-            _Kpi(
-                label: 'Absent',
-                value: board.absent,
-                tint: AppColors.error,
-                selected: filter == AttendanceBoardStatus.absent,
-                onTap: () => onFilter(AttendanceBoardStatus.absent)),
+        StatStrip(
+          stats: [
+            Stat(
+              label: 'Present',
+              count: board.present,
+              tone: AppColors.success,
+            ),
+            Stat(
+              label: 'Late',
+              count: board.late,
+              tone: AppColors.warning,
+              onTap: () => onFilter(AttendanceBoardStatus.late),
+            ),
+            Stat(
+              label: 'Absent',
+              count: board.absent,
+              tone: AppColors.error,
+              onTap: () => onFilter(AttendanceBoardStatus.absent),
+            ),
+            Stat(
+              label: 'Needs review',
+              count: needsDecision.length,
+              tone: AppColors.warning,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
         _SummaryLine(board: board),
         const SizedBox(height: AppSpacing.lg),
-        if (rows.isEmpty)
+        for (final group in visibleGroups)
+          if (group.rows.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              '${group.title} · ${group.rows.length}',
+              style: AppTypography.labelLarge.copyWith(color: group.tone),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            for (final row in group.rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _BoardRow(row: row, branchId: branchId),
+              ),
+          ],
+        if (visibleGroups.every((group) => group.rows.isEmpty))
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-            child: Text('No one here.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textTertiary)),
-          )
-        else
-          for (final row in rows)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _BoardRow(row: row),
+            child: Text(
+              'No attendance changes to show yet.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textTertiary),
             ),
+          ),
       ],
     );
   }
 }
 
-class _Kpi extends StatelessWidget {
-  const _Kpi({
-    required this.label,
-    required this.value,
-    required this.tint,
-    required this.selected,
-    required this.onTap,
-  });
-  final String label;
-  final int value;
-  final Color tint;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-          decoration: BoxDecoration(
-            color: selected
-                ? tint.withValues(alpha: 0.14)
-                : AppColors.darkSurfaceElevated,
-            borderRadius: AppRadius.mdAll,
-            border: Border.all(
-                color: selected ? tint : AppColors.darkBorder, width: 1),
-          ),
-          child: Column(
-            children: [
-              Text(
-                '$value',
-                style: TextStyle(
-                    color: value == 0 ? AppColors.textTertiary : tint,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 2),
-              Text(label,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+class _BoardGroup {
+  const _BoardGroup(this.title, this.rows, this.tone);
+  final String title;
+  final List<AttendanceBoardRow> rows;
+  final Color tone;
 }
 
 class _SummaryLine extends StatelessWidget {
@@ -461,8 +615,9 @@ class _SummaryLine extends StatelessWidget {
 }
 
 class _BoardRow extends StatelessWidget {
-  const _BoardRow({required this.row});
+  const _BoardRow({required this.row, required this.branchId});
   final AttendanceBoardRow row;
+  final String branchId;
 
   @override
   Widget build(BuildContext context) {
@@ -470,51 +625,80 @@ class _BoardRow extends StatelessWidget {
     final record = row.record;
     return GlassContainer(
       padding: const EdgeInsets.all(AppSpacing.md),
-      onTap: () => _showDetails(context, row),
+      onTap: () => _showDetails(context, row, branchId),
       child: Row(
         children: [
-          Container(width: 3, height: 38, decoration: BoxDecoration(
-              color: tint, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 3,
+            height: 38,
+            decoration: BoxDecoration(
+              color: tint,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(row.name,
-                    style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  row.name,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 2),
+                // Every text here must be able to give ground: on a phone the
+                // name column can fall to ~120px, and a Row of rigid children
+                // overflows rather than compressing.
                 Row(
                   children: [
-                    Text(row.shift.label,
+                    Flexible(
+                      child: Text(
+                        row.shift.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            color: AppColors.textTertiary, fontSize: 12)),
+                          color: AppColors.textTertiary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                     if (record != null && record.clockIn != null) ...[
-                      const Text('  ·  ',
-                          style: TextStyle(
-                              color: AppColors.textTertiary, fontSize: 12)),
+                      const Text(
+                        '  ·  ',
+                        style: TextStyle(
+                          color: AppColors.textTertiary,
+                          fontSize: 12,
+                        ),
+                      ),
                       Icon(
                         row.isVerified
                             ? Icons.gps_fixed_rounded
                             : (row.hasGps
-                                ? Icons.gps_off_rounded
-                                : Icons.location_disabled_rounded),
+                                  ? Icons.gps_off_rounded
+                                  : Icons.location_disabled_rounded),
                         size: 12,
                         color: row.isVerified
                             ? AppColors.success
                             : AppColors.warning,
                       ),
                       const SizedBox(width: 3),
-                      Text(
-                        AppDateFormatter.time(record.clockIn!),
-                        style: const TextStyle(
+                      Flexible(
+                        child: Text(
+                          AppDateFormatter.time(record.clockIn!),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12,
-                            fontFeatures: [FontFeature.tabularFigures()]),
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -548,19 +732,29 @@ class _StatusChip extends StatelessWidget {
       child: Text(
         showLate ? '$label · late' : label,
         style: TextStyle(
-            color: tint, fontSize: 11.5, fontWeight: FontWeight.w700),
+          color: tint,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 }
 
 // ─── Attendance details sheet ─────────────────────────────────────────────
-void _showDetails(BuildContext context, AttendanceBoardRow row) {
+void _showDetails(
+  BuildContext context,
+  AttendanceBoardRow row,
+  String branchId,
+) {
   final r = row.record;
   final cubit = context.read<AttendanceAdminCubit>();
   // Which manager actions apply (all reuse the existing cubit + validation).
   final canResolve = r != null && r.needsReview;
-  final canAddOrExcuse = r == null &&
+  final isUnscheduled =
+      r != null && row.status == AttendanceBoardStatus.unscheduled;
+  final canAddOrExcuse =
+      r == null &&
       (row.status == AttendanceBoardStatus.absent ||
           row.status == AttendanceBoardStatus.late);
 
@@ -574,31 +768,44 @@ void _showDetails(BuildContext context, AttendanceBoardRow row) {
     ),
     builder: (sheetContext) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, 0,
-            AppSpacing.pagePadding, AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding,
+          0,
+          AppSpacing.pagePadding,
+          AppSpacing.lg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(row.name,
-                style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800)),
-            Text('${row.shift.label} · ${row.status.label}',
-                style: const TextStyle(
-                    color: AppColors.textTertiary, fontSize: 13)),
+            Text(
+              row.name,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              '${row.shift.label} · ${row.status.label}',
+              style: const TextStyle(
+                color: AppColors.textTertiary,
+                fontSize: 13,
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
             if (r != null) ...[
               _DetailClock(
-                  label: 'Clock in',
-                  time: r.clockIn,
-                  verification: r.clockInVerification),
+                label: 'Clock in',
+                time: r.clockIn,
+                verification: r.clockInVerification,
+              ),
               const SizedBox(height: AppSpacing.sm),
               _DetailClock(
-                  label: 'Clock out',
-                  time: r.clockOut,
-                  verification: r.clockOutVerification),
+                label: 'Clock out',
+                time: r.clockOut,
+                verification: r.clockOutVerification,
+              ),
               const SizedBox(height: AppSpacing.md),
               _DetailStat(label: 'Worked', value: _hm(r.workedMinutes)),
               if (r.lateMinutes > 0)
@@ -613,6 +820,37 @@ void _showDetails(BuildContext context, AttendanceBoardRow row) {
             const SizedBox(height: AppSpacing.lg),
 
             // ── Manager write actions ──
+            if (isUnscheduled) ...[
+              PremiumButton(
+                label: 'Mark present',
+                icon: Icons.check_circle_outline_rounded,
+                style: PremiumButtonStyle.filled,
+                onPressed: () => resolveShiftDirectly(
+                  context,
+                  cubit,
+                  r,
+                  dismissContext: sheetContext,
+                  title: 'Mark present',
+                  subtitle:
+                      'He was working. Confirm the times and leave an audit note.',
+                  submitLabel: 'Mark present',
+                  appliedMessage: 'Marked present.',
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Not sure? Leave the clock-in unapproved.',
+                style: AppTypography.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              PremiumButton(
+                label: 'Leave unapproved',
+                icon: Icons.more_time_outlined,
+                style: PremiumButtonStyle.tonal,
+                onPressed: () => Navigator.of(sheetContext).pop(),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
             if (canResolve) ...[
               PremiumButton(
                 label: 'Resolve shift',
@@ -670,6 +908,27 @@ void _showDetails(BuildContext context, AttendanceBoardRow row) {
                   ),
                 ),
               ),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push(
+                    RouteNames.attendanceReview,
+                    extra: AttendanceReviewLink(
+                      employeeName: row.name,
+                      branchId: branchId,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.history_rounded, size: 16),
+                label: const Text('History'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -678,8 +937,11 @@ void _showDetails(BuildContext context, AttendanceBoardRow row) {
 }
 
 class _DetailClock extends StatelessWidget {
-  const _DetailClock(
-      {required this.label, required this.time, required this.verification});
+  const _DetailClock({
+    required this.label,
+    required this.time,
+    required this.verification,
+  });
   final String label;
   final DateTime? time;
   final AttendanceVerification? verification;
@@ -699,17 +961,22 @@ class _DetailClock extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: const TextStyle(
-                        color: AppColors.textTertiary, fontSize: 12)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppColors.textTertiary,
+                    fontSize: 12,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   time == null ? '—' : AppDateFormatter.time(time!),
                   style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: [FontFeature.tabularFigures()]),
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
               ],
             ),
@@ -721,21 +988,23 @@ class _DetailClock extends StatelessWidget {
                 Row(
                   children: [
                     Icon(
-                        v.verified
-                            ? Icons.where_to_vote_rounded
-                            : Icons.wrong_location_outlined,
-                        size: 15,
+                      v.verified
+                          ? Icons.where_to_vote_rounded
+                          : Icons.wrong_location_outlined,
+                      size: 15,
+                      color: v.verified ? AppColors.success : AppColors.warning,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      v.verified ? 'At branch' : 'Off-site',
+                      style: TextStyle(
                         color: v.verified
                             ? AppColors.success
-                            : AppColors.warning),
-                    const SizedBox(width: 4),
-                    Text(v.verified ? 'At branch' : 'Off-site',
-                        style: TextStyle(
-                            color: v.verified
-                                ? AppColors.success
-                                : AppColors.warning,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700)),
+                            : AppColors.warning,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -743,15 +1012,18 @@ class _DetailClock extends StatelessWidget {
                   '${v.distanceMeters.round()} m · '
                   '±${(v.location.accuracyMeters ?? 0).round()} m',
                   style: const TextStyle(
-                      color: AppColors.textTertiary,
-                      fontSize: 11,
-                      fontFeatures: [FontFeature.tabularFigures()]),
+                    color: AppColors.textTertiary,
+                    fontSize: 11,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
               ],
             )
           else
-            const Text('No GPS',
-                style: TextStyle(color: AppColors.textTertiary, fontSize: 12)),
+            const Text(
+              'No GPS',
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
+            ),
         ],
       ),
     );
@@ -769,16 +1041,23 @@ class _DetailStat extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Text(label,
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 14)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
           const Spacer(),
-          Text(value,
-              style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: [FontFeature.tabularFigures()])),
+          Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
         ],
       ),
     );
@@ -804,20 +1083,29 @@ class _CorrectionsView extends StatelessWidget {
           SizedBox(height: 80),
           Icon(Icons.inbox_rounded, size: 44, color: AppColors.textTertiary),
           SizedBox(height: AppSpacing.md),
-          Text('No pending corrections',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+          Text(
+            'No pending corrections',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+          ),
         ],
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, 0,
-          AppSpacing.pagePadding, AppSpacing.xl),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pagePadding,
+        0,
+        AppSpacing.pagePadding,
+        AppSpacing.xl,
+      ),
       itemCount: corrections.length,
       itemBuilder: (_, i) => Padding(
         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
         child: _CorrectionCard(
-            correction: corrections[i], deciding: deciding, onDecide: onDecide),
+          correction: corrections[i],
+          deciding: deciding,
+          onDecide: onDecide,
+        ),
       ),
     );
   }
@@ -843,30 +1131,41 @@ class _CorrectionCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(c.userName ?? 'Employee',
-                    style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700)),
+                child: Text(
+                  c.userName ?? 'Employee',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: 0.12),
-                    borderRadius: AppRadius.fullAll),
-                child: Text(c.kind.label,
-                    style: const TextStyle(
-                        color: AppColors.warning,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700)),
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: AppRadius.fullAll,
+                ),
+                child: Text(
+                  c.kind.label,
+                  style: const TextStyle(
+                    color: AppColors.warning,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(c.reason,
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 13.5, height: 1.4)),
+          Text(
+            c.reason,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13.5,
+              height: 1.4,
+            ),
+          ),
           if (c.proposedClockIn != null || c.proposedClockOut != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -877,9 +1176,10 @@ class _CorrectionCard extends StatelessWidget {
                   'Out → ${AppDateFormatter.time(c.proposedClockOut!)}',
               ].join('   ·   '),
               style: const TextStyle(
-                  color: AppColors.textTertiary,
-                  fontSize: 12,
-                  fontFeatures: [FontFeature.tabularFigures()]),
+                color: AppColors.textTertiary,
+                fontSize: 12,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
             ),
           ],
           const SizedBox(height: AppSpacing.md),
@@ -938,7 +1238,9 @@ class _DecisionButton extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: AppRadius.buttonAll,
-            border: filled ? null : Border.all(color: tone.withValues(alpha: 0.6)),
+            border: filled
+                ? null
+                : Border.all(color: tone.withValues(alpha: 0.6)),
           ),
           child: Text(
             label,
@@ -965,25 +1267,27 @@ class _CenterMessage extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxl),
-        child: Text(message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textTertiary)),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.textTertiary),
+        ),
       ),
     );
   }
 }
 
 (Color, String) _statusStyle(AttendanceBoardStatus s) => switch (s) {
-      AttendanceBoardStatus.working => (AppColors.success, 'Working'),
-      AttendanceBoardStatus.completed => (AppColors.textSecondary, 'Completed'),
-      AttendanceBoardStatus.late => (AppColors.warning, 'Late'),
-      AttendanceBoardStatus.absent => (AppColors.error, 'Absent'),
-      AttendanceBoardStatus.notStarted => (AppColors.textTertiary, 'Not started'),
-      AttendanceBoardStatus.onLeave => (AppColors.warning, 'On leave'),
-      AttendanceBoardStatus.excused => (AppColors.textSecondary, 'Excused'),
-      AttendanceBoardStatus.pendingReview => (AppColors.warning, 'Needs review'),
-      AttendanceBoardStatus.unscheduled => (AppColors.warning, 'Unscheduled'),
-    };
+  AttendanceBoardStatus.working => (AppColors.success, 'Working'),
+  AttendanceBoardStatus.completed => (AppColors.textSecondary, 'Completed'),
+  AttendanceBoardStatus.late => (AppColors.warning, 'Late'),
+  AttendanceBoardStatus.absent => (AppColors.error, 'Absent'),
+  AttendanceBoardStatus.notStarted => (AppColors.textTertiary, 'Not started'),
+  AttendanceBoardStatus.onLeave => (AppColors.warning, 'On leave'),
+  AttendanceBoardStatus.excused => (AppColors.textSecondary, 'Excused'),
+  AttendanceBoardStatus.pendingReview => (AppColors.warning, 'Needs review'),
+  AttendanceBoardStatus.unscheduled => (AppColors.warning, 'Unscheduled'),
+};
 
 String _two(int n) => n.toString().padLeft(2, '0');
 String _hm(int minutes) {
