@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1312 pass · 2 fail** across 182 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **86 pass** (`cd functions && node --test`); **Firestore rules: 37 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1330 pass · 2 fail** across 184 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · iOS push unconfigured · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -469,8 +469,44 @@ real seconds per write.
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
 
-**Phase 4 (Exports) is PARTIAL 2026-07-31 — uncommitted, and the rest is
-blocked on the deploy, not on code.** ADR-005/ADR-017 make a payroll artifact
+**Phase 4 was RESCOPED and SHIPPED 2026-08-01** by
+[ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md), after
+the owner retired its premise: **DROP is an operations system, not a payroll
+system, and payroll integration is not planned.**
+
+That collapsed the old reasoning in sequence — no machine ingests a file, so no
+machine schema; nothing consumes a figure, so nothing needs freezing; the
+artifact is not financial, so it needs no audit chain; and with no audit chain,
+server generation buys nothing a client cannot do. **The deploy dependency
+disappeared with it.**
+
+**Shipped:** a client-generated **timesheet CSV** — 11 human columns (`29 Jul`,
+`08:37`, `7h 52m`), not the 37-column machine schema — written beside the
+Schedule PNG export via `path_provider`. And **week review**: a manager's
+assertion that they looked, at `attendance_week_reviews/{branchId}_{weekKey}`.
+
+⚠️ **Week review is an assertion, not a lock.** Nothing is restricted by it; the
+rules carry no `locked` field by design. It is **orthogonal to
+`AttendanceCoverageStatus`** and must never be merged into it — coverage answers
+*is the record complete?* (computed), review answers *has a person signed off?*
+(underivable: a week can be Settled and never opened). Merging them is how "Fully
+closed" once appeared over an 86%-empty week. Post-review changes are **derived**
+(`restatedAt`/`closedAt` later than `reviewedAt`), so "later changes are visible"
+costs no history collection. A week with open items is still reviewable and says
+so.
+
+**Deleted:** the payroll CSV builder + its 18 node tests (functions back to 68),
+period lock, the export ledger, restatement versioning, and the dead
+`AttendancePeriodStatus`. `ATTENDANCE_REPORTS_IA` §12.6 is retired.
+
+**Rules deployed 2026-08-01** — `attendance_week_reviews` (manager own-branch,
+admin any; attribution cannot be forged; Reopen deletes). Firestore rules suite
+**47 pass** (was 37).
+
+**Still open:** the weekly **PDF**, which needs the `pdf` + `printing` packages —
+the only export that adds a dependency.
+
+*Superseded (kept for the record): Phase 4 was previously blocked on the deploy.* ADR-005/ADR-017 make a payroll artifact
 server-authored, so the file must come from a Cloud Function writing to Storage
 with an export ledger — none of which can be verified without the standing
 Functions deploy.

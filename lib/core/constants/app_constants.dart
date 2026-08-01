@@ -53,6 +53,15 @@ class AppConstants {
   static const String attendanceCorrectionsCollection =
       'attendance_corrections';
 
+  /// A manager's statement that they reviewed a branch-week ([ADR-019]) —
+  /// `attendance_week_reviews/{branchId}_{weekStartKey}`.
+  ///
+  /// **An assertion, not a lock.** Nothing is restricted by a review existing;
+  /// changes made afterwards are surfaced by comparing timestamps, never
+  /// rejected. Deliberately carries no `locked` field.
+  static const String attendanceWeekReviewsCollection =
+      'attendance_week_reviews';
+
   /// Immutable Event Tracking + Audit Log. One append-only document per important
   /// business action (`audit_logs/{id}`) — who did what, to which entity, when,
   /// from where. Never edited; never hard-deleted (admin soft-delete only). All

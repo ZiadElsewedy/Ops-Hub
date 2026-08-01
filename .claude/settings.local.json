@@ -39,7 +39,8 @@
       "Bash(git branch *)",
       "Bash(grep -i \"title\\\\|body\\\\|'.*due\\\\|\\\\`\")",
       "Bash(claude --version)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(node \"/Users/ziad/.claude/skills/codex-delegate/scripts/relay.mjs\" --brief \"/private/tmp/claude-501/-Users-ziad-Desktop-Developer-Projects-Flutter-Projects-fbro/5f9c004a-f5b0-4720-8ca3-84a911e2e468/scratchpad/brief-notifications-audit.txt\" --cd \"/Users/ziad/Desktop/Developer/Projects/Flutter Projects/fbro\" --read-only --timeout 90m)"
     ]
   }
 }

@@ -1232,61 +1232,30 @@ For Attendance:
 - Export buttons are disabled until locked.
 - Export status appears in the Export Ledger.
 
-### 12.6 Payroll CSV schema
+### 12.6 Payroll CSV schema — **RETIRED 2026-08-01**
 
-| Column | Type | Rule |
-| --- | --- | --- |
-| `period_id` | string | Period id. |
-| `period_version` | int | Exported version. |
-| `export_id` | string | Export request id. |
-| `scope_kind` | string | `branch` or `multiBranch`. |
-| `branch_id` | string | Row branch id. |
-| `branch_name` | string | Snapshot. |
-| `employee_uid` | string | UID. |
-| `employee_name` | string | Snapshot. |
-| `business_date` | date string | `yyyy-MM-dd` in `Africa/Cairo`. |
-| `shift` | string | Shift id/name. |
-| `overnight` | bool | True when scheduled end crosses midnight. |
-| `scheduled_start_at` | ISO timestamp | UTC instant. |
-| `scheduled_end_at` | ISO timestamp | UTC instant. |
-| `clock_in_at` | ISO timestamp? | Null for no-show/leave. |
-| `clock_out_at` | ISO timestamp? | Null when missing/pending. |
-| `timezone` | string | Always `Africa/Cairo` in v1. |
-| `status` | string | Existing attendance status value where applicable. |
-| `expected_shift` | bool | Counts in expected denominator. |
-| `excluded_from_show_up_rate` | bool | Leave/excused true. |
-| `excluded_reason` | string? | Leave type or excused category. |
-| `source` | string | Existing attendance source. |
-| `worked_minutes` | int | Calculator output. |
-| `break_minutes` | int | Zero unless breaks return. |
-| `paid_candidate_minutes` | int | Worked minus unpaid break policy if configured; otherwise worked with warning. |
-| `late_minutes` | int | Calculator output. |
-| `early_leave_minutes` | int | Calculator output. |
-| `overtime_minutes` | int | Calculator output. |
-| `exception_codes` | string | Pipe-delimited stable labels. |
-| `pending_review` | bool | Blocks payroll finality. |
-| `correction_ids` | string | Pipe-delimited. |
-| `gps_in_verified` | bool? | From verification snapshot. |
-| `gps_in_distance_m` | int? | Rounded meters. |
-| `gps_out_verified` | bool? | From verification snapshot. |
-| `gps_out_distance_m` | int? | Rounded meters. |
-| `attendance_record_id` | string? | Raw record id. |
-| `report_row_id` | string | Durable report row id. |
-| `restatement_of` | string? | Prior period/export id if applicable. |
+Removed by [ADR-019](../decisions/ADR-019-operational-exports-and-week-review.md).
+The 37-column schema existed to feed a payroll system; DROP is an operations
+management system and payroll integration is not planned, so nothing will read
+it. The schema is in git history at `b02c949` should that premise ever change —
+in which case ADR-019 is reversed, not extended.
 
-Rounding:
+**What replaces it** is a *different artifact, not a trimmed one.* Payroll wanted
+`2026-07-29T05:30:00.000Z` and `487`, because a machine rounds and prices for
+itself. A manager opening a spreadsheet wants `29 Jul`, `08:37` and `7h 52m`.
+Eleven columns, defined in
+`lib/features/attendance/domain/reporting/attendance_timesheet_csv.dart`:
 
-- Export whole minutes.
-- Do not round to payroll increments.
-- Payroll system owns 5/10/15 minute rounding.
-- GPS distances are rounded to whole meters.
+`Date · Employee · Shift · Outcome · Scheduled · Hours · Late (min) ·
+Early leave (min) · Overtime · Issues · Clock-in recorded`
 
-Break policy:
+Generated **on the client** and written beside the Schedule PNG export. No Cloud
+Function, no Storage object, no export ledger — an operational document shared
+with an owner carries no financial obligation, which was the only reason server
+generation was required.
 
-- Break support is dormant (`docs/design/ATTENDANCE_AUDIT_2026-07-30.md:1192`).
-- CSV always includes `break_minutes`.
-- If no break policy exists, export marks paid candidate minutes as raw worked
-  minutes with warning metadata.
+Rounding is unchanged and still refused: whole minutes out, and DROP does not
+calculate pay.
 
 ## 13. Premium UI direction
 

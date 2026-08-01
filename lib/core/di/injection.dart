@@ -107,6 +107,8 @@ import 'package:drop/features/attendance/data/services/geolocator_location_servi
 import 'package:drop/features/attendance/domain/attendance_service.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
+import 'package:drop/features/attendance/domain/repositories/attendance_week_review_repository.dart';
+import 'package:drop/features/attendance/data/repositories/attendance_week_review_repository_impl.dart';
 import 'package:drop/features/attendance/domain/usecases/clock_in.dart';
 import 'package:drop/features/attendance/domain/usecases/clock_out.dart';
 import 'package:drop/features/attendance/domain/usecases/decide_correction.dart';
@@ -423,6 +425,7 @@ class AppDependencies {
   // requests detail cubit. The employee/admin cubits above hold it internally.
   static late final AttendanceRepository _attendanceRepository;
   static late final AttendanceReportingRepository _attendanceReportingRepository;
+  static late final AttendanceWeekReviewRepository weekReviewRepository;
 
   /// Branch member directory used by the reporting screens to put a name on a
   /// phantom no-show, which has no attendance record to carry one.
@@ -744,6 +747,11 @@ class AppDependencies {
     // Shared with the on-demand History / Details cubit factories.
     _attendanceRepository = attendanceRepository;
     _attendanceReportingRepository = attendanceReportingRepository;
+    // The week-review assertion (ADR-019) — a plain client write gated by
+    // rules, deliberately outside the ledger-only reporting read path.
+    weekReviewRepository = AttendanceWeekReviewRepositoryImpl(
+      FirebaseFirestore.instance,
+    );
     attendanceCubit = AttendanceCubit(
       repository: attendanceRepository,
       scheduleRepository: scheduleRepository,

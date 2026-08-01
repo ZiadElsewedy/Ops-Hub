@@ -52,13 +52,5 @@ void main() {
       expect(id2, id1);
       expect(id3, isNot(id1));
     });
-
-    test('period status predicates follow lifecycle semantics', () {
-      expect(AttendancePeriodStatus.open.isMutable, isTrue);
-      expect(AttendancePeriodStatus.ready.isMutable, isTrue);
-      expect(AttendancePeriodStatus.locked.isFinal, isTrue);
-      expect(AttendancePeriodStatus.exported.allowsExport, isTrue);
-      expect(AttendancePeriodStatus.restated.isFinal, isFalse);
-    });
   });
 }

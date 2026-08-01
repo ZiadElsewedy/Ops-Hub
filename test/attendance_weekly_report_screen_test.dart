@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drop/features/attendance/domain/repositories/attendance_week_review_repository.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_week_review.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
@@ -151,6 +153,7 @@ _pumpWeekly(WidgetTester tester, {required Size size, String? periodId}) async {
         home: AttendanceWeeklyReportScreen(
           periodId: periodId ?? _periodId,
           cubit: reportCubit,
+          weekReviewRepository: _FakeWeekReviewRepo(),
         ),
       ),
     ),
@@ -298,4 +301,24 @@ void main() {
     await authCubit.close();
     await repo.close();
   });
+}
+
+
+/// Nobody has reviewed the week. Injected rather than reaching into DI — a
+/// widget that reads a `late final` singleton cannot be pumped in a test.
+class _FakeWeekReviewRepo implements AttendanceWeekReviewRepository {
+  @override
+  Stream<AttendanceWeekReview?> watchWeekReview({
+    required String branchId,
+    required DateTime weekStart,
+  }) => Stream.value(null);
+
+  @override
+  Future<void> markReviewed(AttendanceWeekReview review) async {}
+
+  @override
+  Future<void> reopen({
+    required String branchId,
+    required DateTime weekStart,
+  }) async {}
 }

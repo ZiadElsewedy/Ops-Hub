@@ -63,6 +63,51 @@ error: the correction is durable and applies on deploy.
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
 
+## 2026-08-01 — Exports become operational documents; a week is reviewed, not locked
+
+[ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md), after
+the owner retired the premise Phase 4 was built on: **DROP is an operations
+management system, not a payroll system, and payroll integration is not
+planned.**
+
+The reasoning collapsed in sequence. No machine ingests a file, so there is no
+machine schema to satisfy; nothing downstream consumes a figure, so nothing needs
+freezing; the artifact is not financial, so it needs no audit chain; and with no
+audit chain, server generation buys nothing a client cannot do. **Phase 4's
+deploy dependency disappeared with it.**
+
+**The timesheet CSV replaces the payroll CSV — a different artifact, not a
+trimmed one.** Payroll wanted `2026-07-29T05:30:00.000Z` and `487`, because a
+machine rounds for itself. A manager wants `29 Jul`, `08:37`, `7h 52m`. Eleven
+columns instead of thirty-seven, generated on the client and written beside the
+Schedule PNG export.
+
+**Week review kept, as an assertion rather than a lock.** The first plan removed
+the whole notion of finishing a week; the owner pushed back, correctly — closing
+and locking had been treated as one thing. A manager can now mark a branch-week
+reviewed, recording who and when, reversible by Reopen. Nothing is restricted:
+the rules carry no `locked` field by design.
+
+It is deliberately **orthogonal** to the derived coverage status and rendered
+apart from it. Coverage answers *is the record complete?*; review answers *has a
+person signed off?* — which cannot be computed, because a week can be Settled and
+never opened by anyone. Merging them is how "Fully closed" once appeared over a
+week that was 86% empty. Post-review changes are **derived** from timestamps, so
+"later changes are intentional and visible" needs no history collection at all.
+
+**Deleted:** the payroll CSV and its 18 node tests (functions 86 → 68), period
+lock, the export ledger, restatement versioning, and `AttendancePeriodStatus`,
+which never had a reader in `lib/`. IA §12.6 retired.
+
+Also fixed on the way: the review widget reached straight into a `late final` DI
+singleton, which crashed it under test. It is now injectable like the screen's
+cubit — a widget that cannot be pumped is a design problem, not a test problem.
+
+Rules deployed. Firestore rules **47 pass** (was 37), Dart **1330 pass / 2
+pre-existing**, functions **68 pass**, build succeeds.
+
+Still open: the weekly PDF, the one export that adds dependencies.
+
 ## 2026-07-31 — Deployed to production, and found the backlog was mostly a myth
 
 Deployed to `bazic-d9ad7` (the only project — there is no staging): Firestore
