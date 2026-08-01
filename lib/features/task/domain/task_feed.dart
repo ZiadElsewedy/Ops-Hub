@@ -68,12 +68,18 @@ class TaskFeedFilter {
     this.shift,
     this.priority,
     this.status,
+    this.statuses,
     this.query = '',
     this.preset,
     this.grouping = FeedGrouping.dueTime,
     // Default = Due Date (grouped). Smart Queue is an explicit opt-in sort until
     // its ranking heuristic is validated against real usage.
     this.sort = FeedSort.dueDate,
+    // Default true = today's behaviour (the homepage feed only ever wants the
+    // active window). A drill-down onto a **closed** record set (Missed,
+    // Cancelled, Done) opts out — see [isTaskInActiveWindow], which otherwise
+    // excludes exactly those statuses and would render an empty page.
+    this.activeWindowOnly = true,
   });
 
   final String? branchId;
@@ -81,10 +87,22 @@ class TaskFeedFilter {
   final ScheduleShift? shift;
   final TaskPriority? priority;
   final TaskStatus? status;
+
+  /// A wider status match than [status] — a task counts when its status is a
+  /// member of this set. Composes (AND) with [status]. Exists for filters that
+  /// are a *group* of statuses (e.g. "Active" = pending/started/completed/
+  /// rejected) rather than one — [status] stays a single value so every
+  /// existing single-status call site is untouched.
+  final Set<TaskStatus>? statuses;
   final String query;
   final FeedPreset? preset;
   final FeedGrouping grouping;
   final FeedSort sort;
+
+  /// Scope switch, not a user filter — deliberately excluded from
+  /// [hasActiveFilters] (it decides *which record set* is being browsed, not
+  /// whether the browsing user has narrowed it).
+  final bool activeWindowOnly;
 
   bool get hasActiveFilters =>
       branchId != null ||
@@ -92,6 +110,7 @@ class TaskFeedFilter {
       shift != null ||
       priority != null ||
       status != null ||
+      statuses != null ||
       preset != null ||
       query.trim().isNotEmpty;
 
@@ -101,10 +120,12 @@ class TaskFeedFilter {
     Object? shift = _unset,
     Object? priority = _unset,
     Object? status = _unset,
+    Object? statuses = _unset,
     String? query,
     Object? preset = _unset,
     FeedGrouping? grouping,
     FeedSort? sort,
+    bool? activeWindowOnly,
   }) => TaskFeedFilter(
     branchId: branchId == _unset ? this.branchId : branchId as String?,
     assigneeUid: assigneeUid == _unset
@@ -113,10 +134,14 @@ class TaskFeedFilter {
     shift: shift == _unset ? this.shift : shift as ScheduleShift?,
     priority: priority == _unset ? this.priority : priority as TaskPriority?,
     status: status == _unset ? this.status : status as TaskStatus?,
+    statuses: statuses == _unset
+        ? this.statuses
+        : statuses as Set<TaskStatus>?,
     query: query ?? this.query,
     preset: preset == _unset ? this.preset : preset as FeedPreset?,
     grouping: grouping ?? this.grouping,
     sort: sort ?? this.sort,
+    activeWindowOnly: activeWindowOnly ?? this.activeWindowOnly,
   );
 
   /// Toggles [p] on/off (tapping the active preset clears it).
@@ -171,8 +196,9 @@ List<TaskEntity> applyFeed(
   final result = <TaskEntity>[];
   for (final t in tasks) {
     // Base: only active work + done-today (keeps stale-approved out of the feed
-    // even before the retention pass archives them).
-    if (!isTaskInActiveWindow(t, now)) continue;
+    // even before the retention pass archives them). [activeWindowOnly] lets a
+    // caller opt out for a drill-down onto a closed record set.
+    if (filter.activeWindowOnly && !isTaskInActiveWindow(t, now)) continue;
     if (filter.branchId != null && t.branchId != filter.branchId) continue;
     if (filter.assigneeUid != null &&
         !t.assigneeIds.contains(filter.assigneeUid)) {
@@ -181,6 +207,9 @@ List<TaskEntity> applyFeed(
     if (filter.shift != null && t.shift != filter.shift) continue;
     if (filter.priority != null && t.priority != filter.priority) continue;
     if (filter.status != null && t.status != filter.status) continue;
+    if (filter.statuses != null && !filter.statuses!.contains(t.status)) {
+      continue;
+    }
     if (filter.preset != null && !_matchesPreset(t, filter.preset!, now)) {
       continue;
     }

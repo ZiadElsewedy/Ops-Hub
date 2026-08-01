@@ -143,6 +143,7 @@
 - **Design spec(s):** `docs/design/AUTOMATED_TASKS_PRODUCT_SPEC.md`, `docs/design/TASKS.md`
 
 ## Tests
+- `test/admin_task_overview_screen_test.dart`
 - `test/recurring_shift_task_test.dart`
 - `test/task_access_test.dart`
 - `test/task_archive_test.dart`
@@ -166,6 +167,7 @@
 - `test/task_model_work_type_test.dart`
 - `test/task_ordering_test.dart`
 - `test/task_outcomes_test.dart`
+- `test/task_preview_sheet_test.dart`
 - `test/task_schedule_test.dart`
 - `test/task_seen_store_test.dart`
 - `test/task_start_gate_widget_test.dart`

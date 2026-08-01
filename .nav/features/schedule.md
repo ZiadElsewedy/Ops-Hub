@@ -8,6 +8,7 @@
 | Route const | Path | Guard/notes |
 |---|---|---|
 | `RouteNames.adminSchedule` | `/admin/schedule` |  |
+| `RouteNames.attendanceWeeklyPattern` | `/attendance/reports/weekly/:periodId` |  |
 | `RouteNames.communicationsSchedules` | `/communications/schedules` |  |
 | `RouteNames.managerSchedule` | `/manager/schedule` |  |
 | `RouteNames.mySchedule` | `/my-schedule` |  |
@@ -95,6 +96,9 @@
 - **Design spec(s):** `docs/design/AUTO_SCHEDULE.md`, `docs/design/SCHEDULE.md`
 
 ## Tests
+- `test/attendance_weekly_pdf_test.dart`
+- `test/attendance_weekly_report_screen_test.dart`
+- `test/attendance_weekly_report_test.dart`
 - `test/broadcast_schedule_model_test.dart`
 - `test/my_schedule_tab_test.dart`
 - `test/recurring_shift_task_test.dart`

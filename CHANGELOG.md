@@ -115,6 +115,131 @@ still strictly monochrome).
 
 Verified on the simulator with a live highlighted cell (1 To do).
 
+---
+
+## 2026-08-01 — The Admin Dashboard "Today" strip stops lying by omission (polish + bug-fix; MED risk)
+
+Owner used the dashboard on real data and asked "why is active 0 when there IS
+a task?". The number was correct — `Running now` counts `started` only, and
+the task in question was `pending`, never started — but the strip had **no
+number for outstanding work at all**, so `Running now` got read as that number
+by default. Added `Open` (pending/started/completed/rejected — the same
+definition Task Management's "Active" uses, so the two screens agree) and put
+it first, in the slot `Approval rate` freed.
+
+Second finding: `Delayed` (dashboard), `Late` (Task Management), and
+`Late tasks` (Operations) are the exact same `isTaskOverdue` predicate wearing
+three names and two colours (amber here, red everywhere else). Renamed to
+`Late`, recoloured to `AppColors.error`. Grepped the rest of the app for
+"Delayed" task copy — this was the only one.
+
+Third: `Approval rate` is gone, and it wasn't just decluttering — it was a
+second, disagreeing completion formula (`Approved ÷ (Approved + Rejected)`,
+from a separate `StatisticsCubit` aggregate) sitting next to Task
+Management's `Approved ÷ (Approved + Missed)` (§10.1). Removing it leaves one
+completion figure in the product. `_today()` no longer subscribes to
+`StatisticsCubit` at all as a result — `Completed today` is now derived from
+the task stream (`completedTodayCount`, `task_metrics.dart`, built on the same
+`isTaskInActiveWindow` `applyFeed` uses) instead of the lifetime-scoped
+`StatisticsCubit.completedTasksToday`, so the stat and its drill-down list can
+never disagree.
+
+Every cell except `Due soon` is now a real tap target into
+`FilteredTasksScreen`, each with a one-line "how does this count" description.
+`Due soon` stays deliberately inert: no `TaskFeedFilter` can reproduce
+`schedulePhase`'s dueSoon precedence (it excludes `completed`/`waitingReview`
+even though the active window includes them) without either an over-counting
+filter or a reverse dependency from `task_feed.dart` into `task_schedule.dart`
+— a cell that doesn't open beats one whose count and list could disagree.
+
+`manager_home_screen.dart` reads the same `StatisticsCubit.completedTasksToday`
+for its own "Completed today" tile, but it isn't tappable there, so it carries
+no count-vs-list risk today. Left unchanged — out of scope for this pass.
+
+---
+
+## 2026-08-01 — Task card outcome legibility, a redesigned preview sheet, and self-explaining stats (polish + feature; MED risk)
+
+Follow-up from the owner using the previous change on real data. Three findings:
+
+1. **The card's "by X" named the wrong person.** `TaskCard`'s footer showed the
+   task's *creator* even on a decided card, so "Approved" next to "by Admin"
+   read as "Admin approved this" — the wrong person answering a question
+   nobody asked. It now names the **decider** once a task is decided
+   (`Approved by <name>` / `Rejected by <name>` / `Cancelled by <name>`, via
+   the new shared `resolveDeciderName` in `activity_format.dart`, reused by
+   both the card and the new preview sheet so the two surfaces can't drift).
+   `Missed` has no decider — an automated sweep closed it — so it says
+   `Missed — closed automatically` and never falls back to the creator, on
+   purpose (that fallback was the exact bug). Undecided statuses are
+   byte-for-byte unchanged. A finished-late task's timeliness note moved from
+   a buried chip up next to the status pill (`_LatenessNote`, always neutral
+   grey — Late stays a timeliness signal, never pass/fail, per §10.4; never
+   the Missed/error red). The reference-attachment count chip was cut: it told
+   you material existed but gave you nothing to act on from the card itself.
+
+2. **The preview sheet read like a debug dump.** `showTaskPreviewSheet` used
+   to stack `TaskFeedRow` + `TaskFeedExpansion` — a dense monitoring row, then
+   a flat label/value grid. Rebuilt **locally** in `task_preview_sheet.dart`
+   (that pair is shared with the dashboard's live feed accordion and stays
+   untouched): a plain-language **situation sentence first** (state +
+   consequence — `Approved by Ziad · 1m late`, `Missed · deadline passed 21h
+   ago, closed automatically`), a 3-row facts card (branch+shift merged,
+   due+lateness merged, assignee), a one-line checklist summary, and a
+   hierarchy-first timeline (an emphasised head row for the newest event, a
+   muted ledger below, capped at 4 rows + a Full-Details pointer). The sticky
+   footer (`TaskFeedActions`) — approve/reject/reassign/note/open-full-details
+   — is unchanged; this is a presentation rebuild, not a new action path.
+
+3. **"How does Late count?" was a fair question nobody could answer from the
+   UI.** Verified against the code (not assumed): Late = active work only
+   (`pending`/`started`/`rejected`) past its deadline, with **no time
+   window** — a task three weeks overdue still counts, every day, until it's
+   closed; once finished it drops out of Late entirely and becomes a
+   "finished late" note on the task itself. `_BranchMetrics._overdue`
+   (admin overview), `isTaskOverdue` (`task_feed.dart`) and
+   `isOperationalOverdueTask` (`branch_workload.dart`) were checked side by
+   side and agree exactly — no predicate drift found. `FilteredTasksScreen`
+   gained an optional `description` (same slot `OperationsMetricScreen`
+   already uses) so every stat-row drill-down states, in one line, what it
+   counts and why — Late's line names the "no window, until closed" rule
+   explicitly.
+
+---
+
+## 2026-08-01 — Admin Task Management: a tappable stat row instead of two tabs (feature + polish; MED risk)
+
+Owner request: "I want to click on missed to see all missed tasks" — and one
+row can carry Active/In review/Late/Missed/Cancelled/Done without a segmented
+`Active | Done` toggle that only relabelled the same branch grid.
+`admin_task_overview_screen.dart` drops the tabs, the `_TaskLens` split, and the
+wordy `_OutcomeBreakdown` panel; every task-typed cell in the stat row is now a
+real tap target into `FilteredTasksScreen` with exactly those tasks. The branch
+grid keeps only its former "Active" framing (Active / Pending review / Late +
+the completion caption).
+
+**The trap this was built to avoid:** `FilteredTasksScreen` runs its filter
+through `applyFeed`, whose first line drops anything `isTaskInActiveWindow`
+excludes — Missed, Cancelled, and any task approved before today. A naive
+`status: missed` filter would have rendered an empty "All clear" page.
+`TaskFeedFilter` gained `activeWindowOnly` (default `true`, so every existing
+caller — the dashboard's Needs-Attention tiles, `task_feed_test.dart` — is
+byte-identical) and the Missed/Cancelled/Done stats set it `false`. Also added
+a `statuses` set (composes AND with the single `status` field) so "Active" can
+mean four statuses without adding a `FeedPreset` case (which would have grown
+the dashboard's chip row for free). `FeedPreset` itself is untouched.
+
+Cancelled still hides at zero, still never wears Missed's error-red, and
+nothing sums the two — the §8 hard invariant the deleted panel used to enforce
+is now enforced in the row instead. `StatStrip`'s `Stat` gained an optional
+`onTap` (press/hover + a `Semantics` button label); every other `StatStrip`
+caller is unaffected. `FilteredTasksScreen` gained an `emptyTitle` override
+(so an empty Missed page reads "No missed tasks", not "All clear") and a quiet
+task-count line. `TaskActivityCard` gained an opt-in `showDeadline` flag, on
+only for these drill-downs — the dashboard's Recent Activity feed is unchanged.
+
+---
+
 ## 2026-07-31 — Daily review: settle yesterday before it becomes a weekly surprise (feature; HIGH risk)
 
 Phase 2 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md)

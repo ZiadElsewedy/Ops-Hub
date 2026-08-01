@@ -62,4 +62,159 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Inventory Audit'), findsOneWidget);
   });
+
+  // ── Footer decider fact (2026-08-01 delta: the "by X" fix) ────────────
+  //
+  // Was: the footer always named the task's CREATOR, so an Approved card
+  // read "by Admin" as if Admin had approved it. Now it names whoever
+  // actually decided the task, once it has been decided — and Missed, which
+  // nobody decided, names nobody at all.
+  group('footer names the decider, not the creator, once decided', () {
+    const creator = UserEntity(
+      uid: 'creator1',
+      email: 'creator@drop.com',
+      authProvider: 'password',
+      displayName: 'Creator Carl',
+      role: UserRole.manager,
+    );
+    const approver = UserEntity(
+      uid: 'approver1',
+      email: 'approver@drop.com',
+      authProvider: 'password',
+      displayName: 'Approver Amy',
+      role: UserRole.admin,
+    );
+    const directory = {'creator1': creator, 'approver1': approver};
+
+    Future<void> pump(WidgetTester tester, TaskEntity task) => tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: Scaffold(
+          body: ListView(
+            children: [TaskCard(task: task, directory: directory)],
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('an approved card names the approver, not the creator', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const TaskEntity(
+          id: 't1',
+          title: 'Close the register',
+          status: TaskStatus.approved,
+          createdBy: 'creator1',
+          approvedBy: 'approver1',
+        ),
+      );
+
+      expect(
+        find.textContaining('Approved by Approver Amy', findRichText: true),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Creator Carl', findRichText: true),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'a missed card names nobody, and never falls back to the creator',
+      (tester) async {
+        await pump(
+          tester,
+          const TaskEntity(
+            id: 't1',
+            title: 'Open the shop',
+            status: TaskStatus.missed,
+            createdBy: 'creator1',
+          ),
+        );
+
+        expect(
+          find.textContaining(
+            'Missed — closed automatically',
+            findRichText: true,
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Creator Carl', findRichText: true),
+          findsNothing,
+        );
+        expect(
+          find.textContaining('by Creator Carl', findRichText: true),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets('a rejected card names the rejecter', (tester) async {
+      await pump(
+        tester,
+        const TaskEntity(
+          id: 't1',
+          title: 'Restock shelves',
+          status: TaskStatus.rejected,
+          createdBy: 'creator1',
+          rejectedBy: 'approver1',
+        ),
+      );
+
+      expect(
+        find.textContaining('Rejected by Approver Amy', findRichText: true),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'an undecided card still credits the creator, unchanged',
+      (tester) async {
+        await pump(
+          tester,
+          const TaskEntity(
+            id: 't1',
+            title: 'Open the shop',
+            status: TaskStatus.pending,
+            createdBy: 'creator1',
+          ),
+        );
+
+        expect(
+          find.textContaining('by Creator Carl · Manager', findRichText: true),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'an approver uid missing from the directory degrades to "Admin", never a raw uid',
+      (tester) async {
+        await pump(
+          tester,
+          const TaskEntity(
+            id: 't1',
+            title: 'Close the register',
+            status: TaskStatus.approved,
+            approvedBy: 'ghost-uid-not-in-directory',
+          ),
+        );
+
+        expect(
+          find.textContaining('Approved by Admin', findRichText: true),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining(
+            'ghost-uid-not-in-directory',
+            findRichText: true,
+          ),
+          findsNothing,
+        );
+      },
+    );
+  });
 }

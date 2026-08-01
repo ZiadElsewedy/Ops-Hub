@@ -322,13 +322,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   /// Push a reusable filtered task list (title + predicate) on the caller's
   /// navigator, so Back returns to the dashboard exactly where it was.
-  void _openFiltered(String title, TaskFeedFilter filter, {String? empty}) {
+  /// [description] is the optional one-line "how does this count" line (same
+  /// slot as `OperationsMetricScreen.description`) — null for callers that
+  /// don't need it, so the Needs-attention box's existing calls are unchanged.
+  void _openFiltered(
+    String title,
+    TaskFeedFilter filter, {
+    String? empty,
+    String? description,
+  }) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => FilteredTasksScreen(
           title: title,
           filter: filter,
           emptyMessage: empty ?? 'Nothing needs attention here right now.',
+          description: description,
         ),
       ),
     );
@@ -612,58 +621,102 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // ── Today (light metrics) ────────────────────────────────────────
+  /// **No `StatisticsCubit` dependency** (removed 2026-08-01 with `Approval
+  /// rate`, whose `Approved ÷ (Approved + Rejected)` was a second, disagreeing
+  /// completion formula next to Task Management's §10.1 figure — deleting it
+  /// leaves that one figure as the app's single completion rate). Every stat
+  /// here now derives from the same task stream `applyFeed` reads for the
+  /// matching drill-down, so a cell's count and its list can never disagree.
   Widget _today() {
-    return BlocBuilder<StatisticsCubit, StatisticsState>(
-      builder: (context, statsState) {
-        final s = statsState.maybeWhen(loaded: (s) => s, orElse: () => null);
-        return BlocSelector<TaskCubit, TaskState, (int, int, int)>(
-          selector: (state) {
-            final tasks = state.maybeWhen(
-              loaded: (t, _, _, _, _) => t,
-              orElse: () => const <TaskEntity>[],
-            );
-            final now = DateTime.now();
-            return (
-              runningNowCount(tasks),
-              overdueCount(tasks, now),
-              dueSoonCount(tasks, now),
-            );
-          },
-          builder: (context, c) {
-            final (running, overdue, dueSoon) = c;
-            final rate = approvalRatePct(
-              approved: s?.completedTasks ?? 0,
-              rejected: s?.rejectedTasks ?? 0,
-            );
-            return StatStrip(
-              stats: [
-                Stat(
-                  label: 'Completed today',
-                  count: s?.completedTasksToday ?? 0,
+    return BlocSelector<TaskCubit, TaskState, (int, int, int, int, int)>(
+      selector: (state) {
+        final tasks = state.maybeWhen(
+          loaded: (t, _, _, _, _) => t,
+          orElse: () => const <TaskEntity>[],
+        );
+        final now = DateTime.now();
+        return (
+          openCount(tasks),
+          runningNowCount(tasks),
+          dueSoonCount(tasks, now),
+          overdueCount(tasks, now),
+          completedTodayCount(tasks, now),
+        );
+      },
+      builder: (context, c) {
+        final (open, running, dueSoon, late, completedToday) = c;
+        return StatStrip(
+          stats: [
+            // "How much is on the table" — the number the owner was reading
+            // Running now as (Running now = started only; a fresh, un-started
+            // task is still Open, not Running).
+            Stat(
+              label: 'Open',
+              count: open,
+              onTap: () => _openFiltered(
+                'Open',
+                const TaskFeedFilter(
+                  statuses: {
+                    TaskStatus.pending,
+                    TaskStatus.started,
+                    TaskStatus.completed,
+                    TaskStatus.rejected,
+                  },
                 ),
-                Stat(label: 'Running now', count: running),
-                Stat(
-                  label: 'Due soon',
-                  count: dueSoon,
-                  tone: dueSoon > 0 ? AppColors.warning : null,
-                ),
-                Stat(
-                  label: 'Delayed',
-                  count: overdue,
-                  tone: overdue > 0 ? AppColors.warning : null,
-                ),
-                if (rate == null)
-                  const Stat(label: 'Approval rate', value: '—')
-                else
-                  Stat(
-                    label: 'Approval rate',
-                    count: rate,
-                    suffix: '%',
-                    tone: AppColors.success,
-                  ),
-              ],
-            );
-          },
+                description:
+                    'Open work — not started, in progress, marked done, or '
+                    'sent back for rework.',
+                empty: 'No open work — everything is either done or waiting '
+                    'on review.',
+              ),
+            ),
+            Stat(
+              label: 'Running now',
+              count: running,
+              onTap: () => _openFiltered(
+                'Running now',
+                const TaskFeedFilter(status: TaskStatus.started),
+                description: 'An employee is executing this right now.',
+                empty: 'Nothing is running right now.',
+              ),
+            ),
+            // Not tappable — see the delta-2 report. No `TaskFeedFilter` can
+            // reproduce `schedulePhase`'s dueSoon precedence (it excludes
+            // completed/waitingReview even though the active window includes
+            // them) without either an over-counting filter or a reverse
+            // dependency from `task_feed.dart` into `task_schedule.dart`. A
+            // cell that doesn't open beats one whose count and list disagree.
+            Stat(
+              label: 'Due soon',
+              count: dueSoon,
+              tone: dueSoon > 0 ? AppColors.warning : null,
+            ),
+            Stat(
+              label: 'Late',
+              count: late,
+              tone: late > 0 ? AppColors.error : null,
+              onTap: () => _openFiltered(
+                'Late',
+                const TaskFeedFilter(preset: FeedPreset.overdue),
+                description:
+                    'Active work past its deadline — counted every day '
+                    "until it's closed, however old. Work that finished "
+                    'late shows on the task itself, not here.',
+                empty: 'Nothing is running past its deadline.',
+              ),
+            ),
+            Stat(
+              label: 'Completed today',
+              count: completedToday,
+              onTap: () => _openFiltered(
+                'Completed today',
+                const TaskFeedFilter(status: TaskStatus.approved),
+                description:
+                    'Approved today only — not the running lifetime total.',
+                empty: 'Nothing approved yet today.',
+              ),
+            ),
+          ],
         );
       },
     );

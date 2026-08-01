@@ -35,6 +35,8 @@
     "events",
     "attendance",
     "events",
+    "attendance_expectations",
+    "attendance_week_reviews",
     "attendance_corrections",
     "counters",
     "usageStats",
@@ -47,6 +49,7 @@
     "autoEndRecurringShiftTasks",
     "broadcastHousekeeping",
     "claimFcmToken",
+    "closeAttendanceExpectations",
     "createUserAccount",
     "generateShiftTaskInstances",
     "onAttendanceCorrectionWritten",
@@ -81,10 +84,16 @@
     "ADR-013-task-grace-period.md",
     "ADR-014-task-card-border-language.md",
     "ADR-015-automation-business-timezone.md",
-    "ADR-016-task-start-gate.md"
+    "ADR-016-task-start-gate.md",
+    "ADR-017-attendance-reporting-ledger.md",
+    "ADR-018-unscheduled-clock-in.md",
+    "ADR-019-operational-exports-and-week-review.md"
   ],
   "design_specs": [
     "ATTENDANCE.md",
+    "ATTENDANCE_AUDIT_2026-07-30.md",
+    "ATTENDANCE_PRODUCT_REDESIGN_PLAN.md",
+    "ATTENDANCE_REPORTS_IA.md",
     "ATTENDANCE_SPEC.md",
     "AUDIT_LOG.md",
     "AUTH.md",
@@ -147,6 +156,7 @@
       },
       "routes": {
         "adminAttendance": "/admin/attendance",
+        "adminAttendanceWorkspace": "/admin/attendance/workspace",
         "adminDashboard": "/admin",
         "adminTasks": "/admin/tasks",
         "adminReview": "/admin/review",
@@ -163,6 +173,9 @@
         "createUserAccount"
       ],
       "tests": [
+        "test/admin_attendance_overview_test.dart",
+        "test/admin_dashboard_today_strip_test.dart",
+        "test/admin_task_overview_screen_test.dart",
         "test/attendance_admin_direct_action_test.dart",
         "test/user_admin_update_details_test.dart"
       ],
@@ -170,17 +183,21 @@
     },
     "attendance": {
       "path": "lib/features/attendance/",
-      "file_count": 54,
+      "file_count": 93,
       "layers": {
         "data:datasource": [
-          "lib/features/attendance/data/datasources/attendance_remote_datasource.dart"
+          "lib/features/attendance/data/datasources/attendance_remote_datasource.dart",
+          "lib/features/attendance/data/datasources/attendance_reporting_datasource.dart"
         ],
         "data:model": [
           "lib/features/attendance/data/models/attendance_correction_model.dart",
+          "lib/features/attendance/data/models/attendance_ledger_model.dart",
           "lib/features/attendance/data/models/attendance_model.dart"
         ],
         "data:repository-impl": [
-          "lib/features/attendance/data/repositories/attendance_repository_impl.dart"
+          "lib/features/attendance/data/repositories/attendance_reporting_repository_impl.dart",
+          "lib/features/attendance/data/repositories/attendance_repository_impl.dart",
+          "lib/features/attendance/data/repositories/attendance_week_review_repository_impl.dart"
         ],
         "data:other": [
           "lib/features/attendance/data/services/geolocator_location_service.dart"
@@ -199,7 +216,22 @@
           "lib/features/attendance/domain/attendance_location_service.dart",
           "lib/features/attendance/domain/attendance_resolution.dart",
           "lib/features/attendance/domain/attendance_service.dart",
-          "lib/features/attendance/domain/attendance_validation.dart"
+          "lib/features/attendance/domain/attendance_validation.dart",
+          "lib/features/attendance/domain/attendance_write_outcome.dart",
+          "lib/features/attendance/domain/daily_review.dart",
+          "lib/features/attendance/domain/reporting/admin_attendance_overview.dart",
+          "lib/features/attendance/domain/reporting/attendance_coverage_status.dart",
+          "lib/features/attendance/domain/reporting/attendance_exception.dart",
+          "lib/features/attendance/domain/reporting/attendance_expectation.dart",
+          "lib/features/attendance/domain/reporting/attendance_export_gate.dart",
+          "lib/features/attendance/domain/reporting/attendance_ledger_row.dart",
+          "lib/features/attendance/domain/reporting/attendance_monthly_report.dart",
+          "lib/features/attendance/domain/reporting/attendance_period.dart",
+          "lib/features/attendance/domain/reporting/attendance_report.dart",
+          "lib/features/attendance/domain/reporting/attendance_timesheet_csv.dart",
+          "lib/features/attendance/domain/reporting/attendance_week_review.dart",
+          "lib/features/attendance/domain/reporting/attendance_weekly_pdf.dart",
+          "lib/features/attendance/domain/reporting/attendance_weekly_report.dart"
         ],
         "domain:entity": [
           "lib/features/attendance/domain/entities/attendance_correction.dart",
@@ -210,7 +242,9 @@
           "lib/features/attendance/domain/entities/attendance_event.freezed.dart"
         ],
         "domain:repository-contract": [
-          "lib/features/attendance/domain/repositories/attendance_repository.dart"
+          "lib/features/attendance/domain/repositories/attendance_reporting_repository.dart",
+          "lib/features/attendance/domain/repositories/attendance_repository.dart",
+          "lib/features/attendance/domain/repositories/attendance_week_review_repository.dart"
         ],
         "domain:usecase": [
           "lib/features/attendance/domain/usecases/clock_in.dart",
@@ -218,15 +252,11 @@
           "lib/features/attendance/domain/usecases/decide_correction.dart",
           "lib/features/attendance/domain/usecases/request_correction.dart"
         ],
-        "presentation:cubit": [
-          "lib/features/attendance/presentation/cubit/attendance_admin_cubit.dart",
-          "lib/features/attendance/presentation/cubit/attendance_admin_state.dart",
-          "lib/features/attendance/presentation/cubit/attendance_admin_state.freezed.dart",
-          "lib/features/attendance/presentation/cubit/attendance_cubit.dart",
-          "lib/features/attendance/presentation/cubit/attendance_state.dart",
-          "lib/features/attendance/presentation/cubit/attendance_state.freezed.dart"
-        ],
         "presentation:other": [
+          "lib/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart",
+          "lib/features/attendance/presentation/admin/attendance_admin_workspace_screen.dart",
+          "lib/features/attendance/presentation/admin/widgets/attendance_evidence_table.dart",
+          "lib/features/attendance/presentation/daily/attendance_daily_review_screen.dart",
           "lib/features/attendance/presentation/details/attendance_details_cubit.dart",
           "lib/features/attendance/presentation/details/attendance_details_screen.dart",
           "lib/features/attendance/presentation/details/attendance_details_state.dart",
@@ -241,33 +271,64 @@
           "lib/features/attendance/presentation/history/attendance_history_state.freezed.dart",
           "lib/features/attendance/presentation/history/widgets/attendance_history_filters.dart",
           "lib/features/attendance/presentation/history/widgets/attendance_history_summary.dart",
-          "lib/features/attendance/presentation/history/widgets/attendance_record_card.dart"
+          "lib/features/attendance/presentation/history/widgets/attendance_record_card.dart",
+          "lib/features/attendance/presentation/reporting/attendance_monthly_report_screen.dart",
+          "lib/features/attendance/presentation/reporting/attendance_report_cubit.dart",
+          "lib/features/attendance/presentation/reporting/attendance_report_state.dart",
+          "lib/features/attendance/presentation/reporting/attendance_reports_screen.dart",
+          "lib/features/attendance/presentation/reporting/attendance_weekly_report_screen.dart",
+          "lib/features/attendance/presentation/reporting/widgets/attendance_monthly_week_buckets.dart",
+          "lib/features/attendance/presentation/reporting/widgets/attendance_report_coverage.dart",
+          "lib/features/attendance/presentation/reporting/widgets/attendance_report_headline.dart",
+          "lib/features/attendance/presentation/reporting/widgets/attendance_report_metrics.dart",
+          "lib/features/attendance/presentation/reporting/widgets/attendance_report_scope_bar.dart",
+          "lib/features/attendance/presentation/reporting/widgets/attendance_weekly_daily_table.dart",
+          "lib/features/attendance/presentation/reporting/widgets/attendance_weekly_employee_rows.dart",
+          "lib/features/attendance/presentation/reporting/widgets/attendance_weekly_kpis.dart"
+        ],
+        "presentation:cubit": [
+          "lib/features/attendance/presentation/cubit/attendance_admin_cubit.dart",
+          "lib/features/attendance/presentation/cubit/attendance_admin_state.dart",
+          "lib/features/attendance/presentation/cubit/attendance_admin_state.freezed.dart",
+          "lib/features/attendance/presentation/cubit/attendance_cubit.dart",
+          "lib/features/attendance/presentation/cubit/attendance_state.dart",
+          "lib/features/attendance/presentation/cubit/attendance_state.freezed.dart"
         ],
         "presentation:page": [
           "lib/features/attendance/presentation/pages/admin_attendance_screen.dart",
           "lib/features/attendance/presentation/pages/attendance_screen.dart"
         ],
         "presentation:widget": [
-          "lib/features/attendance/presentation/widgets/attendance_action_sheet.dart"
+          "lib/features/attendance/presentation/widgets/attendance_action_sheet.dart",
+          "lib/features/attendance/presentation/widgets/attendance_manager_actions.dart"
         ]
       },
       "routes": {
         "attendance": "/attendance",
+        "attendanceReports": "/attendance/reports",
+        "attendanceWeeklyPattern": "/attendance/reports/weekly/:periodId",
+        "attendanceMonthlyPattern": "/attendance/reports/monthly/:periodId",
+        "attendanceDailyReviewPattern": "/attendance/daily/:branchId/:dayKey",
         "adminAttendance": "/admin/attendance",
+        "adminAttendanceWorkspace": "/admin/attendance/workspace",
         "attendanceHistory": "/attendance/history",
         "attendanceReview": "/attendance/review",
         "attendanceRecordPattern": "/attendance/record/:id"
       },
       "collections": [
         "attendance",
+        "attendance_expectations",
+        "attendance_week_reviews",
         "attendance_corrections"
       ],
       "cloud_functions": [
         "autoCloseAttendance",
+        "closeAttendanceExpectations",
         "onAttendanceCorrectionWritten",
         "onAttendanceWritten"
       ],
       "tests": [
+        "test/admin_attendance_overview_test.dart",
         "test/attendance_action_sheet_test.dart",
         "test/attendance_admin_direct_action_test.dart",
         "test/attendance_analytics_test.dart",
@@ -276,21 +337,45 @@
         "test/attendance_calculator_test.dart",
         "test/attendance_correction_model_test.dart",
         "test/attendance_correction_validation_test.dart",
+        "test/attendance_coverage_status_test.dart",
         "test/attendance_cubit_test.dart",
+        "test/attendance_daily_review_test.dart",
         "test/attendance_entity_test.dart",
+        "test/attendance_exception_test.dart",
+        "test/attendance_expectation_test.dart",
+        "test/attendance_export_gate_test.dart",
         "test/attendance_gps_test.dart",
         "test/attendance_history_cubit_test.dart",
         "test/attendance_history_query_test.dart",
         "test/attendance_history_widgets_test.dart",
         "test/attendance_id_test.dart",
+        "test/attendance_ledger_model_test.dart",
+        "test/attendance_ledger_row_test.dart",
         "test/attendance_model_test.dart",
+        "test/attendance_monthly_report_screen_test.dart",
+        "test/attendance_monthly_report_test.dart",
+        "test/attendance_period_test.dart",
+        "test/attendance_report_cubit_test.dart",
+        "test/attendance_report_ledger_test.dart",
+        "test/attendance_report_metrics_test.dart",
+        "test/attendance_report_test.dart",
+        "test/attendance_reporting_source_guard_test.dart",
+        "test/attendance_reports_screen_test.dart",
         "test/attendance_status_filter_test.dart",
         "test/attendance_status_test.dart",
+        "test/attendance_timesheet_csv_test.dart",
         "test/attendance_validation_test.dart",
+        "test/attendance_week_review_test.dart",
+        "test/attendance_weekly_pdf_test.dart",
+        "test/attendance_weekly_report_screen_test.dart",
+        "test/attendance_weekly_report_test.dart",
         "test/branch_geofence_test.dart"
       ],
       "design_specs": [
         "ATTENDANCE.md",
+        "ATTENDANCE_AUDIT_2026-07-30.md",
+        "ATTENDANCE_PRODUCT_REDESIGN_PLAN.md",
+        "ATTENDANCE_REPORTS_IA.md",
         "ATTENDANCE_SPEC.md"
       ]
     },
@@ -329,6 +414,7 @@
         "test/audit_repository_test.dart"
       ],
       "design_specs": [
+        "ATTENDANCE_AUDIT_2026-07-30.md",
         "AUDIT_LOG.md"
       ]
     },
@@ -454,6 +540,7 @@
         ]
       },
       "routes": {
+        "attendanceDailyReviewPattern": "/attendance/daily/:branchId/:dayKey",
         "adminBranches": "/admin/branches"
       },
       "collections": [
@@ -1126,6 +1213,7 @@
         ]
       },
       "routes": {
+        "attendanceWeeklyPattern": "/attendance/reports/weekly/:periodId",
         "adminSchedule": "/admin/schedule",
         "managerSchedule": "/manager/schedule",
         "mySchedule": "/my-schedule",
@@ -1144,6 +1232,9 @@
         "runBroadcastSchedules"
       ],
       "tests": [
+        "test/attendance_weekly_pdf_test.dart",
+        "test/attendance_weekly_report_screen_test.dart",
+        "test/attendance_weekly_report_test.dart",
         "test/broadcast_schedule_model_test.dart",
         "test/my_schedule_tab_test.dart",
         "test/recurring_shift_task_test.dart",
@@ -1382,6 +1473,7 @@
         "taskHousekeeping"
       ],
       "tests": [
+        "test/admin_task_overview_screen_test.dart",
         "test/recurring_shift_task_test.dart",
         "test/task_access_test.dart",
         "test/task_archive_test.dart",
@@ -1405,6 +1497,7 @@
         "test/task_model_work_type_test.dart",
         "test/task_ordering_test.dart",
         "test/task_outcomes_test.dart",
+        "test/task_preview_sheet_test.dart",
         "test/task_schedule_test.dart",
         "test/task_seen_store_test.dart",
         "test/task_start_gate_widget_test.dart",

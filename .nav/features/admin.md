@@ -10,6 +10,7 @@
 | `RouteNames.adminDashboard` | `/admin` |  |
 | `RouteNames.adminAnalytics` | `/admin/analytics` |  |
 | `RouteNames.adminAttendance` | `/admin/attendance` |  |
+| `RouteNames.adminAttendanceWorkspace` | `/admin/attendance/workspace` |  |
 | `RouteNames.adminBranches` | `/admin/branches` |  |
 | `RouteNames.adminEmployees` | `/admin/employees` |  |
 | `RouteNames.adminManagers` | `/admin/managers` |  |
@@ -64,6 +65,9 @@
 - **Design spec(s):** —
 
 ## Tests
+- `test/admin_attendance_overview_test.dart`
+- `test/admin_dashboard_today_strip_test.dart`
+- `test/admin_task_overview_screen_test.dart`
 - `test/attendance_admin_direct_action_test.dart`
 - `test/user_admin_update_details_test.dart`
 

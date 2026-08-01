@@ -25,11 +25,19 @@ class TaskActivityCard extends StatelessWidget {
     required this.task,
     required this.directory,
     this.branchName,
+    this.showDeadline = false,
   });
 
   final TaskEntity task;
   final Map<String, UserEntity> directory;
   final String? branchName;
+
+  /// Prefixes the meta line with the task's deadline (e.g. `Due 2 Aug, 18:00 ·
+  /// 5 min ago`). Opt-in: this card is shared with the dashboard's Recent
+  /// Activity feed, which already has the status badge for "what's happening"
+  /// and doesn't need the deadline repeated — only [FilteredTasksScreen]'s
+  /// full-list drill-downs turn it on.
+  final bool showDeadline;
 
   UserEntity? get _firstAssignee {
     for (final uid in task.assigneeIds) {
@@ -82,11 +90,18 @@ class TaskActivityCard extends StatelessWidget {
     final lateness = taskLateness(task);
     // A finished-late task adds a quiet second meta line rather than replacing
     // the timestamp — the card still answers "when", lateness is additional.
-    final meta = when == null
+    final activity = when == null
         ? (lateness == null ? null : formatLateness(lateness))
         : (lateness == null
               ? AppDateFormatter.relative(when)
               : '${AppDateFormatter.relative(when)} · ${formatLateness(lateness)}');
+    final deadline = task.deadline;
+    final due = showDeadline && deadline != null
+        ? 'Due ${AppDateFormatter.dayMonth(deadline)}, ${AppDateFormatter.time24(deadline)}'
+        : null;
+    final meta = due == null
+        ? activity
+        : (activity == null ? due : '$due · $activity');
     final status = StatusBadge.task(task.status);
 
     return ActivityCard(

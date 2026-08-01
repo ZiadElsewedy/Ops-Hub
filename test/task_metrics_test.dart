@@ -85,6 +85,65 @@ void main() {
     expect(rejectedCount(tasks), 1);
   });
 
+  group('openCount', () {
+    test('counts pending / started / completed / rejected, nothing else', () {
+      final tasks = [
+        task('a', status: TaskStatus.pending),
+        task('b', status: TaskStatus.started),
+        task('c', status: TaskStatus.completed),
+        task('d', status: TaskStatus.rejected),
+        task('e', status: TaskStatus.waitingReview), // excluded
+        task('f', status: TaskStatus.approved, approvedAt: now), // excluded
+        task('g', status: TaskStatus.missed), // excluded
+        task('h', status: TaskStatus.cancelled), // excluded
+      ];
+      expect(openCount(tasks), 4);
+    });
+
+    test('matches the same definition Task Management uses for "Active"', () {
+      // pending/started/completed/rejected — see
+      // `admin_task_overview_screen.dart`'s `_BranchMetrics.active`.
+      final tasks = [
+        task('a', status: TaskStatus.pending),
+        task('b', status: TaskStatus.completed),
+      ];
+      expect(openCount(tasks), 2);
+    });
+  });
+
+  group('completedTodayCount', () {
+    test('counts approved tasks only when approved today', () {
+      final tasks = [
+        task('today', status: TaskStatus.approved, approvedAt: now),
+        task(
+          'yesterday',
+          status: TaskStatus.approved,
+          approvedAt: DateTime(2026, 7, 7, 23),
+        ),
+        task('open', status: TaskStatus.pending),
+      ];
+      expect(completedTodayCount(tasks, now), 1);
+    });
+
+    test('is exactly what a status:approved active-window filter would list', () {
+      // The count must equal the size of the set `applyFeed` would render for
+      // `TaskFeedFilter(status: approved)` with the default
+      // `activeWindowOnly: true` — both are driven by `isTaskInActiveWindow`.
+      final approvedToday = task(
+        'today',
+        status: TaskStatus.approved,
+        approvedAt: now,
+      );
+      final approvedLastWeek = task(
+        'old',
+        status: TaskStatus.approved,
+        approvedAt: DateTime(2026, 7, 1),
+      );
+      final tasks = [approvedToday, approvedLastWeek];
+      expect(completedTodayCount(tasks, now), 1);
+    });
+  });
+
   group('approvalRatePct', () {
     test('rounds approved / decided to a whole percent', () {
       expect(approvalRatePct(approved: 3, rejected: 1), 75);

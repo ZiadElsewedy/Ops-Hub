@@ -95,6 +95,36 @@ void main() {
     });
   });
 
+  group('activeWindowOnly scope switch', () {
+    final tasks = [
+      task(
+        'missed',
+        status: TaskStatus.missed,
+        deadline: now.subtract(const Duration(hours: 1)),
+      ),
+      task('cancelled', status: TaskStatus.cancelled),
+      task('open'),
+    ];
+
+    test('defaults to true — missed and cancelled stay excluded', () {
+      final ids = applyFeed(
+        tasks,
+        const TaskFeedFilter(),
+        now,
+      ).map((t) => t.id);
+      expect(ids, ['open']);
+    });
+
+    test('false surfaces missed and cancelled tasks', () {
+      final ids = applyFeed(
+        tasks,
+        const TaskFeedFilter(activeWindowOnly: false),
+        now,
+      ).map((t) => t.id).toList();
+      expect(ids, containsAll(['missed', 'cancelled', 'open']));
+    });
+  });
+
   group('scope filters compose (AND)', () {
     final tasks = [
       task('a', branchId: 'b1', assignees: ['u1'], priority: TaskPriority.high),
@@ -109,6 +139,40 @@ void main() {
         now,
       ).map((t) => t.id);
       expect(ids, ['a', 'c']);
+    });
+
+    test('statuses set matches the union', () {
+      final withStatuses = [
+        task('pending', status: TaskStatus.pending),
+        task('started', status: TaskStatus.started),
+        task('review', status: TaskStatus.waitingReview),
+      ];
+      final ids = applyFeed(
+        withStatuses,
+        const TaskFeedFilter(
+          statuses: {TaskStatus.pending, TaskStatus.started},
+        ),
+        now,
+      ).map((t) => t.id);
+      expect(ids, containsAll(['pending', 'started']));
+      expect(ids, isNot(contains('review')));
+    });
+
+    test('statuses set composes (AND) with branchId', () {
+      final withStatuses = [
+        task('a-pending', branchId: 'b1', status: TaskStatus.pending),
+        task('a-review', branchId: 'b1', status: TaskStatus.waitingReview),
+        task('b-pending', branchId: 'b2', status: TaskStatus.pending),
+      ];
+      final ids = applyFeed(
+        withStatuses,
+        const TaskFeedFilter(
+          branchId: 'b1',
+          statuses: {TaskStatus.pending, TaskStatus.waitingReview},
+        ),
+        now,
+      ).map((t) => t.id);
+      expect(ids, ['a-pending', 'a-review']);
     });
     test('assignee', () {
       final ids = applyFeed(
@@ -377,6 +441,15 @@ void main() {
       expect(
         const TaskFeedFilter(preset: FeedPreset.overdue).hasActiveFilters,
         isTrue,
+      );
+      expect(
+        const TaskFeedFilter(statuses: {TaskStatus.pending}).hasActiveFilters,
+        isTrue,
+      );
+      // A scope switch, not a user filter — never counts as "narrowed".
+      expect(
+        const TaskFeedFilter(activeWindowOnly: false).hasActiveFilters,
+        isFalse,
       );
     });
   });
