@@ -30,6 +30,7 @@ import 'package:drop/features/profile/presentation/pages/profile_page.dart';
 import 'package:drop/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:drop/features/settings/presentation/pages/settings_page.dart';
 import 'package:drop/features/settings/presentation/pages/change_password_page.dart';
+import 'package:drop/features/settings/presentation/pages/about_page.dart';
 import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
 import 'package:drop/features/communications/presentation/pages/communications_screen.dart';
 import 'package:drop/features/communications/presentation/pages/compose_broadcast_screen.dart';
@@ -441,6 +442,11 @@ GoRouter createRouter(
             path: RouteNames.changePassword,
             pageBuilder: (context, state) =>
                 _slideTransition(state, const ChangePasswordPage()),
+          ),
+          GoRoute(
+            path: RouteNames.about,
+            pageBuilder: (context, state) =>
+                _slideTransition(state, const AboutPage()),
           ),
         ],
       ),

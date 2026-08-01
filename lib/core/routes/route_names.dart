@@ -26,6 +26,9 @@ class RouteNames {
   static const String settings = '/settings';
   static const String changePassword = '/settings/change-password';
 
+  /// What DROP is + how to reach support. Shared by every role.
+  static const String about = '/settings/about';
+
   /// In-app notification inbox (Notification System Phase 1) — shared by every
   /// role.
   static const String notifications = '/notifications';
