@@ -18,6 +18,8 @@ import 'package:drop/features/attendance/domain/attendance_id.dart';
 import 'package:drop/features/attendance/domain/daily_review.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_admin_state.dart';
+import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/attendance/presentation/widgets/attendance_manager_actions.dart';
 
 /// **Daily Review** — where a manager settles yesterday in about two minutes.
@@ -77,16 +79,33 @@ class _DailyReviewView extends StatefulWidget {
 }
 
 class _DailyReviewViewState extends State<_DailyReviewView> {
+  /// Spent only **once the load is actually dispatched**. Flipping it before the
+  /// preconditions are checked would burn the one-shot on a pass that bailed
+  /// out, and the board would sit on its spinner for the rest of the screen's
+  /// life.
   bool _started = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _maybeStart();
+  }
+
+  /// Idempotent, and called from both entry points below.
+  ///
+  /// `context.currentUser` reads `AuthCubit` **without** subscribing, so a null
+  /// user here does not re-trigger `didChangeDependencies` on its own — the
+  /// `BlocListener` in [build] is what covers the session arriving late. Between
+  /// them: already signed in (the normal case) starts here, and a session that
+  /// resolves after this screen mounts starts there.
+  void _maybeStart() {
     if (_started) return;
-    _started = true;
     final date = widget.date;
     final user = context.currentUser;
+    // A null date is a malformed deep link — [build] renders an explicit panel
+    // for it and there is nothing to load.
     if (date == null || user == null) return;
+    _started = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<AttendanceAdminCubit>().load(
@@ -100,28 +119,38 @@ class _DailyReviewViewState extends State<_DailyReviewView> {
   @override
   Widget build(BuildContext context) {
     final date = widget.date;
-    return AdaptiveScaffold(
-      title: 'Daily review',
-      subtitle: date == null ? null : AppDateFormatter.weekdayDayMonth(date),
-      compactDesktopHeader: true,
-      body: ListView(
-        key: const PageStorageKey('attendance-daily-review'),
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding,
-          AppSpacing.lg,
-          AppSpacing.pagePadding,
-          context.isDesktop ? AppSpacing.xxxl : AppSpacing.xxxl * 2,
+    return BlocListener<AuthCubit, AuthState>(
+      // The session arriving after this screen mounted — a deep link opened
+      // before auth finished restoring. Without this the load would never be
+      // attempted again (see [_maybeStart]).
+      listenWhen: (prev, next) =>
+          next.maybeWhen(authenticated: (_) => true, orElse: () => false) &&
+          !prev.maybeWhen(authenticated: (_) => true, orElse: () => false),
+      listener: (context, _) => _maybeStart(),
+      child: AdaptiveScaffold(
+        title: 'Daily review',
+        subtitle: date == null ? null : AppDateFormatter.weekdayDayMonth(date),
+        compactDesktopHeader: true,
+        body: ListView(
+          key: const PageStorageKey('attendance-daily-review'),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding,
+            AppSpacing.lg,
+            AppSpacing.pagePadding,
+            context.isDesktop ? AppSpacing.xxxl : AppSpacing.xxxl * 2,
+          ),
+          children: [
+            if (date == null)
+              const _ProblemPanel(
+                title: 'That day link is not valid',
+                message:
+                    'Open Daily review from a day row on the weekly report.',
+                icon: Icons.link_off_rounded,
+              )
+            else
+              _DailyReviewBody(branchId: widget.branchId, date: date),
+          ],
         ),
-        children: [
-          if (date == null)
-            const _ProblemPanel(
-              title: 'That day link is not valid',
-              message: 'Open Daily review from a day row on the weekly report.',
-              icon: Icons.link_off_rounded,
-            )
-          else
-            _DailyReviewBody(branchId: widget.branchId, date: date),
-        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/attendance_correction_kind.dart';
+import 'package:drop/core/enums/attendance_location_policy.dart';
 import 'package:drop/core/enums/attendance_status.dart';
 import 'package:drop/core/enums/leave_type.dart';
 import 'package:drop/core/enums/schedule_day.dart';
@@ -163,6 +164,17 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     if (!hasData) emit(const AttendanceState.loading());
 
     await _resolveContext(user);
+    // The geofence is only known after the context resolves, and it decides
+    // whether a location policy can mean anything at all. Collapsing it into
+    // `_config` here means every downstream reader — the validation gate, the
+    // clock UI, the record's config snapshot (spec R19) — sees one resolved
+    // value instead of re-deriving it.
+    _config = _config.copyWith(
+      locationPolicy: AttendanceService.resolveLocationPolicy(
+        configured: _config.locationPolicy,
+        hasGeofence: _ctx?.geofence != null,
+      ),
+    );
 
     await _sub?.cancel();
     _sub = _repository.watchUserHistory(user.uid).listen(
@@ -317,11 +329,17 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   /// Passively read the device location for the **Ready** phase, so the GPS card
   /// shows "At branch · 22 m" / "Outside · 143 m" / a permission-or-service prompt
   /// *before* the employee taps Clock In (a fresh fix is still taken on the write).
-  /// A no-op once clocked in or when the branch has no geofence.
+  /// A no-op once clocked in, or wherever the effective policy is `none` (which
+  /// includes every branch with no geofence — there is nothing to preview
+  /// against, and asking for a fix would prompt for a permission the punch will
+  /// never need).
   Future<void> previewLocation() async {
     final ctx = _ctx;
     if (isClosed || _busy || _verifying) return;
-    if (ctx?.geofence == null || _activeRecord != null || _todayIsSettled) {
+    if (_config.locationPolicy == AttendanceLocationPolicy.none ||
+        ctx?.geofence == null ||
+        _activeRecord != null ||
+        _todayIsSettled) {
       _previewVerification = null;
       _previewError = null;
       return;
@@ -372,6 +390,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       locationError: gps.error,
       verification: gps.verification,
       geofenceConfigured: ctx.geofence != null,
+      policy: _config.locationPolicy,
     );
     if (gpsCheck.blocked) {
       _surface(gpsCheck.message);
@@ -461,6 +480,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       locationError: gps.error,
       verification: gps.verification,
       geofenceConfigured: ctx.geofence != null,
+      policy: _config.locationPolicy,
     );
     if (gpsCheck.blocked) {
       _surface(gpsCheck.message);

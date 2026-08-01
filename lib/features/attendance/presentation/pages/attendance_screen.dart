@@ -254,17 +254,27 @@ class _ReadyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final policy = vm.config.locationPolicy;
+    // Only `strict` may cost someone their punch. `soft` still shows the card —
+    // the location is captured and recorded — but never disables the button, and
+    // `none` has no location step at all, so the card would be pure noise.
+    final gated = policy.blocksOutside;
     final eligible = cubit.clockInCheck.allowed;
     final atBranch = vm.previewVerification?.verified ?? false;
     final canClockIn =
-        eligible && vm.geofenceReady && atBranch && !vm.busyNow && !vm.previewing;
+        eligible &&
+        (!gated || (vm.geofenceReady && atBranch)) &&
+        !vm.busyNow &&
+        !vm.previewing;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ShiftBlock(vm: vm),
-        const SizedBox(height: AppSpacing.lg),
-        _GpsCard(vm: vm, onRecheck: cubit.previewLocation),
+        if (policy.capturesLocation) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _GpsCard(vm: vm, blocking: gated, onRecheck: cubit.previewLocation),
+        ],
         const SizedBox(height: AppSpacing.xl),
         _ClockButton(
           label: vm.verifying ? 'Verifying location…' : 'Clock In',
@@ -298,12 +308,23 @@ class _ReadyView extends StatelessWidget {
 
 /// The state-driven GPS card — the whole card reflects the live location status.
 class _GpsCard extends StatelessWidget {
-  const _GpsCard({required this.vm, required this.onRecheck});
+  const _GpsCard({
+    required this.vm,
+    required this.onRecheck,
+    this.blocking = true,
+  });
   final _VM vm;
   final VoidCallback onRecheck;
 
+  /// Whether a bad fix actually refuses the punch (`strict`). Under `soft` the
+  /// same states are shown — the fix is still captured and stored — but telling
+  /// someone to "move closer, then retry" would be a lie when the button next to
+  /// the card is enabled.
+  final bool blocking;
+
   @override
   Widget build(BuildContext context) {
+    final recorded = 'Recorded with your punch for a manager to review.';
     // Resolve the card's state, top of precedence first.
     final _GpsCardData d;
     if (!vm.geofenceReady) {
@@ -326,28 +347,34 @@ class _GpsCard extends StatelessWidget {
         recheck: false,
       );
     } else if (vm.previewError == LocationError.serviceDisabled) {
-      d = const _GpsCardData(
+      d = _GpsCardData(
         icon: Icons.location_off_rounded,
         tint: AppColors.warning,
         title: 'Location is off',
         big: null,
-        sub: 'Turn on location services, then tap to retry.',
+        sub: blocking
+            ? 'Turn on location services, then tap to retry.'
+            : 'Your punch still works — no location will be recorded.',
       );
     } else if (vm.previewError == LocationError.permissionDenied) {
-      d = const _GpsCardData(
+      d = _GpsCardData(
         icon: Icons.lock_outline_rounded,
         tint: AppColors.warning,
         title: 'Location permission needed',
         big: null,
-        sub: 'Allow location access, then tap to retry.',
+        sub: blocking
+            ? 'Allow location access, then tap to retry.'
+            : 'Your punch still works — no location will be recorded.',
       );
     } else if (vm.previewError != null || vm.previewVerification == null) {
-      d = const _GpsCardData(
+      d = _GpsCardData(
         icon: Icons.gps_off_rounded,
         tint: AppColors.warning,
         title: 'Couldn\'t read your location',
         big: null,
-        sub: 'Tap to try again in the open.',
+        sub: blocking
+            ? 'Tap to try again in the open.'
+            : 'Your punch still works — no location will be recorded.',
       );
     } else {
       final v = vm.previewVerification!;
@@ -368,7 +395,9 @@ class _GpsCard extends StatelessWidget {
           tint: AppColors.warning,
           title: 'Outside work area',
           big: '$dist away',
-          sub: 'Move closer to the branch, then tap to retry.',
+          sub: blocking
+              ? 'Move closer to the branch, then tap to retry.'
+              : recorded,
         );
       } else {
         d = _GpsCardData(
@@ -376,7 +405,7 @@ class _GpsCard extends StatelessWidget {
           tint: AppColors.warning,
           title: 'Weak GPS signal',
           big: acc,
-          sub: 'Move to open sky, then tap to retry.',
+          sub: blocking ? 'Move to open sky, then tap to retry.' : recorded,
         );
       }
     }

@@ -444,13 +444,26 @@ class AppDependencies {
     String? userId,
     String? branchId,
     String? initialSearch,
+    DateTime? initialStart,
+    DateTime? initialEnd,
   }) =>
       AttendanceHistoryCubit(
         repository: _attendanceRepository,
         mode: mode,
         userId: userId,
         branchId: branchId,
-        query: AttendanceHistoryQuery(text: initialSearch ?? ''),
+        // A deep link from a report pins the ledger to that report's window, so
+        // the rows read the same period the row was tapped in. Both bounds are
+        // required — one alone would half-apply a range the resolver would then
+        // fall back on anyway.
+        query: (initialStart != null && initialEnd != null)
+            ? AttendanceHistoryQuery(
+                range: AttendanceDateRange.custom,
+                customStart: initialStart,
+                customEnd: initialEnd,
+                text: initialSearch ?? '',
+              )
+            : AttendanceHistoryQuery(text: initialSearch ?? ''),
       );
 
   /// Builds a **fresh** attendance board cubit for Daily Review.

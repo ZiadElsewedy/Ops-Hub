@@ -27,6 +27,7 @@ probably already weighed. Reversing one is fine; doing it *unknowingly* is not.
 | [ADR-017](ADR-017-attendance-reporting-ledger.md) | Attendance is an operational reporting ledger (scoped carve-out of ADR-009/010) | Accepted |
 | [ADR-018](ADR-018-unscheduled-clock-in.md) | An employee may always record real work; the roster decides whether it counts | Accepted |
 | [ADR-019](ADR-019-operational-exports-and-week-review.md) | Exports are operational documents, and a week is *reviewed*, never locked | Accepted |
+| [ADR-020](ADR-020-location-policy-is-real.md) | The location policy governs the punch; no geofence means a time clock, not a lock-out | Accepted |
 
 ## Writing a new one
 

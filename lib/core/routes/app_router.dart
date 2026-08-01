@@ -44,6 +44,7 @@ import 'package:drop/features/chat/presentation/pages/chat_screen.dart';
 import 'package:drop/features/chat/presentation/pages/chat_conversation_screen.dart';
 import 'package:drop/features/chat/presentation/chat_thread_args.dart';
 import 'package:drop/features/chat/presentation/pages/new_chat_screen.dart';
+import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/presentation/pages/attendance_screen.dart';
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
@@ -396,17 +397,23 @@ GoRouter createRouter(
                 _slideTransition(state, const AttendanceHistoryScreen.self()),
           ),
           // Manager/admin branch review (guarded by `_isAttendanceReviewArea`).
-          // An employee name may arrive as `extra` to pre-filter the ledger.
+          // An [AttendanceReviewLink] may arrive as `extra` to open one person
+          // inside the branch + period the link came from; a bare String is
+          // still accepted as a name-only filter.
           GoRoute(
             path: RouteNames.attendanceReview,
-            pageBuilder: (context, state) => _slideTransition(
-              state,
-              AttendanceHistoryScreen.review(
-                initialSearch: state.extra is String
-                    ? state.extra as String
-                    : null,
-              ),
-            ),
+            pageBuilder: (context, state) {
+              final link = _attendanceReviewLink(state.extra);
+              return _slideTransition(
+                state,
+                AttendanceHistoryScreen.review(
+                  initialBranchId: link?.branchId,
+                  initialSearch: link?.employeeName,
+                  initialStart: link?.start,
+                  initialEnd: link?.end,
+                ),
+              );
+            },
           ),
           // One record's audit detail, deep-linkable. The tapped record rides in
           // `extra` for an instant first paint; rules gate the read.
@@ -613,6 +620,18 @@ bool _isManagerArea(String loc) =>
 bool _isCommunicationsArea(String loc) =>
     loc == RouteNames.communications ||
     loc.startsWith('${RouteNames.communications}/');
+
+/// Normalises whatever rode in `extra` for the review ledger. A typed
+/// [AttendanceReviewLink] carries branch + period; a bare String stays valid as
+/// a name-only filter so an older or hand-built link still works. Anything else
+/// (including a null extra on a plain sidebar visit) yields no pre-filter.
+AttendanceReviewLink? _attendanceReviewLink(Object? extra) => switch (extra) {
+  final AttendanceReviewLink link => link,
+  final String name when name.trim().isNotEmpty => AttendanceReviewLink(
+    employeeName: name,
+  ),
+  _ => null,
+};
 
 /// True when [loc] is the manager/admin attendance **review** ledger
 /// (`/attendance/review` or a sub-path) — admin + manager only. The employee's

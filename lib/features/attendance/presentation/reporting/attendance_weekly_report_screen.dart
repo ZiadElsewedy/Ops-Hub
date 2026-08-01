@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_timesheet_csv.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_pdf.dart';
 import 'package:open_filex/open_filex.dart';
@@ -259,10 +260,21 @@ class _WeeklyReportContent extends StatelessWidget {
           AttendanceWeeklyKpis(summary: report.summary),
         const SizedBox(height: AppSpacing.xl),
 
-        // 3 — By person, exceptions first.
+        // 3 — By person, exceptions first. A row opens that person's own
+        // records, pinned to this branch and this week, so the ledger answers
+        // the question the row raised instead of a differently-scoped one.
         AttendanceWeeklyEmployeeRows(
           employees: report.employees,
           showStatus: true,
+          onOpenEmployee: (employee) => context.push(
+            RouteNames.attendanceReview,
+            extra: AttendanceReviewLink(
+              employeeName: employee.displayName,
+              branchId: period.branchId,
+              start: period.window.startDate,
+              end: period.window.endDate,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.xl),
 

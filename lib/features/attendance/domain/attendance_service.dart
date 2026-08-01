@@ -1,3 +1,4 @@
+import 'package:drop/core/enums/attendance_location_policy.dart';
 import 'package:drop/features/attendance/domain/attendance_config.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 
@@ -23,4 +24,19 @@ class AttendanceService {
 
   /// Whether the attendance module is live for [user] (the dark-switch gate).
   bool isEnabledFor(UserEntity user) => configFor(user).enabled;
+
+  /// The **effective** location policy — the one thing that may gate a punch on
+  /// GPS. Callers use this, never `config.locationPolicy` directly.
+  ///
+  /// [AttendanceLocationPolicy.soft] and [AttendanceLocationPolicy.strict] both
+  /// mean "compare the device fix to the branch geofence". With no geofence there
+  /// is nothing to compare against, so neither can be satisfied — and the old
+  /// behaviour was to refuse the punch forever, which locked an unconfigured
+  /// branch out of attendance entirely. Falling back to
+  /// [AttendanceLocationPolicy.none] keeps the clock working as a pure time
+  /// action until an admin draws the fence (ADR-020).
+  static AttendanceLocationPolicy resolveLocationPolicy({
+    required AttendanceLocationPolicy configured,
+    required bool hasGeofence,
+  }) => hasGeofence ? configured : AttendanceLocationPolicy.none;
 }

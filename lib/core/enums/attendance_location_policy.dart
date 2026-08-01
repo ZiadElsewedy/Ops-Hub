@@ -1,11 +1,14 @@
-/// How strictly a branch validates the **location** of a clock-in. Attendance is
-/// designed so GPS can be switched on later without a refactor: the policy lives
-/// in `AttendanceConfig` and is [none] by default, so no coordinates are captured
-/// or checked unless a branch opts in. The validation engine consults this — it
-/// is the single knob for the whole geofence behaviour.
+/// How strictly a branch validates the **location** of a clock-in — the single
+/// knob for the whole geofence behaviour, read by `AttendanceValidation.checkGpsFix`
+/// and by the clock UI.
+///
+/// The **effective** policy is resolved by `AttendanceService.resolveLocationPolicy`,
+/// not read raw off the config: [soft] and [strict] both mean "compare the fix to
+/// the branch geofence", so neither can mean anything at a branch that has no
+/// geofence. There, the policy resolves to [none] (ADR-020).
 enum AttendanceLocationPolicy {
-  /// No location captured, no geofence check (the default). Clock-in is a pure
-  /// time action.
+  /// No location captured, no geofence check. Clock-in is a pure time action —
+  /// what a branch with no geofence configured falls back to.
   none,
 
   /// Capture the location and **warn** if it's outside the branch geofence, but

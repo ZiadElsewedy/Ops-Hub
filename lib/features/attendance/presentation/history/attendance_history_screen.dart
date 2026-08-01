@@ -27,7 +27,9 @@ import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 /// * [AttendanceHistoryScreen.self] — the signed-in employee's own history.
 /// * [AttendanceHistoryScreen.review] — a manager/admin reviewing a branch (admin
 ///   gets a branch picker; a manager is pinned to their own branch). An optional
-///   [initialSearch] deep-links the list pre-filtered to one employee's name.
+///   [initialSearch] deep-links the list pre-filtered to one employee's name, and
+///   [initialStart]/[initialEnd] pin it to the period the link came from — that
+///   is how a report's "By person" row opens the same person over the same days.
 ///
 /// It owns nothing but composition: a summary strip, a composable filter bar, and
 /// a list of record cards, all driven by [AttendanceHistoryCubit] over the
@@ -36,17 +38,23 @@ class AttendanceHistoryScreen extends StatelessWidget {
   const AttendanceHistoryScreen.self({super.key})
     : mode = AttendanceHistoryMode.self,
       initialBranchId = null,
-      initialSearch = null;
+      initialSearch = null,
+      initialStart = null,
+      initialEnd = null;
 
   const AttendanceHistoryScreen.review({
     super.key,
     this.initialBranchId,
     this.initialSearch,
+    this.initialStart,
+    this.initialEnd,
   }) : mode = AttendanceHistoryMode.review;
 
   final AttendanceHistoryMode mode;
   final String? initialBranchId;
   final String? initialSearch;
+  final DateTime? initialStart;
+  final DateTime? initialEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +73,8 @@ class AttendanceHistoryScreen extends StatelessWidget {
             userId: user?.uid,
             branchId: branchId,
             initialSearch: initialSearch,
+            initialStart: initialStart,
+            initialEnd: initialEnd,
           )..load(),
         ),
         BlocProvider<AttendanceReportCubit>(

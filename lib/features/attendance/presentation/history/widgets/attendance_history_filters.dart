@@ -40,7 +40,7 @@ class AttendanceHistoryFilters extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (showSearch && onSearch != null) ...[
-          AppSearchField(hint: 'Search employee', onChanged: onSearch!),
+          _EmployeeSearch(initialText: query.text, onChanged: onSearch!),
           const SizedBox(height: AppSpacing.md),
         ],
         _ChipRow(children: [
@@ -111,6 +111,43 @@ class AttendanceHistoryFilters extends StatelessWidget {
       onRange(AttendanceDateRange.custom, start: picked.start, end: picked.end);
     }
   }
+}
+
+/// The employee-name search, seeded from the query it is filtering.
+///
+/// Arriving from a report row pre-filters the ledger to one person; without the
+/// name *in the box* the list would look mysteriously short with an empty search
+/// field and no obvious way back. Seeding a caller-owned controller also gives
+/// the shared field's clear button something real to clear.
+class _EmployeeSearch extends StatefulWidget {
+  const _EmployeeSearch({required this.initialText, required this.onChanged});
+
+  final String initialText;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_EmployeeSearch> createState() => _EmployeeSearchState();
+}
+
+class _EmployeeSearchState extends State<_EmployeeSearch> {
+  // Seeded once: after the first frame the field is the source of truth for its
+  // own text, so re-seeding on rebuild would fight the person typing.
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialText,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AppSearchField(
+    hint: 'Search employee',
+    controller: _controller,
+    onChanged: widget.onChanged,
+  );
 }
 
 /// A horizontally-scrolling row of filter chips (so the 7 status facets never

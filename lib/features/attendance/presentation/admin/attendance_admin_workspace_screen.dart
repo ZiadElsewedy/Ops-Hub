@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -16,7 +17,6 @@ import 'package:drop/features/attendance/domain/reporting/admin_attendance_overv
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart';
 import 'package:drop/features/attendance/presentation/admin/widgets/attendance_evidence_table.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 
@@ -69,6 +69,13 @@ class _WorkspaceView extends StatefulWidget {
 
 class _WorkspaceViewState extends State<_WorkspaceView> {
   bool _started = false;
+
+  /// The active-branch set the fan-out is currently watching. Lets the cold path
+  /// (the listener fires when branches load) and the warm path (bootstrap seeds
+  /// it) both call [_watchBranches] without tearing down and rebuilding an
+  /// identical set of streams.
+  List<String>? _watching;
+
   late final AttendancePeriodWindow _window = weeklyWindow(DateTime.now());
 
   @override
@@ -76,7 +83,47 @@ class _WorkspaceViewState extends State<_WorkspaceView> {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    context.read<BranchCubit>().loadIfNeeded();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  /// `BranchCubit` is an **app-level singleton** (`main.dart` provides one
+  /// instance for the whole session), and the Attendance & Reports hub — the only
+  /// way into this screen — already calls `loadIfNeeded()`. So by the time the
+  /// workspace opens the branch list is normally *already loaded*:
+  /// `loadIfNeeded()` emits nothing, a `BlocListener` alone never fires, the
+  /// fan-out is never started and the screen sits on its spinner forever.
+  ///
+  /// Awaiting the load and then reading the cubit's own state covers the
+  /// already-loaded case as well as the cold one — the same fix
+  /// `attendance_history_screen.dart` documents for the same trap.
+  Future<void> _bootstrap() async {
+    final branchCubit = context.read<BranchCubit>();
+    await branchCubit.loadIfNeeded();
+    if (!mounted) return;
+    _watchBranches(branchCubit.state);
+  }
+
+  void _watchBranches(BranchState state) {
+    // Only a genuinely loaded list may start a fan-out. While loading, the
+    // spinner is honest; on an error, an empty overview would read as "every
+    // branch reported nothing", which is the one lie this screen exists to
+    // prevent.
+    final branches = state.maybeWhen(
+      loaded: (items, _) => items,
+      orElse: () => null,
+    );
+    if (branches == null) return;
+
+    final active = branches.where((b) => b.isActive).toList();
+    final ids = [for (final b in active) b.id];
+    if (_watching != null && listEquals(_watching, ids)) return;
+    _watching = ids;
+
+    context.read<AdminAttendanceOverviewCubit>().watch(
+      branchIds: ids,
+      names: {for (final b in active) b.id: b.name},
+      window: _window,
+    );
   }
 
   @override
@@ -86,20 +133,12 @@ class _WorkspaceViewState extends State<_WorkspaceView> {
       subtitle: 'Is the record complete and defensible?',
       compactDesktopHeader: true,
       body: BlocListener<BranchCubit, BranchState>(
+        // Still here for the cold path (branches load *after* this screen mounts)
+        // and for a later refresh of the directory. It can no longer be the only
+        // trigger — see [_bootstrap].
         listenWhen: (_, next) =>
             next.maybeWhen(loaded: (_, _) => true, orElse: () => false),
-        listener: (context, state) {
-          final branches = state.maybeWhen(
-            loaded: (items, _) => items,
-            orElse: () => const <BranchEntity>[],
-          );
-          final active = branches.where((b) => b.isActive).toList();
-          context.read<AdminAttendanceOverviewCubit>().watch(
-            branchIds: active.map((b) => b.id).toList(),
-            names: {for (final b in active) b.id: b.name},
-            window: _window,
-          );
-        },
+        listener: (context, state) => _watchBranches(state),
         child: ListView(
           key: const PageStorageKey('attendance-admin-workspace'),
           padding: EdgeInsets.fromLTRB(
