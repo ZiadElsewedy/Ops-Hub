@@ -173,6 +173,7 @@
 - `test/task_start_gate_widget_test.dart`
 - `test/task_status_test.dart`
 - `test/task_submission_gate_test.dart`
+- `test/task_template_sheets_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)
 ```
