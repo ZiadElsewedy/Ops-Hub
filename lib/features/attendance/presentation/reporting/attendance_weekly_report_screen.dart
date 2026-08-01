@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_timesheet_csv.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_weekly_pdf.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -549,11 +551,7 @@ class _SharePanel extends StatelessWidget {
       kind: AttendanceExportKind.summaryPdf,
       role: role,
       hasRows: report.rows.isNotEmpty,
-      isLocked: false,
       blockingRows: report.coverage.ledgerCoverage.blockingExceptionRowCount,
-      // File generation is a Cloud Function under ADR-005 and has never been
-      // deployed. Naming that is better than a button that fails.
-      serverReady: false,
     );
 
     return GlassContainer(
@@ -585,7 +583,9 @@ class _SharePanel extends StatelessWidget {
                     PremiumButton(
                       label: AttendanceExportKind.summaryPdf.label,
                       icon: Icons.picture_as_pdf_outlined,
-                      onPressed: availability.isAllowed ? () {} : null,
+                      onPressed: availability.isAllowed
+                          ? () => _saveWeeklyPdf(context, report, branchName)
+                          : null,
                     ),
                     PremiumButton(
                       label: AttendanceExportKind.timesheetCsv.label,
@@ -605,6 +605,57 @@ class _SharePanel extends StatelessWidget {
   }
 }
 
+/// Write the weekly PDF beside the timesheet and open it.
+///
+/// Opening matters more than saving on mobile: `getDownloadsDirectory()` is
+/// desktop-only, so on a phone the file lands in the app's sandbox where nobody
+/// would ever find it. Handing it to the system viewer is what lets a manager
+/// actually send it on — the same reason `chat_document_service` opens what it
+/// downloads.
+Future<void> _saveWeeklyPdf(
+  BuildContext context,
+  WeeklyAttendanceReport report,
+  String branchName,
+) async {
+  try {
+    final bytes = await buildWeeklyAttendancePdf(
+      report: report,
+      branchName: branchName,
+    );
+    final file = await _writeExport(
+      attendanceWeeklyPdfFilename(branchName, report.window.startDate),
+      (f) => f.writeAsBytes(bytes, flush: true),
+    );
+    if (context.mounted) {
+      AppSnackbar.success(context, 'Saved · ${file.uri.pathSegments.last}');
+    }
+    await _openExport(file);
+  } catch (_) {
+    if (context.mounted) {
+      AppSnackbar.error(context, 'Could not create the PDF.');
+    }
+  }
+}
+
+Future<File> _writeExport(
+  String filename,
+  Future<void> Function(File) write,
+) async {
+  final directory =
+      await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+  final file = File('${directory.path}${Platform.pathSeparator}$filename');
+  await write(file);
+  return file;
+}
+
+/// Mobile gets the system opener; desktop already reveals the Downloads folder,
+/// so a viewer would be noise there.
+Future<void> _openExport(File file) async {
+  if (Platform.isAndroid || Platform.isIOS) {
+    await OpenFilex.open(file.path);
+  }
+}
+
 /// Write the timesheet next to where the Schedule PNG export puts its file, so
 /// a manager looks in one place for anything this app produces ([ADR-019]).
 ///
@@ -617,18 +668,14 @@ Future<void> _saveTimesheetCsv(
 ) async {
   try {
     final csv = buildAttendanceTimesheetCsv(report.rows);
-    final directory =
-        await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
-    final filename = attendanceTimesheetFilename(
-      branchName,
-      report.window.startDate,
+    final file = await _writeExport(
+      attendanceTimesheetFilename(branchName, report.window.startDate),
+      (f) => f.writeAsString(csv, flush: true),
     );
-    final file = File('${directory.path}${Platform.pathSeparator}$filename');
-    await file.writeAsString(csv, flush: true);
     if (context.mounted) {
-      AppSnackbar.success(context, 'Saved to Downloads · $filename');
+      AppSnackbar.success(context, 'Saved · ${file.uri.pathSegments.last}');
     }
+    await _openExport(file);
   } catch (_) {
     if (context.mounted) {
       AppSnackbar.error(context, 'Could not save the timesheet.');

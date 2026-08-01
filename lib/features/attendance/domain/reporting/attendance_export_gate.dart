@@ -2,31 +2,25 @@ import 'package:drop/core/enums/user_role.dart';
 
 /// What a person may export from a period, and — when they may not — why.
 ///
-/// **The mirror of `functions/attendance_export.js`.** The server is the
-/// authority: it rejects a request that should not have been made, because a
-/// client check is a courtesy and never a control. This exists so the UI can be
-/// *honest* rather than offering a button that will fail, or — worse — a button
-/// that looks the same whether or not it would work.
+/// This exists so the UI is *honest* rather than offering a button that does
+/// nothing useful — a report of a week that is not settled would be shared as
+/// though it were final.
 ///
-/// The two rules worth stating in one place:
+/// **Payroll export, period lock and server generation were all removed by
+/// [ADR-019]** when payroll integration was ruled out. What remains is the one
+/// rule that still earns its place: a summary of an *unsettled* week must not be
+/// shared as though it were final, because a document leaves the app and outlives
+/// the screen that qualified it.
 ///
-/// * **Payroll requires a locked period, and only an admin may ask.** A pay
-///   figure that can still move is not a pay figure. Keeping this off the
-///   manager surface is not distrust — it is that an export sitting one tap from
-///   a PDF button is eventually pressed by someone who meant to print a summary.
-/// * **Manager artifacts do not require a lock.** A summary and a timesheet
-///   carry no financial authority, and managers need to share a week before
-///   payroll finalises it. Gating them would only push people back to
-///   screenshots, which is the outcome an export exists to prevent.
+/// Both artifacts are generated on the client, so there is nothing to deploy and
+/// nothing to wait for.
 enum AttendanceExportKind {
   summaryPdf,
-  timesheetCsv,
-  payrollCsv;
+  timesheetCsv;
 
   String get label => switch (this) {
     AttendanceExportKind.summaryPdf => 'PDF summary',
     AttendanceExportKind.timesheetCsv => 'Timesheet',
-    AttendanceExportKind.payrollCsv => 'Payroll export',
   };
 }
 
@@ -40,14 +34,8 @@ enum AttendanceExportBlock {
   /// shared as though it were final.
   notSettled,
 
-  /// The period has not been locked, so the numbers can still move.
-  notLocked,
-
   /// This role never gets this artifact.
-  forbidden,
-
-  /// The server side that generates files is not deployed yet.
-  notDeployed;
+  forbidden;
 
   String get message => switch (this) {
     AttendanceExportBlock.noRows => 'Nothing has been recorded for this period '
@@ -55,14 +43,8 @@ enum AttendanceExportBlock {
     AttendanceExportBlock.notSettled =>
       'Some shifts still need a decision. Settle them first so the file is '
           'final.',
-    AttendanceExportBlock.notLocked =>
-      'The period has to be locked before payroll can be exported — until then '
-          'the numbers can still change.',
     AttendanceExportBlock.forbidden =>
-      'Payroll exports are handled by an administrator.',
-    AttendanceExportBlock.notDeployed =>
-      'Exports are generated on the server, which an administrator still needs '
-          'to switch on.',
+      'Attendance exports are for managers and administrators.',
   };
 }
 
@@ -80,55 +62,25 @@ class AttendanceExportAvailability {
 }
 
 /// Resolve availability for one [kind].
-///
-/// [serverReady] is the honest admission that file generation is a Cloud
-/// Function which has never been deployed. It is checked **last**, so a reader
-/// sees the substantive reason first — "settle these shifts" is more useful
-/// than "not deployed" to someone who has shifts to settle either way.
 AttendanceExportAvailability attendanceExportAvailability({
   required AttendanceExportKind kind,
   required UserRole role,
   required bool hasRows,
-  required bool isLocked,
   int blockingRows = 0,
-  bool serverReady = false,
 }) {
-  final isAdmin = role.isAdmin;
-  final isManagerOrAdmin = isAdmin || role.isManager;
-
-  if (kind == AttendanceExportKind.payrollCsv) {
-    if (!isAdmin) {
-      return const AttendanceExportAvailability.blocked(
-        AttendanceExportBlock.forbidden,
-      );
-    }
-  } else if (!isManagerOrAdmin) {
+  if (!(role.isAdmin || role.isManager)) {
     return const AttendanceExportAvailability.blocked(
       AttendanceExportBlock.forbidden,
     );
   }
-
   if (!hasRows) {
     return const AttendanceExportAvailability.blocked(
       AttendanceExportBlock.noRows,
     );
   }
-
-  if (kind == AttendanceExportKind.payrollCsv) {
-    if (!isLocked) {
-      return const AttendanceExportAvailability.blocked(
-        AttendanceExportBlock.notLocked,
-      );
-    }
-  } else if (blockingRows > 0) {
+  if (blockingRows > 0) {
     return const AttendanceExportAvailability.blocked(
       AttendanceExportBlock.notSettled,
-    );
-  }
-
-  if (!serverReady) {
-    return const AttendanceExportAvailability.blocked(
-      AttendanceExportBlock.notDeployed,
     );
   }
   return const AttendanceExportAvailability.allowed();

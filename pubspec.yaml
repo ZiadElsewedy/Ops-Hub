@@ -89,6 +89,11 @@ dependencies:
   # Filesystem path joining for the Drift database file (chat cache).
   path: ^1.9.0
   open_filex: ^4.7.0
+  # Weekly attendance PDF (ADR-019). Pure Dart — deliberately NOT `printing`,
+  # which adds platform plugin code for a print dialog we do not need: the file
+  # is written beside the Schedule PNG export and opened with `open_filex`,
+  # exactly like a chat document.
+  pdf: ^3.11.1
 
 dev_dependencies:
   flutter_test:

@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1330 pass · 2 fail** across 184 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1335 pass · 2 fail** across 185 files (~26s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · iOS push unconfigured · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -503,8 +503,27 @@ period lock, the export ledger, restatement versioning, and the dead
 admin any; attribution cannot be forged; Reopen deletes). Firestore rules suite
 **47 pass** (was 37).
 
-**Still open:** the weekly **PDF**, which needs the `pdf` + `printing` packages —
-the only export that adds a dependency.
+**The weekly PDF shipped 2026-08-01.** `pdf` is the **one** new dependency —
+`printing` was deliberately not added: it brings platform plugin code for a
+print dialog that is not needed, when the file can be written beside the
+Schedule PNG export and handed to `open_filex`, which the chat document service
+already does. The document carries the same five sections in the same order as
+the screen, because a PDF with its own information architecture is a second one
+to keep in sync. It renders **both** states in the header — coverage *and*
+review — never merged into one verdict.
+
+⚠️ **Opening matters more than saving on mobile.** `getDownloadsDirectory()` is
+desktop-only, so on a phone both exports land in the app sandbox where nobody
+would find them; mobile therefore opens the file through `open_filex` so it can
+actually be sent on. Desktop skips that — it already writes to Downloads.
+
+**Payroll is now fully removed from the UI**, not just the backend:
+`AttendanceExportKind.payrollCsv`, `AttendanceExportBlock.notLocked` /
+`.notDeployed`, the `isLocked` / `serverReady` gate parameters, and the admin
+workspace's Payroll hand-off section are all deleted. The gate is down to the one
+rule that still earns its place: **an unsettled week must not be shared as though
+it were final**, because a document leaves the app and outlives the screen that
+qualified it.
 
 *Superseded (kept for the record): Phase 4 was previously blocked on the deploy.* ADR-005/ADR-017 make a payroll artifact
 server-authored, so the file must come from a Cloud Function writing to Storage

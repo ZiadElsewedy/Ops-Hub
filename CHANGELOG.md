@@ -63,6 +63,40 @@ error: the correction is durable and applies on deploy.
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
 
+## 2026-08-01 — The weekly PDF, and payroll leaves the UI too
+
+Completes Phase 4 under [ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md).
+
+**One new dependency, `pdf`.** `printing` was deliberately not added: it brings
+platform plugin code for a print dialog nobody asked for, when the file can be
+written beside the Schedule PNG export and opened with `open_filex` — exactly
+what the chat document service already does for downloads.
+
+The document carries **the same five sections in the same order as the screen**.
+A PDF with its own information architecture would be a second one to keep in
+sync, and that order was argued for once already. It renders coverage *and*
+review in the header as two facts, never merged into one verdict — the rule the
+whole redesign turns on. Show-up rate is absent for the same reason it left the
+screen.
+
+⚠️ **On mobile, opening matters more than saving.** `getDownloadsDirectory()` is
+desktop-only, so on a phone both exports would land in the app sandbox where
+nobody could find them. Mobile now hands the file to the system viewer so it can
+actually be sent on; desktop skips that, having written to Downloads.
+
+**Payroll is now gone from the UI as well as the backend** — `payrollCsv`, the
+`notLocked` and `notDeployed` blocks, the `isLocked` and `serverReady` gate
+parameters, and the admin workspace's Payroll hand-off section. The gate is down
+to one rule worth keeping: an unsettled week must not be shared as though it were
+final, because a document outlives the screen that qualified it.
+
+Tested structurally rather than by string-matching a compressed binary: valid
+`%PDF-` header, `%%EOF` tail, and a populated week producing a larger file than
+an empty one. Empty weeks, blocked weeks and a name that would break a CSV all
+render without failing.
+
+Verified: **1335 pass / 2 pre-existing**, analyze clean, build succeeds.
+
 ## 2026-08-01 — Exports become operational documents; a week is reviewed, not locked
 
 [ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md), after
