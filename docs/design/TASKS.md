@@ -294,6 +294,56 @@ paths are identical.
 It also warms a per-branch **user directory** (`_ensureDirectory` via
 `GetUsersByBranch`) so cards render real names and avatars instead of uids.
 
+## The employee screen (My Tasks)
+
+Four segments — **Active · Late · Missed · Done** — in
+[`my_tasks_screen.dart`](../../lib/features/task/presentation/pages/my_tasks_screen.dart).
+Membership is three top-level predicates in that file; nothing else derives it.
+
+| Tab | Holds | Reads as |
+| --- | --- | --- |
+| **Active** | Open work that is not overdue — Needs attention (rejected) · In progress · Today's · Upcoming · In review | a queue, by section |
+| **Late** (`lateTasks`) | Open work past its deadline, **rejected excluded** (it has its own Active section) | a queue, oldest deadline first |
+| **Missed** (`missedTasks`) | `TaskStatus.missed` only | a history, grouped by recency |
+| **Done** (`finishedTasks`) | Approved + Cancelled | a history, grouped by recency |
+
+Late and Missed are separate tabs rather than pinned sections because they are
+distinct questions ("what am I behind on?" vs "what did I lose?") and the words
+already mean different things (§Scheduling — Late is open, Missed is closed).
+The same task can never appear in two of them.
+
+Two consequences a change here must preserve:
+
+- **A tab hides its contents**, so Late and Missed carry their count on the
+  segment itself (`SegmentedTabBar.counts`, drawn only when non-zero).
+- **An empty Active list is not proof of being caught up.** When anything is
+  late the all-clear state says so and offers the jump; "You're all caught up"
+  is reserved for a genuinely clear queue.
+
+### How an employee's tasks arrive
+
+Two or three live Firestore listeners, merged by id in `TaskCubit._updateSource`
+(keyed by source, so one can be re-bound without disturbing the others):
+
+| Source | Query | Bound |
+| --- | --- | --- |
+| `assignee` | `assigneeIds arrayContains uid` | immediately |
+| `shift:<slot>` | `branchId` + `assignmentType == 'shift'` + `shift` | after the roster resolves |
+
+A shift task has **no `assigneeIds`**, so the shift streams are the only way it
+reaches the employee — which is why they can't be opened until we know today's
+roster.
+
+That roster is read **cache-first** (`getScheduleCacheFirst`) so the streams
+bind in the same frame; the authoritative `getSchedule` still runs, *unawaited*,
+and re-binds only if today's shifts actually differ. Both halves are load-bearing:
+drop the cache read and shift tasks lag a network round trip behind the screen
+(the Late/Missed counts visibly pop in); drop the reconcile and an employee moved
+to another shift is stranded on the wrong tasks until they pull to refresh.
+
+`getScheduleCacheFirst` exists for this one caller. Anything that **displays or
+edits** the roster reads `getSchedule`.
+
 ## Ordering
 
 Admin query uses Firestore `orderBy('createdAt', descending: true)` (index-free).

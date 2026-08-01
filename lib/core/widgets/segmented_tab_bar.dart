@@ -16,6 +16,7 @@ class SegmentedTabBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.controller,
     required this.tabs,
+    this.counts,
     this.margin = const EdgeInsets.fromLTRB(
       AppSpacing.pagePadding,
       0,
@@ -28,8 +29,17 @@ class SegmentedTabBar extends StatelessWidget implements PreferredSizeWidget {
   /// The controller shared with the paired `TabBarView`.
   final TabController controller;
 
-  /// Segment labels, in order (typically 2–3).
+  /// Segment labels, in order (typically 2–4).
   final List<String> tabs;
+
+  /// Optional per-segment counts, positionally aligned with [tabs]. A count is
+  /// drawn only when it is greater than zero, so a quiet segment stays a plain
+  /// word. Shorter than [tabs] is fine — the remainder simply has no count.
+  ///
+  /// It renders as a dimmed number beside the label rather than a filled chip:
+  /// the number inherits the tab's own selected/unselected colour, so it fades
+  /// with the sliding selector instead of fighting it.
+  final List<int>? counts;
 
   /// Outer spacing around the pill.
   final EdgeInsets margin;
@@ -64,7 +74,37 @@ class SegmentedTabBar extends StatelessWidget implements PreferredSizeWidget {
         unselectedLabelColor: AppColors.textSecondary,
         labelStyle: AppTypography.caption.copyWith(fontWeight: FontWeight.w700),
         unselectedLabelStyle: AppTypography.caption,
-        tabs: [for (final t in tabs) Tab(text: t)],
+        tabs: [
+          for (var i = 0; i < tabs.length; i++) _tab(tabs[i], _countAt(i)),
+        ],
+      ),
+    );
+  }
+
+  int _countAt(int i) {
+    final c = counts;
+    if (c == null || i >= c.length) return 0;
+    return c[i];
+  }
+
+  /// A label, optionally trailed by its count. `Tab(text:)` when there is
+  /// nothing to add, so the untouched two-segment callers render exactly as
+  /// before.
+  Widget _tab(String label, int count) {
+    if (count <= 0) return Tab(text: label);
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 5),
+          // Inherits the tab's colour (so it crosses the selector with the
+          // label) and sits a step behind it — the word leads, the number
+          // supports.
+          Opacity(opacity: 0.55, child: Text('$count')),
+        ],
       ),
     );
   }

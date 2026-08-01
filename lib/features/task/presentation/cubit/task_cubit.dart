@@ -74,11 +74,16 @@ class TaskCubit extends Cubit<TaskState> {
 
   UserEntity? _user;
 
-  /// One subscription per task source feeding the current scope. Admin/manager
-  /// have exactly one (all tasks / branch tasks); an employee has one for their
-  /// individually-assigned tasks plus one per shift they're rostered on today
-  /// (Shift Assignment feature) — see [_subscribeFor]/[_updateSource].
-  final List<StreamSubscription<List<TaskEntity>>> _subs = [];
+  /// One subscription per task source feeding the current scope, keyed by the
+  /// same source key as [_taskSources]. Admin/manager have exactly one (all
+  /// tasks / branch tasks); an employee has one for their individually-assigned
+  /// tasks plus one per shift they're rostered on today (Shift Assignment
+  /// feature) — see [_subscribeFor]/[_updateSource].
+  ///
+  /// Keyed rather than a flat list because the shift sources are re-bound on
+  /// their own when the server roster turns out to differ from the cached one
+  /// ([_bindShiftStreams]); the assignee source must survive that untouched.
+  final Map<String, StreamSubscription<List<TaskEntity>>> _subs = {};
   final Map<String, List<TaskEntity>> _taskSources = {};
   bool _mutating = false;
   // Submission lives on the cubit (not a widget) so the whole screen reacts and
@@ -214,10 +219,20 @@ class TaskCubit extends Cubit<TaskState> {
   }
 
   Future<void> _cancelSubs() async {
-    for (final s in _subs) {
+    for (final s in _subs.values) {
       await s.cancel();
     }
     _subs.clear();
+  }
+
+  /// Drops the sources whose key satisfies [where] — both the subscription and
+  /// its last snapshot, so [_updateSource]'s next merge cannot resurrect tasks
+  /// from a source we no longer listen to.
+  Future<void> _cancelSubsWhere(bool Function(String key) where) async {
+    for (final key in _subs.keys.where(where).toList()) {
+      await _subs.remove(key)?.cancel();
+      _taskSources.remove(key);
+    }
   }
 
   /// Sets up every task source for [user]'s scope. Admin/manager get exactly
@@ -240,49 +255,103 @@ class TaskCubit extends Cubit<TaskState> {
   }
 
   void _subscribe(String sourceKey, Stream<List<TaskEntity>> stream) {
-    _subs.add(
-      stream.listen(
-        (tasks) => _updateSource(sourceKey, tasks),
-        // Capture the real error/stack (a swallowed exception is why this only
-        // ever showed a generic UI message — e.g. a missing Firestore composite
-        // index surfaces here as `failed-precondition`). The UI message stays
-        // friendly.
-        onError: (Object error, StackTrace stackTrace) {
-          AppLog.error('task', 'Task stream "$sourceKey" failed', error,
-              stackTrace);
-          emit(
-            const TaskState.error('Failed to load tasks. Please try again.'),
-          );
-        },
-      ),
+    _subs[sourceKey] = stream.listen(
+      (tasks) => _updateSource(sourceKey, tasks),
+      // Capture the real error/stack (a swallowed exception is why this only
+      // ever showed a generic UI message — e.g. a missing Firestore composite
+      // index surfaces here as `failed-precondition`). The UI message stays
+      // friendly.
+      onError: (Object error, StackTrace stackTrace) {
+        AppLog.error('task', 'Task stream "$sourceKey" failed', error,
+            stackTrace);
+        emit(
+          const TaskState.error('Failed to load tasks. Please try again.'),
+        );
+      },
     );
   }
 
   /// Resolves the employee's shift(s) today from the branch's weekly schedule
-  /// (`ScheduleRepository.getSchedule` + `WeeklyScheduleEntity.shiftsFor` —
-  /// exactly the primitives `computeBranchWorkload` already uses for the same
-  /// "who's on shift X today" question) and subscribes one `watchShiftTasks`
-  /// stream per shift. Resolved once per `load()` call; `refresh()` re-resolves.
+  /// (`WeeklyScheduleEntity.shiftsFor` — the same primitive
+  /// `computeBranchWorkload` uses for the same "who's on shift X today"
+  /// question) and subscribes one `watchShiftTasks` stream per shift. A shift
+  /// task carries no `assigneeIds`, so these streams are the *only* way it
+  /// reaches the employee.
+  ///
+  /// **Cache-first, then reconciled.** Resolving the roster used to be an
+  /// awaited server read, which meant shift tasks — and therefore the Late and
+  /// Missed counts that include them — appeared about a second after the rest
+  /// of the screen. The roster is now read from the on-device cache so the
+  /// streams bind in the same frame, and the authoritative server read runs
+  /// **unawaited** behind it, re-binding only if today's roster actually
+  /// differs. So the fast path never goes stale for more than one round trip,
+  /// and an employee moved to another shift still gets the right tasks without
+  /// touching refresh.
+  ///
   /// Best-effort — an employee with no branch or no resolvable schedule simply
   /// gets no shift streams (unchanged behaviour from before this feature).
   Future<void> _subscribeEmployeeShifts(UserEntity user) async {
     final branchId = user.branchId;
     if (branchId == null || branchId.isEmpty) return;
+
+    final fromCache = await _rosteredShiftsToday(user, branchId, cached: true);
+    _bindShiftStreams(branchId, fromCache);
+
+    // Deliberately not awaited: `load()` awaits this method, and the whole
+    // point is that the first paint no longer waits on the network.
+    unawaited(_reconcileShiftStreams(user, branchId, fromCache));
+  }
+
+  /// The shifts [user] is rostered on today, as source keys. Empty on any
+  /// failure — a roster we cannot read must not tear down existing streams.
+  Future<Set<ScheduleShift>> _rosteredShiftsToday(
+    UserEntity user,
+    String branchId, {
+    required bool cached,
+  }) async {
     try {
-      final schedule = await _scheduleRepository.getSchedule(
-        branchId,
-        ScheduleWeek.currentWeekStart(),
-      );
-      if (schedule == null) return;
-      final today = ScheduleDay.today();
-      for (final shift in schedule.shiftsFor(user.uid, today)) {
-        _subscribe(
-          'shift:${shift.value}',
-          _repository.watchShiftTasks(branchId: branchId, shift: shift),
-        );
-      }
+      final week = ScheduleWeek.currentWeekStart();
+      final schedule = cached
+          ? await _scheduleRepository.getScheduleCacheFirst(branchId, week)
+          : await _scheduleRepository.getSchedule(branchId, week);
+      if (schedule == null) return const {};
+      return schedule.shiftsFor(user.uid, ScheduleDay.today()).toSet();
     } catch (_) {
-      // Best-effort — see doc comment.
+      return const {};
+    }
+  }
+
+  /// Re-reads the roster from the server and re-binds the shift sources only
+  /// when the set genuinely changed, so the common case (cache was right) costs
+  /// one read and causes no stream churn or list flicker.
+  Future<void> _reconcileShiftStreams(
+    UserEntity user,
+    String branchId,
+    Set<ScheduleShift> fromCache,
+  ) async {
+    final fromServer = await _rosteredShiftsToday(user, branchId, cached: false);
+    // The scope may have changed while the read was in flight (signed out,
+    // switched user, pulled to refresh) — that load owns the streams now.
+    if (isClosed || _user == null || _scopeKey(_user!) != _scopeKey(user)) {
+      return;
+    }
+    if (fromServer.isEmpty && fromCache.isEmpty) return;
+    // Same roster (the common case) — leave the live streams alone. At most two
+    // shifts, so a plain compare beats pulling in a set-equality helper.
+    if (fromServer.length == fromCache.length &&
+        fromServer.every(fromCache.contains)) {
+      return;
+    }
+    await _cancelSubsWhere((key) => key.startsWith('shift:'));
+    _bindShiftStreams(branchId, fromServer);
+  }
+
+  void _bindShiftStreams(String branchId, Set<ScheduleShift> shifts) {
+    for (final shift in shifts) {
+      _subscribe(
+        'shift:${shift.value}',
+        _repository.watchShiftTasks(branchId: branchId, shift: shift),
+      );
     }
   }
 
@@ -2001,7 +2070,7 @@ class TaskCubit extends Cubit<TaskState> {
 
   @override
   Future<void> close() {
-    for (final s in _subs) {
+    for (final s in _subs.values) {
       s.cancel();
     }
     return super.close();

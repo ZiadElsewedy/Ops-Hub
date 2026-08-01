@@ -14,6 +14,107 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-01 — Shift task streams bind from cache, not a round trip (bug; MED risk)
+
+An employee's shift tasks — and therefore the Late and Missed counts that
+include them — appeared roughly a second after the rest of My Tasks. Not a cache
+miss and not a duplicate request: a **sequential dependency**. A shift task
+carries no `assigneeIds`, so it arrives only via `watchShiftTasks`, and that
+stream could not be opened until an **awaited** server read of the weekly
+schedule said which shift the employee was on today.
+
+The roster is now read cache-first (`ScheduleRepository.getScheduleCacheFirst`,
+a new method — `getSchedule` is unchanged, and anything that *displays* or edits
+the roster must keep using it), so the streams bind in the same frame.
+
+The obvious version of this is a trap: a plain cache-first read pins whatever
+roster is on disk, so an employee moved to another shift would silently stop
+seeing shift tasks for the whole session. So the authoritative server read still
+runs — **unawaited**, behind the fast path — and re-binds the shift sources only
+when today's roster actually differs. Fast path never more than one round trip
+stale; no stream churn in the common case where the cache was right.
+
+`TaskCubit._subs` became a map keyed by source, so shift sources can be
+re-bound without disturbing the assignee stream, and `_cancelSubsWhere` drops a
+cancelled source's last snapshot so `_updateSource`'s merge cannot resurrect its
+tasks.
+
+Tests: +7 (`task_shift_stream_binding_test.dart` — binding proved against a
+server read that *never completes*, re-bind on a changed roster, no churn on an
+unchanged one, stale-source tasks dropped, and the no-branch / read-failure
+degradations). The `ScheduleRepository` fakes in three existing task tests now
+implement the cache-first read too — left to `noSuchMethod` they threw, which
+silently routed every test onto the slow path and left the new one uncovered.
+
+## 2026-08-01 — Late and Missed each get their own tab in My Tasks (polish; LOW risk)
+
+Owner ruling: *"add missed tasks on their own like Done and Active — and Late the
+same. I don't want it all together."*
+
+The employee task screen went from two segments to four — **Active · Late ·
+Missed · Done**. Late was a pinned section at the top of Active; Missed was a
+pinned section at the top of Done. Both are now tabs, so each of the four
+readings is one tap and nothing else is stacked on top of it. The two words keep
+the meanings [TASKS.md](docs/design/TASKS.md) already defines: **Late** is *open*
+work past its deadline (still actionable), **Missed** is the server's terminal
+verdict on work that closed unfinished. Done is now Approved + Cancelled.
+
+What a tab costs is visibility, so two things pay it back:
+
+- `SegmentedTabBar` gained an optional `counts` — Late and Missed carry their
+  number on the segment itself (dimmed, inheriting the tab colour, drawn only
+  when non-zero). Active/Done stay plain words; the overview card above already
+  summarises them.
+- The all-clear state has **two readings**. An empty Active list means "caught
+  up" only when nothing is late; with late work waiting it reads *"Nothing new —
+  but you are behind"* over a button to that tab. Claiming "You're all caught up"
+  beside overdue work was the one real regression the split could have shipped.
+
+Tab membership is now three tested top-level predicates (`lateTasks` ·
+`missedTasks` · `finishedTasks`) instead of filters inlined in two widgets, and
+`_groupByRecency` / `_taskGrid` are shared rather than duplicated per tab.
+
+Tests: +17 (`my_tasks_tabs_test.dart` pins the partition — including that no task
+appears in two tabs, that Cancelled is never absorbed into Missed, and that Late
+never reads a closed task — plus `allClearCopy`, extracted pure precisely so the
+"you are behind" wording is testable without live overdue data;
+`segmented_tab_bar_test.dart` covers zero-count suppression and four counted
+segments on a 320pt phone).
+
+Also by owner ruling: the **"3m late" line on a completed card is now amber**
+(`AppColors.warning`) instead of tertiary grey — it was too quiet to register
+next to a green *Completed*. It remains a timeliness signal and deliberately
+does **not** take the error red that Missed wears; ADR-013 never fixed a colour
+for it (the grey was a code-comment convention), so nothing there is reversed.
+Changed on the employee card only — the manager task card and Task Details still
+render lateness as a neutral meta chip.
+
+Verified on the simulator: all four tabs, the count on the Missed segment
+(legible both selected and unselected), Done no longer carrying a Missed
+section, and the amber lateness line.
+
+## 2026-08-01 — Employee Home stat strip: one surface, not four boxes (polish; LOW risk)
+
+Owner: *"more premium, and decrease the size a little bit."*
+
+**To do · Active · In review · Done** was four bordered cards sitting side by
+side, each with icon-over-number-over-label. Four boxes in a row read as a
+dashboard; it is one glance, so it is now **one surface with hairline dividers**
+— the Design System V2 fact-row language already used by core `StatStrip`
+(not reused directly: that primitive carries no icons and no per-cell
+highlight, and its type is larger, not smaller).
+
+Height drops ~20% (≈81pt → ≈65pt): three rows became two, with the icon moved
+down beside its label so the **number leads**, which is what the eye is there
+for.
+
+The live-cell highlight moved from a tinted card to the **grey ramp** — number
+to white, label and icon up one step. Inside a shared surface a per-cell tint
+patches the row; hierarchy says the same thing more quietly (ADR-004 holds —
+still strictly monochrome).
+
+Verified on the simulator with a live highlighted cell (1 To do).
+
 ## 2026-07-31 — Daily review: settle yesterday before it becomes a weekly surprise (feature; HIGH risk)
 
 Phase 2 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md)

@@ -16,6 +16,15 @@ abstract class ScheduleRepository {
   Future<WeeklyScheduleEntity?> getSchedule(
       String branchId, DateTime weekStart);
 
+  /// [getSchedule] answered from the on-device cache when the week is already
+  /// there, falling back to the server on a miss.
+  ///
+  /// Only for callers that need the roster immediately and reconcile against
+  /// the server afterwards (today: binding an employee's shift task streams).
+  /// Anything that shows or edits the roster must use [getSchedule].
+  Future<WeeklyScheduleEntity?> getScheduleCacheFirst(
+      String branchId, DateTime weekStart);
+
   /// All of a branch's weekly schedules (newest week first).
   Future<List<WeeklyScheduleEntity>> getBranchSchedules(String branchId);
 
