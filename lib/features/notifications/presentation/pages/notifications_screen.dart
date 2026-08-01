@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
@@ -74,6 +75,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (n.isUnread) cubit.markRead(n.id);
     _deepLink(n);
   }
+
+  /// Whether tapping [n] opens a destination. Resolved with the same resolver
+  /// the tap uses, so the tile's presentation and its behaviour can never
+  /// disagree: a notification with no safe target shows its body in full
+  /// instead of clamping it behind a tap that goes nowhere.
+  bool _navigable(NotificationEntity n) =>
+      resolveNotificationRoute(
+        route: n.route,
+        payload: n.payload,
+        role: context.currentRole,
+      ) !=
+      null;
 
   /// A task / review notification opens the **exact task** (its details screen
   /// carries the review surface); a broadcast opens its detail for admin/manager;
@@ -178,11 +191,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _content(List<NotificationEntity> items) {
+    // The pills count the unread of the CURRENT view (inbox or archived) before
+    // the category narrows it — otherwise every pill but the active one would
+    // read zero.
+    final inView = items.where((n) => n.isArchived == _showArchived);
+    final unreadByCategory = <NotificationCategory, int>{};
+    for (final n in inView.where((n) => n.isUnread)) {
+      final c = categoryOf(n.type);
+      unreadByCategory[c] = (unreadByCategory[c] ?? 0) + 1;
+      unreadByCategory[NotificationCategory.all] =
+          (unreadByCategory[NotificationCategory.all] ?? 0) + 1;
+    }
     final sections = groupByTime(_visible(items), DateTime.now());
     return Column(
       children: [
         _FilterBar(
           category: _category,
+          unreadByCategory: unreadByCategory,
           onSelect: (c) {
             HapticFeedback.selectionClick();
             setState(() => _category = c);
@@ -198,16 +223,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     var animIndex = 0;
     return ListView(
       controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, AppSpacing.sm,
-          AppSpacing.pagePadding, AppSpacing.xxxl),
+      // A narrower gutter than the page default: an inbox row is a list item,
+      // not a page section, and the extra width goes to the title.
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xxxl),
       children: [
         for (final section in sections) ...[
-          Padding(
-            padding:
-                const EdgeInsets.fromLTRB(2, AppSpacing.md, 0, AppSpacing.sm),
-            child: Text(section.title.toUpperCase(),
-                style: AppTypography.caption.copyWith(
-                    color: AppColors.textTertiary, letterSpacing: 0.6)),
+          _SectionHeader(
+            title: section.title,
+            unread: section.items.where((n) => n.isUnread).length,
           ),
           for (final n in section.items)
             EntranceFade(
@@ -229,6 +253,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 },
                 child: NotificationTile(
                   notification: n,
+                  navigable: _navigable(n),
                   onTap: () => _onTap(n),
                 ),
               ),
@@ -295,7 +320,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       decoration: BoxDecoration(
         color: color.withAlpha(24),
-        borderRadius: BorderRadius.circular(16),
+        // Matches the card it sits behind, so the reveal never shows a corner
+        // that does not line up with the tile sliding over it.
+        borderRadius: AppRadius.cardAll,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -389,46 +416,124 @@ class _HeaderLockup extends StatelessWidget {
   }
 }
 
-/// The category filter pills — subtle premium chips (no loud badges).
-class _FilterBar extends StatelessWidget {
-  const _FilterBar({required this.category, required this.onSelect});
+/// A day divider — "TODAY" with a hairline running out to the right margin, and
+/// the unread count of that day parked at the far end. The rule does the work a
+/// blank gap used to do: it separates the days without spending vertical space,
+/// and it gives the eye a line to return to when scrolling a long inbox.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.unread});
 
-  final NotificationCategory category;
-  final ValueChanged<NotificationCategory> onSelect;
+  final String title;
+  final int unread;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.pagePadding, AppSpacing.sm, AppSpacing.pagePadding, 0),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, AppSpacing.lg, 2, AppSpacing.md),
+      child: Row(
         children: [
-          for (final c in NotificationCategory.values)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: _Chip(
-                label: c.label,
-                selected: category == c,
-                onTap: () => onSelect(c),
-              ),
+          Text(
+            title.toUpperCase(),
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textTertiary,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
             ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Container(height: 1, color: AppColors.darkBorder),
+          ),
+          if (unread > 0) ...[
+            const SizedBox(width: AppSpacing.md),
+            Text(
+              '$unread new',
+              style: AppTypography.caption
+                  .copyWith(color: AppColors.textQuaternary),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
+/// The category filter pills — subtle premium chips (no loud badges), each
+/// carrying its unread count so the bar is a **signal**, not decoration: an
+/// admin sees "Requests 4" without opening the filter.
+///
+/// The rail is masked at both ends so a scrollable row of pills fades out
+/// rather than being sliced off mid-word at the screen edge (which is what made
+/// the old bar read as broken).
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({
+    required this.category,
+    required this.unreadByCategory,
+    required this.onSelect,
+  });
+
+  final NotificationCategory category;
+  final Map<NotificationCategory, int> unreadByCategory;
+  final ValueChanged<NotificationCategory> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: ShaderMask(
+        // These are stencil values, not palette values: under `dstIn` only the
+        // gradient's ALPHA is read (opaque = keep, transparent = fade), so they
+        // are not a theme colour and must not be replaced with one.
+        shaderCallback: (rect) => const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Colors.transparent,
+            Colors.black,
+            Colors.black,
+            Colors.transparent,
+          ],
+          stops: [0, 0.035, 0.88, 1],
+        ).createShader(rect),
+        blendMode: BlendMode.dstIn,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm),
+          children: [
+            for (final c in NotificationCategory.values)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                child: _Chip(
+                  label: c.label,
+                  unread: unreadByCategory[c] ?? 0,
+                  selected: category == c,
+                  onTap: () => onSelect(c),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Chip extends StatelessWidget {
-  const _Chip(
-      {required this.label, required this.selected, required this.onTap});
+  const _Chip({
+    required this.label,
+    required this.unread,
+    required this.selected,
+    required this.onTap,
+  });
+
   final String label;
+  final int unread;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final fg = selected ? AppColors.onPrimary : AppColors.textSecondary;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -443,11 +548,26 @@ class _Chip extends StatelessWidget {
           border: Border.all(
               color: selected ? AppColors.primary : AppColors.darkBorder),
         ),
-        child: Text(label,
-            style: AppTypography.caption.copyWith(
-              color: selected ? AppColors.onPrimary : AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            )),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label,
+                style: AppTypography.caption.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                )),
+            if (unread > 0) ...[
+              const SizedBox(width: 6),
+              Text('$unread',
+                  style: AppTypography.caption.copyWith(
+                    color: selected
+                        ? AppColors.onPrimary.withAlpha(140)
+                        : AppColors.textQuaternary,
+                    fontWeight: FontWeight.w600,
+                  )),
+            ],
+          ],
+        ),
       ),
     );
   }

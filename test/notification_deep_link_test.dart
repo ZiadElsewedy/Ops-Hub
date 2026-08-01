@@ -166,6 +166,69 @@ void main() {
     });
   });
 
+  group('resolveNotificationRoute — attendance', () {
+    // Regression: `writeAttendanceNotifications` has always stamped
+    // `route: "attendance"`, but the resolver had no case for it — so every
+    // correction / auto-close notification was a DEAD TAP in the inbox.
+    test('with a recordId opens the exact record, for any role', () {
+      for (final role in UserRole.values) {
+        expect(
+          resolveNotificationRoute(
+            route: NotificationRoute.attendance,
+            payload: const {'recordId': 'a1', 'correctionId': 'c1'},
+            role: role,
+          ),
+          RouteNames.attendanceRecord('a1'),
+          reason: role.name,
+        );
+      }
+    });
+
+    test('without a recordId falls back to the ledger the role may open', () {
+      expect(
+        resolveNotificationRoute(
+            route: NotificationRoute.attendance,
+            payload: const {},
+            role: UserRole.admin),
+        RouteNames.attendanceReview,
+      );
+      expect(
+        resolveNotificationRoute(
+            route: NotificationRoute.attendance,
+            payload: const {},
+            role: UserRole.manager),
+        RouteNames.attendanceReview,
+      );
+      expect(
+        resolveNotificationRoute(
+            route: NotificationRoute.attendance,
+            payload: const {},
+            role: UserRole.employee),
+        RouteNames.attendanceHistory,
+      );
+    });
+
+    test('an empty-string recordId (FCM data map) is treated as missing', () {
+      expect(
+        resolveNotificationRoute(
+            route: NotificationRoute.attendance,
+            payload: const {'recordId': ''},
+            role: UserRole.employee),
+        RouteNames.attendanceHistory,
+      );
+    });
+
+    test('an unknown role has no destination', () {
+      expect(
+        resolveNotificationRoute(
+            route: NotificationRoute.attendance,
+            payload: const {},
+            role: null),
+        isNull,
+      );
+    });
+  });
+
   group('resolveNotificationRoute — unknown / missing route', () {
     test('an unknown route → null (safe fallback handled by the caller)', () {
       expect(

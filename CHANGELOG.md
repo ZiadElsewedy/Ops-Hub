@@ -14,6 +14,107 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-01 — Notification inbox: readable rows + the dead attendance tap (polish + bug; LOW/MED risk)
+
+Owner report: the Notification Center *"looks bad and messy"*, and navigation
+from it needed fixing.
+
+### Second pass — the subject leads the row
+
+First pass removed the duplicated pill but left the deeper fault, which the
+owner named immediately: *"all the tasks look the same."* They did, and the
+reason is in the producers. **Every one of them — `NotifyTaskEvent` and the six
+`functions/index.js` sites alike — writes the event type into `title` ("New Task
+Assigned") and the thing it is about into `body` ("Fridge check • Due 2:59
+PM").** Rendering `title` as the headline therefore made the loudest line on
+every card the one line *guaranteed to repeat*; the only text that told three
+assigned tasks apart sat in 12px grey beneath it. Apple's own list guidance is
+the inverse — the subtitle exists *to distinguish rows from one another*.
+
+So the row is inverted:
+
+```
+NEW TASK ASSIGNED                    41m ●     ← kicker: 10px uppercase, semantic tint
+Restock the front cooler                        ← subject: 14.5px, ONE line, never wraps
+Due today 2:59 PM                               ← context: 12px, grey ramp
+```
+
+Nothing is discarded and **no stored data changes** — `title` is a pure function
+of `type` in every producer, so it was always a label and is now set as one. The
+kicker also carries the semantic accent, which is how the deleted category
+pill's *meaning* returns at a quarter of its weight.
+
+The subject holds **one line**. A wrapping headline gave every card a different
+height and the column read ragged, so the trailing context is split off into its
+own quieter line: new pure `splitNotificationBody` in `notification_format.dart`
+cuts on the first ` • ` or ` — ` (the separators every producer already uses),
+falling back to "all subject" when there is none — 7 cases in
+`notification_grouping_test.dart`. The one exception is a row with **nowhere to
+go**: it is not a pointer to the message, it *is* the message, so it is set as
+reading text (lighter, looser, up to 5 lines) instead of a headline that happens
+to be long.
+
+Client task copy was fixed to match: `taskApproved` said only *"Task approved"*
+and `taskRejected` / `taskRework` said only the reason, so those rows named
+nothing at all. Every branch of `_bodyFor` now leads with `task.title`.
+**Client-side only — no deploy.** (The server producers already name their
+subject; they were left alone.)
+
+### First pass — the duplicated pill
+
+**The mess was duplicated information.** Every row spent three stacked lines on
+three words: a tinted glyph, a title, a body, and then a coloured category pill
+on its own line — a pill reading "Task" beneath a title already reading "New
+Task Assigned", and the loudest element on the card. The filter pills own
+category and the glyph owns type, so the pill is gone; the age moved from the
+bottom-left meta row into the **right corner of the title line**, where an inbox
+is read. Rows came down ~40% in height (eight fit an iPhone screen where six
+did), and nothing that carried meaning was dropped.
+
+**Read/unread is now carried by brightness, not a lone 8px dot.** An unread row
+wears an accent-tinted glyph, a white title and a live dot; a read row goes
+quiet — flat glyph, grey title, no elevation. The list ranks itself before a
+word is read. A **critical unread** item (overdue · emergency · a swap awaiting
+approval) additionally carries the standard `AppGlassCard` semantic halo, and
+loses it once seen — emphasis marks the unseen, never the status forever
+([[feedback_task_card_hairline]]'s standing rule).
+
+Also: day headers became a labelled hairline carrying that day's unread count
+(`TODAY ──── 3 new`); the filter rail is masked at both ends so it fades instead
+of being sliced mid-word at the screen edge (the single thing that most made the
+bar read as broken); each pill carries its unread count, so *Requests 4* is
+visible without opening the filter; and the swipe-reveal radius was corrected to
+`AppRadius.cardAll` (20, not 16) so it lines up with the card sliding over it.
+
+**The navigation bug — `route: "attendance"` was a dead tap.**
+`writeAttendanceNotifications` in `functions/index.js` has always stamped it,
+but `resolveNotificationRoute` had no case for it, so every correction-filed /
+approved / rejected and every auto-closed-session notification fell through to
+`default → null`: tapping did nothing, in the inbox and on an FCM tap alike. It
+now opens the exact record (`/attendance/record/:id` — all four producers stamp
+`recordId`), falling back to `/attendance/review` for a reviewer and
+`/attendance/history` for an employee. Four cases added to
+`test/notification_deep_link_test.dart`.
+
+**The in-app tap is fixed by the app build.** The *push* tap needed the other
+half — `onNotificationCreated` was also dropping `recordId` / `correctionId`
+from the push `data`, so a background/cold-start tap had no id to resolve. Both
+are now forwarded, but that half is **⚠️ inert until
+`firebase deploy --only functions`**; until then a background attendance tap
+lands on the ledger fallback rather than the exact record. Functions tests:
+68 pass.
+
+The tile now also *tells the truth about* a tap that can't go anywhere: the
+screen resolves each notification through the same resolver and passes
+`navigable`, and a notification with no destination (an employee's broadcast)
+shows its body in full rather than clamping it to two lines behind a dead tap.
+
+`AppDateFormatter.relativeShort` was added alongside `relative` (`now · 5m ·
+3h · 2d · 6 Jul`) — the corner slot implies "ago", and the shorter string keeps
+the title from being squeezed on a narrow phone.
+
+Verified on an iPhone 17 simulator against the real screen over fakes.
+
 ## 2026-08-01 — Shift task streams bind from cache, not a round trip (bug; MED risk)
 
 An employee's shift tasks — and therefore the Late and Missed counts that

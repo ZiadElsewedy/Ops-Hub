@@ -16,6 +16,11 @@ class NotificationRoute {
   static const String schedule = 'schedule';
   static const String caseThread = 'case_details';
   static const String request = 'request_details';
+
+  /// Attendance corrections + auto-closed sessions. Written by
+  /// `writeAttendanceNotifications` in `functions/index.js`, which always stamps
+  /// a `recordId` (and a `correctionId` for correction events).
+  static const String attendance = 'attendance';
 }
 
 /// The single, pure, role-aware deep-link resolver for a notification tap —
@@ -71,6 +76,21 @@ String? resolveNotificationRoute({
       return requestId != null
           ? RouteNames.requestDetail(requestId)
           : RouteNames.requests;
+
+    case NotificationRoute.attendance:
+      // Every attendance producer stamps the record id, so a correction filed /
+      // decided or an auto-closed session opens the exact record (Firestore
+      // rules — not the route — decide who may read it).
+      final recordId = _id(payload, 'recordId');
+      if (recordId != null) return RouteNames.attendanceRecord(recordId);
+      // No record id (legacy doc) → the ledger this recipient is allowed to
+      // open: reviewers land on the branch review queue, an employee on their
+      // own history.
+      return switch (role) {
+        UserRole.admin || UserRole.manager => RouteNames.attendanceReview,
+        UserRole.employee => RouteNames.attendanceHistory,
+        null => null,
+      };
 
     default:
       // Unknown / missing route — no safe deep target.

@@ -1158,7 +1158,8 @@ exports.onNotificationCreated = onDocumentCreated(
     // feeds them to the shared deep-link resolver. EVERY target id the resolver
     // reads must be forwarded here or the deep link is lost on a background /
     // cold-start tap: taskId · caseId · requestId · broadcastId · swapId
-    // (schedule route). `route` selects which id the resolver uses.
+    // (schedule route) · recordId (attendance route). `route` selects which id
+    // the resolver uses.
     const message = {
       notification: { title, body },
       data: {
@@ -1171,6 +1172,10 @@ exports.onNotificationCreated = onDocumentCreated(
         requestId: String(payload.requestId || ""),
         broadcastId: String(payload.broadcastId || ""),
         swapId: String(payload.swapId || ""),
+        // Attendance corrections / auto-closed sessions. Without recordId a
+        // background tap can only reach the ledger, not the exact record.
+        recordId: String(payload.recordId || ""),
+        correctionId: String(payload.correctionId || ""),
         category: String(payload.category || ""),
         revisionNumber:
           payload.revisionNumber == null ? "" : String(payload.revisionNumber),

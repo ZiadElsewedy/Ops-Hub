@@ -156,6 +156,59 @@ NotificationCategory categoryOf(NotificationType type) => switch (type) {
       NotificationType.attendanceAutoClosed => NotificationCategory.tasks,
     };
 
+// ─── Row text ───────────────────────────────────────────────────────
+
+/// A notification body split into the **subject** (the thing it is about) and
+/// its trailing **context**.
+class NotificationBodyParts {
+  /// The subject — always non-empty; the whole body when there is no separator.
+  final String subject;
+
+  /// The trailing context, or null when the body carried none.
+  final String? context;
+
+  const NotificationBodyParts(this.subject, this.context);
+}
+
+/// The separators every producer uses to hang context off a subject:
+/// `Restock the cooler • Due today 2:59 PM`, `Fridge check — approved by Ziad`.
+const _bodySeparators = [' • ', ' — '];
+
+/// Splits a notification [body] into its subject and trailing context.
+///
+/// The stored `body` is the only place a notification names the **thing** it is
+/// about — `title` is a pure function of `type` in every producer, so it is a
+/// label, not content. Producers append context to that name with a ` • ` or
+/// ` — ` separator, and the inbox row needs the two apart: the subject sets the
+/// row's headline (one line, never wrapped) and the context sits under it in the
+/// grey ramp. Splitting here rather than in the widget keeps it unit-testable,
+/// the same convention as [groupByTime].
+///
+/// Splits on the **first** separator only, so a context containing another dash
+/// stays intact. A body with no separator is all subject (context `null`), and a
+/// separator with nothing usable on one side is ignored — the row can always
+/// fall back to showing the whole body as the subject. Pure / deterministic.
+NotificationBodyParts splitNotificationBody(String body) {
+  final trimmed = body.trim();
+  var cut = -1;
+  var cutLength = 0;
+  for (final sep in _bodySeparators) {
+    final i = trimmed.indexOf(sep);
+    if (i > 0 && (cut < 0 || i < cut)) {
+      cut = i;
+      cutLength = sep.length;
+    }
+  }
+  if (cut < 0) return NotificationBodyParts(trimmed, null);
+
+  final subject = trimmed.substring(0, cut).trim();
+  final context = trimmed.substring(cut + cutLength).trim();
+  if (subject.isEmpty || context.isEmpty) {
+    return NotificationBodyParts(trimmed, null);
+  }
+  return NotificationBodyParts(subject, context);
+}
+
 // ─── Time grouping ──────────────────────────────────────────────────
 
 /// One titled section in the grouped inbox ("Today" / "Yesterday" / "Earlier").

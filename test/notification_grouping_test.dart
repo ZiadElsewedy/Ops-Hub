@@ -146,4 +146,55 @@ void main() {
       expect(today.items.map((n) => n.id).toList(), ['newer', 'older']);
     });
   });
+
+  // The inbox row leads with the SUBJECT (the thing the notification is about)
+  // and hangs its context on the line below, so the headline can hold one line
+  // and the column stops reading ragged.
+  group('splitNotificationBody', () {
+    test('splits a bullet body into subject + context', () {
+      final p = splitNotificationBody('Restock the cooler • Due today 2:59 PM');
+      expect(p.subject, 'Restock the cooler');
+      expect(p.context, 'Due today 2:59 PM');
+    });
+
+    test('splits an em-dash body too', () {
+      final p = splitNotificationBody('Fridge check — approved by Ziad');
+      expect(p.subject, 'Fridge check');
+      expect(p.context, 'approved by Ziad');
+    });
+
+    test('a body with no separator is all subject', () {
+      final p = splitNotificationBody('Mahmoud filed a shift-change request');
+      expect(p.subject, 'Mahmoud filed a shift-change request');
+      expect(p.context, isNull);
+    });
+
+    test('splits on the FIRST separator, so a dash in the context survives', () {
+      final p = splitNotificationBody('Deep clean — re-do it — photo unclear');
+      expect(p.subject, 'Deep clean');
+      expect(p.context, 're-do it — photo unclear');
+    });
+
+    test('the earliest separator wins when both kinds appear', () {
+      final p = splitNotificationBody('Open up • Due 8:00 — late already');
+      expect(p.subject, 'Open up');
+      expect(p.context, 'Due 8:00 — late already');
+    });
+
+    test('an empty side falls back to the whole body as the subject', () {
+      expect(splitNotificationBody('Close-down • ').subject, 'Close-down •');
+      expect(splitNotificationBody('Close-down • ').context, isNull);
+      // A leading separator has nothing before it, so there is no subject to
+      // take — the body stays whole rather than becoming an empty headline.
+      final leading = splitNotificationBody(' — approved by Ziad');
+      expect(leading.subject, '— approved by Ziad');
+      expect(leading.context, isNull);
+    });
+
+    test('trims surrounding whitespace', () {
+      final p = splitNotificationBody('  Fridge check  •  Due 9 PM  ');
+      expect(p.subject, 'Fridge check');
+      expect(p.context, 'Due 9 PM');
+    });
+  });
 }

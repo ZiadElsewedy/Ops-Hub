@@ -99,12 +99,25 @@ unknown, or unauthorized notification.
 | `schedule` | `swapId` | role schedule (`/my-schedule`, …) | `null` if role unknown |
 | `case_details` | `caseId` | `/case/:caseId` | `/cases` |
 | `request_details` | `requestId` | `/request/:requestId` | `/requests` |
+| `attendance` | `recordId` | `/attendance/record/:id` | `/attendance/review` (admin·manager) · `/attendance/history` (employee) · `null` if role unknown |
 | *unknown / null* | — | — | `null` (caller opens the inbox) |
+
+> **`attendance` was a dead tap until 2026-08-01.** `writeAttendanceNotifications`
+> has always stamped `route: "attendance"`, but the resolver had no case for it,
+> so every correction-filed / decided / auto-closed notification fell through to
+> the `default` → `null` and the tile did nothing when tapped. The row above is
+> the fix; covered by `test/notification_deep_link_test.dart`. **The in-app tap
+> works with the app build — no deploy needed.** The push tap needs the other
+> half: `onNotificationCreated` was also dropping `recordId` / `correctionId`
+> from the push `data`, now forwarded — ⚠️ **inert until
+> `firebase deploy --only functions`**, until which a *background/cold-start*
+> attendance tap lands on the ledger fallback instead of the exact record.
 
 Route strings are the shared contract, centralized as `NotificationRoute.*` and
 referenced by the client producers. **The server producers (`functions/index.js`)
 and the FCM push `data` block must mirror these exact strings and forward every
-id the resolver reads** — `taskId · caseId · requestId · broadcastId · swapId`.
+id the resolver reads** — `taskId · caseId · requestId · broadcastId · swapId ·
+recordId`.
 (A missing id in the push `data` silently breaks the deep link on a background /
 cold-start tap; this pass fixed `requestId` + `swapId` being omitted.)
 
@@ -112,6 +125,35 @@ cold-start tap; this pass fixed `requestId` + `swapId` being omitted.)
 broadcast by id (`BroadcastRepository.getBroadcast`) when the Communications feed
 isn't loaded, so a notification tap opening `/communications/:id` cold shows the
 real message instead of "Broadcast unavailable".
+
+---
+
+## 4b. The inbox row (2026-08-01)
+
+**`title` is a label, `body` is the content — and the row is built that way.**
+Every producer, client (`NotifyTaskEvent`) and server (`functions/index.js`)
+alike, writes the **event type** into `title` via a pure `switch (type)`, and the
+**subject** into `body`. `title` therefore carries no information the `type`
+doesn't; it is a label, never content.
+
+```
+[glyph]  NEW TASK ASSIGNED            41m ●   ← kicker  = title, 10px uppercase, semantic tint
+         Restock the front cooler              ← subject = body, 14.5px, ONE LINE
+         Due today 2:59 PM                     ← context = body's tail, 12px grey
+```
+
+| Rule | Why |
+|------|-----|
+| The **subject leads**; `title` is demoted to the kicker | Rendering `title` as the headline made the loudest line the one guaranteed to repeat — three assigned tasks read identically |
+| The subject holds **one line**, never wraps | A wrapping headline gives every card a different height; the column reads ragged |
+| `splitNotificationBody` cuts `body` on its **first** ` • ` / ` — ` | Producers already use these to hang context off a subject; no separator → all subject |
+| **Every producer must name its subject in `body`** | A body that only restates the event ("Task approved") leaves a row that names nothing |
+| No per-card category badge | The filter pills own category; the kicker's tint carries what the pill meant |
+| The unread dot is **always white** | It means "unread" and nothing else — the kicker owns semantic colour |
+| `navigable: false` → the subject is set as **reading text**, not a headline | With nowhere to tap, the row *is* the message, not a pointer to it |
+
+> Widget tests must find a tile by `find.byType(NotificationTile)`, **not** by
+> its title text — the kicker is uppercased.
 
 ---
 

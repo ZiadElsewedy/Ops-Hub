@@ -37,6 +37,7 @@ import 'package:drop/features/notifications/domain/repositories/notification_rep
 import 'package:drop/features/notifications/domain/usecases/mark_notification_read.dart';
 import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
 import 'package:drop/features/notifications/presentation/pages/notifications_screen.dart';
+import 'package:drop/features/notifications/presentation/widgets/notification_tile.dart';
 
 // ─── Fakes ───────────────────────────────────────────────────────────
 
@@ -226,10 +227,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(NotificationsScreen), findsOneWidget);
-    expect(find.text('Team Meeting'), findsOneWidget);
+    // The row is subject-led: the notification's `body` is the headline and its
+    // `title` is the uppercase event kicker above it (2026-08-01 redesign).
+    expect(find.text('All hands at 5 PM'), findsOneWidget);
+    expect(find.text('TEAM MEETING'), findsOneWidget);
 
     // Employee taps the broadcast tile — deep link is a guarded no-op.
-    await tester.tap(find.text('Team Meeting'));
+    await tester.tap(find.byType(NotificationTile));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(NotificationsScreen), findsOneWidget);
@@ -245,7 +249,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Team Meeting'));
+    await tester.tap(find.byType(NotificationTile));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     // B3 fix: the detail screen self-resolves the broadcast by id (one-shot
