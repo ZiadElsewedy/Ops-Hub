@@ -865,6 +865,17 @@ class _FakeSchedule implements ScheduleRepository {
     String branchId,
     DateTime weekStart,
   ) async => schedule;
+
+  /// The real cache-first read falls back to the same document on a miss, so
+  /// the fake serves the same roster. Overridden explicitly (rather than left
+  /// to `noSuchMethod`) because `TaskCubit` binds shift streams from *this*
+  /// call — letting it throw would silently move every test onto the slower
+  /// server-reconcile path and leave the fast path untested.
+  @override
+  Future<WeeklyScheduleEntity?> getScheduleCacheFirst(
+    String branchId,
+    DateTime weekStart,
+  ) async => schedule;
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }

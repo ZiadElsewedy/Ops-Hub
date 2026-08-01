@@ -783,13 +783,30 @@ class _StatStrip extends StatelessWidget {
       ),
     ];
 
-    return Row(
-      children: [
-        for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _StatChip(data: items[i])),
+    // One calm surface with hairline dividers — the Design System V2 fact-row
+    // language (see core `StatStrip`), rather than four competing bordered
+    // cards. Four boxes in a row read as a dashboard; one divided surface reads
+    // as a single glance, which is what this actually is.
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.md,
+        horizontal: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.darkSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0)
+              Container(width: 1, height: 26, color: AppColors.darkBorder),
+            Expanded(child: _StatChip(data: items[i])),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -807,6 +824,14 @@ class _StatChipData {
   });
 }
 
+/// One cell of the strip: the figure, then its name. Two rows instead of three
+/// (the icon moved down beside the label) — that is most of the height saved,
+/// and it puts the number first, which is what the eye is here for.
+///
+/// **The highlight is carried by the grey ramp, not a box.** Inside a single
+/// shared surface a per-cell tinted card would patch the row; stepping the
+/// number to white and its label/icon up one grey says "this one is live" more
+/// quietly and more expensively (Design System V2 — calm through hierarchy).
 class _StatChip extends StatelessWidget {
   const _StatChip({required this.data});
   final _StatChipData data;
@@ -814,54 +839,50 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hl = data.highlight;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.md,
-        horizontal: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: hl ? AppColors.primarySurface : AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: hl ? AppColors.primary.withAlpha(40) : AppColors.darkBorder,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            data.icon,
-            size: 15,
-            color: hl ? AppColors.textPrimary : AppColors.textTertiary,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: data.value.toDouble()),
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeOutCubic,
+          builder: (context, v, _) => Text(
+            '${v.round()}',
+            style: AppTypography.h2.copyWith(
+              fontSize: 18,
+              color: hl ? AppColors.textPrimary : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+              letterSpacing: -0.3,
+            ),
           ),
-          const SizedBox(height: 6),
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: data.value.toDouble()),
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeOutCubic,
-            builder: (context, v, _) => Text(
-              '${v.round()}',
-              style: AppTypography.h2.copyWith(
-                fontSize: 19,
-                color: hl ? AppColors.textPrimary : AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-                height: 1.0,
+        ),
+        const SizedBox(height: 5),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              data.icon,
+              size: 11,
+              color: hl ? AppColors.textSecondary : AppColors.textQuaternary,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                data.label,
+                style: AppTypography.caption.copyWith(
+                  fontSize: 10,
+                  color: hl ? AppColors.textSecondary : AppColors.textTertiary,
+                  letterSpacing: 0.1,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            data.label,
-            style: AppTypography.caption.copyWith(
-              fontSize: 10,
-              color: hl ? AppColors.textSecondary : AppColors.textTertiary,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }

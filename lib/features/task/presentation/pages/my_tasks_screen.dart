@@ -9,6 +9,7 @@ import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
+import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/responsive_card_grid.dart';
 import 'package:drop/core/widgets/segmented_tab_bar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
@@ -32,6 +33,15 @@ import 'package:drop/features/task/presentation/widgets/task_empty_state.dart';
 /// today's date, a compact completion overview, a slimmer sliding segmented
 /// control, richer cards, date-grouped closed tasks, and a calmer all-clear
 /// state.
+///
+/// **Four segments — Active · Late · Missed · Done.** Late and Missed each own a
+/// tab rather than sitting as a pinned section inside Active and Done: they are
+/// the two readings an employee comes to this screen to check, and a section
+/// header buried under a scroll is not an answer. They keep the product's two
+/// overdue words exactly as TASKS.md defines them — **Late** is open work past
+/// its deadline (still actionable), **Missed** is closed and unfinished (a
+/// record). Because a tab can hide its contents, both carry their count on the
+/// segment itself, so late work is never silently out of sight.
 class MyTasksScreen extends StatefulWidget {
   const MyTasksScreen({super.key});
 
@@ -39,9 +49,18 @@ class MyTasksScreen extends StatefulWidget {
   State<MyTasksScreen> createState() => _MyTasksScreenState();
 }
 
+/// Segment order — the one place the four tabs are declared. `_lateTabIndex`
+/// keeps the all-clear hand-off pointing at the right segment if that order
+/// ever changes.
+const List<String> _tabLabels = ['Active', 'Late', 'Missed', 'Done'];
+const int _lateTabIndex = 1;
+
 class _MyTasksScreenState extends State<MyTasksScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+  late final TabController _tabs = TabController(
+    length: _tabLabels.length,
+    vsync: this,
+  );
 
   @override
   void initState() {
@@ -98,6 +117,8 @@ class _MyTasksScreenState extends State<MyTasksScreen>
     final active = tasks.where((t) => !t.status.isTerminal).length;
     final approved =
         tasks.where((t) => t.status == TaskStatus.approved).length;
+    final late = lateTasks(tasks).length;
+    final missed = missedTasks(tasks).length;
 
     return Column(
       children: [
@@ -121,7 +142,11 @@ class _MyTasksScreenState extends State<MyTasksScreen>
         // primitive keeps its defaults for other screens).
         SegmentedTabBar(
           controller: _tabs,
-          tabs: const ['Active', 'Done'],
+          tabs: _tabLabels,
+          // Only the two exception tabs carry a number. Active and Done are
+          // already summarised by the overview card above, and counting every
+          // segment would turn the control into a dashboard.
+          counts: [0, late, missed, 0],
           height: 38,
           margin: const EdgeInsets.fromLTRB(
             AppSpacing.pagePadding,
@@ -134,7 +159,14 @@ class _MyTasksScreenState extends State<MyTasksScreen>
           child: TabBarView(
             controller: _tabs,
             children: [
-              _ActiveTasksTab(tasks: tasks, directory: directory),
+              _ActiveTasksTab(
+                tasks: tasks,
+                directory: directory,
+                lateCount: late,
+                onShowLate: () => _tabs.animateTo(_lateTabIndex),
+              ),
+              _LateTasksTab(tasks: tasks, directory: directory),
+              _MissedTasksTab(tasks: tasks, directory: directory),
               _DoneTasksTab(tasks: tasks, directory: directory),
             ],
           ),
@@ -321,13 +353,25 @@ class _MiniStat extends StatelessWidget {
 // ─── Active tab (pending + in progress + in review) ─────────────────
 
 class _ActiveTasksTab extends StatelessWidget {
-  const _ActiveTasksTab({required this.tasks, required this.directory});
+  const _ActiveTasksTab({
+    required this.tasks,
+    required this.directory,
+    required this.lateCount,
+    required this.onShowLate,
+  });
+
   final List<TaskEntity> tasks;
   final Map<String, UserEntity> directory;
 
+  /// How much late work is waiting on the neighbouring tab. The all-clear state
+  /// must never claim the employee is caught up while this is above zero.
+  final int lateCount;
+
+  /// Jumps the segmented control to the Late tab.
+  final VoidCallback onShowLate;
+
   @override
   Widget build(BuildContext context) {
-    final late = _lateTasks(tasks);
     final today = _todayTasks(tasks);
     final inProgress = _inProgressTasks(tasks);
     final pending = _pendingTasks(tasks);
@@ -335,7 +379,6 @@ class _ActiveTasksTab extends StatelessWidget {
     final rejected = _rejectedTasks(tasks);
 
     final empty =
-        late.isEmpty &&
         today.isEmpty &&
         inProgress.isEmpty &&
         pending.isEmpty &&
@@ -345,7 +388,11 @@ class _ActiveTasksTab extends StatelessWidget {
     if (empty) {
       return RefreshIndicator(
         onRefresh: () => context.read<TaskCubit>().refresh(),
-        child: const _AllClearState(),
+        // With Late on its own tab, an empty Active list no longer means the
+        // employee is done — it can mean everything they have left is overdue.
+        // Saying "all caught up" there would be a lie, so the state names the
+        // late work and offers the one tap that reaches it.
+        child: _AllClearState(lateCount: lateCount, onShowLate: onShowLate),
       );
     }
 
@@ -359,17 +406,8 @@ class _ActiveTasksTab extends StatelessWidget {
           AppSpacing.xxxl,
         ),
         children: [
-          // Late — actionable work already past its deadline. Pinned to the
-          // very top: it is the most time-critical thing on the screen.
-          if (late.isNotEmpty) ...[
-            _SectionHeader(
-              label: 'Late',
-              count: late.length,
-              icon: Icons.warning_amber_rounded,
-              color: AppColors.error,
-            ),
-            _buildCards(context, late, directory),
-          ],
+          // Late work is not listed here — it has its own tab, counted on the
+          // segmented control so it stays visible from this one.
           if (rejected.isNotEmpty) ...[
             _SectionHeader(
               label: 'Needs attention',
@@ -377,7 +415,7 @@ class _ActiveTasksTab extends StatelessWidget {
               icon: Icons.replay_rounded,
               color: AppColors.error,
             ),
-            _buildCards(context, rejected, directory),
+            _taskGrid(rejected, directory),
           ],
           if (inProgress.isNotEmpty) ...[
             _SectionHeader(
@@ -385,7 +423,7 @@ class _ActiveTasksTab extends StatelessWidget {
               count: inProgress.length,
               icon: Icons.timelapse_rounded,
             ),
-            _buildCards(context, inProgress, directory),
+            _taskGrid(inProgress, directory),
           ],
           if (today.isNotEmpty) ...[
             _SectionHeader(
@@ -393,7 +431,7 @@ class _ActiveTasksTab extends StatelessWidget {
               count: today.length,
               icon: Icons.today_outlined,
             ),
-            _buildCards(context, today, directory),
+            _taskGrid(today, directory),
           ],
           if (pending.isNotEmpty) ...[
             _SectionHeader(
@@ -401,7 +439,7 @@ class _ActiveTasksTab extends StatelessWidget {
               count: pending.length,
               icon: Icons.schedule_outlined,
             ),
-            _buildCards(context, pending, directory),
+            _taskGrid(pending, directory),
           ],
           if (inReview.isNotEmpty) ...[
             _SectionHeader(
@@ -409,49 +447,18 @@ class _ActiveTasksTab extends StatelessWidget {
               count: inReview.length,
               icon: Icons.hourglass_empty_rounded,
             ),
-            _buildCards(context, inReview, directory),
+            _taskGrid(inReview, directory),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildCards(
-    BuildContext context,
-    List<TaskEntity> list,
-    Map<String, UserEntity> dir,
-  ) {
-    // EmployeeTaskCard carries its own bottom margin, so the grid adds no extra
-    // vertical spacing (runSpacing: 0) — only lays cards side-by-side on desktop.
-    return ResponsiveCardGrid(
-      runSpacing: 0,
-      maxItemWidth: 480,
-      children: [
-        for (var i = 0; i < list.length; i++)
-          _AnimatedCard(
-            key: ValueKey(list[i].id),
-            index: i,
-            child: EmployeeTaskCard(task: list[i], directory: dir),
-          ),
-      ],
-    );
-  }
-
-  /// Actionable work that has slipped past its deadline — pinned to the top of
-  /// the tab. A task is Late from its *raw* deadline (ADR-013): the grace period
-  /// only delays the server recording it Missed, never this reading. Rejected
-  /// rework keeps its own "Needs attention" home, so it is excluded here; every
-  /// other open state (started / pending) surfaces here once overdue, and is
-  /// therefore filtered out of "In progress" and "Today's tasks" below.
-  List<TaskEntity> _lateTasks(List<TaskEntity> all) => all
-      .where((t) => t.status != TaskStatus.rejected && _isOverdue(t))
-      .toList();
-
   List<TaskEntity> _todayTasks(List<TaskEntity> all) {
     final today = DateTime.now();
     return all.where((t) {
       if (t.status != TaskStatus.pending) return false;
-      if (_isOverdue(t)) return false; // overdue → "Late" section
+      if (_isOverdue(t)) return false; // overdue → the Late tab
       final d = t.deadline;
       if (d == null) return true; // no deadline = always "today"
       return d.year == today.year &&
@@ -490,33 +497,65 @@ class _ActiveTasksTab extends StatelessWidget {
       all.where((t) => t.status == TaskStatus.rejected).toList();
 }
 
-// ─── Done tab ───────────────────────────────────────────────────────
+// ─── Late tab ───────────────────────────────────────────────────────
 
-class _DoneTasksTab extends StatelessWidget {
-  const _DoneTasksTab({required this.tasks, required this.directory});
+/// Open work that has slipped past its deadline — the one tab an employee opens
+/// to answer "what am I behind on?". Every task here is still actionable, so it
+/// is an ungrouped, most-urgent-first list: adding date headers to a queue this
+/// short would be filing, not helping.
+class _LateTasksTab extends StatelessWidget {
+  const _LateTasksTab({required this.tasks, required this.directory});
   final List<TaskEntity> tasks;
   final Map<String, UserEntity> directory;
 
   @override
   Widget build(BuildContext context) {
-    // Every closed outcome belongs here — approved, missed, and cancelled. A
-    // cancelled task disappearing entirely would leave the employee wondering
-    // where their work went (they are told about it — spec §9.2).
-    final done = tasks.where((t) => t.status.isTerminal).toList();
+    final late = lateTasks(tasks);
 
-    if (done.isEmpty) {
+    if (late.isEmpty) {
       return const TaskEmptyState(
         message:
-            "No closed tasks yet.\nApproved, missed and cancelled tasks appear here.",
+            'Nothing is late.\nOpen tasks past their deadline appear here.',
       );
     }
 
-    // Missed work is pinned to the top in its own group so the employee can
-    // find it at a glance; everything else (Completed · Cancelled) is grouped
-    // by recency below so the timeline reads as a history, not one long list.
-    final missed = done.where((t) => t.status == TaskStatus.missed).toList();
-    final rest = done.where((t) => t.status != TaskStatus.missed).toList();
-    final groups = _groupByRecency(rest);
+    // Oldest deadline first — the most overdue task is the one to open next.
+    late.sort((a, b) => a.deadline!.compareTo(b.deadline!));
+
+    return RefreshIndicator(
+      onRefresh: () => context.read<TaskCubit>().refresh(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding,
+          0,
+          AppSpacing.pagePadding,
+          AppSpacing.xxxl,
+        ),
+        children: [_taskGrid(late, directory)],
+      ),
+    );
+  }
+}
+
+// ─── Missed tab ─────────────────────────────────────────────────────
+
+/// Closed-unfinished work. Unlike Late this is a **record, not a queue** —
+/// nothing here can be acted on — so it reads as a history, grouped by recency.
+class _MissedTasksTab extends StatelessWidget {
+  const _MissedTasksTab({required this.tasks, required this.directory});
+  final List<TaskEntity> tasks;
+  final Map<String, UserEntity> directory;
+
+  @override
+  Widget build(BuildContext context) {
+    final missed = missedTasks(tasks);
+
+    if (missed.isEmpty) {
+      return const TaskEmptyState(
+        message:
+            'No missed tasks.\nTasks that closed unfinished appear here.',
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: () => context.read<TaskCubit>().refresh(),
@@ -528,74 +567,56 @@ class _DoneTasksTab extends StatelessWidget {
           AppSpacing.xxxl,
         ),
         children: [
-          if (missed.isNotEmpty) ...[
-            _SectionHeader(
-              label: 'Missed',
-              count: missed.length,
-              icon: Icons.error_outline_rounded,
-              color: AppColors.error,
-            ),
-            _grid(missed),
-          ],
-          for (final entry in groups) ...[
+          for (final entry in _groupByRecency(missed)) ...[
             _DateGroupHeader(label: entry.key),
-            _grid(entry.value),
+            _taskGrid(entry.value, directory),
           ],
         ],
       ),
     );
   }
+}
 
-  /// EmployeeTaskCard carries its own bottom margin, so the grid adds no extra
-  /// vertical spacing (runSpacing: 0) — it only lays cards side-by-side on wide
-  /// screens.
-  Widget _grid(List<TaskEntity> list) => ResponsiveCardGrid(
-    runSpacing: 0,
-    maxItemWidth: 480,
-    children: [
-      for (var i = 0; i < list.length; i++)
-        _AnimatedCard(
-          key: ValueKey(list[i].id),
-          index: i,
-          child: EmployeeTaskCard(task: list[i], directory: directory),
-        ),
-    ],
-  );
+// ─── Done tab ───────────────────────────────────────────────────────
 
-  /// Bucket terminal tasks into Today · Yesterday · This week · Earlier by their
-  /// deadline (the closest date we hold). Undated tasks fall to "Earlier".
-  List<MapEntry<String, List<TaskEntity>>> _groupByRecency(
-    List<TaskEntity> done,
-  ) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final buckets = <String, List<TaskEntity>>{
-      'Today': [],
-      'Yesterday': [],
-      'This week': [],
-      'Earlier': [],
-    };
+class _DoneTasksTab extends StatelessWidget {
+  const _DoneTasksTab({required this.tasks, required this.directory});
+  final List<TaskEntity> tasks;
+  final Map<String, UserEntity> directory;
 
-    for (final t in done) {
-      final d = t.deadline;
-      if (d == null) {
-        buckets['Earlier']!.add(t);
-        continue;
-      }
-      final day = DateTime(d.year, d.month, d.day);
-      final diff = today.difference(day).inDays;
-      if (diff <= 0) {
-        buckets['Today']!.add(t);
-      } else if (diff == 1) {
-        buckets['Yesterday']!.add(t);
-      } else if (diff < 7) {
-        buckets['This week']!.add(t);
-      } else {
-        buckets['Earlier']!.add(t);
-      }
+  @override
+  Widget build(BuildContext context) {
+    // Approved and cancelled only — Missed has its own tab, so this tab is now
+    // "work that finished", not "everything closed". Cancelled stays because a
+    // cancelled task disappearing entirely would leave the employee wondering
+    // where their work went (spec §9.2), and it is never summed with Missed.
+    final done = finishedTasks(tasks);
+
+    if (done.isEmpty) {
+      return const TaskEmptyState(
+        message:
+            'No finished tasks yet.\nCompleted and cancelled tasks appear here.',
+      );
     }
 
-    return buckets.entries.where((e) => e.value.isNotEmpty).toList();
+    // Grouped by recency so the timeline reads as a history, not one long list.
+    return RefreshIndicator(
+      onRefresh: () => context.read<TaskCubit>().refresh(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding,
+          0,
+          AppSpacing.pagePadding,
+          AppSpacing.xxxl,
+        ),
+        children: [
+          for (final entry in _groupByRecency(done)) ...[
+            _DateGroupHeader(label: entry.key),
+            _taskGrid(entry.value, directory),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -976,9 +997,9 @@ class _PriorityTag extends StatelessWidget {
 }
 
 /// The closed outcome, stated plainly for the Done tab — plus, when the task
-/// finished after its deadline, a quiet second line naming how late (ADR-013:
-/// a timeliness signal, never a fourth status, so it never borrows the badge's
-/// own colour or the error/red treatment).
+/// finished after its deadline, a second line naming how late. That line is
+/// amber (ADR-013: a timeliness signal, never a fourth status — so it takes
+/// neither the badge's own colour nor the error red that Missed wears).
 class _OutcomeBadge extends StatelessWidget {
   const _OutcomeBadge(this.task);
   final TaskEntity task;
@@ -1026,9 +1047,11 @@ class _OutcomeBadge extends StatelessWidget {
             padding: const EdgeInsets.only(left: 20),
             child: Text(
               formatLateness(lateness),
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary,
-              ),
+              // Amber, by owner ruling 2026-08-01 — "3m late" was too quiet in
+              // tertiary grey to register beside a green Completed. It stays a
+              // *timeliness* colour, deliberately not the error red Missed
+              // wears (ADR-013): the task still succeeded, it was just slow.
+              style: AppTypography.caption.copyWith(color: AppColors.warning),
             ),
           ),
         ],
@@ -1084,11 +1107,21 @@ class _ProgressPill extends StatelessWidget {
 /// A calm, premium "nothing to do" moment for the Active tab — a soft ringed
 /// check over a short, warm message. Scrollable so it still hosts pull-to-
 /// refresh. Strictly monochrome; the check is the one small flourish.
+///
+/// **Two readings, not one.** An empty Active list means "caught up" only when
+/// [lateCount] is zero. With late work waiting on the next tab the same state
+/// turns into an honest hand-off — error ring, plain wording, and a single
+/// button to it. Red here is status, not decoration (ADR-004).
 class _AllClearState extends StatelessWidget {
-  const _AllClearState();
+  const _AllClearState({required this.lateCount, required this.onShowLate});
+
+  final int lateCount;
+  final VoidCallback onShowLate;
 
   @override
   Widget build(BuildContext context) {
+    final copy = allClearCopy(lateCount);
+    final behind = copy.behind;
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -1110,26 +1143,44 @@ class _AllClearState extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.darkSurface,
-                      border: Border.all(color: AppColors.darkBorder, width: 1.5),
+                      border: Border.all(
+                        color: behind
+                            ? AppColors.error.withAlpha(80)
+                            : AppColors.darkBorder,
+                        width: 1.5,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.check_rounded,
+                    child: Icon(
+                      behind
+                          ? Icons.warning_amber_rounded
+                          : Icons.check_rounded,
                       size: 34,
-                      color: AppColors.textPrimary,
+                      color: behind
+                          ? AppColors.error
+                          : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   Text(
-                    "You're all caught up",
+                    copy.headline,
                     style: AppTypography.h3,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Enjoy your shift.\nNew tasks will appear here automatically.',
+                    copy.body,
                     style: AppTypography.bodySmall,
                     textAlign: TextAlign.center,
                   ),
+                  if (behind) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    PremiumButton(
+                      label: 'Show late tasks',
+                      icon: Icons.arrow_forward_rounded,
+                      tone: AppColors.error,
+                      onPressed: onShowLate,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1141,6 +1192,112 @@ class _AllClearState extends StatelessWidget {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────
+
+/// Open work that has slipped past its deadline — the Late tab, and the count
+/// shown on its segment. A task is Late from its *raw* deadline (ADR-013): the
+/// grace period only delays the server recording it Missed, it never delays
+/// this reading. Rejected rework keeps its own "Needs attention" home on the
+/// Active tab, so it is excluded here; every other open state (started /
+/// pending) surfaces here once overdue, and is therefore filtered out of "In
+/// progress" and "Today's tasks".
+///
+/// Every task returned has a non-null `deadline` — `_isOverdue` is false
+/// without one — which is what lets the Late tab sort on it directly.
+List<TaskEntity> lateTasks(List<TaskEntity> all) => all
+    .where((t) => t.status != TaskStatus.rejected && _isOverdue(t))
+    .toList();
+
+/// Closed-unfinished work — the Missed tab and its count. Deliberately status
+/// only: Missed is the server's terminal verdict, never a derived reading, and
+/// it is never summed with Cancelled (TASKS.md §"Reporting").
+List<TaskEntity> missedTasks(List<TaskEntity> all) =>
+    all.where((t) => t.status == TaskStatus.missed).toList();
+
+/// Work that reached an end other than Missed — the Done tab. Approved and
+/// Cancelled, kept together because both are simply "finished" from the
+/// employee's side; they are shown, never summed (a cancelled task counts
+/// nowhere, and must never be added to Missed).
+List<TaskEntity> finishedTasks(List<TaskEntity> all) => all
+    .where((t) => t.status.isTerminal && t.status != TaskStatus.missed)
+    .toList();
+
+/// Bucket closed tasks into Today · Yesterday · This week · Earlier by their
+/// deadline (the closest date we hold). Undated tasks fall to "Earlier".
+/// Shared by the Missed and Done tabs, which both read as histories.
+List<MapEntry<String, List<TaskEntity>>> _groupByRecency(
+  List<TaskEntity> tasks,
+) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final buckets = <String, List<TaskEntity>>{
+    'Today': [],
+    'Yesterday': [],
+    'This week': [],
+    'Earlier': [],
+  };
+
+  for (final t in tasks) {
+    final d = t.deadline;
+    if (d == null) {
+      buckets['Earlier']!.add(t);
+      continue;
+    }
+    final day = DateTime(d.year, d.month, d.day);
+    final diff = today.difference(day).inDays;
+    if (diff <= 0) {
+      buckets['Today']!.add(t);
+    } else if (diff == 1) {
+      buckets['Yesterday']!.add(t);
+    } else if (diff < 7) {
+      buckets['This week']!.add(t);
+    } else {
+      buckets['Earlier']!.add(t);
+    }
+  }
+
+  return buckets.entries.where((e) => e.value.isNotEmpty).toList();
+}
+
+/// EmployeeTaskCard carries its own bottom margin, so the grid adds no extra
+/// vertical spacing (runSpacing: 0) — it only lays cards side-by-side on wide
+/// screens.
+Widget _taskGrid(List<TaskEntity> list, Map<String, UserEntity> directory) =>
+    ResponsiveCardGrid(
+      runSpacing: 0,
+      maxItemWidth: 480,
+      children: [
+        for (var i = 0; i < list.length; i++)
+          _AnimatedCard(
+            key: ValueKey(list[i].id),
+            index: i,
+            child: EmployeeTaskCard(task: list[i], directory: directory),
+          ),
+      ],
+    );
+
+/// What the Active tab says when it has nothing to list.
+///
+/// Pure so the wording can be tested without a widget tree — the branch that
+/// matters (late work waiting on another tab) is otherwise only reachable with
+/// live overdue data. `behind` drives the icon, the ring colour and the jump
+/// button; the two strings are the whole difference in voice.
+({bool behind, String headline, String body}) allClearCopy(int lateCount) {
+  if (lateCount <= 0) {
+    return (
+      behind: false,
+      headline: "You're all caught up",
+      body: 'Enjoy your shift.\nNew tasks will appear here automatically.',
+    );
+  }
+  final one = lateCount == 1;
+  return (
+    behind: true,
+    headline: 'Nothing new — but you are behind',
+    body:
+        '$lateCount task${one ? '' : 's'} passed ${one ? 'its' : 'their'} '
+        'deadline and still need${one ? 's' : ''} doing.',
+  );
+}
 
 bool _isOverdue(TaskEntity task) {
   final d = task.deadline;

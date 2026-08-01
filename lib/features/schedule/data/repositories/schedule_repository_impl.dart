@@ -31,6 +31,17 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
   }
 
   @override
+  Future<WeeklyScheduleEntity?> getScheduleCacheFirst(
+      String branchId, DateTime weekStart) async {
+    try {
+      final model = await _remote.getScheduleCacheFirst(branchId, weekStart);
+      return model?.toEntity();
+    } on ServerException catch (e) {
+      throw ServerFailure(e.message);
+    }
+  }
+
+  @override
   Future<List<WeeklyScheduleEntity>> getBranchSchedules(String branchId) async {
     try {
       final models = await _remote.getBranchSchedules(branchId);
