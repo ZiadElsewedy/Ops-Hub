@@ -14,7 +14,107 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
-## 2026-08-01 — Notification inbox: readable rows + the dead attendance tap (polish + bug; LOW/MED risk)
+## 2026-08-01 — Employee Home: the ring goes, the clock arrives (polish + bug; MED risk)
+
+Owner asked what Home was missing and what should go. Both answers were in the
+same 92 pixels.
+
+**The progress ring's arithmetic was wrong, and is fixed.** It drew
+`approved + completed + inReview / total`, so it rendered a *complete* circle
+"3 of 3" beside a strip reading "1 in review · 2 done" — two elements, one
+dataset, disagreeing. It now takes the same `_Counts.done`
+(`approved + completed`) the strip's own Done cell uses: a submission has left
+the employee's hands but a reviewer can send it straight back, so it is not
+closed.
+
+> The ring was **deleted** in the first pass and **restored by the owner** the
+> same day, at 78px beside the shift instead of 92px alone. Restored on the
+> condition above — it counts what the strip counts. Because the ring carries
+> the ratio, nothing else on Home draws it: the interim `_DayProgressBar` (a
+> 3px base line under the strip) is gone, and it had a flaw of its own — at
+> 100% a filled hairline is indistinguishable from the card's border.
+>
+> The green **"All caught up!"** banner went with it (owner). It was the only
+> coloured thing on the screen and the third element restating a finished day
+> after the ring and the strip. Its "Open all tasks" row stays — that is the way
+> through to the list, not a restatement. `_EmptyTaskState` ("No tasks yet") is
+> untouched: never-assigned is a different case from finished.
+
+**Its space went to the clock state.** DROP has a full GPS attendance engine,
+and clocking in/out is the thing an employee does twice a day at a fixed time —
+yet Home showed *"TODAY'S SHIFT · Morning shift"* and then never said whether
+they were on it. The only way in was an **unlabelled fingerprint icon** in the
+app bar. The card now reads `Morning shift 08:00 – 16:00` over a state row:
+green *"Clocked in 8:04 · 6h 30m on shift"*, amber *"Not clocked in · Shift
+started 34m ago"*, or a grey *"Clocked out 16:02"* with no action left. A day
+off drops the row entirely and the card shrinks.
+
+The action is a **hand-off, not a clock-in** — it opens the Attendance screen.
+Clocking in needs a verified GPS fix inside the branch geofence and fails in
+several distinct ways; a second copy of those rules on Home would drift. For the
+same reason Home calls `AttendanceCubit.load` but **never `previewLocation()`**:
+Home must not provoke a location prompt. `load` is idempotent, so opening
+Attendance afterwards reuses the subscription. ⚠️ **Cost:** two Firestore
+listeners (history + corrections) now run whenever an employee's Home is open.
+
+Zero columns are gone from the strip — `0 To do · 0 Active` spent half of it
+saying nothing; with no open work the two collapse to *"Nothing to do"* and
+return as figures the moment work exists.
+
+Two bugs found while wiring it:
+
+- `_Today.from` originally destructured the loaded state **positionally** — 17
+  fields, silently re-bound if anyone inserts one. Switched to `maybeMap`.
+- An attendance **stream error** left the card shimmering its skeleton forever —
+  an animation running permanently on a resting surface, claiming data was
+  coming when it was not. `error` now resolves to *"Shift unavailable"*. The
+  same fault is what made two Employee Home widget tests hang on
+  `pumpAndSettle`; their fake cubit now starts `loaded`, as reality does.
+
+Verified on an iPhone 17 simulator against a throwaway preview of all five
+states before any production file was touched — the owner asked for the preview
+explicitly and an HTML mock was not accepted in its place. `_SummaryPill`,
+`_ShiftBlock` and `_AllDoneCard` deleted; `AppDateFormatter` gained
+`hoursMinutes`.
+
+## 2026-08-01 — Task proof: a camera capture could be dropped in silence (bug; MED risk)
+
+Owner report: taking a photo to complete a task adds nothing — choosing from
+the gallery works, the camera doesn't, **on a real iPhone, with no error shown**.
+
+`AttachmentPickerField._takePhoto` had **two `if (!context.mounted) return;`
+guards placed after the capture**: one after `pickImage`, one after the cropper.
+Either one firing threw away a photo the user had already taken, with no
+message and no log — indistinguishable from the camera doing nothing. The
+gallery path has only the first guard and no cropper at all, which is exactly
+why it survived.
+
+The guards were there to satisfy `use_build_context_synchronously`, but they
+were guarding the wrong thing: **committing a pick needs `onChanged`, which the
+parent owns — not this widget's context.** `_commit` is now free of
+`BuildContext` and returns the rejection reason instead of showing it; each
+caller shows that reason behind its own `mounted` check. A pick can no longer
+be lost because the tree underneath the picker was rebuilt while the native
+camera was in front.
+
+Two more silent failures in the same file:
+
+- **`catch (_)` swallowed every exception** on all three pick paths. They now
+  log the real error (`AppLog.error`) and map `image_picker`'s actionable
+  `PlatformException` codes to something a user can act on —
+  `camera_access_denied` → *"Camera access is off. Enable it for DROP in
+  Settings."*, `no_available_camera` → *"No camera on this device."* — instead
+  of a flat "Could not take a photo."
+- **`_rejectReason` called `file.length()` unguarded**, so one unreadable pick
+  (a reclaimed temp, a bad path back from the cropper) threw and took the whole
+  batch down. It is now reported as a normal rejection.
+
+⚠️ **Not reproduced on the reporting device.** The two dropped-capture paths are
+real and fit the symptom exactly (silent, camera-only, gallery unaffected), but
+the failure has not been observed first-hand — the iOS Simulator has no camera,
+so this cannot be verified from here. If it recurs, the console now names the
+cause under the `attachments` scope. The build is unverified on a physical
+device.
 
 Owner report: the Notification Center *"looks bad and messy"*, and navigation
 from it needed fixing.

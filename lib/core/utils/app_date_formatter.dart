@@ -100,6 +100,16 @@ class AppDateFormatter {
     return dayMonth(dt);
   }
 
+  /// A span of [minutes] as `6h 30m` — unpadded, and the hours part dropped
+  /// under an hour (`45m`). For prose-like meta ("6h 30m on shift"); the
+  /// attendance ledger uses its own zero-padded `08h 03m` so its columns line
+  /// up, which is a different job.
+  static String hoursMinutes(int minutes) {
+    final m = minutes < 0 ? 0 : minutes;
+    final h = m ~/ 60;
+    return h == 0 ? '${m % 60}m' : '${h}h ${m % 60}m';
+  }
+
   /// The same age as [relative], stripped for a **right-aligned meta slot**
   /// (a notification row's time corner): `now` → `5m` → `3h` → `2d` → `6 Jul`.
   /// The "ago" is implied by the column, so it is dropped — the shorter string

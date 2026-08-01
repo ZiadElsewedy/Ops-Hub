@@ -21,6 +21,9 @@ import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart'
 import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
+import 'package:drop/features/attendance/domain/attendance_config.dart';
+import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
+import 'package:drop/features/attendance/presentation/cubit/attendance_state.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
@@ -126,6 +129,27 @@ class _FakeShiftSwapCubit extends Cubit<ShiftSwapState>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Employee Home reads the clock state for its shift card. Loaded with no
+/// rostered shift — the card then renders "Off today" and no clock row, which
+/// is all these start-gate tests need from it.
+///
+/// It must be **loaded**, not `initial`: the unloaded card shows a shimmering
+/// skeleton, and a repeating animation means `pumpAndSettle` never returns.
+class _FakeAttendanceCubit extends Cubit<AttendanceState>
+    implements AttendanceCubit {
+  _FakeAttendanceCubit()
+    : super(
+        AttendanceState.loaded(
+          config: AttendanceConfig.defaults,
+          tick: DateTime.now(),
+        ),
+      );
+  @override
+  Future<void> load(UserEntity user, {bool forceRefresh = false}) async {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _FakeChatListCubit extends Cubit<ChatListState> implements ChatListCubit {
   _FakeChatListCubit() : super(const ChatListState.loaded([]));
   @override
@@ -159,6 +183,7 @@ Widget _homeHost(_FakeTaskCubit taskCubit) => MultiBlocProvider(
     BlocProvider<StatisticsCubit>(create: (_) => _FakeStatisticsCubit()),
     BlocProvider<TaskCubit>.value(value: taskCubit),
     BlocProvider<ShiftSwapCubit>(create: (_) => _FakeShiftSwapCubit()),
+    BlocProvider<AttendanceCubit>(create: (_) => _FakeAttendanceCubit()),
     BlocProvider<ChatListCubit>(create: (_) => _FakeChatListCubit()),
   ],
   child: MaterialApp(theme: AppTheme.dark, home: const EmployeeHomeScreen()),
