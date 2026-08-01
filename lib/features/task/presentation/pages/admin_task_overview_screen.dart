@@ -106,10 +106,9 @@ class _AdminTaskOverviewScreenState extends State<AdminTaskOverviewScreen> {
       title: 'Task Management',
       actions: [
         IconButton(
-          icon: const Icon(
-            Icons.dashboard_customize_outlined,
-            color: AppColors.textSecondary,
-          ),
+          // "Saved checklist", not "customize dashboard" — the same glyph
+          // (`kTemplatesIcon`) everywhere Templates appears (2026-08-01).
+          icon: const Icon(kTemplatesIcon, color: AppColors.textSecondary),
           tooltip: 'Templates',
           onPressed: _manageTemplates,
         ),

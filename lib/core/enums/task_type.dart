@@ -8,6 +8,13 @@ enum TaskType {
 
   String get value => name;
 
+  /// Human-readable label for display — **never** confuse with [value], the
+  /// persisted wire string written to `tasks/{taskId}.type`.
+  String get label => switch (this) {
+    TaskType.daily => 'Daily',
+    TaskType.special => 'Special',
+  };
+
   bool get isDaily => this == TaskType.daily;
   bool get isSpecial => this == TaskType.special;
 
