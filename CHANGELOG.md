@@ -117,6 +117,44 @@ Verified on the simulator with a live highlighted cell (1 To do).
 
 ---
 
+## 2026-08-01 — Checklist Templates become a real screen (polish + feature; MED risk)
+
+Owner on the New Checklist Template form: *"too old, make it more detailed, not
+a bottom sheet, make it premium, change the icon."*
+
+It was a **sheet opened from inside another sheet** (`_TemplateForm` via
+`showSheet` from `_ManageTemplatesState._add`). Both it and `_ManageTemplates`
+now push `CupertinoPageRoute(fullscreenDialog: true)` — the same presentation
+the task form already used (`task_action_sheets.dart:78`), so the two creation
+flows finally match. Public entry points (`showManageTemplatesSheet`, the
+`_add` flow popping `true`) kept their names and signatures, so every call site
+is unchanged.
+
+The "old" feel was literal: `_SimpleDropdown` was called with
+`labelOf: (t) => t.value`, and `value` returns the enum's `name` — so the form
+displayed the raw Firestore strings `daily` and `normal`, lowercase.
+`TaskType`/`TaskPriority` gained an **additive `label` getter**; `value` is the
+persisted wire string and was not touched.
+
+Also: checklist steps are drag-reorderable (order *is* the procedure), the
+unlabelled required-star became a legible **Required / Optional** control, and
+the Templates icon is one shared `kTemplatesIcon`
+(`Icons.checklist_rounded` — the old `dashboard_customize_outlined` read as
+"customize dashboard") used everywhere Templates appears.
+
+`_save` is byte-for-byte unchanged, and now has tests pinning it: title
+required, blank steps dropped, and `branchId: isAdmin ? '' : defaultBranchId`
+— where `''` is the persisted "global, every branch" value.
+
+**Bug found and fixed on the way:** `_ManageTemplatesState._reload` was
+`setState(() => _future = _load())`. Arrow syntax returns the assignment's
+value — a `Future` — and `setState` asserts on that. Asserts are stripped in
+release, so this only ever bit **debug** builds, on every template create and
+delete. Pre-existing (byte-identical to the previous revision); it survived
+because nothing tested that path until now.
+
+---
+
 ## 2026-08-01 — The Admin Dashboard "Today" strip stops lying by omission (polish + bug-fix; MED risk)
 
 Owner used the dashboard on real data and asked "why is active 0 when there IS
