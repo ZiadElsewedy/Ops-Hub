@@ -280,6 +280,10 @@ void main() {
 
       await tester.enterText(find.byType(TextFormField).first, 'Open Shop');
       await tester.enterText(_stepField('c0'), 'Unlock the front door');
+      // The step rows sit below the fold in the default test viewport, so the
+      // tap would otherwise land on nothing (hit-test warning, no toggle).
+      await tester.ensureVisible(find.text('Required').first);
+      await tester.pump();
       await tester.tap(find.text('Required').first);
       await tester.pump();
 

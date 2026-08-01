@@ -305,7 +305,15 @@ class _ManageTemplatesState extends State<_ManageTemplates> {
   Future<List<TaskTemplateEntity>> _load() => widget.cubit.templates(
       branchId: widget.isAdmin ? null : widget.defaultBranchId);
 
-  void _reload() => setState(() => _future = _load());
+  /// Block body, deliberately: `setState(() => _future = _load())` returns the
+  /// assignment's value — a Future — and `setState` asserts on a closure that
+  /// returns one. The assert is stripped in release, so this only ever bit
+  /// debug builds (on every template create/delete), which is why it survived.
+  void _reload() {
+    setState(() {
+      _future = _load();
+    });
+  }
 
   Future<void> _delete(TaskTemplateEntity t) async {
     if (_busy) return;
