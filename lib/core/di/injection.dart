@@ -100,10 +100,13 @@ import 'package:drop/features/requests/domain/usecases/upload_request_attachment
 import 'package:drop/features/requests/presentation/cubit/request_detail_cubit.dart';
 import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
 import 'package:drop/features/attendance/data/datasources/attendance_remote_datasource.dart';
+import 'package:drop/features/attendance/data/datasources/attendance_reporting_datasource.dart';
 import 'package:drop/features/attendance/data/repositories/attendance_repository_impl.dart';
+import 'package:drop/features/attendance/data/repositories/attendance_reporting_repository_impl.dart';
 import 'package:drop/features/attendance/data/services/geolocator_location_service.dart';
 import 'package:drop/features/attendance/domain/attendance_service.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
 import 'package:drop/features/attendance/domain/usecases/clock_in.dart';
 import 'package:drop/features/attendance/domain/usecases/clock_out.dart';
 import 'package:drop/features/attendance/domain/usecases/decide_correction.dart';
@@ -114,6 +117,8 @@ import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cub
 import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:drop/features/attendance/presentation/details/attendance_details_cubit.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_cubit.dart';
+import 'package:drop/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart';
+import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/audit/data/datasources/audit_remote_datasource.dart';
 import 'package:drop/features/audit/data/repositories/audit_repository_impl.dart';
 import 'package:drop/features/audit/domain/repositories/audit_repository.dart';
@@ -200,6 +205,13 @@ class AppDependencies {
         realtime: chatRealtime,
         cache: _chatThreadCache,
         getAttachmentUrl: _getChatAttachmentUrl,
+        // The inbox clears this conversation's badge the moment it is opened;
+        // the thread's mark-read is what earns that clear. Roll the badge back
+        // when the server never acknowledged, so the inbox never shows "read"
+        // for a thread the backend still counts as unread.
+        onReadSync: (acknowledged) => acknowledged
+            ? chatListCubit.confirmUnreadCleared(conversationId)
+            : chatListCubit.restoreUnread(conversationId),
       );
 
   /// Cache of opened threads — lets a re-opened conversation paint its last
@@ -410,6 +422,16 @@ class AppDependencies {
   // be built on demand (one per opened ledger / record), the same pattern as the
   // requests detail cubit. The employee/admin cubits above hold it internally.
   static late final AttendanceRepository _attendanceRepository;
+  static late final AttendanceReportingRepository _attendanceReportingRepository;
+
+  /// Branch member directory used by the reporting screens to put a name on a
+  /// phantom no-show, which has no attendance record to carry one.
+  static late final GetUsersByBranch _reportUsersByBranch;
+
+  // Kept so Daily Review can build its own board cubit for a past day without
+  // re-scoping the live board's singleton underneath it.
+  static late final ScheduleRepository _scheduleRepositoryRef;
+  static late final BranchRepository _branchRepositoryRef;
 
   /// Builds a fresh Attendance History ledger cubit — the employee's own history
   /// ([AttendanceHistoryMode.self]) or a manager/admin branch review
@@ -426,6 +448,42 @@ class AppDependencies {
         userId: userId,
         branchId: branchId,
         query: AttendanceHistoryQuery(text: initialSearch ?? ''),
+      );
+
+  /// Builds a **fresh** attendance board cubit for Daily Review.
+  ///
+  /// Deliberately not the `attendanceAdminCubit` singleton: that one is pinned
+  /// to today for the live board, and Daily Review scopes itself to a past
+  /// business day. Sharing the instance would re-scope the live board underneath
+  /// whoever else is looking at it.
+  static AttendanceAdminCubit createAttendanceDailyReviewCubit() =>
+      AttendanceAdminCubit(
+        repository: _attendanceRepository,
+        scheduleRepository: _scheduleRepositoryRef,
+        branchRepository: _branchRepositoryRef,
+        getUsersByBranch: _reportUsersByBranch,
+        decideCorrection: DecideCorrection(_attendanceRepository),
+        service: const AttendanceService(),
+      );
+
+  /// Builds the admin cross-branch attendance overview cubit. Ledger-only, like
+  /// every reporting read; it fans out one branch range stream per branch and
+  /// merges, so it needs no new index (ADR-017).
+  static AdminAttendanceOverviewCubit createAdminAttendanceOverviewCubit() =>
+      AdminAttendanceOverviewCubit(
+        repository: _attendanceReportingRepository,
+      );
+
+  /// Builds a fresh Attendance Reporting cubit. Reporting reads only the
+  /// `attendance_expectations` ledger; raw attendance and schedules stay out of
+  /// this read path by contract (ADR-017).
+  static AttendanceReportCubit createAttendanceReportCubit() =>
+      AttendanceReportCubit(
+        repository: _attendanceReportingRepository,
+        // Labels only. A phantom no-show has no attendance record to carry a
+        // name, so without this every absence renders as a raw uid. Denominators
+        // still come from the ledger alone.
+        getUsersByBranch: _reportUsersByBranch,
       );
 
   /// Builds a fresh Attendance record Details cubit (record + server-derived
@@ -518,6 +576,7 @@ class AppDependencies {
     // Chat directory (every active user but the caller — flat, no branch/role)
     // — the picker and the inbox share it.
     _getChatDirectory = GetChatDirectory(authRepository);
+    _reportUsersByBranch = GetUsersByBranch(authRepository);
 
     final ProfileRepository profileRepository =
         ProfileRepositoryImpl(profileRemoteDataSource, authRemoteDataSource);
@@ -678,8 +737,13 @@ class AppDependencies {
         FirebaseStorage.instance,
       ),
     );
+    final AttendanceReportingRepository attendanceReportingRepository =
+        AttendanceReportingRepositoryImpl(
+          AttendanceReportingDataSourceImpl(FirebaseFirestore.instance),
+        );
     // Shared with the on-demand History / Details cubit factories.
     _attendanceRepository = attendanceRepository;
+    _attendanceReportingRepository = attendanceReportingRepository;
     attendanceCubit = AttendanceCubit(
       repository: attendanceRepository,
       scheduleRepository: scheduleRepository,
@@ -690,6 +754,8 @@ class AppDependencies {
       clockOut: ClockOut(attendanceRepository),
       requestCorrection: RequestCorrection(attendanceRepository),
     );
+    _scheduleRepositoryRef = scheduleRepository;
+    _branchRepositoryRef = branchRepository;
     attendanceAdminCubit = AttendanceAdminCubit(
       repository: attendanceRepository,
       scheduleRepository: scheduleRepository,

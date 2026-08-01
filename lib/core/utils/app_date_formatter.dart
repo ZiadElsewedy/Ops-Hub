@@ -35,12 +35,24 @@ class AppDateFormatter {
     return '$h12:$min $period';
   }
 
+  /// Wall-clock time, **24-hour zero-padded** — e.g. `08:30`, `16:30`, `00:05`.
+  /// Use this wherever the value sits next to a shift window, which
+  /// `ShiftHours.format` renders in the same 24-hour form (`08:30 – 16:30`); a
+  /// 12-hour reading beside it looks like a different clock.
+  static String time24(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:'
+      '${dt.minute.toString().padLeft(2, '0')}';
+
   /// Day + abbreviated month — e.g. `6 Jul`.
   static String dayMonth(DateTime dt) => '${dt.day} ${_mon(dt.month)}';
 
   /// Day + abbreviated month + year — e.g. `6 Jul 2026`.
   static String dayMonthYear(DateTime dt) =>
       '${dt.day} ${_mon(dt.month)} ${dt.year}';
+
+  /// Abbreviated month + year — e.g. `Jul 2026`. Used where a whole calendar
+  /// month is the subject (the monthly attendance report period).
+  static String monthYear(DateTime dt) => '${_mon(dt.month)} ${dt.year}';
 
   /// Abbreviated month + day + year — e.g. `Jul 6, 2026`.
   static String monthDayYear(DateTime dt) =>

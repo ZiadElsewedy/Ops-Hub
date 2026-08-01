@@ -511,7 +511,7 @@ class _AttentionStrip extends StatelessWidget {
         Expanded(
           child: _AttentionPill(
             icon: Icons.event_busy_outlined,
-            label: 'Overdue',
+            label: 'Late',
             count: overdue,
             color: AppColors.error,
             active: filter.preset == FeedPreset.overdue,

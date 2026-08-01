@@ -220,13 +220,16 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         _ctx = _TodayContext(todayDate: todayDate);
         return;
       }
+      // Resolved before the schedule lookup on purpose: an unscheduled clock-in
+      // still runs the full GPS gate (ADR-018), and an unpublished week must not
+      // block it for the wrong reason.
+      final geofence = await _resolveGeofence(branchId);
       final weekStart = ScheduleWeek.startOf(now);
       final schedule = await _scheduleRepository.getSchedule(branchId, weekStart);
       if (schedule == null) {
-        _ctx = _TodayContext(todayDate: todayDate);
+        _ctx = _TodayContext(todayDate: todayDate, geofence: geofence);
         return;
       }
-      final geofence = await _resolveGeofence(branchId);
       final leave = schedule.leaveTypeOf(user.uid, day);
       final shifts = schedule.shiftsFor(user.uid, day);
       final target = _pickTargetShift(shifts, schedule, weekStart, day, now);
@@ -395,6 +398,100 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       _surface(e.message);
     } catch (_) {
       _surface('Something went wrong clocking in.');
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// **Start an unscheduled shift** — [ADR-018].
+  ///
+  /// For the employee who is genuinely at work on a day the roster does not
+  /// know about: covering a sick colleague, called in at short notice, or
+  /// working a week that was never published. Refusing the punch does not
+  /// prevent the work, it prevents the record — and the alternative (a manager
+  /// typing the times in afterwards) is strictly worse evidence than this,
+  /// which is server-timestamped and GPS-verified at the moment of presence.
+  ///
+  /// Deliberate by construction: this is never the screen's primary action and
+  /// [reason] is mandatory. The full GPS gate applies, exactly as for a
+  /// scheduled clock-in — when the roster does not vouch for someone, location
+  /// is the only remaining proof they were there.
+  ///
+  /// The shift carries **no scheduled window**, so there is nothing to be late
+  /// for, worked minutes run from the real clock-in (R2's clamp needs a
+  /// scheduled start), and the session closes under R7's 16-hour cap rather
+  /// than R6's scheduled-end grace. It counts in **nothing** until a manager
+  /// approves it in Daily Review.
+  Future<bool> clockInUnscheduled({required String reason}) async {
+    final user = _user, ctx = _ctx;
+    if (user == null || ctx == null || _busy || _verifying) return false;
+    if (!_config.allowUnscheduledClockIn) {
+      _surface('Unscheduled shifts are switched off for this branch.');
+      return false;
+    }
+    if (ctx.shift != null) {
+      _surface('You have a shift scheduled today — clock in to that instead.');
+      return false;
+    }
+    final trimmed = reason.trim();
+    if (trimmed.isEmpty) {
+      _surface('Say why you are working an unscheduled shift.');
+      return false;
+    }
+    if (_activeRecord != null) {
+      _surface('You\'re already clocked in.');
+      return false;
+    }
+
+    final now = _now();
+    final shift = unscheduledShiftFor(now);
+    final id = attendanceDocId(
+      uid: user.uid,
+      date: ctx.todayDate,
+      shift: shift,
+    );
+
+    _previewVerification = null;
+    _previewError = null;
+
+    _setVerifying(true);
+    final gps = await _captureVerification(ctx.geofence);
+    _setVerifying(false);
+    final gpsCheck = AttendanceValidation.checkGpsFix(
+      locationError: gps.error,
+      verification: gps.verification,
+      geofenceConfigured: ctx.geofence != null,
+    );
+    if (gpsCheck.blocked) {
+      _surface(gpsCheck.message);
+      return false;
+    }
+
+    _setBusy(true);
+    try {
+      final record = AttendanceEntity(
+        id: id,
+        userId: user.uid,
+        userName: user.displayName,
+        branchId: user.branchId,
+        shift: shift,
+        date: ctx.todayDate,
+        // No scheduled window — this is what marks the shift unscheduled
+        // everywhere downstream.
+        scheduledStart: null,
+        scheduledEnd: null,
+        clockIn: now, // placeholder; the datasource writes a server timestamp
+        clockInVerification: gps.verification,
+        notes: trimmed,
+      );
+      await _clockIn(record);
+      return true;
+    } on Failure catch (e) {
+      _surface(e.message);
+      return false;
+    } catch (_) {
+      _surface('Something went wrong starting the shift.');
+      return false;
     } finally {
       _setBusy(false);
     }

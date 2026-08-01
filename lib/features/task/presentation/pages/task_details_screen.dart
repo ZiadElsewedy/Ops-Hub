@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/enums/task_assignment_type.dart';
@@ -24,8 +26,10 @@ import 'package:drop/features/auth/presentation/widgets/app_button.dart';
 import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
 import 'package:drop/features/task/domain/entities/checklist_item.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
 import 'package:drop/features/task/domain/task_schedule.dart';
 import 'package:drop/features/task/domain/work_types/task_work_x.dart';
+import 'package:drop/features/task/presentation/activity_format.dart';
 import 'package:drop/features/task/presentation/attachment_format.dart';
 import 'package:drop/core/media/picked_attachment.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
@@ -63,6 +67,39 @@ class TaskDetailsScreen extends StatefulWidget {
 }
 
 class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
+  Timer? _startGateTimer;
+  DateTime? _startGateTimerAt;
+
+  void _armStartGateTimer(TaskEntity task) {
+    final start = task.startsAt;
+    final now = DateTime.now();
+    final needsGateTimer =
+        (task.status == TaskStatus.pending ||
+            task.status == TaskStatus.rejected) &&
+        start != null &&
+        start.isAfter(now);
+    if (!needsGateTimer) {
+      _startGateTimer?.cancel();
+      _startGateTimer = null;
+      _startGateTimerAt = null;
+      return;
+    }
+    if (_startGateTimerAt == start && _startGateTimer?.isActive == true) return;
+    _startGateTimer?.cancel();
+    _startGateTimerAt = start;
+    _startGateTimer = Timer(start.difference(now), () {
+      _startGateTimer = null;
+      _startGateTimerAt = null;
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _startGateTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<TaskCubit, TaskState>(
@@ -88,6 +125,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             progress: null,
           ),
         );
+        _armStartGateTimer(live.task);
 
         return PopScope(
           // Block back navigation while a submission is in flight.
@@ -815,6 +853,14 @@ class _StatusHeader extends StatelessWidget {
                   highlight: _isOverdue(task),
                 ),
               ],
+              // Finished work that missed its deadline — a timeliness signal
+              // (ADR-013), never the error/highlight treatment Missed or an
+              // active overdue pill wear.
+              if (taskLateness(task) case final lateness?)
+                _MetaPill(
+                  icon: Icons.timer_outlined,
+                  label: formatLateness(lateness),
+                ),
               // Current time-aware phase (Scheduled/Active/Due-soon/Overdue) for
               // in-flight work; a finished task's story is the status pill.
               if (schedulePhase(task, DateTime.now()).isActionable)
@@ -1592,15 +1638,34 @@ class _EmployeeActions extends StatelessWidget {
   }
 
   Widget _primaryAction(BuildContext context) {
+    Widget startButton({
+      required String label,
+      required IconData icon,
+      double iconSize = 20,
+    }) {
+      final blockedReason = startBlockedReason(task, DateTime.now());
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppButton(
+            label: label,
+            icon: Icon(icon, size: iconSize, color: AppColors.textDark),
+            onPressed: blockedReason == null
+                ? () => cubit.startTask(task)
+                : null,
+          ),
+          if (blockedReason != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            _StartGateReason(blockedReason),
+          ],
+        ],
+      );
+    }
+
     return switch (task.status) {
-      TaskStatus.pending => AppButton(
+      TaskStatus.pending => startButton(
         label: 'Start Task',
-        icon: const Icon(
-          Icons.play_arrow_rounded,
-          size: 20,
-          color: AppColors.textDark,
-        ),
-        onPressed: () => cubit.startTask(task),
+        icon: Icons.play_arrow_rounded,
       ),
       TaskStatus.started => _CompleteButton(task: task, cubit: cubit),
       TaskStatus.completed => AppButton(
@@ -1615,18 +1680,45 @@ class _EmployeeActions extends StatelessWidget {
           Navigator.of(context).pop();
         },
       ),
-      TaskStatus.rejected => AppButton(
+      TaskStatus.rejected => startButton(
         label: 'Start Rework',
-        icon: const Icon(
-          Icons.replay_rounded,
-          size: 18,
-          color: AppColors.textDark,
-        ),
-        onPressed: () => cubit.startTask(task),
+        icon: Icons.replay_rounded,
+        iconSize: 18,
       ),
       TaskStatus.missed => const SizedBox.shrink(),
       _ => const SizedBox.shrink(),
     };
+  }
+}
+
+class _StartGateReason extends StatelessWidget {
+  const _StartGateReason(this.reason);
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.schedule_rounded,
+          size: 14,
+          color: AppColors.textTertiary,
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            reason,
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/features/schedule/domain/shift_hours.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_feed.dart';
 import 'package:drop/features/task/domain/task_schedule.dart';
 
 /// Task Scheduling V2 — the pure schedule math: smart-default windows from a
@@ -93,6 +94,65 @@ void main() {
     test('no start/no due, non-terminal → active (graceful default)', () {
       expect(schedulePhase(task(), now), TaskSchedulePhase.active);
     });
+  });
+
+  group('canStartTaskNow', () {
+    final now = DateTime(2026, 7, 8, 12, 0);
+
+    test('null startsAt remains startable for manual and legacy rows', () {
+      expect(canStartTaskNow(task(startsAt: null), now), isTrue);
+      expect(startBlockedReason(task(startsAt: null), now), isNull);
+    });
+
+    test('blocks before the scheduled start', () {
+      final t = task(startsAt: now.add(const Duration(minutes: 30)));
+      expect(canStartTaskNow(t, now), isFalse);
+      // 24-hour, to match the shift window shown beside it (`08:30 – 16:30`).
+      expect(startBlockedReason(t, now), 'Starts at 12:30');
+    });
+
+    test('allows exactly at the scheduled start boundary', () {
+      expect(canStartTaskNow(task(startsAt: now), now), isTrue);
+    });
+
+    test('allows after the scheduled start', () {
+      expect(
+        canStartTaskNow(
+          task(startsAt: now.subtract(const Duration(seconds: 1))),
+          now,
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejected/rework tasks are gated exactly like pending tasks', () {
+      final future = now.add(const Duration(minutes: 15));
+      expect(
+        canStartTaskNow(
+          task(status: TaskStatus.pending, startsAt: future),
+          now,
+        ),
+        isFalse,
+      );
+      expect(
+        canStartTaskNow(
+          task(status: TaskStatus.rejected, startsAt: future),
+          now,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  test('an upcoming pending task is scheduled, not overdue', () {
+    final now = DateTime(2026, 7, 8, 12, 0);
+    final t = task(
+      startsAt: now.add(const Duration(hours: 1)),
+      dueAt: now.add(const Duration(hours: 4)),
+    );
+
+    expect(schedulePhase(t, now), TaskSchedulePhase.scheduled);
+    expect(isTaskOverdue(t, now), isFalse);
   });
 
   test('dueSoonCount counts only in-flight tasks inside the window', () {

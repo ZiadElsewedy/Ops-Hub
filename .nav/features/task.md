@@ -146,6 +146,7 @@
 - `test/recurring_shift_task_test.dart`
 - `test/task_access_test.dart`
 - `test/task_archive_test.dart`
+- `test/task_assignment_type_test.dart`
 - `test/task_attachment_test.dart`
 - `test/task_attention_surface_test.dart`
 - `test/task_badge_test.dart`
@@ -167,6 +168,7 @@
 - `test/task_outcomes_test.dart`
 - `test/task_schedule_test.dart`
 - `test/task_seen_store_test.dart`
+- `test/task_start_gate_widget_test.dart`
 - `test/task_status_test.dart`
 - `test/task_submission_gate_test.dart`
 

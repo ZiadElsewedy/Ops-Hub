@@ -79,3 +79,32 @@ String relativeTime(DateTime dt) => AppDateFormatter.relative(dt);
 /// Wall-clock time ("1:43 AM") — pairs with [relativeTime] on timeline rows so
 /// ops can see the exact moment, not just "2m ago".
 String clockTime(DateTime dt) => AppDateFormatter.time(dt);
+
+/// Human "finished late" phrase for [taskLateness] — `45m late`, `3h 12m late`,
+/// `2d 4h late`. Drops a zero lower unit rather than reading `2d 0h late`. A
+/// [Duration], not a [DateTime], so it sits here rather than in
+/// [AppDateFormatter] (whose own doc excludes elapsed-duration labels).
+///
+/// The **only** place this phrase is composed — every lateness call site
+/// (task card, task details, Done tab, Operations) renders through this
+/// function so the wording can never fork.
+String formatLateness(Duration late) {
+  final days = late.inDays;
+  final hours = late.inHours;
+  final hoursRemainder = hours % 24;
+  final minutesRemainder = late.inMinutes % 60;
+
+  if (days > 0) {
+    return hoursRemainder > 0
+        ? '${days}d ${hoursRemainder}h late'
+        : '${days}d late';
+  }
+  if (hours > 0) {
+    return minutesRemainder > 0
+        ? '${hours}h ${minutesRemainder}m late'
+        : '${hours}h late';
+  }
+  // taskLateness only ever returns a positive duration; a sub-minute lateness
+  // still reads as at least 1m rather than the misleading "0m late".
+  return '${late.inMinutes > 0 ? late.inMinutes : 1}m late';
+}

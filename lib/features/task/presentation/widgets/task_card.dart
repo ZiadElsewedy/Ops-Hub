@@ -13,6 +13,7 @@ import 'package:drop/core/widgets/status_badge.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
 import 'package:drop/features/task/presentation/activity_format.dart';
 import 'package:drop/features/task/presentation/widgets/live_status_border.dart';
 import 'package:drop/features/task/presentation/widgets/task_badge.dart';
@@ -72,6 +73,7 @@ class TaskCard extends StatelessWidget {
     final description = task.description ?? '';
     final assignedBy = _assignedBy(directory, task);
     final overdue = _isOverdue(task);
+    final lateness = taskLateness(task);
     final refs = task.referenceAttachments.length;
 
     final chips = <Widget>[
@@ -88,10 +90,14 @@ class TaskCard extends StatelessWidget {
         _MetaChip(
           icon: overdue ? Icons.event_busy_outlined : Icons.event_outlined,
           label: overdue
-              ? 'Due ${AppDateFormatter.dayMonth(task.deadline!)} · Overdue'
+              ? 'Due ${AppDateFormatter.dayMonth(task.deadline!)} · Late'
               : 'Due ${AppDateFormatter.dayMonth(task.deadline!)}',
           tone: overdue ? AppColors.error : null,
         ),
+      // A finished task that missed its deadline — a timeliness signal, never
+      // pass/fail, so it stays the chip's neutral secondary grey (ADR-013).
+      if (lateness != null)
+        _MetaChip(icon: Icons.timer_outlined, label: formatLateness(lateness)),
       if (task.hasReferences)
         _MetaChip(
           icon: Icons.attachment_rounded,

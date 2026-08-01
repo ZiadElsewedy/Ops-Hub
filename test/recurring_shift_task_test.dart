@@ -60,11 +60,11 @@ void main() {
   );
 
   test('today instance persists the weekly schedule shift deadline', () async {
-    final utcNow = DateTime.now().toUtc();
-    final occurrenceDay = DateTime(utcNow.year, utcNow.month, utcNow.day);
-    final scheduleDay = ScheduleDay.fromDate(occurrenceDay);
-    final weekStart = ScheduleWeek.startOf(occurrenceDay);
-    const hours = ShiftHours(8 * 60, 17 * 60);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final scheduleDay = ScheduleDay.fromDate(today);
+    final weekStart = ScheduleWeek.startOf(today);
+    final hours = _liveWindowFor(now);
     final repository = _TaskRepository();
     final cubit = _createCubit(
       repository,
@@ -92,14 +92,107 @@ void main() {
 
     final instance = repository.lastInstance;
     expect(instance, isNotNull);
-    final slotDay = weekStart.add(Duration(days: scheduleDay.index));
+    final slotDay = DateTime(
+      weekStart.year,
+      weekStart.month,
+      weekStart.day + scheduleDay.index,
+    );
     expect(instance!.instanceDate, slotDay);
-    expect(instance.startsAt, slotDay.add(const Duration(hours: 8)));
-    expect(instance.deadline, slotDay.add(const Duration(hours: 17)));
+    // Wall-clock, mirroring the materializer (and the server), so the
+    // expectation holds on a DST-transition day too.
+    DateTime civil(int minutes) => DateTime(
+      slotDay.year,
+      slotDay.month,
+      slotDay.day + minutes ~/ 1440,
+      minutes % 1440 ~/ 60,
+      minutes % 60,
+    );
+    expect(instance.startsAt, civil(hours.startMinutes));
+    expect(instance.deadline, civil(hours.endMinutes));
 
     repository.instanceWrite.complete(null);
     await Future<void>.delayed(Duration.zero);
   });
+
+  test(
+    'saving after the resolved shift window ended creates no instance',
+    () async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final scheduleDay = ScheduleDay.fromDate(today);
+      final weekStart = ScheduleWeek.startOf(today);
+      final repository = _TaskRepository();
+      final cubit = _createCubit(
+        repository,
+        scheduleRepository: _ScheduleRepository(
+          schedule: WeeklyScheduleEntity(
+            id: 'branch-1_week',
+            branchId: 'branch-1',
+            weekStart: weekStart,
+            shiftHours: {
+              scheduleDay: {ScheduleShift.morning: _closedWindowFor(now)},
+            },
+          ),
+        ),
+      );
+      addTearDown(cubit.close);
+
+      await cubit.createRecurringShiftTemplate(
+        title: 'Closed Window',
+        priority: TaskPriority.normal,
+        branchId: 'branch-1',
+        shift: ScheduleShift.morning,
+        repeat: TemplateRepeatMode.daily,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repository.createdInstances, isEmpty);
+    },
+  );
+
+  test(
+    'saving inside the resolved shift window creates one local-date instance',
+    () async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final scheduleDay = ScheduleDay.fromDate(today);
+      final weekStart = ScheduleWeek.startOf(today);
+      final hours = _liveWindowFor(now);
+      final repository = _TaskRepository();
+      final cubit = _createCubit(
+        repository,
+        scheduleRepository: _ScheduleRepository(
+          schedule: WeeklyScheduleEntity(
+            id: 'branch-1_week',
+            branchId: 'branch-1',
+            weekStart: weekStart,
+            shiftHours: {
+              scheduleDay: {ScheduleShift.morning: hours},
+            },
+          ),
+        ),
+      );
+      addTearDown(cubit.close);
+
+      await cubit.createRecurringShiftTemplate(
+        title: 'Live Window',
+        priority: TaskPriority.normal,
+        branchId: 'branch-1',
+        shift: ScheduleShift.morning,
+        repeat: TemplateRepeatMode.daily,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repository.createdInstances, hasLength(1));
+      expect(
+        repository.createdInstances.single.id,
+        'rt_template-1_${_dateKey(today)}',
+      );
+
+      repository.instanceWrite.complete(null);
+      await Future<void>.delayed(Duration.zero);
+    },
+  );
 
   testWidgets('Automation Center empty state stays usable on a phone', (
     tester,
@@ -415,6 +508,27 @@ Future<void> _openAutomationCenter(WidgetTester tester, TaskCubit cubit) async {
   await tester.pumpAndSettle();
 }
 
+String _dateKey(DateTime date) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${date.year}-${two(date.month)}-${two(date.day)}';
+}
+
+/// A window that is unambiguously still open at [now] — it always has at least
+/// an hour left to run, so the materializer's deadline guard must let it through
+/// whatever time of day the suite runs.
+ShiftHours _liveWindowFor(DateTime now) =>
+    ShiftHours(0, now.hour * 60 + now.minute + 60);
+
+/// A window that has already closed at [now]: it ends on the minute [now] falls
+/// in, so `DateTime.now()` is past it by however many seconds have elapsed. The
+/// one moment this cannot express is the first minute of the local day, when no
+/// earlier minute exists to end on — a run started inside 00:00:00.000 would see
+/// a deadline one minute ahead instead.
+ShiftHours _closedWindowFor(DateTime now) {
+  final minute = now.hour * 60 + now.minute;
+  return ShiftHours(0, minute < 1 ? 1 : minute);
+}
+
 class _AutomationLauncher extends StatelessWidget {
   const _AutomationLauncher({required this.cubit});
 
@@ -448,6 +562,7 @@ class _TaskRepository implements TaskRepository {
   final Object? recurringError;
   RecurringTaskTemplateEntity? lastUpdated;
   TaskEntity? lastInstance;
+  final createdInstances = <TaskEntity>[];
   String? lastDeletedId;
 
   @override
@@ -468,6 +583,7 @@ class _TaskRepository implements TaskRepository {
   @override
   Future<TaskEntity?> createTaskWithId(TaskEntity task) {
     lastInstance = task;
+    createdInstances.add(task);
     return instanceWrite.future;
   }
 

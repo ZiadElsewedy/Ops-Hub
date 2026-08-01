@@ -9,8 +9,17 @@ import 'package:drop/features/task/domain/entities/task_entity.dart';
 void main() {
   final now = DateTime(2026, 6, 25, 14, 0);
 
-  TaskEntity task(TaskStatus status, {DateTime? approvedAt}) =>
-      TaskEntity(id: 't', title: 'T', status: status, approvedAt: approvedAt);
+  TaskEntity task(
+    TaskStatus status, {
+    DateTime? approvedAt,
+    DateTime? startsAt,
+  }) => TaskEntity(
+    id: 't',
+    title: 'T',
+    status: status,
+    approvedAt: approvedAt,
+    startsAt: startsAt,
+  );
 
   group('isTaskInActiveWindow', () {
     test('outstanding/in-flight statuses are always in the window', () {
@@ -47,6 +56,16 @@ void main() {
 
     test('missed work is a closed record, never active work', () {
       expect(isTaskInActiveWindow(task(TaskStatus.missed), now), isFalse);
+    });
+
+    test('pending work stays visible before its scheduled start', () {
+      expect(
+        isTaskInActiveWindow(
+          task(TaskStatus.pending, startsAt: now.add(const Duration(hours: 1))),
+          now,
+        ),
+        isTrue,
+      );
     });
   });
 

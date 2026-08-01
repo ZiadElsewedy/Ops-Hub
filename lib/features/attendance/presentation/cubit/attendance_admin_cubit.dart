@@ -14,6 +14,7 @@ import 'package:drop/features/attendance/domain/attendance_id.dart';
 import 'package:drop/features/attendance/domain/attendance_resolution.dart';
 import 'package:drop/features/attendance/domain/attendance_service.dart';
 import 'package:drop/features/attendance/domain/attendance_validation.dart';
+import 'package:drop/features/attendance/domain/attendance_write_outcome.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
@@ -47,12 +48,29 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
 
   UserEntity? _admin;
   String? _branchId;
+
+  /// The business day this cubit is scoped to. Defaults to today (the live
+  /// board); Daily Review passes a past date.
+  ///
+  /// **Resolved once, at load.** Every write used to call `_today()` at action
+  /// time, so a board left open across midnight would build a document id for
+  /// the new day while showing the previous day's roster and records — a
+  /// wrong-date attendance write, on data that feeds pay. Pinning the date to
+  /// the scope removes that whole class of mismatch.
+  DateTime? _businessDate;
   List<BranchEntity> _branches = const [];
   List<AttendanceRosterEntry> _roster = const [];
   List<AttendanceEntity> _records = const [];
   List<AttendanceCorrectionEntity> _corrections = const [];
   AttendanceConfig _config = const AttendanceConfig(enabled: true);
   bool _deciding = false;
+
+  /// How long to wait for the Cloud Function to apply a correction before
+  /// telling the manager it has not landed. Long enough for a warm function,
+  /// short enough that nobody stares at a spinner. Injectable so tests do not
+  /// spend five real seconds per write.
+  static const _applyConfirmAttempts = 8;
+  final Duration _applyConfirmInterval;
 
   StreamSubscription<List<AttendanceEntity>>? _recordsSub;
   StreamSubscription<List<AttendanceCorrectionEntity>>? _correctionsSub;
@@ -66,7 +84,9 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
     required DecideCorrection decideCorrection,
     required AttendanceService service,
     DateTime Function()? now,
-  })  : _repository = repository,
+    Duration applyConfirmInterval = const Duration(milliseconds: 600),
+  })  : _applyConfirmInterval = applyConfirmInterval,
+        _repository = repository,
         _scheduleRepository = scheduleRepository,
         _branchRepository = branchRepository,
         _getUsersByBranch = getUsersByBranch,
@@ -77,9 +97,22 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   // Named args read better at the call site than initializing formals here.
   // ignore_for_file: prefer_initializing_formals
 
-  Future<void> load(UserEntity admin, {String? branchId}) async {
+  /// [businessDate] scopes the board to one day. Omitted, it is today and the
+  /// behaviour is exactly the live board's.
+  Future<void> load(
+    UserEntity admin, {
+    String? branchId,
+    DateTime? businessDate,
+  }) async {
     _admin = admin;
     _config = _service.configFor(admin);
+    if (businessDate != null) {
+      _businessDate = DateTime(
+        businessDate.year,
+        businessDate.month,
+        businessDate.day,
+      );
+    }
     final hasData = state.maybeMap(loaded: (_) => true, orElse: () => false);
     if (!hasData) emit(const AttendanceAdminState.loading());
     try {
@@ -103,7 +136,9 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
 
   Future<void> refresh() async {
     final admin = _admin;
-    if (admin != null) await load(admin, branchId: _branchId);
+    if (admin != null) {
+      await load(admin, branchId: _branchId, businessDate: _businessDate);
+    }
   }
 
   Future<void> selectBranch(String branchId) async {
@@ -141,9 +176,9 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
     _emit();
   }
 
-  /// Resolve the branch roster for today from the schedule + branch users.
+  /// Resolve the branch roster for the scoped day from the schedule + users.
   Future<List<AttendanceRosterEntry>> _buildRoster(String branchId) async {
-    final now = _now();
+    final now = _today();
     final day = ScheduleDay.fromDate(now);
     final weekStart = ScheduleWeek.startOf(now);
     final schedule = await _scheduleRepository.getSchedule(branchId, weekStart);
@@ -230,7 +265,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   /// computed resolution; the Cloud Function upserts the record + audits it. No
   /// approval loop. [clockIn] is required (the worked window's start); [clockOut]
   /// null leaves a `pendingReview` shell the manager can finish later.
-  Future<bool> addRecord(
+  Future<AttendanceWriteOutcome> addRecord(
     AttendanceBoardRow row, {
     required DateTime clockIn,
     DateTime? clockOut,
@@ -258,7 +293,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   /// **Resolve directly** — a manager settles a `pendingReview` [record] (e.g. a
   /// never-clocked-out shift) with corrected times + a mandatory reason, applied
   /// immediately with audit (spec workflow 12, R11).
-  Future<bool> resolveDirectly(
+  Future<AttendanceWriteOutcome> resolveDirectly(
     AttendanceEntity record, {
     required DateTime clockIn,
     DateTime? clockOut,
@@ -284,12 +319,12 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   /// Materializes an `excused` record with **zero worked minutes** and no clock
   /// times, carrying a mandatory reason. Reuses the same approved-correction apply
   /// path as the other direct actions; no approval loop.
-  Future<bool> excuseAbsence(
+  Future<AttendanceWriteOutcome> excuseAbsence(
     AttendanceBoardRow row, {
     required String reason,
   }) async {
     final admin = _admin;
-    if (admin == null || _deciding) return false;
+    if (admin == null || _deciding) return AttendanceWriteOutcome.failed;
     final entry = row.entry;
     final date = _today();
     final id = attendanceDocId(uid: entry.uid, date: date, shift: entry.shift);
@@ -301,7 +336,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
     if (check.blocked) {
       emit(AttendanceAdminState.error(check.message));
       _emit();
-      return false;
+      return AttendanceWriteOutcome.failed;
     }
     _deciding = true;
     _emit();
@@ -338,14 +373,14 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
         decisionNote: reason.trim(),
       );
       await _repository.createResolvedCorrection(correction);
-      return true;
+      return _confirmApplied(id, before: row.record);
     } on Failure catch (e) {
       emit(AttendanceAdminState.error(e.message));
-      return false;
+      return AttendanceWriteOutcome.failed;
     } catch (e, st) {
       AppLog.error('attendance-admin', 'excuse failed', e, st);
       emit(const AttendanceAdminState.error('Failed to excuse the shift.'));
-      return false;
+      return AttendanceWriteOutcome.failed;
     } finally {
       _deciding = false;
       _emit();
@@ -355,7 +390,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   /// Shared writer for the two direct-action paths: validate the manager entry,
   /// guard one-open-correction, compute the resolution through the single
   /// minute-math source, and write the approved correction.
-  Future<bool> _writeResolved({
+  Future<AttendanceWriteOutcome> _writeResolved({
     required String attendanceId,
     required String userId,
     String? userName,
@@ -370,7 +405,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
     required AttendanceCorrectionKind kind,
   }) async {
     final admin = _admin;
-    if (admin == null || _deciding) return false;
+    if (admin == null || _deciding) return AttendanceWriteOutcome.failed;
     final check = AttendanceValidation.checkManagerEntry(
       existing: existing,
       reason: reason,
@@ -381,7 +416,7 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
     if (check.blocked) {
       emit(AttendanceAdminState.error(check.message));
       _emit();
-      return false;
+      return AttendanceWriteOutcome.failed;
     }
     _deciding = true;
     _emit();
@@ -421,18 +456,54 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
         decisionNote: reason.trim(),
       );
       await _repository.createResolvedCorrection(correction);
-      return true;
+      return _confirmApplied(attendanceId, before: existing);
     } on Failure catch (e) {
       emit(AttendanceAdminState.error(e.message));
-      return false;
+      return AttendanceWriteOutcome.failed;
     } catch (e, st) {
       AppLog.error('attendance-admin', 'resolve failed', e, st);
       emit(const AttendanceAdminState.error('Failed to save the record.'));
-      return false;
+      return AttendanceWriteOutcome.failed;
     } finally {
       _deciding = false;
       _emit();
     }
+  }
+
+  /// Did the server actually apply the correction to the record?
+  ///
+  /// A manager write only creates an approved correction; the record is moved by
+  /// `onAttendanceCorrectionWritten`, which stamps `resolvedAt` (T3/T4). So the
+  /// honest confirmation is to re-read the record and look for a `resolvedAt`
+  /// that is **new** — compared against the value before the write, because a
+  /// record corrected once already carries one.
+  ///
+  /// Returns [AttendanceWriteOutcome.awaitingBackend] rather than an error when
+  /// it does not arrive: nothing is lost, the correction is durable, and the
+  /// Function applies it whenever it is deployed. What must not happen is
+  /// telling the manager the shift is settled when the record still says
+  /// otherwise.
+  Future<AttendanceWriteOutcome> _confirmApplied(
+    String attendanceId, {
+    required AttendanceEntity? before,
+  }) async {
+    final priorResolvedAt = before?.resolvedAt;
+    for (var attempt = 0; attempt < _applyConfirmAttempts; attempt++) {
+      await Future<void>.delayed(_applyConfirmInterval);
+      if (isClosed) return AttendanceWriteOutcome.awaitingBackend;
+      try {
+        final record = await _repository.getRecord(attendanceId);
+        final resolvedAt = record?.resolvedAt;
+        if (resolvedAt != null && resolvedAt != priorResolvedAt) {
+          return AttendanceWriteOutcome.applied;
+        }
+      } catch (e) {
+        // A read failure here says nothing about the write, which already
+        // succeeded. Keep waiting rather than reporting a false failure.
+        AppLog.error('attendance-admin', 'apply confirm read', e);
+      }
+    }
+    return AttendanceWriteOutcome.awaitingBackend;
   }
 
   /// True when a pending correction already exists for [attendanceId] in the
@@ -440,13 +511,20 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   bool _hasOpenCorrectionFor(String attendanceId) => _corrections.any(
       (c) => c.attendanceId == attendanceId && c.isPending && !c.isDeleted);
 
+  /// The scoped business day — the date pinned at load, or today.
   DateTime _today() {
+    final scoped = _businessDate;
+    if (scoped != null) return scoped;
     final n = _now();
     return DateTime(n.year, n.month, n.day);
   }
 
   void _startTick() {
     _tick?.cancel();
+    // A past day is settled: nothing rolls Not started → Late → Absent any
+    // more, so the tick would rebuild the board every minute to produce an
+    // identical result. Only the live board needs it.
+    if (_businessDate != null) return;
     // A minute tick so no-shows roll Not started → Late → Absent over time.
     _tick = Timer.periodic(const Duration(seconds: 60), (_) => _emit());
   }

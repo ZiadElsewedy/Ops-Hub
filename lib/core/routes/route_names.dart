@@ -73,9 +73,48 @@ class RouteNames {
   /// Employee GPS clock-in/out surface (also reachable by managers who clock).
   static const String attendance = '/attendance';
 
+  /// Attendance & Reports hub — manager/admin reporting surface backed only by
+  /// the materialized `attendance_expectations` ledger.
+  static const String attendanceReports = '/attendance/reports';
+
+  /// The first per-period attendance report destination. The `periodId` is
+  /// `{branchId}_weekly_{startKey}_{endKey}_v{version}`.
+  static const String attendanceWeeklyPattern =
+      '/attendance/reports/weekly/:periodId';
+
+  /// The concrete weekly attendance report path for [periodId].
+  static String attendanceWeekly(String periodId) =>
+      '/attendance/reports/weekly/$periodId';
+
+  /// The monthly attendance report destination. The `periodId` is
+  /// `{branchId}_monthly_{startKey}_{endKey}_v{version}` and must cover one
+  /// whole calendar month.
+  static const String attendanceMonthlyPattern =
+      '/attendance/reports/monthly/:periodId';
+
+  /// The concrete monthly attendance report path for [periodId].
+  static String attendanceMonthly(String periodId) =>
+      '/attendance/reports/monthly/$periodId';
+
+  /// **Daily review** — settle one past business day for one branch.
+  ///
+  /// Operational, not reporting: it reads the roster × records board, and the
+  /// live board still owns *today*. `dayKey` is `yyyyMMdd`.
+  static const String attendanceDailyReviewPattern =
+      '/attendance/daily/:branchId/:dayKey';
+
+  /// The concrete daily-review path for [branchId] on [dayKey] (`yyyyMMdd`).
+  static String attendanceDailyReview(String branchId, String dayKey) =>
+      '/attendance/daily/$branchId/$dayKey';
+
   /// Admin attendance dashboard — branch-scoped roster × attendance oversight +
   /// the correction queue (a future manager view reuses the same screen).
   static const String adminAttendance = '/admin/attendance';
+
+  /// **Admin attendance workspace** — cross-branch data completeness, the
+  /// rollup, and the row-level evidence trail. Audit UX, not operational UX;
+  /// admin-only via `_isAdminArea`.
+  static const String adminAttendanceWorkspace = '/admin/attendance/workspace';
 
   /// Attendance History ledger — the employee's own history. Reachable by any
   /// authenticated role (a manager/admin who also clocks has their own here).

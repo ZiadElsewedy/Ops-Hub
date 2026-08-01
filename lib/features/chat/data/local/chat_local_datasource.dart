@@ -80,6 +80,11 @@ abstract class ChatLocalDataSource {
     String conversationId,
   );
 
+  /// Zeroes the cached unread count for a thread the server has just confirmed
+  /// read. Without it the cached badge would keep showing the pre-read count
+  /// until the next successful list fetch — which, offline, may be a while.
+  Future<void> clearCachedUnread(String conversationId);
+
   // ── Outbox (durable pending sends) ──
   Future<void> enqueuePending(PendingChatSend send);
   Future<void> dequeuePending(String idempotencyKey);
@@ -132,10 +137,14 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
             createdAtMs: _ms(s.createdAt),
             lastMessageAtMs: Value(
                 s.lastMessageAt == null ? null : _ms(s.lastMessageAt!)),
+            unreadCount: Value(s.unreadCount),
             syncedAtMs: Value(_ms(DateTime.now())),
           ),
           // Preserve locally-derived fields (myUserId, nextCursor) that the
           // list endpoint doesn't carry, by only overwriting list-owned columns.
+          // `unreadCount` IS list-owned and server-authoritative, so it is
+          // refreshed here — that is what makes a cold/offline paint show the
+          // real badge rather than zero.
           onConflict: DoUpdate(
             (old) => ChatConversationRowsCompanion(
               participantIds: Value(jsonEncode(s.participantIds)),
@@ -144,6 +153,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
               createdAtMs: Value(_ms(s.createdAt)),
               lastMessageAtMs: Value(
                   s.lastMessageAt == null ? null : _ms(s.lastMessageAt!)),
+              unreadCount: Value(s.unreadCount),
               syncedAtMs: Value(_ms(DateTime.now())),
             ),
           ),
@@ -191,6 +201,7 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
         createdAt: _date(row.createdAtMs),
         lastMessageAt:
             row.lastMessageAtMs == null ? null : _date(row.lastMessageAtMs!),
+        unreadCount: row.unreadCount,
       );
 
   // ─── Messages ─────────────────────────────────────────────────────────
@@ -368,6 +379,13 @@ class ChatLocalDataSourceImpl implements ChatLocalDataSource {
       myUserId: Value(myUserId),
       nextCursor: Value(nextCursor),
     ));
+  }
+
+  @override
+  Future<void> clearCachedUnread(String conversationId) async {
+    await (_db.update(_db.chatConversationRows)
+          ..where((c) => c.id.equals(conversationId)))
+        .write(const ChatConversationRowsCompanion(unreadCount: Value(0)));
   }
 
   @override

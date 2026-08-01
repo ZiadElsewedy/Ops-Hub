@@ -124,12 +124,39 @@ class TaskOutcomes {
   }
 }
 
+/// The amount by which finished work missed its deadline, or null when the
+/// task is not finished, has no deadline, or was delivered on time.
+///
+/// Finish moment is `submittedAt` (falling back to `approvedAt`) against
+/// `deadline` — the same pair [taskOutcomes] measures its Approved-only
+/// timeliness split from (§10.4), so the two can never drift apart.
+///
+/// Scoped to every status that carries a finish timestamp —
+/// [TaskStatus.completed], [TaskStatus.waitingReview] and
+/// [TaskStatus.approved] — so a task reads late from the moment it is
+/// submitted, without waiting on a manager's review. [TaskStatus.missed] is a
+/// separate outcome and never late; [TaskStatus.cancelled] counts nowhere
+/// (§8). Either timestamp missing → null — guessing would invent a signal.
+Duration? taskLateness(TaskEntity t) {
+  final tracksFinish = switch (t.status) {
+    TaskStatus.completed || TaskStatus.waitingReview || TaskStatus.approved =>
+      true,
+    _ => false,
+  };
+  if (!tracksFinish) return null;
+  final finished = t.submittedAt ?? t.approvedAt;
+  final due = t.deadline;
+  if (finished == null || due == null) return null;
+  if (!finished.isAfter(due)) return null;
+  return finished.difference(due);
+}
+
 /// Derives the four-way classification over [tasks].
 ///
-/// Lateness is measured from the timestamps already on the record — the moment
-/// the employee submitted (`submittedAt`, falling back to `approvedAt`) against
-/// `deadline`. That is the whole reason a *Completed Late* status was rejected:
-/// the data was always there.
+/// Lateness is measured from the timestamps already on the record via
+/// [taskLateness] — the moment the employee submitted (`submittedAt`, falling
+/// back to `approvedAt`) against `deadline`. That is the whole reason a
+/// *Completed Late* status was rejected: the data was always there.
 ///
 /// A cancelled task with an unrecognised reason code still counts under
 /// [TaskCancelReason.unknown] rather than vanishing — a cancellation written by
@@ -155,9 +182,10 @@ TaskOutcomes taskOutcomes(Iterable<TaskEntity> tasks) {
           // invent a signal. Not counted on either side of the timeliness split.
           break;
         }
-        if (finished.isAfter(due)) {
+        final lateness = taskLateness(t);
+        if (lateness != null) {
           late++;
-          latenessMinutes += finished.difference(due).inMinutes;
+          latenessMinutes += lateness.inMinutes;
         } else {
           onTime++;
         }

@@ -96,6 +96,18 @@ class $ChatConversationRowsTable extends ChatConversationRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _unreadCountMeta = const VerificationMeta(
+    'unreadCount',
+  );
+  @override
+  late final GeneratedColumn<int> unreadCount = GeneratedColumn<int>(
+    'unread_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _syncedAtMsMeta = const VerificationMeta(
     'syncedAtMs',
   );
@@ -118,6 +130,7 @@ class $ChatConversationRowsTable extends ChatConversationRows
     lastMessageAtMs,
     myUserId,
     nextCursor,
+    unreadCount,
     syncedAtMs,
   ];
   @override
@@ -198,6 +211,15 @@ class $ChatConversationRowsTable extends ChatConversationRows
         nextCursor.isAcceptableOrUnknown(data['next_cursor']!, _nextCursorMeta),
       );
     }
+    if (data.containsKey('unread_count')) {
+      context.handle(
+        _unreadCountMeta,
+        unreadCount.isAcceptableOrUnknown(
+          data['unread_count']!,
+          _unreadCountMeta,
+        ),
+      );
+    }
     if (data.containsKey('synced_at_ms')) {
       context.handle(
         _syncedAtMsMeta,
@@ -248,6 +270,10 @@ class $ChatConversationRowsTable extends ChatConversationRows
         DriftSqlType.string,
         data['${effectivePrefix}next_cursor'],
       ),
+      unreadCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}unread_count'],
+      )!,
       syncedAtMs: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}synced_at_ms'],
@@ -286,6 +312,11 @@ class ChatConversationRow extends DataClass
   /// Lets an online scroll-back continue from where the cache ends.
   final String? nextCursor;
 
+  /// Server-authoritative unread count for the requester, as last read from the
+  /// list endpoint. Cached so a cold or offline inbox paint shows the real badge
+  /// instead of silently reporting zero unread until the network answers.
+  final int unreadCount;
+
   /// Local wall-clock of the last merge into this row (ms). Cache-invalidation
   /// bookkeeping only; never shown.
   final int syncedAtMs;
@@ -298,6 +329,7 @@ class ChatConversationRow extends DataClass
     this.lastMessageAtMs,
     this.myUserId,
     this.nextCursor,
+    required this.unreadCount,
     required this.syncedAtMs,
   });
   @override
@@ -321,6 +353,7 @@ class ChatConversationRow extends DataClass
     if (!nullToAbsent || nextCursor != null) {
       map['next_cursor'] = Variable<String>(nextCursor);
     }
+    map['unread_count'] = Variable<int>(unreadCount);
     map['synced_at_ms'] = Variable<int>(syncedAtMs);
     return map;
   }
@@ -345,6 +378,7 @@ class ChatConversationRow extends DataClass
       nextCursor: nextCursor == null && nullToAbsent
           ? const Value.absent()
           : Value(nextCursor),
+      unreadCount: Value(unreadCount),
       syncedAtMs: Value(syncedAtMs),
     );
   }
@@ -367,6 +401,7 @@ class ChatConversationRow extends DataClass
       lastMessageAtMs: serializer.fromJson<int?>(json['lastMessageAtMs']),
       myUserId: serializer.fromJson<String?>(json['myUserId']),
       nextCursor: serializer.fromJson<String?>(json['nextCursor']),
+      unreadCount: serializer.fromJson<int>(json['unreadCount']),
       syncedAtMs: serializer.fromJson<int>(json['syncedAtMs']),
     );
   }
@@ -384,6 +419,7 @@ class ChatConversationRow extends DataClass
       'lastMessageAtMs': serializer.toJson<int?>(lastMessageAtMs),
       'myUserId': serializer.toJson<String?>(myUserId),
       'nextCursor': serializer.toJson<String?>(nextCursor),
+      'unreadCount': serializer.toJson<int>(unreadCount),
       'syncedAtMs': serializer.toJson<int>(syncedAtMs),
     };
   }
@@ -397,6 +433,7 @@ class ChatConversationRow extends DataClass
     Value<int?> lastMessageAtMs = const Value.absent(),
     Value<String?> myUserId = const Value.absent(),
     Value<String?> nextCursor = const Value.absent(),
+    int? unreadCount,
     int? syncedAtMs,
   }) => ChatConversationRow(
     id: id ?? this.id,
@@ -413,6 +450,7 @@ class ChatConversationRow extends DataClass
         : this.lastMessageAtMs,
     myUserId: myUserId.present ? myUserId.value : this.myUserId,
     nextCursor: nextCursor.present ? nextCursor.value : this.nextCursor,
+    unreadCount: unreadCount ?? this.unreadCount,
     syncedAtMs: syncedAtMs ?? this.syncedAtMs,
   );
   ChatConversationRow copyWithCompanion(ChatConversationRowsCompanion data) {
@@ -437,6 +475,9 @@ class ChatConversationRow extends DataClass
       nextCursor: data.nextCursor.present
           ? data.nextCursor.value
           : this.nextCursor,
+      unreadCount: data.unreadCount.present
+          ? data.unreadCount.value
+          : this.unreadCount,
       syncedAtMs: data.syncedAtMs.present
           ? data.syncedAtMs.value
           : this.syncedAtMs,
@@ -454,6 +495,7 @@ class ChatConversationRow extends DataClass
           ..write('lastMessageAtMs: $lastMessageAtMs, ')
           ..write('myUserId: $myUserId, ')
           ..write('nextCursor: $nextCursor, ')
+          ..write('unreadCount: $unreadCount, ')
           ..write('syncedAtMs: $syncedAtMs')
           ..write(')'))
         .toString();
@@ -469,6 +511,7 @@ class ChatConversationRow extends DataClass
     lastMessageAtMs,
     myUserId,
     nextCursor,
+    unreadCount,
     syncedAtMs,
   );
   @override
@@ -483,6 +526,7 @@ class ChatConversationRow extends DataClass
           other.lastMessageAtMs == this.lastMessageAtMs &&
           other.myUserId == this.myUserId &&
           other.nextCursor == this.nextCursor &&
+          other.unreadCount == this.unreadCount &&
           other.syncedAtMs == this.syncedAtMs);
 }
 
@@ -496,6 +540,7 @@ class ChatConversationRowsCompanion
   final Value<int?> lastMessageAtMs;
   final Value<String?> myUserId;
   final Value<String?> nextCursor;
+  final Value<int> unreadCount;
   final Value<int> syncedAtMs;
   final Value<int> rowid;
   const ChatConversationRowsCompanion({
@@ -507,6 +552,7 @@ class ChatConversationRowsCompanion
     this.lastMessageAtMs = const Value.absent(),
     this.myUserId = const Value.absent(),
     this.nextCursor = const Value.absent(),
+    this.unreadCount = const Value.absent(),
     this.syncedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -519,6 +565,7 @@ class ChatConversationRowsCompanion
     this.lastMessageAtMs = const Value.absent(),
     this.myUserId = const Value.absent(),
     this.nextCursor = const Value.absent(),
+    this.unreadCount = const Value.absent(),
     this.syncedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -533,6 +580,7 @@ class ChatConversationRowsCompanion
     Expression<int>? lastMessageAtMs,
     Expression<String>? myUserId,
     Expression<String>? nextCursor,
+    Expression<int>? unreadCount,
     Expression<int>? syncedAtMs,
     Expression<int>? rowid,
   }) {
@@ -546,6 +594,7 @@ class ChatConversationRowsCompanion
       if (lastMessageAtMs != null) 'last_message_at_ms': lastMessageAtMs,
       if (myUserId != null) 'my_user_id': myUserId,
       if (nextCursor != null) 'next_cursor': nextCursor,
+      if (unreadCount != null) 'unread_count': unreadCount,
       if (syncedAtMs != null) 'synced_at_ms': syncedAtMs,
       if (rowid != null) 'rowid': rowid,
     });
@@ -560,6 +609,7 @@ class ChatConversationRowsCompanion
     Value<int?>? lastMessageAtMs,
     Value<String?>? myUserId,
     Value<String?>? nextCursor,
+    Value<int>? unreadCount,
     Value<int>? syncedAtMs,
     Value<int>? rowid,
   }) {
@@ -573,6 +623,7 @@ class ChatConversationRowsCompanion
       lastMessageAtMs: lastMessageAtMs ?? this.lastMessageAtMs,
       myUserId: myUserId ?? this.myUserId,
       nextCursor: nextCursor ?? this.nextCursor,
+      unreadCount: unreadCount ?? this.unreadCount,
       syncedAtMs: syncedAtMs ?? this.syncedAtMs,
       rowid: rowid ?? this.rowid,
     );
@@ -607,6 +658,9 @@ class ChatConversationRowsCompanion
     if (nextCursor.present) {
       map['next_cursor'] = Variable<String>(nextCursor.value);
     }
+    if (unreadCount.present) {
+      map['unread_count'] = Variable<int>(unreadCount.value);
+    }
     if (syncedAtMs.present) {
       map['synced_at_ms'] = Variable<int>(syncedAtMs.value);
     }
@@ -627,6 +681,7 @@ class ChatConversationRowsCompanion
           ..write('lastMessageAtMs: $lastMessageAtMs, ')
           ..write('myUserId: $myUserId, ')
           ..write('nextCursor: $nextCursor, ')
+          ..write('unreadCount: $unreadCount, ')
           ..write('syncedAtMs: $syncedAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2247,6 +2302,7 @@ typedef $$ChatConversationRowsTableCreateCompanionBuilder =
       Value<int?> lastMessageAtMs,
       Value<String?> myUserId,
       Value<String?> nextCursor,
+      Value<int> unreadCount,
       Value<int> syncedAtMs,
       Value<int> rowid,
     });
@@ -2260,6 +2316,7 @@ typedef $$ChatConversationRowsTableUpdateCompanionBuilder =
       Value<int?> lastMessageAtMs,
       Value<String?> myUserId,
       Value<String?> nextCursor,
+      Value<int> unreadCount,
       Value<int> syncedAtMs,
       Value<int> rowid,
     });
@@ -2310,6 +2367,11 @@ class $$ChatConversationRowsTableFilterComposer
 
   ColumnFilters<String> get nextCursor => $composableBuilder(
     column: $table.nextCursor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get unreadCount => $composableBuilder(
+    column: $table.unreadCount,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2368,6 +2430,11 @@ class $$ChatConversationRowsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get unreadCount => $composableBuilder(
+    column: $table.unreadCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get syncedAtMs => $composableBuilder(
     column: $table.syncedAtMs,
     builder: (column) => ColumnOrderings(column),
@@ -2416,6 +2483,11 @@ class $$ChatConversationRowsTableAnnotationComposer
 
   GeneratedColumn<String> get nextCursor => $composableBuilder(
     column: $table.nextCursor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get unreadCount => $composableBuilder(
+    column: $table.unreadCount,
     builder: (column) => column,
   );
 
@@ -2476,6 +2548,7 @@ class $$ChatConversationRowsTableTableManager
                 Value<int?> lastMessageAtMs = const Value.absent(),
                 Value<String?> myUserId = const Value.absent(),
                 Value<String?> nextCursor = const Value.absent(),
+                Value<int> unreadCount = const Value.absent(),
                 Value<int> syncedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChatConversationRowsCompanion(
@@ -2487,6 +2560,7 @@ class $$ChatConversationRowsTableTableManager
                 lastMessageAtMs: lastMessageAtMs,
                 myUserId: myUserId,
                 nextCursor: nextCursor,
+                unreadCount: unreadCount,
                 syncedAtMs: syncedAtMs,
                 rowid: rowid,
               ),
@@ -2500,6 +2574,7 @@ class $$ChatConversationRowsTableTableManager
                 Value<int?> lastMessageAtMs = const Value.absent(),
                 Value<String?> myUserId = const Value.absent(),
                 Value<String?> nextCursor = const Value.absent(),
+                Value<int> unreadCount = const Value.absent(),
                 Value<int> syncedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChatConversationRowsCompanion.insert(
@@ -2511,6 +2586,7 @@ class $$ChatConversationRowsTableTableManager
                 lastMessageAtMs: lastMessageAtMs,
                 myUserId: myUserId,
                 nextCursor: nextCursor,
+                unreadCount: unreadCount,
                 syncedAtMs: syncedAtMs,
                 rowid: rowid,
               ),

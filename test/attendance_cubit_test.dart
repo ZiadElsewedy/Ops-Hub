@@ -16,7 +16,6 @@ import 'package:drop/features/attendance/domain/attendance_location.dart';
 import 'package:drop/features/attendance/domain/attendance_location_service.dart';
 import 'package:drop/features/attendance/domain/attendance_resolution.dart';
 import 'package:drop/features/attendance/domain/attendance_service.dart';
-import 'package:drop/features/attendance/domain/attendance_validation.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
@@ -332,16 +331,64 @@ void main() {
     await cubit.close();
   });
 
-  test('clockIn with no rostered shift is blocked', () async {
+  test('clockIn does nothing with no rostered shift — there is no shift to '
+      'clock into', () async {
     final cubit = build(noSchedule: true); // getSchedule → null
     await cubit.load(user);
     repo.pushHistory([]);
     await pump();
 
-    expect(cubit.clockInCheck.reason, AttendanceBlock.noActiveShift);
+    // Eligibility no longer blocks (ADR-018), but the *scheduled* clock-in path
+    // still has no target: starting an unscheduled shift is its own deliberate
+    // action, never something the primary button falls through to.
+    expect(cubit.clockInCheck.allowed, isTrue);
     await cubit.clockIn();
     expect(repo.clockedIn, isEmpty);
     await cubit.close();
+  });
+
+  group('unscheduled shift (ADR-018)', () {
+    test('records a GPS-verified punch with no scheduled window', () async {
+      final cubit = build(noSchedule: true);
+      await cubit.load(user);
+      repo.pushHistory([]);
+      await pump();
+
+      final ok = await cubit.clockInUnscheduled(reason: 'Covering for Sara');
+
+      expect(ok, isTrue);
+      expect(repo.clockedIn, hasLength(1));
+      final written = repo.clockedIn.single;
+      // The absence of a scheduled window is what marks it unscheduled
+      // everywhere downstream.
+      expect(written.scheduledStart, isNull);
+      expect(written.scheduledEnd, isNull);
+      expect(written.notes, 'Covering for Sara');
+      expect(written.clockInVerification, isNotNull);
+      await cubit.close();
+    });
+
+    test('a reason is mandatory', () async {
+      final cubit = build(noSchedule: true);
+      await cubit.load(user);
+      repo.pushHistory([]);
+      await pump();
+
+      expect(await cubit.clockInUnscheduled(reason: '   '), isFalse);
+      expect(repo.clockedIn, isEmpty);
+      await cubit.close();
+    });
+
+    test('refused when the person already has a rostered shift', () async {
+      final cubit = build(); // normal roster
+      await cubit.load(user);
+      repo.pushHistory([]);
+      await pump();
+
+      expect(await cubit.clockInUnscheduled(reason: 'Extra hours'), isFalse);
+      expect(repo.clockedIn, isEmpty);
+      await cubit.close();
+    });
   });
 
   test('clockOut finalizes with computed totals', () async {

@@ -3,7 +3,11 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const {
+  BUSINESS_TIME_ZONE,
   TASK_GRACE_MINUTES,
+  businessCivilMidnightMs,
+  businessDayParts,
+  businessWeekStartKey,
   isTerminalTaskStatus,
   missedEvaluationMs,
   selectMissedNotifyTargets,
@@ -20,7 +24,46 @@ function schedule(overrides = {}) {
   return { weekStart: { toMillis: () => WEEK_START }, ...overrides };
 }
 
-test("morning window anchors to the persisted schedule weekStart instant", () => {
+test("business day parts use the Cairo civil date, not the UTC date", () => {
+  assert.strictEqual(BUSINESS_TIME_ZONE, "Africa/Cairo");
+  assert.deepStrictEqual(
+    businessDayParts(Date.parse("2026-07-30T22:30:00Z")),
+    {
+      year: 2026,
+      month: 7,
+      day: 31,
+      dateKey: "2026-07-31",
+      dayName: "friday",
+      isoWeekday: 5,
+    },
+  );
+});
+
+test("business civil midnight resolves Egypt standard time and DST", () => {
+  assert.strictEqual(
+    businessCivilMidnightMs(2026, 1, 15),
+    Date.parse("2026-01-14T22:00:00Z"),
+    "standard time is UTC+02:00",
+  );
+  assert.strictEqual(
+    businessCivilMidnightMs(2026, 7, 15),
+    Date.parse("2026-07-14T21:00:00Z"),
+    "DST is UTC+03:00",
+  );
+});
+
+test("business week start key is Sunday-anchored", () => {
+  assert.strictEqual(
+    businessWeekStartKey(Date.parse("2026-07-30T22:30:00Z")),
+    "2026-07-26",
+  );
+  assert.strictEqual(
+    businessWeekStartKey(Date.parse("2026-07-26T00:30:00Z")),
+    "2026-07-26",
+  );
+});
+
+test("morning window anchors to the occurrence's business midnight", () => {
   const window = resolveRecurringTaskWindow({
     schedule: schedule(),
     occurrenceAt: Date.UTC(2026, 6, 19, 10),
@@ -97,7 +140,7 @@ test("hours precedence is override, then frozen shiftPlan, then standard", () =>
   assert.strictEqual(fromPlan.source, "shiftPlan");
 });
 
-test("missing schedule falls back to the UTC occurrence day and current standard", () => {
+test("missing schedule falls back to the business occurrence day and current standard", () => {
   const window = resolveRecurringTaskWindow({
     occurrenceAt: Date.UTC(2026, 6, 20, 12), // Monday
     shift: "night",
@@ -105,9 +148,41 @@ test("missing schedule falls back to the UTC occurrence day and current standard
 
   assert.deepStrictEqual(window.hours, { startMinutes: 900, endMinutes: 1380 });
   assert.strictEqual(window.source, "standard");
-  assert.strictEqual(window.instanceDateMs, Date.UTC(2026, 6, 20));
-  assert.strictEqual(window.startsAtMs, Date.UTC(2026, 6, 20, 15));
-  assert.strictEqual(window.deadlineMs, Date.UTC(2026, 6, 20, 23));
+  assert.strictEqual(window.instanceDateMs, Date.parse("2026-07-19T21:00:00Z"));
+  assert.strictEqual(window.startsAtMs, Date.parse("2026-07-20T12:00:00Z"));
+  assert.strictEqual(window.deadlineMs, Date.parse("2026-07-20T20:00:00Z"));
+});
+
+test("window midnight is not shifted by a DST transition earlier in the week", () => {
+  const standardWeekStart = Date.parse("2026-04-18T22:00:00Z"); // Sun 00:00 UTC+02
+  const window = resolveRecurringTaskWindow({
+    schedule: schedule({ weekStart: { toMillis: () => standardWeekStart } }),
+    occurrenceAt: Date.parse("2026-04-25T10:00:00Z"),
+    day: "saturday",
+    shift: "morning",
+  });
+
+  assert.strictEqual(window.instanceDateMs, Date.parse("2026-04-24T21:00:00Z"));
+  assert.strictEqual(window.startsAtMs, Date.parse("2026-04-25T05:30:00Z"));
+  assert.strictEqual(window.deadlineMs, Date.parse("2026-04-25T13:30:00Z"));
+});
+
+test("window start and deadline keep wall-clock time on DST transition days", () => {
+  const spring = resolveRecurringTaskWindow({
+    occurrenceAt: Date.parse("2026-04-24T10:00:00Z"),
+    day: "friday",
+    shift: "morning",
+  });
+  assert.strictEqual(spring.startsAtMs, Date.parse("2026-04-24T05:30:00Z"));
+  assert.strictEqual(spring.deadlineMs, Date.parse("2026-04-24T13:30:00Z"));
+
+  const fall = resolveRecurringTaskWindow({
+    occurrenceAt: Date.parse("2026-10-29T10:00:00Z"),
+    day: "thursday",
+    shift: "night",
+  });
+  assert.strictEqual(fall.startsAtMs, Date.parse("2026-10-29T13:00:00Z"));
+  assert.strictEqual(fall.deadlineMs, Date.parse("2026-10-29T22:00:00Z"));
 });
 
 test("auto-end eligibility only allows live generated pending/started tasks at deadline", () => {

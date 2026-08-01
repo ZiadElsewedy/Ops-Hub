@@ -61,18 +61,32 @@ const REQUESTS = "requests";
 const COUNTERS = "counters";
 const ATTENDANCE = "attendance";
 const ATTENDANCE_CORRECTIONS = "attendance_corrections";
+const ATTENDANCE_EXPECTATIONS = "attendance_expectations";
 
 // Auto-close grace — mirrors AttendanceConfig.defaults.autoCloseGraceMinutes on
 // the client (the single knob until per-branch attendance config lands).
-const ATTENDANCE_AUTO_CLOSE_GRACE_MINUTES = 120;
-
-// Max session cap (R7 safety net) — mirrors AttendanceConfig.defaults.maxSessionMinutes.
-const ATTENDANCE_MAX_SESSION_MINUTES = 16 * 60;
-
 // The pure auto-close decision (unit-tested in test/auto_close.test.js).
 const { isAutoCloseDue } = require("./attendance_auto_close");
 const {
+  AUTO_CLOSE_GRACE_MINUTES,
+  businessDaysToSweep,
+  buildExpectedShiftRows,
+  expectationInputsChanged,
+  isSlotClosable,
+  summarizeRows,
+  weekStartInfoForBusinessDay,
+} = require("./attendance_expectation");
+
+const ATTENDANCE_AUTO_CLOSE_GRACE_MINUTES = AUTO_CLOSE_GRACE_MINUTES;
+
+// Max session cap (R7 safety net) — mirrors AttendanceConfig.defaults.maxSessionMinutes.
+const ATTENDANCE_MAX_SESSION_MINUTES = 16 * 60;
+const {
+  BUSINESS_TIME_ZONE,
   TASK_GRACE_MS,
+  businessCivilMidnightMs,
+  businessDayParts,
+  businessWeekStartKey,
   isTerminalTaskStatus,
   resolveRecurringTaskWindow,
   selectMissedNotifyTargets,
@@ -1435,8 +1449,8 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
     if (!kind) continue;
 
     const type = kind === "overdue" ? "taskOverdue" : "taskReminder";
-    const title = kind === "overdue" ? "Task Overdue" : "Task Reminder";
-    const dueLabel = kind === "overdue" ? "is overdue" : "is due soon";
+    const title = kind === "overdue" ? "Task Late" : "Task Reminder";
+    const dueLabel = kind === "overdue" ? "is late" : "is due soon";
     const body = `${t.title || "A task"} ${dueLabel}`;
     const payload = { taskId: doc.id, route: "task_details", kind };
 
@@ -1477,37 +1491,43 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
 
 // ── Recurring shift-task instance generation (Shift Assignment feature) ──
 
-// yyyy-MM-dd in UTC (a Cloud Function has no per-branch local time, so UTC is
-// the deterministic convention — mirrors ScheduleWeek's date-key format).
+// Automation date helpers. "Today" is the business civil day in Africa/Cairo
+// (Automated Tasks spec §12.2), not the Cloud Function host's UTC calendar.
 function isoDate(d) {
+  return businessDayParts(d).dateKey;
+}
+
+// 1 = Monday … 7 = Sunday (matches RecurringTaskTemplateEntity.weekday /
+// Dart's DateTime.weekday convention).
+function isoWeekday(d) {
+  return businessDayParts(d).isoWeekday;
+}
+
+// weekly_schedules.assignments.<day> key spelling — matches SWAP_DAY_INDEX.
+function scheduleDayName(d) {
+  return businessDayParts(d).dayName;
+}
+
+// The Sunday that starts the business week containing d, as a
+// yyyy-MM-dd key — mirrors ScheduleWeek.startOf/docId (`<branchId>_<key>`).
+function weekStartKey(d) {
+  return businessWeekStartKey(d);
+}
+
+function legacyUtcDateKey(d) {
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");
   const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
-// 1 = Monday … 7 = Sunday (matches RecurringTaskTemplateEntity.weekday /
-// Dart's DateTime.weekday convention).
-function isoWeekday(d) {
-  const jsDay = d.getUTCDay(); // 0 = Sunday … 6 = Saturday
-  return jsDay === 0 ? 7 : jsDay;
-}
-
-// weekly_schedules.assignments.<day> key spelling — matches SWAP_DAY_INDEX.
-const SCHEDULE_DAY_NAMES = [
-  "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
-];
-function scheduleDayName(d) {
-  return SCHEDULE_DAY_NAMES[d.getUTCDay()];
-}
-
-// The Sunday (UTC midnight) that starts the week containing d, as a
-// yyyy-MM-dd key — mirrors ScheduleWeek.startOf/docId (`<branchId>_<key>`).
-function weekStartKey(d) {
-  const sunday = new Date(Date.UTC(
-    d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - d.getUTCDay(),
-  ));
-  return isoDate(sunday);
+function addCivilDays(year, month, day, days) {
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
 }
 
 // True when a Firestore write failed because the document already exists — the
@@ -1546,18 +1566,32 @@ async function eligibleRecipients(scheduleData, dayName, shift) {
 }
 
 // Advisory next-run timestamp for a template's rollup (the Automation Center
-// shows it). Daily → tomorrow; weekly → the next date matching the ISO weekday.
+// shows it). Daily → tomorrow; weekly → the next matching business weekday.
 function computeNextRun(repeat, weekday, now) {
-  const d = new Date(now.getTime());
+  const today = businessDayParts(now);
+  if (!today) return admin.firestore.Timestamp.fromDate(now);
+  let next = today;
   if (repeat === "weekly") {
     for (let i = 0; i < 7; i++) {
-      d.setUTCDate(d.getUTCDate() + 1);
-      if (isoWeekday(d) === Number(weekday)) break;
+      const civil = addCivilDays(next.year, next.month, next.day, 1);
+      const midnightMs = businessCivilMidnightMs(civil.year, civil.month, civil.day);
+      if (midnightMs == null) return admin.firestore.Timestamp.fromDate(now);
+      next = businessDayParts(midnightMs);
+      if (next && next.isoWeekday === Number(weekday)) break;
     }
   } else {
-    d.setUTCDate(d.getUTCDate() + 1);
+    const civil = addCivilDays(today.year, today.month, today.day, 1);
+    const midnightMs = businessCivilMidnightMs(civil.year, civil.month, civil.day);
+    if (midnightMs == null) return admin.firestore.Timestamp.fromDate(now);
+    next = businessDayParts(midnightMs);
   }
-  return admin.firestore.Timestamp.fromDate(d);
+  const nextMidnightMs = next
+    ? businessCivilMidnightMs(next.year, next.month, next.day)
+    : null;
+  const runAtMs = nextMidnightMs != null
+    ? nextMidnightMs + 60 * 60 * 1000
+    : now.getTime();
+  return admin.firestore.Timestamp.fromMillis(runAtMs);
 }
 
 // Writes ONE business audit event to `audit_logs` as the "system" actor,
@@ -1587,8 +1621,10 @@ async function writeAutomationAudit(eventType, entityType, entityId, branchId, m
  * Daily instance generation for recurring shift-task templates (Shift
  * Assignment feature). Scans active `recurringTaskTemplates` and, for each one
  * due today (daily, or weekly matching today's ISO weekday), creates *one* real
- * `tasks/{id}` document at a **deterministic id** (`rt_{templateId}_{yyyy-MM-dd}`,
- * UTC). Duplicate prevention is an **atomic `ref.create()`** (throws
+ * `tasks/{id}` document at a **deterministic business-date id**
+ * (`rt_{templateId}_{yyyy-MM-dd}`, Africa/Cairo). It is pinned to 01:00
+ * Africa/Cairo so generation runs before the earliest shift starts. Duplicate
+ * prevention is an **atomic `ref.create()`** (throws
  * ALREADY_EXISTS → skip), so overlapping runs / scheduler retries can never
  * double-create or double-notify; `maxInstances:1` additionally prevents
  * overlap. Roster notifications go only to ELIGIBLE employees (rostered, not on
@@ -1600,7 +1636,13 @@ async function writeAutomationAudit(eventType, entityType, entityId, branchId, m
  * docs/design/AUTOMATION_ENGINE.md.
  */
 exports.generateShiftTaskInstances = onSchedule(
-  { schedule: "every 24 hours", maxInstances: 1, retryCount: 0, timeoutSeconds: 300 },
+  {
+    schedule: "0 1 * * *",
+    timeZone: BUSINESS_TIME_ZONE,
+    maxInstances: 1,
+    retryCount: 0,
+    timeoutSeconds: 300,
+  },
   async (event) => {
     const now = new Date();
     const todayKey = isoDate(now);
@@ -1631,6 +1673,8 @@ exports.generateShiftTaskInstances = onSchedule(
       if (!branchId) continue;
       const shift = t.shift === "night" ? "night" : "morning";
       const instanceId = `rt_${doc.id}_${todayKey}`;
+      const legacyTodayKey = legacyUtcDateKey(now);
+      const legacyInstanceId = `rt_${doc.id}_${legacyTodayKey}`;
       const runId = `${doc.id}_${todayKey}`;
       // Deterministic correlation id for this execution (§Correlation ID) —
       // stamped on the run, the generated task, its notifications and its audit
@@ -1729,103 +1773,123 @@ exports.generateShiftTaskInstances = onSchedule(
         });
 
         stage("generate");
+        // Temporary transition guard for the UTC-key → business-date-key
+        // convention change. If today's occurrence already exists under the
+        // legacy UTC-derived id, this business occurrence is already spent; skip
+        // exactly like an ALREADY_EXISTS on the new id. Delete once no live
+        // UTC-keyed generated instance can remain.
+        if (legacyTodayKey !== todayKey) {
+          const legacySnap = await db.collection(TASKS).doc(legacyInstanceId).get();
+          if (legacySnap.exists) {
+            status = "skipped";
+            outcome = "alreadyExists";
+            step(SEVERITY.info, "Skipped — task already generated for today", {
+              taskId: legacyInstanceId,
+              legacyUtcDateKey: legacyTodayKey,
+              businessDateKey: todayKey,
+              windowBackfilled: false,
+            });
+          }
+        }
         // Atomic create — the ENTIRE duplicate guarantee. `create()` rejects with
         // ALREADY_EXISTS if the deterministic id is already present (an overlapping
         // run / retry / the client materializer beat us), so we never double-create
         // and never double-notify.
-        try {
-          await ref.create({
-            id: instanceId,
-            title: t.title || "",
-            description: t.description || null,
-            type: "daily",
-            status: "pending",
-            priority: t.priority || "normal",
-            branchId,
-            assigneeIds: [],
-            assignedEmployeeId: null,
-            checklist,
-            referenceAttachments: [],
-            createdBy: t.createdBy || null,
-            assignedShiftId: null,
-            shift,
-            assignmentType: "shift",
-            instanceDate: admin.firestore.Timestamp.fromMillis(taskWindow.instanceDateMs),
-            sourceTemplateId: doc.id,
-            correlationId: runCorrelationId,
-            startsAt: admin.firestore.Timestamp.fromMillis(taskWindow.startsAtMs),
-            deadline: admin.firestore.Timestamp.fromMillis(taskWindow.deadlineMs),
-            missedAt: null,
-            notes: null,
-            proofImageUrl: null,
-            startedAt: null,
-            submittedAt: null,
-            approvedBy: null,
-            approvedAt: null,
-            rejectedBy: null,
-            rejectedAt: null,
-            reviewNotes: null,
-            revisionNumber: 0,
-            requiresRework: false,
-            rejectionReason: null,
-            recurrence: null,
-            activityLog: [
-              {
-                status: "pending",
-                actorId: "system",
-                actorName: null,
-                at: admin.firestore.Timestamp.fromDate(now),
-                note: "Auto-generated (recurring shift task)",
-                attachments: [],
-              },
-            ],
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          generatedTaskId = instanceId;
-          created++;
-          step(SEVERITY.info, "Task generated", { taskId: instanceId });
-        } catch (createErr) {
-          if (isAlreadyExists(createErr)) {
-            status = "skipped";
-            outcome = "alreadyExists";
-            // A pre-deployment app may have materialized this deterministic
-            // instance without a deadline before the server run reached it.
-            // Repair only missing window fields, transactionally, and never
-            // overwrite a window already persisted for the occurrence.
-            //
-            // A TERMINAL instance is never touched — "no retry, regeneration or
-            // repair may recreate, reopen, or overwrite it" (spec §4.4). Giving
-            // an already-cancelled (or approved / missed) task a fresh deadline
-            // would put a closed record back on the auto-end sweep's radar and
-            // rewrite history nobody asked to change.
-            let windowBackfilled = false;
-            await db.runTransaction(async (tx) => {
-              const existing = await tx.get(ref);
-              if (!existing.exists) return;
-              const existingTask = existing.data() || {};
-              if (
-                existingTask.sourceTemplateId !== doc.id ||
-                existingTask.assignmentType !== "shift" ||
-                existingTask.deadline != null ||
-                isTerminalTaskStatus(existingTask.status)
-              ) {
-                return;
-              }
-              tx.update(ref, {
-                instanceDate: admin.firestore.Timestamp.fromMillis(taskWindow.instanceDateMs),
-                startsAt: admin.firestore.Timestamp.fromMillis(taskWindow.startsAtMs),
-                deadline: admin.firestore.Timestamp.fromMillis(taskWindow.deadlineMs),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        if (outcome !== "alreadyExists") {
+          try {
+            await ref.create({
+              id: instanceId,
+              title: t.title || "",
+              description: t.description || null,
+              type: "daily",
+              status: "pending",
+              priority: t.priority || "normal",
+              branchId,
+              assigneeIds: [],
+              assignedEmployeeId: null,
+              checklist,
+              referenceAttachments: [],
+              createdBy: t.createdBy || null,
+              assignedShiftId: null,
+              shift,
+              assignmentType: "shift",
+              instanceDate: admin.firestore.Timestamp.fromMillis(taskWindow.instanceDateMs),
+              sourceTemplateId: doc.id,
+              correlationId: runCorrelationId,
+              startsAt: admin.firestore.Timestamp.fromMillis(taskWindow.startsAtMs),
+              deadline: admin.firestore.Timestamp.fromMillis(taskWindow.deadlineMs),
+              missedAt: null,
+              notes: null,
+              proofImageUrl: null,
+              startedAt: null,
+              submittedAt: null,
+              approvedBy: null,
+              approvedAt: null,
+              rejectedBy: null,
+              rejectedAt: null,
+              reviewNotes: null,
+              revisionNumber: 0,
+              requiresRework: false,
+              rejectionReason: null,
+              recurrence: null,
+              activityLog: [
+                {
+                  status: "pending",
+                  actorId: "system",
+                  actorName: null,
+                  at: admin.firestore.Timestamp.fromDate(now),
+                  note: "Auto-generated (recurring shift task)",
+                  attachments: [],
+                },
+              ],
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            generatedTaskId = instanceId;
+            created++;
+            step(SEVERITY.info, "Task generated", { taskId: instanceId });
+          } catch (createErr) {
+            if (isAlreadyExists(createErr)) {
+              status = "skipped";
+              outcome = "alreadyExists";
+              // A pre-deployment app may have materialized this deterministic
+              // instance without a deadline before the server run reached it.
+              // Repair only missing window fields, transactionally, and never
+              // overwrite a window already persisted for the occurrence.
+              //
+              // A TERMINAL instance is never touched — "no retry, regeneration or
+              // repair may recreate, reopen, or overwrite it" (spec §4.4). Giving
+              // an already-cancelled (or approved / missed) task a fresh deadline
+              // would put a closed record back on the auto-end sweep's radar and
+              // rewrite history nobody asked to change.
+              let windowBackfilled = false;
+              await db.runTransaction(async (tx) => {
+                const existing = await tx.get(ref);
+                if (!existing.exists) return;
+                const existingTask = existing.data() || {};
+                if (
+                  existingTask.sourceTemplateId !== doc.id ||
+                  existingTask.assignmentType !== "shift" ||
+                  existingTask.deadline != null ||
+                  isTerminalTaskStatus(existingTask.status)
+                ) {
+                  return;
+                }
+                tx.update(ref, {
+                  instanceDate: admin.firestore.Timestamp.fromMillis(taskWindow.instanceDateMs),
+                  startsAt: admin.firestore.Timestamp.fromMillis(taskWindow.startsAtMs),
+                  deadline: admin.firestore.Timestamp.fromMillis(taskWindow.deadlineMs),
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                windowBackfilled = true;
               });
-              windowBackfilled = true;
-            });
-            step(SEVERITY.info, "Skipped — task already generated for today", {
-              taskId: instanceId,
-              windowBackfilled,
-            });
-          } else {
-            throw createErr;
+              step(SEVERITY.info, "Skipped — task already generated for today", {
+                taskId: instanceId,
+                windowBackfilled,
+              });
+            } else {
+              throw createErr;
+            }
           }
         }
 
@@ -1869,7 +1933,7 @@ exports.generateShiftTaskInstances = onSchedule(
               shift,
               branchId,
               branchName,
-              timezone: "UTC",
+              timezone: BUSINESS_TIME_ZONE,
               recipients,
             });
 
@@ -3629,6 +3693,274 @@ function tsMillis(v) {
   return v && typeof v.toMillis === "function" ? v.toMillis() : null;
 }
 
+function chunked(list, size) {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
+async function getAllRefs(refs) {
+  if (!refs.length) return [];
+  const out = [];
+  for (const slice of chunked(refs, 450)) {
+    out.push(...await db.getAll(...slice));
+  }
+  return out;
+}
+
+async function readSchedulesForBusinessDays(days) {
+  const weeks = new Map();
+  for (const day of days) {
+    const info = weekStartInfoForBusinessDay(day);
+    if (info) weeks.set(info.key, info);
+  }
+
+  const byWeek = new Map();
+  for (const info of weeks.values()) {
+    const snap = await db
+      .collection(WEEKLY_SCHEDULES)
+      .where("weekStart", "==", admin.firestore.Timestamp.fromMillis(info.weekStartMs))
+      .get();
+    byWeek.set(
+      info.key,
+      snap.docs.map((doc) => ({ id: doc.id, data: doc.data() || {} })),
+    );
+  }
+  return byWeek;
+}
+
+function candidateRowsForSchedules(days, schedulesByWeek, nowMs) {
+  const rows = [];
+  for (const day of days) {
+    const info = weekStartInfoForBusinessDay(day);
+    const schedules = info ? schedulesByWeek.get(info.key) || [] : [];
+    for (const sched of schedules) {
+      rows.push(...buildExpectedShiftRows({
+        schedule: { ...sched.data, id: sched.id },
+        businessDay: day,
+        nowMs,
+      }));
+    }
+  }
+  return rows;
+}
+
+async function readAttendanceRecordsById(rowIds) {
+  const refs = rowIds.map((id) => db.collection(ATTENDANCE).doc(id));
+  const snaps = await getAllRefs(refs);
+  const records = new Map();
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const data = snap.data() || {};
+    if (data.deletedAt) continue;
+    records.set(snap.id, { ...data, id: snap.id });
+  }
+  return records;
+}
+
+async function readOpenAttendanceCorrectionIds(rowIds) {
+  if (!rowIds.length) return new Set();
+  const open = new Set();
+  for (const ids of chunked(rowIds, 30)) {
+    const snap = await db
+      .collection(ATTENDANCE_CORRECTIONS)
+      .where("attendanceId", "in", ids)
+      .get();
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+      if (data.deletedAt) continue;
+      if (String(data.status || "pending") === "pending") {
+        const attendanceId = String(data.attendanceId || "");
+        if (attendanceId) open.add(attendanceId);
+      }
+    }
+  }
+  return open;
+}
+
+function groupRowsByClose(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = `${row.branchId}_${row.dayKey}_${row.shift}`;
+    const group = groups.get(key) || {
+      branchId: row.branchId,
+      dayKey: row.dayKey,
+      businessDate: row.businessDate,
+      shift: row.shift,
+      rows: [],
+    };
+    group.rows.push(row);
+    groups.set(key, group);
+  }
+  return groups;
+}
+
+function expectationAuditId(group) {
+  return `attendance_expectations_${group.branchId}_${group.dayKey}_${group.shift}`;
+}
+
+function expectationPayload(row, existing, serverTimestamp) {
+  const exists = !!existing;
+  const existingVersion = Number(existing && existing.version);
+  const changed = exists && expectationInputsChanged(row, existing);
+  const closedAt = existing && existing.closedAt ? existing.closedAt : serverTimestamp;
+  const version = exists
+    ? (changed ? (Number.isFinite(existingVersion) ? existingVersion + 1 : 2) :
+      (Number.isFinite(existingVersion) ? existingVersion : 1))
+    : 1;
+
+  return {
+    rowId: row.rowId,
+    userId: row.userId,
+    userName: row.userName,
+    branchId: row.branchId,
+    dayKey: row.dayKey,
+    businessDate: row.businessDate,
+    shift: row.shift,
+    scheduledStartAt: admin.firestore.Timestamp.fromMillis(row.scheduledStartAtMs),
+    scheduledEndAt: admin.firestore.Timestamp.fromMillis(row.scheduledEndAtMs),
+    outcome: row.outcome,
+    expected: row.expected,
+    recordId: row.recordId,
+    leaveType: row.leaveType,
+    workedMinutes: row.workedMinutes,
+    lateMinutes: row.lateMinutes,
+    earlyLeaveMinutes: row.earlyLeaveMinutes,
+    overtimeMinutes: row.overtimeMinutes,
+    exceptionCodes: row.exceptionCodes,
+    ...(exists ? {} : { locked: false }),
+    version,
+    closedAt,
+    restatedAt: changed ? serverTimestamp : ((existing && existing.restatedAt) || null),
+    source: "system",
+    schemaVersion: row.schemaVersion,
+  };
+}
+
+async function commitAttendanceExpectationGroups(rows) {
+  const serverTimestamp = admin.firestore.FieldValue.serverTimestamp();
+  let created = 0;
+  let restated = 0;
+  let skipped = 0;
+  let locked = 0;
+  let audits = 0;
+
+  for (const group of groupRowsByClose(rows).values()) {
+    const rowRefs = group.rows.map((row) => db.collection(ATTENDANCE_EXPECTATIONS).doc(row.rowId));
+    const auditRef = db.collection(AUDIT_LOGS).doc(expectationAuditId(group));
+    const snaps = await getAllRefs([...rowRefs, auditRef]);
+    const auditSnap = snaps[snaps.length - 1];
+    const rowSnaps = snaps.slice(0, -1);
+
+    const writes = [];
+    for (let i = 0; i < group.rows.length; i++) {
+      const row = group.rows[i];
+      const snap = rowSnaps[i];
+      const existing = snap && snap.exists ? (snap.data() || {}) : null;
+      if (existing && existing.locked === true) {
+        locked++;
+        continue;
+      }
+      if (existing && existing.closedAt && !expectationInputsChanged(row, existing)) {
+        skipped++;
+        continue;
+      }
+      if (existing) restated++;
+      else created++;
+      writes.push({ ref: rowRefs[i], data: expectationPayload(row, existing, serverTimestamp) });
+    }
+
+    if (writes.length === 0) continue;
+
+    const batches = chunked(writes, 449);
+    for (let i = 0; i < batches.length; i++) {
+      const batch = db.batch();
+      for (const write of batches[i]) {
+        batch.set(write.ref, write.data, { merge: true });
+      }
+      if (i === 0 && !(auditSnap && auditSnap.exists)) {
+        const counts = summarizeRows(group.rows);
+        batch.set(auditRef, {
+          eventType: "attendance.expectations_closed",
+          entityType: "attendance_expectations",
+          entityId: `${group.branchId}_${group.dayKey}_${group.shift}`,
+          actorId: "system",
+          actorName: "Attendance Close",
+          actorRole: "admin",
+          branchId: group.branchId,
+          metadata: {
+            businessDate: group.businessDate,
+            dayKey: group.dayKey,
+            shift: group.shift,
+            counts,
+          },
+          schemaVersion: 1,
+          isDeleted: false,
+          timestamp: serverTimestamp,
+        });
+        audits++;
+      }
+      await batch.commit();
+    }
+  }
+
+  return { created, restated, skipped, locked, audits };
+}
+
+async function buildClosableAttendanceExpectationRows(nowMs) {
+  const days = businessDaysToSweep(nowMs);
+  if (!days.length) return [];
+  const schedulesByWeek = await readSchedulesForBusinessDays(days);
+  const candidates = candidateRowsForSchedules(days, schedulesByWeek, nowMs);
+  const closableCandidates = candidates.filter((row) =>
+    isSlotClosable(row, nowMs, AUTO_CLOSE_GRACE_MINUTES));
+  const rowIds = [...new Set(closableCandidates.map((row) => row.rowId))];
+  const closableUids = [...new Set(closableCandidates.map((row) => row.userId))];
+  const [recordsById, openCorrectionIds, namesByUid] = await Promise.all([
+    readAttendanceRecordsById(rowIds),
+    readOpenAttendanceCorrectionIds(rowIds),
+    readUserNamesByUid(closableUids),
+  ]);
+
+  const rows = [];
+  for (const day of days) {
+    const info = weekStartInfoForBusinessDay(day);
+    const schedules = info ? schedulesByWeek.get(info.key) || [] : [];
+    for (const sched of schedules) {
+      rows.push(...buildExpectedShiftRows({
+        schedule: { ...sched.data, id: sched.id },
+        businessDay: day,
+        recordsById,
+        openCorrectionIds,
+        namesByUid,
+        nowMs,
+      }).filter((row) => isSlotClosable(row, nowMs, AUTO_CLOSE_GRACE_MINUTES)));
+    }
+  }
+  return rows;
+}
+
+// Resolve display names for the uids a sweep is about to close. The roster
+// stores uids only and a phantom no-show has no attendance record, so without
+// this every absence row lands with a null `userName` and the report renders a
+// raw Firebase uid. Bounded by the closable slots in the swept week, batched
+// through the same `getAll` path as the record read.
+async function readUserNamesByUid(uids) {
+  if (!uids.length) return {};
+  const refs = uids.map((uid) => db.collection(USERS).doc(uid));
+  const snaps = await getAllRefs(refs);
+  const names = {};
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const data = snap.data() || {};
+    // Same precedence the client model uses: `displayName`, then the profile
+    // `fullName` key the same doc carries.
+    const name = String(data.displayName || data.fullName || "").trim();
+    if (name) names[snap.id] = name;
+  }
+  return names;
+}
+
 // Auto-close sessions the employee never clocked out of. A still-open session
 // (status inProgress, no clockOut) is flipped to `pendingReview` with source
 // `autoClose` — which onAttendanceWritten audits as `autoClosed` — when it is due
@@ -3687,3 +4019,98 @@ exports.autoCloseAttendance = onSchedule("every 30 minutes", async () => {
   }
   if (closed > 0) logger.info("autoCloseAttendance closed sessions", { closed });
 });
+
+/**
+ * Materializes the durable attendance-reporting denominator at slot close
+ * ([ADR-017](../docs/decisions/ADR-017-attendance-reporting-ledger.md)).
+ *
+ * WHY THIS EXISTS. A rostered no-show writes no `attendance` document (lazy
+ * Absent, deliberate — the live board derives it in memory). Reporting therefore
+ * had no durable denominator: aggregating only materialized records means
+ * absence can never grow and a show-up rate pins at ~100%. This sweep turns each
+ * expected roster slot into a persisted fact, including the **phantom** rows for
+ * slots nobody ever clocked.
+ *
+ * THE SWEEP. Every 30 minutes it resolves every `Africa/Cairo` business day from
+ * the current business week's Sunday through today, plus the previous business
+ * day for the Sunday boundary, then reads those business weeks'
+ * `weekly_schedules`, expands rostered slots, and keeps only slots already past
+ * `scheduledEnd + grace`. The window is intentionally capped at 8 days: wide
+ * enough to self-heal after a missed run or deploy delay so a rostered day never
+ * falls out of reach during its active week, but still bounded. Attendance
+ * documents are fetched with one `getAll` on deterministic ids — not a query per
+ * row — and pending corrections in chunked `attendanceId in (...)` reads, so
+ * cost is `O(branches × ≤8 days × shifts × staff)` with no unbounded scan.
+ *
+ * IDEMPOTENCY + RESTATEMENT. Each row id equals the attendance record's own
+ * deterministic id (`{uid}_{yyyyMMdd}_{shift}`), so a retry overwrites rather
+ * than duplicating, and joining to `attendance/{id}` needs no lookup. A row
+ * marked `locked` is never overwritten. A row whose inputs changed — typically
+ * an approved correction landing after close — is **restated**: same id, `version`
+ * incremented, `restatedAt` stamped. Values are never silently mutated, because a
+ * period may already have been exported to payroll.
+ *
+ * MINUTES ARE NOT RECOMPUTED HERE. Worked/late/early/overtime are copied from the
+ * record's persisted snapshot, which the single Flutter `AttendanceCalculator`
+ * produced. Two implementations in two languages would drift, and these minutes
+ * feed pay. An open session at close time therefore carries stale minutes plus a
+ * `missingPunch` code that blocks the close; the authoritative figures arrive when
+ * `autoCloseAttendance` or a correction closes the session, which restates the row.
+ *
+ * Time math is delegated entirely to `recurring_task_deadline.js`
+ * (`businessDayParts` / `businessCivilMidnightMs` / `resolveShiftHours`) — no Cairo
+ * offset or DST arithmetic is written here. Egypt observes DST, so a hand-rolled
+ * offset would be a silent one-hour payroll error twice a year. Overnight shifts
+ * (`endMinutes > 1440`) end on the next calendar day but belong to their
+ * scheduled-start business day.
+ *
+ * Writes are batched ≤450 ops and emit one deterministic `audit_logs` entry per
+ * (branch, businessDate, shift) close with the materialized counts, per
+ * [ADR-005](../docs/decisions/ADR-005-server-authoritative-writes.md). Clients may
+ * only ever read `attendance_expectations`; every client write is denied in
+ * `firestore.rules`.
+ *
+ * Requires the `(branchId, dayKey)` and `(userId, dayKey)` composites in
+ * `firestore.indexes.json` for the client read layer to query these rows.
+ */
+exports.closeAttendanceExpectations = onSchedule(
+  {
+    schedule: "every 30 minutes",
+    timeZone: BUSINESS_TIME_ZONE,
+    maxInstances: 1,
+    retryCount: 0,
+    timeoutSeconds: 540,
+  },
+  async () => {
+    const nowMs = Date.now();
+    let rows;
+    try {
+      rows = await buildClosableAttendanceExpectationRows(nowMs);
+    } catch (err) {
+      logger.error("attendance expectation close read failed", { error: String(err) });
+      return;
+    }
+
+    if (rows.length === 0) {
+      logger.info("attendance expectation close complete", {
+        rows: 0,
+        created: 0,
+        restated: 0,
+        skipped: 0,
+        locked: 0,
+        audits: 0,
+      });
+      return;
+    }
+
+    try {
+      const result = await commitAttendanceExpectationGroups(rows);
+      logger.info("attendance expectation close complete", {
+        rows: rows.length,
+        ...result,
+      });
+    } catch (err) {
+      logger.error("attendance expectation close write failed", { error: String(err) });
+    }
+  },
+);

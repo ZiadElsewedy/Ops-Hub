@@ -5,7 +5,8 @@ class AppConstants {
   static const String usersCollection = 'users';
   static const String tasksCollection = 'tasks';
   static const String taskTemplatesCollection = 'task_templates';
-  static const String recurringTaskTemplatesCollection = 'recurringTaskTemplates';
+  static const String recurringTaskTemplatesCollection =
+      'recurringTaskTemplates';
 
   /// Automation execution history (Automated Task Engine observability, ADR-011).
   /// One document per (template, day) at a deterministic id `{templateId}_{dateKey}`
@@ -36,13 +37,21 @@ class AppConstants {
   /// clock-in selfie in Storage at `attendance/{id}/selfie/{id}.<ext>`.
   static const String attendanceCollection = 'attendance';
 
+  /// Server-materialized attendance reporting ledger. One row per expected
+  /// `(user, business day, shift)` slot at the same deterministic id as the raw
+  /// attendance record. Read-only to clients; written by
+  /// `closeAttendanceExpectations`.
+  static const String attendanceExpectationsCollection =
+      'attendance_expectations';
+
   /// Attendance **correction requests** — an employee disputes/fixes a settled
   /// record (a missing clock-out, a wrong time, an absent flagged in error). A
   /// first-class approval object at `attendance_corrections/{id}` with a
   /// `Pending → Approved / Rejected` lifecycle (reuses `RequestStatus`); the
   /// approved resolution is applied to the parent `attendance/{id}` record — and
   /// the audit event written — **server-side** by `onAttendanceCorrectionWritten`.
-  static const String attendanceCorrectionsCollection = 'attendance_corrections';
+  static const String attendanceCorrectionsCollection =
+      'attendance_corrections';
 
   /// Immutable Event Tracking + Audit Log. One append-only document per important
   /// business action (`audit_logs/{id}`) — who did what, to which entity, when,

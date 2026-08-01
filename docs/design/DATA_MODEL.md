@@ -34,6 +34,7 @@ shift_swaps/{swapId}                     swap request between two employees
 
 attendance/{uid}_{yyyyMMdd}_{shift}      one record per person per shift per day
   └── events/{eventId}                   audit trail — ADMIN SDK ONLY, immutable
+attendance_expectations/{same id}        server-materialized expected slot row / no-show reporting fact (ADR-017); client reporting reads this ledger only
 attendance_corrections/{id}              Pending → Approved/Rejected approval object
 
 cases/{caseId}                           private conversation (NO creator uid on the doc)
@@ -67,9 +68,10 @@ Non-obvious and load-bearing. Each one buys idempotency for free.
 | Document | Id | Why |
 | --- | --- | --- |
 | `attendance/{id}` | `{uid}_{yyyyMMdd}_{shift}` | Clock-in is **idempotent and offline-safe** — a retry writes the same doc rather than a duplicate shift |
+| `attendance_expectations/{id}` | `{uid}_{yyyyMMdd}_{shift}` | Mirrors the attendance id so the close Function is idempotent and joins to `attendance/{id}` without a lookup |
 | `weekly_schedules/{id}` | `{branchId}_{Sunday-yyyy-MM-dd}` | One doc per branch-week; addressable without a query |
 | `shift_templates/{id}` | `{branchId}__{role}` | Direct lookup |
-| Recurring shift-task instance | `rt_{templateId}_{yyyy-MM-dd}` (UTC) | The id **is** the duplicate guard; each instance persists its resolved `startsAt` / `deadline` window |
+| Recurring shift-task instance | `rt_{templateId}_{yyyy-MM-dd}` (the `Africa/Cairo` business civil day — [ADR-015](../decisions/ADR-015-automation-business-timezone.md)) | The id **is** the duplicate guard; each instance persists its resolved `startsAt` / `deadline` window |
 | Recurrence respawn | `rec_{sourceTaskId}` | Fixed the reopen → re-approve duplicate-task bug |
 
 ## 3. The two privacy splits
@@ -110,6 +112,7 @@ claims; role and branch are read from the caller's own `users/{uid}` doc.
 | `tasks/{id}` | branch-reachable · assignee · shift-task-in-my-branch | branch-reachable (never `missed` / `missedAt`, never `cancelled` / cancel fields) | **admin**: `missed`\|`cancelled` → `pending` clearing the terminal evidence (the §6.4 correction) · branch-reachable (approved locked except admin reopen; missed + **cancelled** locked; → `cancelled` allowed only **from `pending`/`started`** with a picklist `cancelReason` + `cancelledAt`, and the cancel record is immutable outside that one transition) **or** assignee (can't reassign / move branch / forge review / set terminal **incl. `cancelled`**; may file an incorrect-task report **only under their own uid**, never over an open one and never clearing one; `activityLog` non-decreasing) | branch-reachable & not approved / missed / cancelled |
 | `attendance/{id}` | own · own-branch manager · admin | own | own (clock fields) · manager/admin | false |
 | `attendance/{id}/events` | whoever can read the record | **false** | **false** | **false** — Admin SDK only |
+| `attendance_expectations/{id}` | own · own-branch manager · admin | **false** | **false** | **false** — `closeAttendanceExpectations` only |
 | `attendance_corrections/{id}` | involved · manager · admin | employee (own) | reviewer — **self-approval forbidden** | false |
 | `weekly_schedules/{id}` | branch-reachable · branch employee | branch-reachable | branch-reachable | branch-reachable |
 | `shift_templates/{id}` | branch-reachable | admin · own-branch manager | same | same |
@@ -143,7 +146,7 @@ claims; role and branch are read from the caller's own `users/{uid}` doc.
 
 ## 5. Cloud Functions
 
-23 functions, all in `functions/index.js`. `dispatchBroadcast(params)` is shared by
+24 functions, all in `functions/index.js`. `dispatchBroadcast(params)` is shared by
 the callable and the scheduler.
 
 | Function | Trigger | Purpose |
@@ -164,6 +167,7 @@ the callable and the scheduler.
 | `onAttendanceWritten` | `onDocumentWritten attendance/{id}` | **Derive the audit trail by diffing** — the client never writes it |
 | `onAttendanceCorrectionWritten` | `onDocumentWritten attendance_corrections/{id}` | Correction lifecycle → apply resolution → audit event → notify |
 | `autoCloseAttendance` | `onSchedule` | Never-clocked-out sessions → `pendingReview` |
+| `closeAttendanceExpectations` | `onSchedule 30 min` | Materialize closed expected attendance slots, including phantom no-shows, into `attendance_expectations` |
 | `generateShiftTaskInstances` | `onSchedule 24h` | Materialize one task per due recurring template; resolve/persist frozen weekly shift window; roster-filtered; deterministic id = dup guard |
 | `autoEndRecurringShiftTasks` | `onSchedule 15 min` | Transactionally end only overdue generated `pending`/`started` shift tasks as server-owned `missed` |
 | `runTaskReminders` | `onSchedule 30 min` | Escalating due24h → due1h → overdue, with a per-task ledger + quiet hours + cap |

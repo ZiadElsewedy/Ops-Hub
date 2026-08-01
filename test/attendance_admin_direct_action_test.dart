@@ -8,6 +8,7 @@ import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/features/attendance/domain/attendance_board.dart';
 import 'package:drop/features/attendance/domain/attendance_service.dart';
+import 'package:drop/features/attendance/domain/attendance_write_outcome.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
@@ -24,6 +25,13 @@ import 'package:drop/features/schedule/domain/repositories/schedule_repository.d
 /// Captures the resolved-correction writes; streams for the two live queries.
 class _CaptureRepo implements AttendanceRepository {
   final List<AttendanceCorrectionEntity> resolved = [];
+
+  /// What `getRecord` returns during the apply-confirmation poll. Null models an
+  /// undeployed backend: the correction is stored, the record never moves.
+  AttendanceEntity? applied;
+
+  @override
+  Future<AttendanceEntity?> getRecord(String id) async => applied;
   final _day = StreamController<List<AttendanceEntity>>.broadcast();
   final _pending =
       StreamController<List<AttendanceCorrectionEntity>>.broadcast();
@@ -101,6 +109,7 @@ void main() {
       decideCorrection: DecideCorrection(repo),
       service: const AttendanceService(),
       now: () => now,
+      applyConfirmInterval: Duration.zero,
     );
   }
 
@@ -223,6 +232,162 @@ void main() {
     expect(c.status, RequestStatus.approved);
     expect(c.decidedBy, 'm1');
     expect(c.resolution!.workedMinutes, 480);
+    await cubit.close();
+  });
+
+  group('the UI is only told what actually happened', () {
+    // A manager write creates an approved correction; a Cloud Function applies
+    // it onto the record (ATTENDANCE_SPEC T3/T4). Those are two facts, and
+    // until the Functions deploy lands they differ. Reporting the first as
+    // success told a manager the absence was excused while the person was still
+    // marked absent — the most damaging thing an attendance screen can do,
+    // because the manager stops checking.
+
+    AttendanceBoardRow absentRow(String uid) => AttendanceBoardRow(
+      entry: AttendanceRosterEntry(
+        uid: uid,
+        name: 'Absentee',
+        shift: ScheduleShift.morning,
+      ).copyWithWindow(
+        DateTime(2026, 7, 13, 8, 30),
+        DateTime(2026, 7, 13, 16, 30),
+      ),
+      record: null,
+      status: AttendanceBoardStatus.absent,
+      isLate: true,
+    );
+
+    test('applied only when the server has moved the record', () async {
+      final cubit = build();
+      await cubit.load(admin, branchId: 'b1');
+      await pump();
+
+      // The Function ran: the record carries a fresh `resolvedAt`.
+      repo.applied = pendingReview.copyWith(
+        status: AttendanceStatus.excused,
+        resolvedAt: DateTime(2026, 7, 13, 18, 30),
+      );
+
+      final outcome = await cubit.excuseAbsence(
+        absentRow('e5'),
+        reason: 'Approved leave, filed late',
+      );
+
+      expect(outcome, AttendanceWriteOutcome.applied);
+      expect(repo.resolved, hasLength(1));
+      await cubit.close();
+    });
+
+    test('awaitingBackend when the record never moves', () async {
+      final cubit = build();
+      await cubit.load(admin, branchId: 'b1');
+      await pump();
+
+      repo.applied = null; // undeployed Function: nothing applies the correction
+
+      final outcome = await cubit.excuseAbsence(
+        absentRow('e6'),
+        reason: 'Approved leave, filed late',
+      );
+
+      // Not a failure: the correction is durable and will apply on deploy. But
+      // the manager must not be told the shift is settled.
+      expect(outcome, AttendanceWriteOutcome.awaitingBackend);
+      expect(outcome.isWritten, isTrue);
+      expect(repo.resolved, hasLength(1));
+      await cubit.close();
+    });
+
+    test('a record corrected before needs a NEW resolvedAt, not just any', () async {
+      final cubit = build();
+      await cubit.load(admin, branchId: 'b1');
+      await pump();
+
+      final alreadyCorrected = DateTime(2026, 7, 13, 9);
+      final existing = pendingReview.copyWith(resolvedAt: alreadyCorrected);
+      // The server does nothing, so the stale stamp is all that comes back.
+      repo.applied = existing;
+
+      final outcome = await cubit.resolveDirectly(
+        existing,
+        clockIn: DateTime(2026, 7, 13, 8, 30),
+        clockOut: DateTime(2026, 7, 13, 16, 30),
+        reason: 'Second correction on the same shift',
+      );
+
+      expect(outcome, AttendanceWriteOutcome.awaitingBackend);
+      await cubit.close();
+    });
+  });
+
+  test(
+    'a date-scoped board writes to the day under review, not to today',
+    () async {
+      // Daily Review settles a *past* day. Every write used to resolve its
+      // document id from `_today()` at action time, so reviewing 12 July on the
+      // 13th would have written 13 July's record — a wrong-date write on data
+      // that feeds pay. The date is now pinned when the board is scoped.
+      final cubit = build();
+      await cubit.load(admin, branchId: 'b1', businessDate: DateTime(2026, 7, 12));
+      await pump();
+
+      const entry = AttendanceRosterEntry(
+        uid: 'e9',
+        name: 'Yesterday',
+        shift: ScheduleShift.morning,
+      );
+      final row = AttendanceBoardRow(
+        entry: entry.copyWithWindow(
+          DateTime(2026, 7, 12, 8, 30),
+          DateTime(2026, 7, 12, 16, 30),
+        ),
+        record: null,
+        status: AttendanceBoardStatus.absent,
+        isLate: true,
+      );
+
+      await cubit.addRecord(
+        row,
+        clockIn: DateTime(2026, 7, 12, 8, 30),
+        clockOut: DateTime(2026, 7, 12, 16, 30),
+        reason: 'Worked it, forgot to clock in',
+      );
+
+      expect(repo.resolved, hasLength(1));
+      // `now` in this harness is the 13th; the id must still name the 12th.
+      expect(repo.resolved.single.attendanceId, 'e9_20260712_morning');
+      await cubit.close();
+    },
+  );
+
+  test('an unscoped board still writes to today', () async {
+    final cubit = build();
+    await cubit.load(admin, branchId: 'b1');
+    await pump();
+
+    const entry = AttendanceRosterEntry(
+      uid: 'e8',
+      name: 'Today',
+      shift: ScheduleShift.morning,
+    );
+    final row = AttendanceBoardRow(
+      entry: entry.copyWithWindow(
+        DateTime(2026, 7, 13, 8, 30),
+        DateTime(2026, 7, 13, 16, 30),
+      ),
+      record: null,
+      status: AttendanceBoardStatus.absent,
+      isLate: true,
+    );
+
+    await cubit.addRecord(
+      row,
+      clockIn: DateTime(2026, 7, 13, 8, 30),
+      clockOut: DateTime(2026, 7, 13, 16, 30),
+      reason: 'Live board behaviour is unchanged',
+    );
+
+    expect(repo.resolved.single.attendanceId, 'e8_20260713_morning');
     await cubit.close();
   });
 

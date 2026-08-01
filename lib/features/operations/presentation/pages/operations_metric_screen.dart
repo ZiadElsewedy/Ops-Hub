@@ -15,6 +15,7 @@ import 'package:drop/core/widgets/brand_watermark.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
 import 'package:drop/core/widgets/responsive_card_grid.dart';
+import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/operations/domain/branch_workload.dart';
 import 'package:drop/features/operations/domain/employee_workload.dart';
 import 'package:drop/features/operations/domain/shift_filter.dart';
@@ -23,6 +24,7 @@ import 'package:drop/features/operations/presentation/cubit/branch_operations_st
 import 'package:drop/features/operations/presentation/pages/employee_detail_screen.dart';
 import 'package:drop/features/operations/presentation/widgets/workload_card.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/widgets/manager_task_card.dart';
@@ -36,7 +38,7 @@ enum OperationsMetric { activeTasks, overdue, pendingReview, staffActive }
 extension OperationsMetricPresentation on OperationsMetric {
   String get title => switch (this) {
     OperationsMetric.activeTasks => 'Active tasks',
-    OperationsMetric.overdue => 'Overdue tasks',
+    OperationsMetric.overdue => 'Late tasks',
     OperationsMetric.pendingReview => 'Pending review',
     OperationsMetric.staffActive => 'Staff active',
   };
@@ -119,6 +121,12 @@ class OperationsMetricScreen extends StatelessWidget {
       builder: (context, state) => state.maybeWhen(
         loaded: (all, busy, directory, _, _) {
           final tasks = _metricTasks(all, filter);
+          // "Finished late" is a second view over the same overdue lens — the
+          // work that used to count here and no longer does the moment it's
+          // finished, which is exactly why the owner could never find it.
+          final finishedLate = metric == OperationsMetric.overdue
+              ? _finishedLateTasks(all, filter)
+              : const <TaskEntity>[];
           return Column(
             children: [
               if (busy) const LinearProgressIndicator(minHeight: 2),
@@ -138,36 +146,49 @@ class OperationsMetricScreen extends StatelessWidget {
                       facts: _taskFacts(tasks),
                     ),
                     const SizedBox(height: AppSpacing.xl),
-                    _ResultsHeader(
-                      label: _resultsLabel,
-                      count: tasks.length,
-                      trailing: metric == OperationsMetric.overdue
-                          ? 'oldest first'
-                          : 'priority order',
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    if (tasks.isEmpty)
-                      SizedBox(
-                        height: 280,
-                        child: TaskEmptyState(message: _emptyMessage),
-                      )
-                    else
-                      ResponsiveCardGrid(
-                        runSpacing: 0,
-                        maxItemWidth: 500,
-                        children: [
-                          for (var i = 0; i < tasks.length; i++)
-                            EntranceFade(
-                              delay: staggerDelay(i),
-                              child: ManagerTaskCard(
-                                task: tasks[i],
-                                directory: directory,
-                                isAdmin: isAdmin,
-                                defaultBranchId: branchId,
-                              ),
-                            ),
+                    if (metric == OperationsMetric.overdue) ...[
+                      if (tasks.isEmpty && finishedLate.isEmpty)
+                        SizedBox(
+                          height: 280,
+                          child: TaskEmptyState(message: _emptyMessage),
+                        )
+                      else ...[
+                        if (tasks.isNotEmpty) ...[
+                          _ResultsHeader(
+                            label: _resultsLabel,
+                            count: tasks.length,
+                            trailing: 'oldest first',
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _taskGrid(tasks, directory),
                         ],
+                        if (finishedLate.isNotEmpty) ...[
+                          if (tasks.isNotEmpty)
+                            const SizedBox(height: AppSpacing.xl),
+                          _ResultsHeader(
+                            label: 'Finished late',
+                            count: finishedLate.length,
+                            trailing: 'most late first',
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _taskGrid(finishedLate, directory),
+                        ],
+                      ],
+                    ] else ...[
+                      _ResultsHeader(
+                        label: _resultsLabel,
+                        count: tasks.length,
+                        trailing: 'priority order',
                       ),
+                      const SizedBox(height: AppSpacing.md),
+                      if (tasks.isEmpty)
+                        SizedBox(
+                          height: 280,
+                          child: TaskEmptyState(message: _emptyMessage),
+                        )
+                      else
+                        _taskGrid(tasks, directory),
+                    ],
                   ],
                 ),
               ),
@@ -179,6 +200,24 @@ class OperationsMetricScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _taskGrid(List<TaskEntity> tasks, Map<String, UserEntity> directory) =>
+      ResponsiveCardGrid(
+        runSpacing: 0,
+        maxItemWidth: 500,
+        children: [
+          for (var i = 0; i < tasks.length; i++)
+            EntranceFade(
+              delay: staggerDelay(i),
+              child: ManagerTaskCard(
+                task: tasks[i],
+                directory: directory,
+                isAdmin: isAdmin,
+                defaultBranchId: branchId,
+              ),
+            ),
+        ],
+      );
 
   Widget _staffBody(
     BuildContext context,
@@ -299,6 +338,20 @@ class OperationsMetricScreen extends StatelessWidget {
     return tasks;
   }
 
+  /// The same branch/shift scope as [_metricTasks], but for work that has
+  /// **finished** and missed its deadline — [isOperationalOverdueTask] goes to
+  /// zero the instant a task is submitted, so this is the only way to find it
+  /// afterwards. Sorted most late first.
+  List<TaskEntity> _finishedLateTasks(List<TaskEntity> all, ShiftFilter filter) {
+    final tasks = all
+        .where((task) => (task.branchId ?? '') == branchId)
+        .where((task) => filter.matchesTask(task.shift))
+        .where(isOperationalFinishedLateTask)
+        .toList();
+    tasks.sort((a, b) => taskLateness(b)!.compareTo(taskLateness(a)!));
+    return tasks;
+  }
+
   List<_HeroFact> _taskFacts(List<TaskEntity> tasks) {
     final now = DateTime.now();
     return switch (metric) {
@@ -357,7 +410,7 @@ class OperationsMetricScreen extends StatelessWidget {
     OperationsMetric.activeTasks =>
       'No active tasks in the current branch and shift lens.',
     OperationsMetric.overdue =>
-      'Nothing overdue. The current shift is on track.',
+      'Nothing late. The current shift is on track.',
     OperationsMetric.pendingReview =>
       'No completed work is waiting for review.',
     OperationsMetric.staffActive => 'No staff are rostered today.',

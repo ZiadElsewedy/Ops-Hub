@@ -65,6 +65,7 @@ void main() {
     ScheduleShift? shift,
     List<String> assigneeIds = const ['emp1'],
     int revisionNumber = 0,
+    DateTime? startsAt,
   }) => TaskEntity(
     id: 't1',
     title: 'Clean the walk-in',
@@ -74,6 +75,7 @@ void main() {
     shift: shift,
     assigneeIds: assigneeIds,
     revisionNumber: revisionNumber,
+    startsAt: startsAt,
     createdBy: 'mgr1',
     activityLog: [
       ActivityEntry(
@@ -152,6 +154,48 @@ void main() {
       expect(t.expectedFrom, {'pending', 'rejected'});
       expect(t.patch['status'], 'started');
     });
+
+    test(
+      'start before startsAt writes nothing and surfaces the schedule reason',
+      () async {
+        final h = _build();
+        await h.cubit.load(manager);
+        await pumpEventQueue();
+        final states = <TaskState>[];
+        final sub = h.cubit.stream.listen(states.add);
+
+        await h.cubit.startTask(
+          task(
+            status: TaskStatus.pending,
+            startsAt: DateTime.now().add(const Duration(hours: 1)),
+          ),
+        );
+        await pumpEventQueue();
+        await sub.cancel();
+
+        expect(h.repo.transitions, isEmpty);
+        expect(_errorMessages(states).single, startsWith('Starts at '));
+      },
+    );
+
+    test(
+      'start at an already-open startsAt still transitions normally',
+      () async {
+        final h = _build();
+        await h.cubit.load(manager);
+        await pumpEventQueue();
+
+        await h.cubit.startTask(
+          task(
+            status: TaskStatus.pending,
+            startsAt: DateTime.now().subtract(const Duration(seconds: 1)),
+          ),
+        );
+
+        expect(h.repo.transitions, hasLength(1));
+        expect(h.repo.transitions.single.patch['status'], 'started');
+      },
+    );
   });
 
   test('an illegal transition never reaches the server', () async {
@@ -290,13 +334,17 @@ void main() {
 
   // ── Recurrence spawn is deterministic + idempotent (P0 duplicate fix) ──
   group('recurring approval spawns a deterministic, idempotent successor', () {
-    TaskEntity recurring({required String id, String? rootId}) => TaskEntity(
+    TaskEntity recurring({
+      required String id,
+      String? rootId,
+      DateTime? deadline,
+    }) => TaskEntity(
       id: id,
       title: 'Restock cooler',
       status: TaskStatus.waitingReview,
       branchId: 'branch1',
       assigneeIds: const ['emp1'],
-      deadline: DateTime(2026, 1, 10),
+      deadline: deadline ?? DateTime(2026, 1, 10),
       recurrence: const RecurrenceConfig(frequency: RecurrenceFrequency.daily),
       recurrenceRootId: rootId,
       createdBy: 'mgr1',
@@ -374,6 +422,28 @@ void main() {
           spawned.recurrenceRootId,
           't1',
         ); // lineage preserved down the chain
+      },
+    );
+
+    test(
+      'approval long after the source deadline spawns a future successor',
+      () async {
+        final h = _build();
+        await h.cubit.load(manager);
+        await pumpEventQueue();
+        final beforeApprove = DateTime.now();
+
+        await h.cubit.approveTask(
+          recurring(
+            id: 'stale',
+            deadline: beforeApprove.subtract(const Duration(days: 10)),
+          ),
+        );
+        await pumpEventQueue();
+
+        final spawned = h.repo.createdWithId.single;
+        expect(spawned.deadline, isNotNull);
+        expect(spawned.deadline!.isAfter(beforeApprove), isTrue);
       },
     );
   });

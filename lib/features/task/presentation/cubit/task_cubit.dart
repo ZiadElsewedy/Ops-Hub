@@ -1109,8 +1109,15 @@ class TaskCubit extends Cubit<TaskState> {
   // ─── Employee actions ──────────────────────────────────────────
   Future<void> startTask(TaskEntity task) async {
     final now = DateTime.now();
+    // The start gate (ADR-016) — refuse before writing, so every caller is
+    // covered, including any surface added later. No status exemptions.
+    final blockedReason = startBlockedReason(task, now);
+    if (blockedReason != null) {
+      _emitTransientError(blockedReason);
+      return;
+    }
     // pending → started (a fresh task) or rejected → started (redoing a
-    // reworked/rejected task); both are legal predecessors, unchanged.
+    // reworked/rejected task); the same schedule gate above applies to both.
     final ok = await _transition(
       task,
       from: const {TaskStatus.pending, TaskStatus.rejected},
@@ -1712,30 +1719,27 @@ class TaskCubit extends Cubit<TaskState> {
   );
 
   /// Creates *today's* instance of [template] at the same deterministic id
-  /// (`rt_{templateId}_{yyyy-MM-dd}`, UTC) the `generateShiftTaskInstances`
-  /// Cloud Function uses, so the two can never double-create the same day's
-  /// instance. A no-op when [template] isn't due today (weekly, wrong weekday)
-  /// or an instance for today already exists. Best-effort: the template save
-  /// already succeeded, and the Cloud Function will generate the instance on
-  /// its next scheduled run if this fails.
+  /// (`rt_{templateId}_{yyyy-MM-dd}`) the `generateShiftTaskInstances` Cloud
+  /// Function uses. "Today" is device-local because DROP operates in one
+  /// business timezone (Egypt); the server generator is still the authority if a
+  /// device clock or zone is wrong. A no-op when [template] isn't due today
+  /// (weekly, wrong weekday), an instance for today already exists, or the
+  /// resolved shift window has already closed. Creating mid-window is allowed so
+  /// a manager saving a live routine can still get today's task immediately.
+  /// Best-effort: the template save already succeeded, and the Cloud Function
+  /// will generate the next occurrence at its scheduled run if this fails.
   Future<void> _materializeTodayInstance(
     RecurringTaskTemplateEntity template,
   ) async {
-    final utcNow = DateTime.now().toUtc();
+    final now = DateTime.now();
     if (template.repeat == TemplateRepeatMode.weekly &&
-        template.weekday != utcNow.weekday) {
+        template.weekday != now.weekday) {
       return;
     }
-    final today = DateTime.utc(utcNow.year, utcNow.month, utcNow.day);
+    final today = DateTime(now.year, now.month, now.day);
     final instanceId = 'rt_${template.id}_${_dateKey(today)}';
-    // The deterministic instance key remains UTC (the server's existing
-    // convention), while the actual shift window is based on the schedule's
-    // local-midnight week snapshot. That keeps a configured 08:30–16:30 shift
-    // at those wall-clock times rather than treating it as an arbitrary UTC
-    // offset. A missing/unreadable schedule gracefully uses the standard slot.
-    final occurrenceDay = DateTime(today.year, today.month, today.day);
-    final scheduleDay = ScheduleDay.fromDate(occurrenceDay);
-    var weekStart = ScheduleWeek.startOf(occurrenceDay);
+    final scheduleDay = ScheduleDay.fromDate(today);
+    var weekStart = ScheduleWeek.startOf(today);
     ShiftHours hours = ShiftHours.standard(scheduleDay, template.shift);
     try {
       final schedule = await _scheduleRepository.getSchedule(
@@ -1750,9 +1754,25 @@ class TaskCubit extends Cubit<TaskState> {
       // This is best-effort materialization; the server generator is still the
       // durable fallback and resolves the same policy on its next run.
     }
-    final slotDay = weekStart.add(Duration(days: scheduleDay.index));
-    final startsAt = slotDay.add(Duration(minutes: hours.startMinutes));
-    final deadline = slotDay.add(Duration(minutes: hours.endMinutes));
+    final slotDay = DateTime(
+      weekStart.year,
+      weekStart.month,
+      weekStart.day + scheduleDay.index,
+    );
+    // Wall-clock, not elapsed minutes: a configured 08:30 stays 08:30 even on a
+    // DST-transition day, which is how the server resolves it too
+    // (`businessCivilTimeMs` in functions/recurring_task_deadline.js). An
+    // overnight end (endMinutes > 1440) rolls into the next day by construction.
+    DateTime civil(int minutes) => DateTime(
+      slotDay.year,
+      slotDay.month,
+      slotDay.day + minutes ~/ 1440,
+      minutes % 1440 ~/ 60,
+      minutes % 60,
+    );
+    final startsAt = civil(hours.startMinutes);
+    final deadline = civil(hours.endMinutes);
+    if (DateTime.now().isAfter(deadline)) return;
     final instance = TaskEntity(
       id: instanceId,
       title: template.title,
@@ -1773,7 +1793,7 @@ class TaskCubit extends Cubit<TaskState> {
           status: TaskStatus.pending.value,
           actorId: _user?.uid ?? '',
           actorName: _user?.displayName,
-          at: utcNow,
+          at: now,
         ),
       ],
     );
@@ -1798,9 +1818,9 @@ class TaskCubit extends Cubit<TaskState> {
     }
   }
 
-  static String _dateKey(DateTime utcDate) {
+  static String _dateKey(DateTime date) {
     String two(int n) => n.toString().padLeft(2, '0');
-    return '${utcDate.year}-${two(utcDate.month)}-${two(utcDate.day)}';
+    return '${date.year}-${two(date.month)}-${two(date.day)}';
   }
 
   // ─── Internals ─────────────────────────────────────────────────
@@ -1833,13 +1853,22 @@ class TaskCubit extends Cubit<TaskState> {
   /// makes a duplicate a silent no-op (returns null). This replaced a random
   /// auto-id that double-spawned on reopen→re-approve. The successor keys off
   /// the (stable, unique) current task id rather than the next deadline, so it's
-  /// safe even when [source] has no deadline. Best-effort: the approval itself
-  /// already committed.
+  /// safe even when [source] has no deadline. Its deadline is rolled forward
+  /// from the later of the source deadline and now, so approving long after the
+  /// original deadline cannot create an already-overdue successor. Best-effort:
+  /// the approval itself already committed.
   Future<void> _spawnNextRecurrence(TaskEntity source) async {
     final recurrence = source.recurrence!;
-    final nextDeadline = recurrence.nextOccurrence(
-      source.deadline ?? DateTime.now(),
-    );
+    final now = DateTime.now();
+    var anchor = source.deadline != null && source.deadline!.isAfter(now)
+        ? source.deadline!
+        : now;
+    var nextDeadline = recurrence.nextOccurrence(anchor);
+    for (var i = 0; i < 400 && !nextDeadline.isAfter(now); i++) {
+      anchor = nextDeadline;
+      nextDeadline = recurrence.nextOccurrence(anchor);
+    }
+    if (!nextDeadline.isAfter(now)) return;
     try {
       await _repository.createTaskWithId(
         TaskEntity(
@@ -1872,7 +1901,7 @@ class TaskCubit extends Cubit<TaskState> {
               status: TaskStatus.pending.value,
               actorId: _user?.uid ?? '',
               actorName: _user?.displayName,
-              at: DateTime.now(),
+              at: now,
               note: 'Auto-created (recurring)',
             ),
           ],

@@ -3,9 +3,12 @@
 > **This file describes the shipped *engine*.** For locked **product behavior**
 > (state machine, business rules, edge-case rulings, decision log) the source of
 > truth is **[ATTENDANCE_SPEC.md](ATTENDANCE_SPEC.md)** (locked 2026-07-18). Where
-> the two disagree on behavior, the spec wins. Notably: the early-clock-in window
-> (`clockInLeadMinutes`) is **not yet enforced in code** — the spec locks it as
-> required (R1/R2); this doc's engine description predates that ruling.
+> the two disagree on behavior, the spec wins. The early-clock-in window
+> (`clockInLeadMinutes`, spec R1/R2) **is now enforced in code** — see the
+> `AttendanceBlock.tooEarly` gate in
+> [attendance_validation.dart:108](../../lib/features/attendance/domain/attendance_validation.dart).
+> (This note previously said it was unenforced; that was stale, corrected
+> 2026-07-30.)
 >
 > **Status:** code complete (P1–P3), **not deployed, not QA'd on device**. See
 > [CURRENT_STATE](../../CURRENT_STATE.md).

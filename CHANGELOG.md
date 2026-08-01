@@ -14,6 +14,544 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-07-31 — Daily review: settle yesterday before it becomes a weekly surprise (feature; HIGH risk)
+
+Phase 2 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md)
+— the layer whose absence is why the weekly report was trying to be three
+products at once.
+
+New `/attendance/daily/:branchId/:dayKey`, reachable from a day row on the weekly
+report. Three zones: **Needs you** (the only zone with verbs, ordered by cost of
+being wrong — an unknown clock-out outranks a no-show because unknown hours are a
+payroll problem), **The day** (one line, counts not percentages), **Everyone**
+(collapsed). A clean day renders one line and nothing else; that is the common
+case and it should be the fastest to read.
+
+Rows name a person and state a fact — "Sara didn't clock out" — never a record
+id, a severity label, or an exception code. Priority is expressed by order.
+
+**A real bug fixed on the way.** Every manager write (`addRecord`,
+`resolveDirectly`, `excuseAbsence`) resolved its document id from `_today()` at
+*action* time. A board left open across midnight, or any review of a past day,
+would write against the wrong date — on data that feeds pay. The business date is
+now pinned when the board is scoped; the live board is unchanged and both halves
+are tested.
+
+The three write helpers moved out of the admin board into
+`attendance_manager_actions.dart` so both surfaces share one path — two copies of
+a pay-affecting write is how they drift. No decision semantics changed:
+validation, the approved-correction apply path, and no-self-approval are all
+still the cubit's.
+
+**Partial by design.** Three of the six exception kinds are built (missing
+clock-in, missing clock-out, no-show) — the ones that stop a week settling.
+Pending corrections already have a working queue; overtime review needs a
+threshold nobody has set; unscheduled work does not exist until §11 D1 is
+decided. The daily notification is server-side and waits on the standing
+functions deploy; 48-hour escalation belongs to Phase 3's Admin Workspace.
+
+**The actions no longer report success they cannot see.** A manager write
+creates an approved correction; a Cloud Function applies it and stamps
+`resolvedAt`. Undeployed, the record never moves — yet the UI said "Absence
+excused.", telling a manager a shift was settled while the person was still
+absent. Pre-existing on the live board; Daily Review would have made it a daily
+occurrence. The three actions now return `AttendanceWriteOutcome` and the cubit
+confirms by re-reading the record for a **new** `resolvedAt`. Unconfirmed reads
+"Saved, but not applied yet — nothing is lost", which is deliberately not an
+error: the correction is durable and applies on deploy.
+
+Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
+tests.
+
+## 2026-07-31 — Deployed to production, and found the backlog was mostly a myth
+
+Deployed to `bazic-d9ad7` (the only project — there is no staging): Firestore
+indexes, all 24 Cloud Functions, Firestore rules, Storage rules.
+
+**Only the functions actually changed.** Firestore rules, Storage rules and the
+indexes all reported *"already up to date"*. The standing "rules have never been
+deployed" item — the supposedly-missing `shift_templates` rule, the task
+`startsAt` enforcement, `storage.rules` `validMedia()` — was **stale in our own
+docs**. All of it was already live. What genuinely lagged was the deployed
+*function source*, and every one of the 24 was running older code.
+
+Closing that activates the automation business-day fix (ADR-015), the widened
+`closeAttendanceExpectations` sweep, the task Missed/Cancelled server paths, and
+`onAttendanceCorrectionWritten` — so a manager's Resolve / Add record / Excuse
+should now report **applied** instead of *saved, not applied yet*.
+
+Gates run before deploying: Firestore rules 37/37 on the emulator against the
+repo's own rules file, Cloud Functions 86/86, Dart 1312 pass / 2 pre-existing.
+
+⚠️ Not verified at runtime: `firebase functions:log` returned "Failed to retrieve
+log entries" for this login, so the deploy's own success reports are the only
+confirmation. First real proof is the next 01:00 Cairo close run and the next
+manager correction.
+
+## 2026-07-31 — The payroll file, and an honest reason it cannot be sent yet (feature; MED risk)
+
+Phase 4 of the attendance redesign plan, partially — and the part that is missing
+is missing for a reason worth stating.
+
+ADR-005 and ADR-017 make a payroll artifact server-authored: a file the client
+assembled cannot be audited, because nothing outside the client saw the inputs.
+So the file has to come from a Cloud Function writing to Storage with an export
+ledger beside it, and none of that is verifiable without the deploy that has been
+the standing blocker throughout. Shipping it unverified on top of a backlog that
+already has 2 of 23 functions missing in production would add risk, not value.
+
+**What landed instead is the part that must be correct.**
+`functions/attendance_export.js` builds the payroll CSV: the 37-column §12.6
+schema in contract order, RFC4180 escaping, and **whole unrounded minutes**,
+because payroll owns 5/10/15-minute rounding and rounding twice is how two
+systems come to disagree about a person's pay. It is Firebase-free like
+`attendance_auto_close.js`, so 18 `node --test` cases cover it without an
+emulator or a deploy — including that an employee named `Amal, "A"` does not
+silently shift every later column by one.
+
+`AttendanceExportGate` mirrors the rule in Dart so the UI can be honest; the
+server remains the authority. Manager *Share this week* and the new admin
+**Payroll hand-off** now say why they are unavailable instead of "coming next",
+and payroll stays admin-only, lock-gated, and nowhere near the manager's PDF
+button.
+
+⚠️ Before deploying: the CSV names GPS columns and `correction_ids` that the
+close Function does not currently materialize, so they export empty. Either it
+starts writing them or the schema drops them — an empty column that looks like a
+value is worse than no column.
+
+Verified: build succeeds, analyze clean, **1312 pass / 2 pre-existing splash
+failures**, Cloud Functions **86 pass**.
+
+## 2026-07-31 — Give the audit trail its own room (feature; MED risk)
+
+Phase 3 of the attendance redesign plan. Operational UX and audit UX are opposite
+design targets — one optimises for speed and ruthless incompleteness, the other
+for completeness and permanence — and a single screen serving both serves
+neither. That was the original weekly report's defect. This is the other half.
+
+New admin-only `/admin/attendance/workspace`, covered by the existing
+`_isAdminArea` guard and reachable from an admin-only tile on the reports hub.
+Four sections: **Needs chasing** (branches whose oldest blocker is two days old
+or more) · **Data completeness** (per-branch days covered, worst first — the
+signal that used to be the loudest thing on a store manager's screen) · **Across
+branches** (the pooled rollup) · **Evidence** (the row-level table, relocated
+from Weekly intact, per-record link and all).
+
+**Show-up rate now has a home again.** Phase 1 removed it from the store surface
+because at one expected shift `0%` is meaningless and alarming. Pooled across
+every branch there is volume for a percentage to mean something, and comparing
+branches is a question only an admin has.
+
+`AdminAttendanceOverview` folds one weekly report per branch plus one summary
+over the union of rows, so the cross-branch rate cannot drift from the per-branch
+ones. The cubit fans out one branch stream per branch and merges — no
+collection-wide query, **no new index**. A branch with zero rows is seeded
+explicitly, because "this branch reported nothing" is the point and a missing key
+would render as a missing branch. All four new files join the reporting source
+guard.
+
+Deferred honestly: locks, restatement history and the export ledger do not exist
+yet, so there was nothing to relocate — they come with Phase 4. GPS detail stays
+on the admin live board, which is already an admin surface.
+
+Verified: build succeeds, analyze clean, **1304 pass / 2 pre-existing splash
+failures**, +7 tests.
+
+## 2026-07-31 — An employee may always record real work (feature; MED risk)
+
+The two open product decisions, decided and recorded.
+
+**Overtime threshold: there is none.** Confirming overtime in DROP changes no
+record, no payment and no export — ADR-017 keeps pay out of scope and R17
+already says overtime is never fed anywhere — so an approval step fails ADR-017's
+own metric bar. The queue exists for shifts whose record is *wrong or missing*;
+an overtime row is complete and correct. Overtime is the most common
+non-standard outcome in retail, so making it an exception would have been the
+fastest way to flood a surface designed to stay at zero to three items. Struck
+from the plan, which proposed it in its first draft. Reverses the day a payroll
+export carries overtime hours.
+
+**Unscheduled clock-in: allowed** ([ADR-018](docs/decisions/ADR-018-unscheduled-clock-in.md),
+amending `ATTENDANCE_SPEC` §9, whose own wording — "no unscheduled by default" —
+was a deferral, not a ruling). `allowUnscheduledClockIn` defaults true; the flag
+stays for a branch that wants the stricter behaviour.
+
+The deciding argument was evidence quality, not convenience. Today's workaround
+is manager *Add record* — times typed from memory, no location proof. An
+unscheduled clock-in is server-timestamped and GPS-verified at the moment of
+presence, so the permissive path produces strictly better evidence than the one
+it replaces.
+
+Capture is permissive; counting is not. Deliberate secondary action on the
+no-shift state, mandatory reason, full GPS gate, and it counts in **nothing**
+until a manager approves it in Daily Review — `isUnscheduledWork` already
+excluded it from every reporting aggregate, and that exclusion is now guarded.
+
+⚠️ `computeAttendanceBoard` now appends records with no roster slot. It walks the
+roster, so without that pass the punch existed in Firestore and was invisible on
+every manager surface. Also: geofence resolution moved ahead of the schedule
+lookup, so an unpublished week no longer blocks the GPS gate for the wrong
+reason.
+
+Verified: build succeeds, analyze clean, **1297 pass / 2 pre-existing splash
+failures**, +10 tests.
+
+## 2026-07-31 — Weekly attendance answers a manager's four questions (feature; MED risk)
+
+Phase 1 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md).
+
+**The spec changed first, on purpose.** `ATTENDANCE_REPORTS_IA` §6.4–§6.10 are
+replaced in full, because the shipped eight sections were a faithful build of
+§6.4 and would have regenerated from it. §6.1–§6.3 and ADR-017 are unchanged.
+
+Weekly now renders five sections instead of eight: **Needs your attention**
+(only when something blocks — the page's only verb, absent in a healthy week),
+**The week in one line** (`42 of 45 shifts worked · 312h · 4h overtime` — counts,
+never a store-level percentage), **By person**, **By day**, **Share this week**.
+
+Four KPIs replace six: Hours worked · Overtime · Unexcused absences · Late
+arrivals as a **count**. Show-up rate and punctual arrivals leave the store
+surface — at one expected shift a percentage is the least reliable and most
+alarming number on the page; both survive on the hub headline, where volume
+exists. New `AttendanceWeeklyKpis` is owned by Weekly, so Monthly's
+`AttendanceReportMetrics` grid is untouched.
+
+**Person rows are ordered exceptions-first** (`AttendanceAttentionBand`:
+needs-decision → absent → late → clean, alphabetical inside each band), with a
+Status column. This reverses the old alphabetical rule and deletes its
+disclaimer. Ordering is not scoring — no weight, no composite, no rank — and
+alphabetical order was never what prevented ranking; refusing to compute a score
+is, and that refusal stands. All alphabetical order achieved was seating the one
+person who did not show up several rows down.
+
+The exception summary and shift evidence table leave the manager surface for
+Daily Close/Exception Queue (Phase 2) and Admin Workspace (Phase 3). ⚠️ The
+evidence table carried this screen's only per-record link; managers reach records
+through `/attendance/review` until the per-employee report is built. Monthly is
+deliberately untouched (§11 D2 defers it).
+
+Verified: analyze clean, **1274 pass / 2 pre-existing splash failures**, +3 tests
+including one pinning the ordering reversal. The ledger-only source guard is
+still green — the roster is still not read here, which is why the report still
+cannot tell "nobody was scheduled" from "scheduled but never captured".
+
+## 2026-07-31 — Attendance reports speak to a manager (polish; LOW risk)
+
+Phase 0 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md).
+Presentation copy and state rendering only — no cubit, repository, rule, index,
+or Function touched, and **no aggregate or denominator changed value**.
+
+Internal vocabulary retired at the manager boundary: *ledger rows* → shifts,
+*phantom row* → **No clock-in recorded**, *blocking / informational* → **Needs a
+decision / Worth knowing**, *close readiness* → **Week status**, *export and
+restatement* → **Share this week**. New `AttendanceLedgerOutcome.label` stops the
+Outcome column printing wire values (`workedLate`, `noRecordYet`); `wireValue`
+remains the persisted contract and is no longer rendered anywhere.
+
+Two honesty fixes matter more than the wording. **A week with rows on one day of
+seven no longer reads "Fully closed"** — new `AttendanceCoverageStatus` (No data
+yet · Needs attention · In progress · Settled) is the single manager-facing
+status for Weekly and Monthly. `isFullyClosed` is unchanged and still means what
+the close pipeline means; it is simply not the manager's word. And **a day with
+nothing recorded is no longer amber** — it renders quiet grey, because it is the
+absence of a result, not a bad one. Only a day that was scheduled and worked by
+nobody is toned error-red. This is what made a week where six of seven days had
+no roster read as a catastrophic week.
+
+Also: metric cards that cannot be computed no longer render `--`; empty exception
+sections no longer render at all; the defensive captions are deleted.
+
+**Not in this change** (Phases 1–3): section inventory, KPI selection,
+exception-first sorting, and moving audit surfaces to an admin audience.
+
+Verified: analyze clean, **1272 pass / 2 pre-existing splash failures**, +7 tests.
+
+## 2026-07-31 — Attendance redesign PRD (docs only; no risk)
+
+Added [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md),
+a proposed PRD + roadmap for the Attendance presentation layer, after a real
+store manager could not read the shipped Weekly Report.
+
+The finding worth recording: the screen is a **faithful build of its own spec**
+(`ATTENDANCE_REPORTS_IA` §6.4 specifies exactly those eight sections, §6.5 those
+six KPIs), so screen-level fixes would regenerate it — the spec is the artefact
+that must change. Second finding: the IA's build order was skipped from step 2 to
+step 5, so Weekly is doing the job of the never-built Daily Close and Exception
+Queue.
+
+Proposes five phases, five sections replacing eight, four KPIs replacing six, a
+new **Daily Review** surface, and relocation of ledger/audit/restatement to an
+admin audience. **Presentation only** — ADR-017's ledger scope and metric bar and
+every rule in `ATTENDANCE_SPEC.md` are explicitly out of scope. Documents three
+deliberate reversals (show-up rate demoted, alphabetical sorting replaced by
+exception-first, Monthly deferred) and eight open decisions for owner sign-off.
+
+Nothing implemented; no code, rules, or functions touched.
+
+## 2026-07-31 — Per-task lateness, rendered and findable (feature; LOW risk)
+
+A finished task carried its lateness only as raw timestamps — visible in the
+Approved-only aggregate on Admin's branch overview, invisible on the task
+itself, and unrecoverable once submitted (the Operations "Late tasks" drill-down
+only lists *active* overdue work, which drops to zero the moment the employee
+finishes). The owner could tell a branch's completion rate but not point at
+which finished tasks had been late.
+
+This **implements** [ADR-013](docs/decisions/ADR-013-task-grace-period.md)'s
+existing "lateness is measured, never stated" position — it does not reopen or
+reverse it. No new `TaskStatus`, no schema/rules/Functions change; everything is
+derived at read time from `submittedAt`/`approvedAt`/`deadline`, already on
+every task document.
+
+- `taskLateness(TaskEntity)` (`task_outcomes.dart`) — the one source: the
+  positive overshoot past `deadline` for `completed`/`waitingReview`/`approved`
+  tasks (submitted-not-yet-reviewed reads late immediately), null for
+  `missed`/`cancelled`/on-time/no-deadline. `taskOutcomes()`'s Approved branch
+  now calls it instead of re-deriving the same comparison, so the aggregate and
+  the per-task signal can never drift apart; its counts are byte-identical to
+  before (regression-tested).
+- `formatLateness(Duration)` (`activity_format.dart`) — the one phrase (`45m
+  late` / `3h 12m late` / `2d 4h late`), used by every call site below.
+- Rendered as one quiet **secondary-grey** line (never `AppColors.error`, never
+  worded as a failure) on: the task card (`task_card.dart`), the activity feed
+  row (`task_activity_card.dart`), Task Details' status header, and the My
+  Tasks **Done** tab outcome badge.
+- `isOperationalFinishedLateTask(TaskEntity)` (`branch_workload.dart`, beside
+  `isOperationalOverdueTask`) + a new **"Finished late"** section on the
+  Operations "Late tasks" drill-down, below the existing "Past deadline" list,
+  sorted most-late-first — the actual fix for "I can't find which tasks were
+  late and still got done." The hero count and `_FactStrip` figures stay
+  active-overdue only; the section renders nothing when empty (no zero panel),
+  and the old "Nothing late" empty state now only shows when both lists are
+  empty.
+
+---
+
+## 2026-07-31 — Attendance & Reports hub: information-architecture redesign (polish; LOW risk)
+
+Owner-commissioned IA pass on `/attendance/reports` only. **Presentation-only** —
+no cubit, state, domain, repository, route, rule, index, or function change, and
+no threshold, rounding, or classification change.
+
+The hub rendered a *multi-branch* design in a *single-branch* reality (the
+`ATTENDANCE_REPORTS_IA` §13.5 wireframe was drawn for an estate view that does
+not exist), so components built to compare branches always rendered one row.
+~12 unique facts were rendered ~18 times across ~2.5 screens.
+
+Five sections became four, in the order the page's question implies:
+
+- **Header** — the duplicate `PageHero` title/eyebrow is gone; the chrome header
+  already names the page. Only the question line survives, as the lead-in.
+- **Scope & period** — `AttendanceReportScopeBar` keeps its exact function but is
+  reframed as a control bar (no `GlassContainer`, closing hairline, quieter
+  legends) so it stops competing with data.
+- **The verdict** — `_NeedsAttention` and `AttendanceReportCoverage` merged into
+  one card: a trust line (`Fully closed · 3 of 3 ledger rows closed`, or
+  `Awaiting close · No ledger data`) and an action line. **Exceptions are
+  reported by exception:** zero blockers cost one muted line, a real blocker
+  earns weight, amber and the Exception-queue affordance.
+- **The numbers** — show-up rate as the headline with its denominator inline,
+  Expected · Present · Absent beneath it as its *components*, and punctual
+  arrivals / worked time only when they have a real denominator (they used to
+  show `--` over `0 / 0` at full tile weight).
+- **Go deeper** — Weekly and Monthly as two real actions; the three unbuilt
+  surfaces collapse to one muted line instead of three inert tiles.
+
+**Removed:** `_BranchPeriodPreview` (the single-row "Branch periods" table),
+which carried no information not already above it. A code comment records that a
+branch-comparison table returns only if an "All branches" scope is added.
+
+`AttendanceReportMetrics` is **untouched** — it is shared with the Weekly and
+Monthly reports, which must stay visually unchanged, so the hub got its own
+`AttendanceReportHeadline` instead of a new variant on the shared widget.
+
+The owner's rule is unchanged and now has paired coverage: rows with zero
+clock-ins are a real **0%** with its denominator disclosed; no rows at all is
+**No ledger data**, never a zero-valued figure.
+
+## 2026-07-31 — Attendance: absence rows show a name, not a uid (bug; LOW risk)
+
+`attendance_expectations.userName` was copied from the attendance record, but a
+phantom no-show has no record by definition — so every absence, the rows ADR-017
+exists to surface, rendered a raw Firebase uid in the Weekly and Monthly reports.
+The roster stores uids only, so nothing downstream could recover the name.
+
+Fixed on both sides, because neither half is sufficient alone:
+
+- **Server** — `closeAttendanceExpectations` resolves the closable slots' uids
+  against `users/{uid}` (`displayName`, then `fullName`, matching the client
+  model) and freezes the name onto the row at close. Required regardless, since
+  ADR-017 puts CSV/PDF export in a Cloud Function and those artifacts need names.
+  **Needs a functions deploy.**
+- **Client** — `AttendanceReportCubit` resolves the branch directory through the
+  existing `GetUsersByBranch`, so the rows already in production stop showing
+  uids immediately without a backfill or a restatement. Best-effort: a directory
+  failure leaves the uid fallback and logs, never breaking a report whose numbers
+  are already right.
+
+Precedence is ledger name → directory → uid. The frozen value wins because a
+payroll artifact must reproduce the name as of close, not the name today. A
+missing name stays null rather than becoming the uid, so a reader can tell "no
+name known" from a person actually called that. The directory is a **label
+only** — every denominator still comes from the ledger, and the ADR-017 source
+guard is untouched.
+
+## 2026-07-31 — Attendance: the Monthly Report (feature; LOW risk)
+
+The second per-period reporting destination, `/attendance/reports/monthly/:periodId`,
+under [ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md) and the
+decided IA §7. Ledger-exclusive like Weekly: one `attendance_expectations`
+branch/dayKey range over the calendar month, served by the already-deployed
+`(branchId, dayKey)` composite — **no new function, rule, or index**.
+
+- **Monthly is not "Weekly with more days" (IA §7.1).** The month is partitioned
+  into the Schedule weeks (Sunday→Saturday) that overlap it, and a week that only
+  partly overlaps is marked **Partial** and never read as a full week.
+- **Structured for the rollup swap.** Every aggregate is folded by the single
+  row-scanning factory `MonthlyAttendanceReport.fromLedger` and handed to a
+  private constructor that scans nothing, so the future rollup Function adds a
+  `fromRollup(...)` factory additively with no UI change. Deliberately no
+  interface or strategy seam with one implementation.
+- **The owner's rule holds:** rows present with zero clock-ins render a real
+  **0%**; a date or month with no rows renders **No ledger data** and no
+  percentage. Both directions are asserted in the widget tests.
+- **Two Africa/Cairo DST defects found and fixed** — a month is the first surface
+  that walks every date and groups by week, so `Duration`-based week math became
+  visible here for the first time. Clocks back (Thu 29 Oct 2026) resolved one
+  Schedule week to both `00:00` and `01:00`, splitting it into a phantom sixth
+  bucket; clocks forward (Fri 24 Apr 2026, when `00:00` does not exist) landed on
+  `Apr 18 23:00`, forking a sixth bucket out of a five-week month and counting 37
+  days in a 30-day month. Week grouping is now pure calendar arithmetic and the
+  covered-day count is measured in UTC. Both months are locked in as regression
+  tests. Shared `ScheduleWeek.startOf` is untouched — repairing it is wider than
+  this report.
+- **Two latent overflow bugs fixed** in shared widgets that only a long label
+  exposed: the metric card's label and `PremiumButton`'s label now ellipsize
+  instead of painting overflow stripes at a 390pt viewport.
+- Month-over-month comparison, the restatement log, per-employee drill-down, and
+  export stay deferred and render as disabled affordances.
+
+## 2026-07-30 — Chat: the five audited defects fixed (bug; LOW–MED risk)
+
+All findings from the chat workflow/cache audit, implemented behind the existing
+architecture — REST stays the source of truth, the socket stays delivery-only,
+the Drift cache stays metadata-only, and no backend contract moved.
+
+- **Reconnect no longer strands messages (HIGH).** `_reconcile` merged only the
+  newest page, so an outage that buried more than one page left a hole in the
+  middle of the thread that scroll-back could never reach — it pages from
+  `_nextCursor`, which points *below* the loaded window and walks away from the
+  gap. Reconcile now keeps paging older until the two windows meet (bounded at 5
+  pages); if the gap is wider it hands `_nextCursor` to the deepest page fetched
+  so scroll-back walks *into* the gap instead of past it. `seq` is allocated
+  globally by the server, so the gap test is window overlap, not arithmetic.
+- **A rejected send can be discarded (HIGH).** There was no local-only discard:
+  "Delete for me" called the REST endpoint with a `local:<key>` id the server has
+  never seen, so the bubble and its outbox row survived and `_retryFailedSends`
+  re-dispatched it on every app open and every reconnect, forever. New
+  `discardFailedSend` drops the bubble and drains the outbox row via
+  `ChatThreadCache.discardPending`. Both menus now hide every server-addressed
+  action (reply/forward/info/deletes) on an unsent message and offer Discard,
+  with its own confirmation copy.
+- **The unread badge is coupled to the mark-read ack (MED).** It still clears
+  instantly on open — the clear is now recorded, and `restoreUnread` puts it back
+  when the mark-read never lands, so the inbox stops showing "read" for a thread
+  the server still counts unread. A newer count always outranks a pending
+  rollback. Wired thread→inbox via a DI callback; no UI coupling.
+- **Cached inboxes show real unread counts (MED).** `unreadCount` was never
+  persisted, so every cold/offline paint reported zero. Added as a column
+  (schemaVersion 1→2, additive `ALTER TABLE`, existing rows default to 0 and are
+  corrected by the next list read, which is server-authoritative).
+- **Offline scroll-back stops lying about the start of history (MED).** Running
+  out of cached messages was read as reaching the beginning of the thread. An
+  exhausted cache now falls back to the stored server cursor, so scroll-back
+  resumes from the server; null — a real stop — only when the last online fetch
+  reported no further page.
+
+A follow-up self-review caught three more defects, now also fixed:
+
+- **`reset()` leaked the unread rollback record**, so a previous account's
+  in-flight mark-read could restore its count into the next session's inbox
+  after an account switch — the exact leak `reset()` exists to prevent.
+- **Caching `unreadCount` introduced its own staleness**: a thread read offline
+  and reopened offline kept showing its pre-read badge. A confirmed mark-read now
+  zeroes the cached count (`clearCachedUnread`), so the cache follows the server.
+- **A failed catch-up page discarded the pages already merged** — reconcile now
+  emits what it successfully fetched instead of dropping it.
+
++15 tests (multi-page reconnect, reconcile stop condition, partial catch-up
+failure, discard paths, unread rollback and its two precedence rules, the
+account-switch leak, cached unread, mark-read cache sync, both end-of-history
+sides, and a real **v1→v2 migration test** that downgrades a file database and
+lets drift upgrade it — the upgrade path every other test skipped via
+`.memory()`/`onCreate`). Every new test was verified to fail without its fix.
+Analyze clean; 1218 pass with the 2 known `splash_centering_test.dart` failures
+unchanged.
+
+## 2026-07-30 — Chat/network: stop logging Bearer tokens in release (bug; LOW risk)
+
+`core/network/api_client.dart` was printing every outgoing request's full
+`Authorization: Bearer <token>` header, plus every response status and every
+networking error, through `debugPrint` — three sites left over from the 401
+investigation and marked `⚠️ TEMPORARY DEBUG — remove after 401 probe`.
+**`debugPrint` is not compiled out in release builds**, so a signed-in staff
+member's live Firebase ID token was written to the device/OS log (`adb logcat`,
+Console.app, any log-scraping crash reporter) on every chat action in production.
+
+Deleted `_debugLogOutgoing` and its two call sites, the `onResponse` override
+(which did nothing but log and forward — removing it restores the identical
+default behaviour), the `onError` probe line, and the now-unused
+`package:flutter/foundation.dart` import. Pure deletion — the auth-retry
+contract (single force-refresh + replay via `extra['authRetried']`) is
+untouched. Found by a read-only audit of the chat workflow; the audit's other
+findings (reconnect history gap, undiscardable failed sends, offline
+end-of-history inference, uncached `unreadCount`) are recorded but **not** fixed
+here.
+
+## 2026-07-30 — Notifications: richer two-line header (polish; LOW risk)
+
+The Notification Center's app-bar title is now a two-line lockup — "Notifications"
+over a **live status line**: `N unread notification(s)` in the inbox, or
+`N archived` in the Archived view (and "You're all caught up" / "Nothing
+archived" at zero). It watches the cubit, so the count stays current as items are
+read, archived, or arrive; the subtitle line height is always reserved so the app
+bar never jumps on first load. Presentation only — no data/cubit/rules change.
+
+## 2026-07-30 — My Tasks: pinned "Late" and "Missed" groups (polish; LOW risk)
+
+The employee **My Tasks** screen now surfaces the two failure-adjacent readings
+as their own groups instead of scattering them:
+
+- **Active tab** — a dedicated **Late** section is pinned to the very top (above
+  "Needs attention"): every actionable task already past its deadline. Those
+  tasks are pulled out of "In progress" / "Today's tasks" so they no longer
+  appear twice. Rejected rework keeps its own "Needs attention" home.
+- **Done tab** — **Missed** tasks are pinned in their own group above the
+  recency buckets; Completed and Cancelled stay grouped by recency below.
+
+Presentation only — no new data, cubit, or rules; reuses the existing
+`_isOverdue` reading (Late fires at the raw deadline per ADR-013) and the
+terminal `missed` status. Also tightened "Upcoming" to strictly-future days so a
+task due later *today* no longer showed in both "Today's tasks" and "Upcoming".
+
+## 2026-07-30 — UI label: "Overdue" → "Late" (polish; LOW risk)
+
+Every user-facing "Overdue" string now reads **"Late"**, so the product shows
+exactly two overdue-ish words: **Late** (open task past its deadline) and
+**Missed** (closed, unfinished). The label "Overdue" no longer appears in any
+screen — task cards, feed group headers, feed preset, `TaskSchedulePhase` chip,
+admin/branch dashboards, operations metric, workload cards, and pending-actions.
+The push-notification title also changes ("Task Overdue" → "Task Late",
+"is overdue" → "is late") — **needs a functions deploy to take effect.**
+
+Presentation only: internal identifiers keep the name `overdue`
+(`TaskSchedulePhase.overdue`, `FeedPreset.overdue`, `isTaskOverdue`,
+`OperationsMetric.overdue`, group/preset keys, `usage_tracker` keys) so analytics
+keys and logic are untouched. Aligns the UI with the spec's own primary term —
+`AUTOMATED_TASKS_PRODUCT_SPEC.md` §3.1 already calls the derived visual
+"Late (Overdue)". Affected tests updated; 94 in the touched suites pass.
+
 ## 2026-07-29 — ATLAS developer navigation system (`.nav/`)
 
 Added `.nav/` — a code-navigation "operating system" (not prose docs): a boot README, 8 cross-cutting
@@ -25,6 +563,143 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 
 
 ## Unreleased
+
+### 2026-07-30
+
+- **Attendance expectation sweep widened to the current business week** (bug; HIGH
+  operational importance, LOW implementation risk — payroll-reporting denominator
+  recovery). Added pure `businessDaysToSweep(nowMs)` in
+  `functions/attendance_expectation.js`: newest-first Africa/Cairo business days
+  from the current Schedule week Sunday through today, plus the previous business
+  day for the Sunday boundary, deduplicated and hard-capped at 8 entries. The
+  scheduled `closeAttendanceExpectations` consumer now uses that helper while
+  keeping the same schedule reads, deterministic attendance ids, single `getAll`,
+  chunked correction query, locked-row skip, and restatement signature. This makes
+  the sweep self-healing after a missed run or deploy delay for rostered days still
+  in the active business week; weeks entirely in the past still need a separate
+  backfill. **Requires a functions deploy before production behavior changes.**
+
+- **Attendance reporting zero-attendance semantics** (bug/product semantics; MED
+  risk — payroll-adjacent wording and close readiness). Owner rule recorded:
+  a materialized expected shift with no clock-ins is a real **0%** attendance
+  result, not unknown attendance and not a day-level close problem; a day or
+  period with no `attendance_expectations` rows is still a ledger data gap with
+  no denominator. Removed the Weekly report's closure-marker prescription and
+  the "known limitation" framing. `WeeklyAttendanceReport.isFullyClosed` now
+  requires ledger rows and no blocking exceptions, so a row-present no-show week
+  can reach **Fully closed**; blocking missing-punch / pending-correction /
+  unknown exception rows still keep it **Partially closed**. The hub, weekly
+  report, daily rhythm table, coverage card, and history summary now distinguish
+  **No ledger data** from row-backed `0%`, and tests assert both sides of that
+  rule.
+
+- **Weekly Attendance Report** (feature; MED risk — first per-period report
+  destination over payroll-adjacent ledger facts). Added
+  `/attendance/reports/weekly/:periodId` for admin/manager, wired the hub's
+  Weekly entry to a real route using the current branch + Sunday-Saturday period
+  id, and kept employees behind the existing Attendance & Reports guard. The
+  report reads only `attendance_expectations` through the existing
+  `AttendanceReportCubit` branch/dayKey stream; no rollup collection, period
+  document, Cloud Function, roster read, or raw attendance reconstruction was
+  added. A new pure `WeeklyAttendanceReport` aggregates the seven-day ledger
+  window into summary metrics, daily buckets, employee facts, exception groups,
+  evidence rows, and conservative coverage. The UI renders IA §6's weekly
+  sections, hides rates for an empty ledger, marks row-present weeks without
+  blockers as **Fully closed**, and shows zero-row days as **No ledger data**.
+  Monthly,
+  per-employee, exception queue, branch comparison, close/lock, and PDF/CSV
+  export remain disabled **Coming next** surfaces.
+
+- **Attendance Reports Dashboard** (feature; MED risk — first manager/admin
+  reporting surface over payroll-adjacent ledger facts). Added
+  `/attendance/reports` as the Attendance & Reports hub for admin and manager,
+  wired into the desktop sidebar label while employees keep the plain Attendance
+  entry and are route-guarded away. The screen reads only the
+  `attendance_expectations` reporting ledger via the existing
+  `AttendanceReportCubit`: branch scope lives in the header, managers are pinned
+  to their branch, branchless admins must choose one explicitly, Week/Month
+  windows use the reporting period helpers, and future-period navigation is
+  disabled. Empty ledger coverage renders **Awaiting close** with no rate or
+  zero-valued metric grid; rows present render denominated cards for expected
+  shifts, present, absent, show-up, punctual arrivals, worked time, and excluded
+  context. Later Weekly/Monthly/per-employee/export/exception surfaces are shown
+  as disabled **Coming next** entries. The reporting source guard now covers the
+  new screen and widgets.
+
+- **Attendance reporting read layer** (feature; HIGH operational importance,
+  MED risk — payroll-facing numbers now depend on the materialized ledger).
+  Added the client read path for `attendance_expectations`: persisted
+  `AttendanceLedgerRow` + defensive Firestore model parsing, read-only
+  datasource/repository streams over the deployed `(branchId, dayKey)` and
+  `(userId, dayKey)` composites, `AttendanceReportSummary.fromLedger`, a plain
+  Cubit/state with explicit `LedgerCoverage`, and DI wiring. The existing
+  Attendance History summary strip now reads ledger-derived show-up and punctual
+  arrival metrics and renders **No ledger data** for an empty ledger window
+  instead of dangerous real-looking zeroes. Added source-guard tests so reporting
+  files cannot re-import `AttendanceStats`, roster reconstruction, board code, or
+  schedule reads. Weekly/Monthly reports and export remain future slices; the
+  close Function still requires deployment before production periods have rows.
+
+- **Attendance expectation close pipeline** (feature; HIGH operational importance,
+  MED risk — payroll-relevant server materialization, additive collection). Added
+  the Cloud Functions pure module `functions/attendance_expectation.js`, mirroring
+  the Dart reporting core's expected-row outcomes and exception codes while copying
+  persisted minute snapshots rather than recalculating payroll minutes. New
+  scheduled export `closeAttendanceExpectations` runs every 30 minutes in
+  `Africa/Cairo`; the initial version scanned only the current and previous
+  business day before the week-wide self-healing window later the same day. It resolves
+  rostered slots from `weekly_schedules`, materializes one
+  `attendance_expectations/{uid}_{yyyyMMdd}_{shift}` row per closed expected slot
+  (including phantom no-shows), skips locked rows, and restates changed rows with a
+  bumped version + `restatedAt`. Added read-only client rules for the new collection
+  (admin any, manager own branch, employee own row), denied every client write, and
+  added only the branch/day and user/day composites the future report queries need.
+  Cloud Functions tests are **60 pass** (was 46); Firestore rules are **37 pass**
+  (was 31), verified against the emulator. Requires a functions/rules/indexes
+  deploy. The legacy History/`AttendanceStats` reader still
+  ignores the expectation ledger until a later slice rewires it.
+
+- **Attendance Reporting Ledger P0 pure domain core** (feature; LOW risk — purely
+  additive pure domain, no call sites yet, no existing file's behaviour changed).
+  Added plain Dart value objects under
+  `features/attendance/domain/reporting/`: `AttendancePeriodWindow` and
+  deterministic period ids; roster-derived `ExpectedShiftRow`s that turn a
+  finished no-record roster slot into a phantom `absent` row; derived exception
+  codes including missing-punch, unscheduled-work, and implausible-record review
+  flags; and `AttendanceReportSummary` rates that carry numerator and
+  denominator. The implementation reuses `AttendanceCalculator`, `ShiftWindow`,
+  `ScheduleWeek`, `WeeklyScheduleEntity.hoursFor`, and attendance deterministic
+  ids. No Cloud Function, Firestore collection, rules/indexes, export, or UI was
+  added, and nothing imports the new files yet. +4 domain test files (+19 tests):
+  `flutter test` 1179 pass · 2 fail (the same pre-existing splash-centering pair),
+  `flutter analyze` unchanged at 1 pre-existing info.
+
+- **Scheduled tasks are visible but not startable before their start time**
+  (feature; MED risk — client workflow + Firestore rules). Upcoming `pending`
+  tasks already stayed in active/upcoming lists and read Scheduled rather than
+  Overdue/Missed; this now has coverage. The actual start path is gated by one
+  pure `task_schedule.dart` predicate, reused by Employee Home, Task Details,
+  and `TaskCubit.startTask`: null `startsAt` remains startable, the boundary is
+  inclusive, and **rework has no exception** (`rejected → started` is blocked
+  before `startsAt` just like first start). The UI disables and explains the
+  action ("Starts at …") and arms a one-shot timer so it enables itself without
+  refresh. Firestore rules now deny employee writes whose destination status is
+  `started` while the stored `startsAt` is still in the future. +14 Flutter
+  tests and +5 Firestore rules tests. **Requires a rules deploy.**
+
+- **Fixed: automated tasks can no longer be born already overdue** (bug; HIGH
+  severity, MED risk — two recurrence engines plus scheduler semantics). The
+  recurring-shift generator now treats "today" as the Egypt business civil day
+  (`Africa/Cairo`) instead of UTC, anchors shift windows to that local midnight
+  with DST-safe calendar arithmetic, and runs at **01:00 Africa/Cairo** before
+  any shift starts. A temporary legacy UTC-key guard prevents a duplicate on the
+  deploy transition. The client save-time materializer now uses the local
+  business date and refuses to create a shift instance after its resolved
+  deadline, while still allowing creation mid-window. Per-task recurrence rolls
+  successors forward until their deadline is in the future and uses calendar
+  stepping for daily/weekly rules. +5 Cloud Functions tests and +3 Flutter tests.
+  **Requires a functions deploy** for the server generator/sweep behavior to
+  take effect in production.
 
 ### 2026-07-29
 

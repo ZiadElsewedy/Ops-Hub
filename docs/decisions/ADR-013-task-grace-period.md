@@ -109,9 +109,8 @@ workflow.
   in detection latency is smaller than the number suggests.
 - One edge to keep in view: the operational-weekend night shift ends at 00:00, so
   its grace expires at 00:30 — in the next calendar day. The window model already
-  supports end-of-day overrun and `instanceDate` is persisted, but the daily
-  generator keys on a UTC date, so that interaction is verified rather than
-  assumed.
+  supports end-of-day overrun and `instanceDate` is persisted; the later
+  business-day key ruling is [ADR-015](ADR-015-automation-business-timezone.md).
 
 ## Supersedes
 

@@ -25,6 +25,22 @@ String attendanceDayKey(DateTime date) {
   return '$y$m$d';
 }
 
+/// The calendar date a `yyyyMMdd` [key] names, or `null` if it is not one.
+///
+/// The inverse of [attendanceDayKey], for surfaces that take a day key from a
+/// route. Rejects a malformed length, non-numeric parts, and dates the calendar
+/// normalizes away (`20260231`) — a route parameter is user input.
+DateTime? parseAttendanceDayKey(String key) {
+  if (key.length != 8) return null;
+  final year = int.tryParse(key.substring(0, 4));
+  final month = int.tryParse(key.substring(4, 6));
+  final day = int.tryParse(key.substring(6, 8));
+  if (year == null || month == null || day == null) return null;
+  final date = DateTime(year, month, day);
+  if (date.year != year || date.month != month || date.day != day) return null;
+  return date;
+}
+
 /// The deterministic document id for [uid]'s [shift] on [date].
 String attendanceDocId({
   required String uid,
@@ -32,3 +48,19 @@ String attendanceDocId({
   required ScheduleShift shift,
 }) =>
     '${uid}_${attendanceDayKey(date)}_${shift.value}';
+
+/// Which shift band an **unscheduled** clock-in belongs to ([ADR-018]).
+///
+/// The record id is `{uid}_{yyyyMMdd}_{shift}` (T1), so an unscheduled shift
+/// still needs one of the two bands. It is chosen from the clock, using the
+/// same boundary as `ScheduleShift.timeRange`'s defaults (night starts 15:00).
+///
+/// Deliberately *not* a third enum value: `ScheduleShift` is persisted, and
+/// widening it to carry "unscheduled" would put a scheduling concept into a
+/// vocabulary the roster owns. What makes a shift unscheduled is the absence of
+/// a scheduled window on the record, not its band.
+///
+/// A collision is a feature: if the roster later adds that person to that band
+/// on that day, it resolves to the same record rather than a duplicate.
+ScheduleShift unscheduledShiftFor(DateTime now) =>
+    now.hour < 15 ? ScheduleShift.morning : ScheduleShift.night;

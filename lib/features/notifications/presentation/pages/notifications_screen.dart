@@ -130,6 +130,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     return AdaptiveScaffold(
       title: _showArchived ? 'Archived' : 'Notifications',
+      // Two-line lockup — the title anchored by a live status line (unread count
+      // in the inbox, archived count in the Archived view) so the inbox states
+      // where it stands the moment it opens.
+      titleWidget: _HeaderLockup(showArchived: _showArchived),
       contentMaxWidth: 760, // a chronological inbox reads best in a narrow column
       actions: [
         if (_showArchived)
@@ -334,6 +338,55 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               style: AppTypography.label.copyWith(color: AppColors.primary)),
         ),
       );
+}
+
+/// "Notifications" over a live status line — a two-line app-bar title. Watches
+/// the cubit so the count stays current as items are read, archived, or arrive.
+/// The subtitle height is always reserved (a non-breaking space while loading)
+/// so the app bar never jumps when the first snapshot lands.
+class _HeaderLockup extends StatelessWidget {
+  const _HeaderLockup({required this.showArchived});
+
+  final bool showArchived;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = showArchived ? 'Archived' : 'Notifications';
+    return BlocBuilder<NotificationCubit, NotificationState>(
+      builder: (context, state) {
+        final summary = state.maybeWhen(
+          loaded: _summary,
+          orElse: () => ' ', // reserve the line height while loading
+        );
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: AppTypography.h3),
+            const SizedBox(height: 1),
+            Text(
+              summary,
+              style:
+                  AppTypography.caption.copyWith(color: AppColors.textTertiary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _summary(List<NotificationEntity> items) {
+    if (showArchived) {
+      final n = items.where((e) => e.isArchived).length;
+      return n == 0 ? 'Nothing archived' : '$n archived';
+    }
+    final unread = items.where((e) => e.isUnread && !e.isArchived).length;
+    return unread == 0
+        ? "You're all caught up"
+        : '$unread unread notification${unread == 1 ? '' : 's'}';
+  }
 }
 
 /// The category filter pills — subtle premium chips (no loud badges).

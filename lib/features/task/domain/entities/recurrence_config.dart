@@ -12,10 +12,13 @@ class RecurrenceConfig with _$RecurrenceConfig {
 
   const factory RecurrenceConfig({
     required RecurrenceFrequency frequency,
+
     /// How many units between occurrences (e.g. interval=2 + daily = every 2 days).
     @Default(1) int interval,
+
     /// Target weekday for weekly recurrence: DateTime.monday = 1 … DateTime.sunday = 7.
     @Default(1) int weekday,
+
     /// Hour of day the task should start (24h, default 9 = 9 AM).
     @Default(9) int hour,
     @Default(0) int minute,
@@ -28,12 +31,30 @@ class RecurrenceConfig with _$RecurrenceConfig {
       case RecurrenceFrequency.none:
         return from;
       case RecurrenceFrequency.daily:
-        return base.add(Duration(days: interval));
+        return DateTime(
+          base.year,
+          base.month,
+          base.day + interval,
+          hour,
+          minute,
+        );
       case RecurrenceFrequency.weekly:
-        var candidate = base.add(const Duration(days: 1));
+        var candidate = DateTime(
+          base.year,
+          base.month,
+          base.day + 1,
+          hour,
+          minute,
+        );
         for (var i = 0; i < 7; i++) {
           if (candidate.weekday == weekday) break;
-          candidate = candidate.add(const Duration(days: 1));
+          candidate = DateTime(
+            candidate.year,
+            candidate.month,
+            candidate.day + 1,
+            hour,
+            minute,
+          );
         }
         return candidate;
       case RecurrenceFrequency.monthly:

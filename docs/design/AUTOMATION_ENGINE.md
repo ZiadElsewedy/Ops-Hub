@@ -21,9 +21,9 @@ Two **independent** recurrence engines feed the one `tasks/{id}` collection:
 | | **Path A — Shift-template recurrence** | **Path B — Per-task recurrence** |
 |---|---|---|
 | Blueprint | `recurringTaskTemplates/{id}` (a standing routine) | A `RecurrenceConfig` embedded on a `TaskEntity` |
-| Trigger | `generateShiftTaskInstances` Cloud Function (daily) + client `_materializeTodayInstance` on template save; `autoEndRecurringShiftTasks` checks persisted deadlines every 15 min | Client `_spawnNextRecurrence` **after** a task is approved |
+| Trigger | `generateShiftTaskInstances` Cloud Function (01:00 Africa/Cairo daily) + client `_materializeTodayInstance` on template save; `autoEndRecurringShiftTasks` checks persisted deadlines every 15 min | Client `_spawnNextRecurrence` **after** a task is approved |
 | Assignment | **Shift broadcast** — `assigneeIds: []`, targets whoever is rostered on that (day, shift) | Inherits the source task's `assigneeIds` |
-| Instance id | Deterministic `rt_{templateId}_{yyyy-MM-dd}` | Deterministic `rec_{sourceTaskId}` (**new** — was a random auto-id) |
+| Instance id | Deterministic `rt_{templateId}_{yyyy-MM-dd}` where the date is the Africa/Cairo business civil day | Deterministic `rec_{sourceTaskId}` (**new** — was a random auto-id) |
 
 There is **no single-employee selection engine**. "Automatic assignment" = a shift
 task is visible to and notifies every rostered employee on its shift; a per-task
@@ -70,17 +70,20 @@ written create-only.** Then retries, concurrency, and reopen→re-approve all
   current task id is the natural idempotency key — and, crucially, it does **not**
   depend on the deadline (which may be null). Written via the now-**atomic**
   `createTaskWithId` (Firestore transaction: get→if-exists-return-null→set). A
-  duplicate spawn is a silent no-op. Lineage is stored as `recurrenceRootId`
-  (root task id, propagated down the chain) + `occurrenceKey` (the successor's
-  due-date key, for display).
+  duplicate spawn is a silent no-op. The successor deadline is rolled forward
+  until it is in the future, so approving an old occurrence cannot create a
+  permanently-late next task. Lineage is stored as `recurrenceRootId` (root task
+  id, propagated down the chain) + `occurrenceKey` (the successor's due-date key,
+  for display).
 - **Path A (Cloud Function):** `get→set` replaced by an **atomic `ref.create()`**
   (throws `ALREADY_EXISTS` → skip). Roster notification runs **only when create
   actually succeeded**, and each notification uses a **deterministic id**
   (`autoassign_{taskId}_{uid}`) written with `set`, so a re-run can never
   double-notify.
-- **Scheduler:** `generateShiftTaskInstances`, `autoEndRecurringShiftTasks`, and
-  `runTaskReminders` run with `maxInstances: 1` (no overlap) + explicit
-  `retryCount: 0` + `timeoutSeconds`.
+- **Scheduler:** `generateShiftTaskInstances` is pinned to **01:00
+  Africa/Cairo** so it runs before the earliest shift starts. It, plus
+  `autoEndRecurringShiftTasks` and `runTaskReminders`, runs with
+  `maxInstances: 1` (no overlap) + explicit `retryCount: 0` + `timeoutSeconds`.
 
 ---
 
@@ -113,7 +116,7 @@ The presentation is deliberately honest about the boundary between a template an
 one generated occurrence:
 
 - `nextRunAt` is labelled **Next automation check**, not guaranteed publish time;
-  the current 24-hour scheduler makes it advisory.
+  it points at the next 01:00 Africa/Cairo generation tick.
 - The sheet's Shift window row is a standard-hours guide; a generated task itself
   captures the exact resolved weekly window (`shiftHours` override → frozen
   `shiftPlan` → standard) in `startsAt` / `deadline`.
@@ -124,15 +127,19 @@ one generated occurrence:
 - `lastStatus` describes the **generator** (`completed` / `skipped` / `failed`),
   not employee task completion; the UI therefore says Generated successfully,
   Already generated or Last generation failed.
+- The client save-time materializer may create today's task while the resolved
+  shift window is still live, but it refuses to create an instance after the
+  deadline has passed. The 01:00 server generator is the durable authority for
+  the next occurrence.
 
 ---
 
 ## 5. Automation execution records (`automationRuns`) — ADR-011
 
 Operational execution telemetry — **distinct from `audit_logs`** (business facts).
-Written by the Cloud Function per (template, day) at a **deterministic id**
-`{templateId}_{yyyy-MM-dd}`, so the history is itself idempotent (a retry
-overwrites the run row, never appends a duplicate). As of
+Written by the Cloud Function per (template, business day) at a
+**deterministic id** `{templateId}_{yyyy-MM-dd}`, so the history is itself
+idempotent (a retry overwrites the run row, never appends a duplicate). As of
 [ADR-011](../decisions/ADR-011-automation-observability.md) the row is a rich
 **execution record** — same one write per template/day, richer payload:
 
@@ -289,20 +296,25 @@ included) and an empty roster failed silently. Now the roster is filtered and th
 
 ## 9. Cloud Function summary
 
-**`generateShiftTaskInstances`** — atomic `create` (dedup) · notify-on-create-only
-with deterministic notif ids · roster filtering (active + not-on-leave) · enriched
-`automationRuns` execution record + embedded step logs (§5) · `recurringTaskTemplates`
-rollups + health counters · `audit_logs` events · `maxInstances:1` + `retryCount:0`
-+ `timeoutSeconds`. **UTC date key** is kept deliberately (a Cloud Function has no
-per-branch local time; determinism is the priority — a branch-local "today" is a
-noted P2). It resolves and persists the weekly shift window from the saved
-schedule; a duplicate created by an older client is repaired only when its deadline
-is missing **and the instance is not already terminal** — "terminal tasks are never
+**`generateShiftTaskInstances`** — pinned to **01:00 Africa/Cairo** · atomic
+`create` (dedup) · notify-on-create-only with deterministic notif ids · roster
+filtering (active + not-on-leave) · enriched `automationRuns` execution record +
+embedded step logs (§5) · `recurringTaskTemplates` rollups + health counters ·
+`audit_logs` events · `maxInstances:1` + `retryCount:0` + `timeoutSeconds`. The
+deterministic date key is the **Africa/Cairo business civil day** (Automated
+Tasks spec §12.2), not UTC. It resolves and persists the weekly shift window
+from the saved schedule, anchored to the occurrence's business-local midnight;
+a duplicate created by an older client is repaired only when its deadline is
+missing **and the instance is not already terminal** — "terminal tasks are never
 resurrected" ([spec §4.4](AUTOMATED_TASKS_PRODUCT_SPEC.md)), and that explicitly
 includes repair, so a cancelled/missed/approved instance is left exactly as it is
 (the guard is the pure `isTerminalTaskStatus` in `functions/recurring_task_deadline.js`).
-Generation for a day is spent the moment that day's instance exists in **any** state.
-Pure record-shape logic is extracted to `functions/automation_run.js`.
+Generation for a day is spent the moment that day's instance exists in **any**
+state. During the UTC-key → business-date-key transition, the generator also
+checks the legacy UTC-derived id before creating; if found, it records the run as
+the existing `alreadyExists` skip and does not create or notify. That guard is
+temporary and can be deleted once no live UTC-keyed instance can remain. Pure
+record-shape logic is extracted to `functions/automation_run.js`.
 
 **`autoEndRecurringShiftTasks`** — every 15 minutes, queries the indexed due
 generated shift tasks and transactionally revalidates each one. A task is due
@@ -336,7 +348,6 @@ before/after diff; idempotent (audit id from the CloudEvent id) and non-looping
 - A **Details screen** over the ADR-011 read layer — data foundation is built;
   the screen is a future UI phase.
 - `assignmentStrategy` scaffolding for future non-broadcast strategies.
-- Branch-local timezone "today".
 - Monthly recurrence for **shift** templates (per-task recurrence already has it).
 - Firestore-native TTL on `automationRuns` (today a bounded `taskHousekeeping`
   age-prune covers it — `automationRunRetentionDays`, default 90).

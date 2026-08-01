@@ -28,6 +28,7 @@ void main() {
     ScheduleShift? shift,
     TaskAssignmentType type = TaskAssignmentType.individual,
     DateTime? deadline,
+    DateTime? startsAt,
     DateTime? approvedAt,
     DateTime? createdAt,
     String title = 'Task',
@@ -43,6 +44,7 @@ void main() {
     shift: shift,
     assignmentType: type,
     deadline: deadline,
+    startsAt: startsAt,
     approvedAt: approvedAt,
     createdAt: createdAt,
   );
@@ -74,6 +76,22 @@ void main() {
       expect(ids, containsAll(['today', 'open']));
       expect(ids, isNot(contains('old')));
       expect(ids, isNot(contains('missed')));
+    });
+
+    test('keeps pending work scheduled for a future start', () {
+      final ids = applyFeed(
+        [
+          task(
+            'upcoming',
+            startsAt: now.add(const Duration(hours: 1)),
+            deadline: now.add(const Duration(hours: 4)),
+          ),
+        ],
+        const TaskFeedFilter(),
+        now,
+      ).map((t) => t.id);
+
+      expect(ids, ['upcoming']);
     });
   });
 
@@ -299,7 +317,7 @@ void main() {
           now,
         ).map((g) => g.label);
         expect(labels, [
-          'Overdue',
+          'Late',
           'Today',
           'This week',
           'Later',

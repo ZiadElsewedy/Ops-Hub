@@ -41,7 +41,7 @@ void main() {
     expect(find.text('2'), findsOneWidget); // overdue
     expect(find.text('4'), findsOneWidget); // completed today
     expect(find.text('Active'), findsOneWidget);
-    expect(find.text('Overdue'), findsOneWidget);
+    expect(find.text('Late'), findsOneWidget);
     expect(find.text('Review'), findsOneWidget);
     expect(find.text('Done'), findsOneWidget);
     expect(find.textContaining('Now: Store opening'), findsOneWidget);
