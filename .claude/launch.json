@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "card-preview",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "web-server", "--web-port", "8101", "--web-hostname", "127.0.0.1", "-t", "tool/employee_card_preview.dart"],
+      "port": 8101
+    },
+    {
       "name": "DROP-web",
       "runtimeExecutable": "flutter",
       "runtimeArgs": ["run", "-d", "web-server", "--web-port", "8099", "--web-hostname", "127.0.0.1"],

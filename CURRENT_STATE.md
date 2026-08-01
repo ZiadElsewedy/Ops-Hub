@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1359 pass · 2 fail** across 187 files (~31s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1400 pass · 2 fail** across 192 files (~40s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · iOS push unconfigured · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -614,6 +614,7 @@ week does not block the GPS gate for the wrong reason.
 | **Attendance breaks** | 2026-07-15 | Descoped for MVP. `AttendanceBreak` kept as a dormant extension point |
 | **Shift foundation (Phase 2)** | Phase 10 | Dead code; the weekly schedule is the roster |
 | **Public registration / OTP / Google** | 2026-06-26 | DROP is admin-provisioned |
+| **Employee-card KPI strip** (Completed · Pending · Rate · Late) | 2026-08-01 | Owner ask. Identical on every row, so it ranked nobody while costing the tallest band of the card. Performance lives in the Details inspector; `computeEmployeeMetrics` is untouched |
 
 ---
 
@@ -810,10 +811,10 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1248 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1400 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 68 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
-grep -c "static const String" lib/core/routes/route_names.dart   # expect: 49
+grep -c "static const String" lib/core/routes/route_names.dart   # expect: 51
 ls lib/features | wc -l                  # expect: 18
 ```
 

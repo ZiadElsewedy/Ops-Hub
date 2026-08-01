@@ -14,6 +14,48 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-01 — Employees directory: an identity-only row card (polish; LOW risk)
+
+Owner ask, verbatim: *"redesign the card of the employees and remove the
+complete and rate and all of this — just the name and branch, I don't need all
+of this."*
+
+The card had been carrying four inline KPIs (Completed · Pending · Rate · Late)
+since the 2026-07-27 density pass. In a real directory they were **nine zeros in
+a row** — every employee scored identically, so the numbers said nothing while
+costing the tallest band of every card. `EmployeeCard` is now identity-only:
+
+```
+⬤  Mohamed khaled                                    Active  [Details] [Edit] [⋯]
+MK 🏪 Drop the shop | Arkan
+```
+
+- **Removed** the `metrics` parameter and the whole `_InlineMetrics` block. Row
+  height drops from ~140px to ~68px, so roughly twice as many people fit on a
+  screen and the eye runs down one column of names.
+- **Removed** the role from the subtitle. It read "Employee ·" on nearly every
+  row; the Role filter and the Details inspector both still carry it.
+- **The branch is the second line on its own**, behind a storefront mark and one
+  step down the grey ramp. An unassigned employee reads *No branch* in italic
+  quaternary grey — a gap to fill, deliberately not an error red.
+- Access state, Details / Edit, the ellipsis menu and the desktop right-click
+  menu are **unchanged**; the card is still presentation-only.
+- Radius tightened to 16 (20 reads as a pill at this height); wide/narrow
+  breakpoint moved 620 → 520, since the row no longer has a KPI band to fit.
+
+**Nothing was lost.** `computeEmployeeMetrics` is untouched and still feeds the
+Details inspector, which has the room to present performance honestly. Removing
+the card's dependency on it also let `_body` stop `watch`ing `TaskCubit`, so the
+directory no longer rebuilds on every task-stream tick — the inspector reads the
+cubit on demand when it opens.
+
+Tests: `test/employee_card_test.dart` rewritten around the new contract (name ·
+branch · access · actions, "No branch", KPI labels absent, no overflow at
+280px). Suite **1400 pass / 2 fail** — the 2 are the pre-existing
+splash-centering failures.
+
+---
+
 ## 2026-08-01 — Notification inbox: readable rows + the dead attendance tap (polish + bug; LOW/MED risk)
 
 Owner report: the Notification Center *"looks bad and messy"*, and navigation

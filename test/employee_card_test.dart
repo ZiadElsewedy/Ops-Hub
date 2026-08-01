@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/admin/presentation/employee_metrics.dart';
 import 'package:drop/features/admin/presentation/widgets/employee_card.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 
@@ -29,7 +28,7 @@ void main() {
   Widget host({
     required UserEntity user,
     required List<EmployeeOverflowAction> secondaryActions,
-    EmployeeMetrics metrics = const EmployeeMetrics(),
+    String? branchLabel = 'Arkan',
     double width = 820,
   }) => MaterialApp(
     theme: AppTheme.dark,
@@ -40,8 +39,7 @@ void main() {
           width: width,
           child: EmployeeCard(
             user: user,
-            branchLabel: 'Arkan',
-            metrics: metrics,
+            branchLabel: branchLabel,
             onTap: () {},
             actions: [
               PremiumButton(
@@ -65,29 +63,39 @@ void main() {
     ),
   );
 
-  testWidgets('keeps identity, inline KPIs, and primary actions scannable', (
+  testWidgets('shows name, branch, access state and the primary actions', (
     tester,
   ) async {
     await tester.pumpWidget(
-      host(
-        user: activeUser,
-        metrics: const EmployeeMetrics(completed: 24, pending: 1),
-        secondaryActions: const [],
-      ),
+      host(user: activeUser, secondaryActions: const []),
     );
 
     expect(find.text('Mohamed Khaled'), findsOneWidget);
-    expect(find.text('Employee · Arkan'), findsOneWidget);
+    expect(find.text('Arkan'), findsOneWidget);
     expect(find.text('Active'), findsOneWidget);
-    expect(find.text('24'), findsOneWidget);
-    expect(find.text('Completed'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
-    expect(find.text('Pending'), findsOneWidget);
-    expect(find.text('96%'), findsOneWidget);
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('Late'), findsOneWidget);
     expect(find.text('Details'), findsOneWidget);
     expect(find.text('Edit'), findsOneWidget);
+  });
+
+  testWidgets('leaves task performance to the Details inspector', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(user: activeUser, secondaryActions: const []),
+    );
+
+    expect(find.text('Completed'), findsNothing);
+    expect(find.text('Pending'), findsNothing);
+    expect(find.text('Rate'), findsNothing);
+    expect(find.text('Late'), findsNothing);
+  });
+
+  testWidgets('names the gap when an employee has no branch', (tester) async {
+    await tester.pumpWidget(
+      host(user: inactiveUser, branchLabel: null, secondaryActions: const []),
+    );
+
+    expect(find.text('No branch'), findsOneWidget);
   });
 
   testWidgets('puts secondary actions behind the more menu', (tester) async {
@@ -157,21 +165,17 @@ void main() {
     expect(find.text('Activate'), findsOneWidget);
   });
 
-  testWidgets('wraps compact content at narrow card widths without overflow', (
+  testWidgets('drops the actions below identity at narrow card widths', (
     tester,
   ) async {
     await tester.pumpWidget(
-      host(
-        user: activeUser,
-        width: 280,
-        metrics: const EmployeeMetrics(completed: 24, pending: 1, late: 2),
-        secondaryActions: const [],
-      ),
+      host(user: activeUser, width: 280, secondaryActions: const []),
     );
 
-    expect(find.text('Completed'), findsOneWidget);
-    expect(find.text('Pending'), findsOneWidget);
-    expect(find.text('Late'), findsOneWidget);
+    expect(find.text('Mohamed Khaled'), findsOneWidget);
+    expect(find.text('Arkan'), findsOneWidget);
+    expect(find.text('Details'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
