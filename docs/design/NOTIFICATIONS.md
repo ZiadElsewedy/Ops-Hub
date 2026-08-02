@@ -69,7 +69,9 @@ reaches the wrong account even during an account-switch/token-drift race.
 3. **Read** — a tap or swipe sets `readAt` (server timestamp). The live stream
    re-emits; no optimistic write. `markAllRead` batches every unread doc.
 4. **Archive** — `archivedAt` set/cleared (hidden from the default inbox, kept
-   for history). `pinnedAt` similarly.
+   for history). `pinnedAt` similarly. Firestore rules permit the recipient to
+   update **only** `readAt`, `archivedAt`, and `pinnedAt`; `recipientUid`, content,
+   type, and payload remain server-owned.
 5. **Delete** — the recipient (or an admin) hard-deletes the doc.
 
 ### Token lifecycle
@@ -197,28 +199,33 @@ double-notify.
 > deadline crossing is noise, and the noise is what makes people stop reading
 > the alerts that matter.
 
+### Reminder eligibility
+
+`runTaskReminders` skips `approved`, `missed`, and `cancelled` tasks because
+they are closed, and also skips `rejected`: lifecycle-wise rejected remains open
+for rework, but the reviewer owns the next move, so reminding the assignee is
+noise. `pending` and `started` tasks remain eligible.
+
 ---
 
 ## 6. Release / deploy checklist (this pass)
 
-Code changes verified with `flutter analyze` (clean on touched files) and
-`flutter test` (all notification tests pass). The following require **your
-machine / accounts** to take effect:
+The app-side configuration below is complete, and all four gates pass
+(`flutter analyze` clean · `flutter test` 1398/2 pre-existing · Cloud Functions
+72 · Firestore rules 53). The following require **your machine / accounts** to
+take effect:
 
 - [ ] **Deploy Cloud Functions** — the push-data fix lives server-side:
   `firebase deploy --only functions:onNotificationCreated`
   (or all functions). Until deployed, request/swap push taps still lack their id.
-- [ ] **Android** — `POST_NOTIFICATIONS` + `INTERNET` are now declared in
-  `AndroidManifest.xml`. Rebuild the app; on Android 13+ confirm the OS prompt
-  appears and a push shows on a physical device.
-- [ ] **(Optional, Android polish)** a named default channel + monochrome
-  notification icon need `flutter_local_notifications` (or a `drawable`); left
-  out to avoid referencing an asset nothing creates. FCM's auto default channel
-  is used meanwhile.
-- [ ] **iOS (deferred — separate task)** push is **not configured**: no
-  `.entitlements`, no `aps-environment`, no `remote-notification` background
-  mode. iOS cannot receive push until this is added and signed in Xcode with the
-  Apple account (needs an APNs key in the Firebase console too).
+- [ ] **Android** — `POST_NOTIFICATIONS` + `INTERNET` are declared and FCM maps
+  notifications to the named high-importance `drop_default` channel, created at
+  app start. Rebuild the app; on Android 13+ confirm the OS prompt and a push on
+  physical hardware. A monochrome notification icon remains owner design work.
+- [ ] **iOS** — app-side configuration is complete: `Runner.entitlements` has
+  `aps-environment`, all Runner configurations sign it, and `remote-notification`
+  is declared. Delivery awaits the APNs credential; no foreground OS delegate is
+  installed because the app already presents its own foreground snackbar.
 
 ---
 
@@ -231,4 +238,5 @@ machine / accounts** to take effect:
   route exist, but there is no `communityEvent` `NotificationType` or producer
   yet. The resolver is the extension point (add a `event_details` case + its
   producer together).
-- **iOS push** — see the checklist. The single biggest remaining pilot gap.
+- **iOS push credential** — app-side setup is complete; delivery awaits the
+  APNs credential. See the checklist.

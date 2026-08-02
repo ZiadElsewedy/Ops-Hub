@@ -47,5 +47,8 @@ rules backwards-compatible.
   `pending`.
 - **Standing guarantees** — `missed` is server-only, terminals are frozen and
   undeletable, employees cannot forge review attribution, and reads stay scoped.
+- **Notifications** — recipients may only change `readAt`, `archivedAt`, or
+  `pinnedAt`; notification content, recipient, and deep-link payload remain
+  server-owned.
 
 Add a case here whenever you touch `firestore.rules`.

@@ -102,6 +102,7 @@ const {
   correlationId,
   buildExecutionSnapshot,
 } = require("./automation_run");
+const { isReminderEligibleStatus } = require("./task_reminders");
 
 // `branchId` marker for a direct message — never a real branch id and never ''
 // (mirrors BroadcastModel.directBranchMarker), so a DM never appears in a
@@ -1396,6 +1397,10 @@ function reminderDueKind(deadline, now, lastKind, count, cfg) {
  * (`taskReminders/{taskId}`) + quiet hours + a max-reminders cap to avoid spam.
  * Config lives in `reminderConfig/global` (defaults applied when absent). Quiet
  * hours are evaluated in UTC (the function's timezone).
+ *
+ * Which statuses still get reminded lives in `task_reminders.js` — read the
+ * comment there before changing it; the set deliberately differs from the
+ * canonical `isTerminalTaskStatus`.
  */
 exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstances: 1, retryCount: 0, timeoutSeconds: 300 }, async () => {
   const now = new Date();
@@ -1425,11 +1430,10 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
   const soon = admin.firestore.Timestamp.fromMillis(now.getTime() + 24 * 60 * 60 * 1000);
   const snap = await db.collection(TASKS).where("deadline", "<=", soon).get();
 
-  const TERMINAL = new Set(["approved", "rejected"]);
   let sent = 0;
   for (const doc of snap.docs) {
     const t = doc.data() || {};
-    if (TERMINAL.has(t.status || "pending")) continue;
+    if (!isReminderEligibleStatus(t.status)) continue;
     const deadline = t.deadline && t.deadline.toDate ? t.deadline.toDate() : null;
     if (!deadline) continue;
     const assignees = Array.isArray(t.assigneeIds) ? t.assigneeIds.filter(Boolean) : [];

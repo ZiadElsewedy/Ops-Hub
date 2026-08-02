@@ -648,13 +648,16 @@ service cloud.firestore {
     //            (type whitelist · branch-scoped recipients · length caps ·
     //            server-stamped senderUid); broadcasts/reminders come from
     //            their own functions. All writes are Admin SDK (bypass rules).
-    //   update — the recipient only (mark read flips `readAt`); content is not
-    //            re-validated, but only the owner can touch their own docs.
+    //   update — the recipient only; only their inbox lifecycle fields may
+    //            change (read/archive/pin). Content and routing stay server-owned.
     //   delete — the recipient, or an admin (dismiss / cleanup).
     match /notifications/{id} {
       allow read: if isOwner(resource.data.get('recipientUid', '')) || isAdmin();
       allow create: if false;
-      allow update: if isOwner(resource.data.get('recipientUid', ''));
+      allow update: if isOwner(resource.data.get('recipientUid', ''))
+        && request.resource.data.get('recipientUid', '') == resource.data.get('recipientUid', '')
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['readAt', 'archivedAt', 'pinnedAt']);
       allow delete: if isOwner(resource.data.get('recipientUid', '')) || isAdmin();
     }
 

@@ -14,6 +14,37 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-02 — Task notification path hardening (bug; HIGH risk)
+
+Found by an end-to-end audit of the task-notification path (backend + client,
+both platforms). Four fixes; the reminder bug and the rules hole were both live
+in production.
+
+- **Notification rules (P0):** the `notifications` update rule checked only the
+  OLD doc and restricted no fields, so a recipient could rewrite `recipientUid`,
+  `title`, `body`, `type`, and `payload` — moving forged content into another
+  user's inbox with a deep link of their choosing. Updates are now confined to
+  `readAt` / `archivedAt` / `pinnedAt`. New `firestore-tests/notifications.rules.test.mjs`
+  pins it (6 cases) alongside the unchanged read/delete/create behaviour.
+- **Task reminders (P1):** the terminal set was only `{approved, rejected}`, so
+  `runTaskReminders` kept sending "Task Late" pushes for work already auto-closed
+  as **Missed** or explicitly **Cancelled** — contradicting the Automated Tasks
+  spec §8. `missed` and `cancelled` are now excluded. The predicate moved to its
+  own `functions/task_reminders.js` (matching `recurring_task_deadline.js`) so a
+  test can reach it without loading the whole functions entry point. `rejected`
+  stays excluded on purpose — the reviewer owns rework — and the module comment
+  now says why, so it does not get "simplified" into `isTerminalTaskStatus`.
+- **iOS push app configuration:** added the development APNs entitlement,
+  Runner signing wiring, and `remote-notification` background mode. AppDelegate
+  is unchanged: Firebase Messaging swizzling handles APNs forwarding, and the
+  app deliberately retains its own foreground snackbar rather than doubling it
+  with an OS banner. Delivery still awaits the APNs credential.
+- **Android push:** FCM now uses the named, high-importance `drop_default`
+  channel created at app launch. A monochrome notification icon remains design
+  work; no placeholder asset was added.
+
+---
+
 ## 2026-08-01 — Three controls on the reports that could never work (bug; LOW risk)
 
 Owner asked whether the weekly/monthly reports and the PDF export actually work.
@@ -351,6 +382,7 @@ splash-centering failures.
 ---
 
 ## 2026-08-01 — Notification inbox: readable rows + the dead attendance tap (polish + bug; LOW/MED risk)
+
 ## 2026-08-01 — Employee Home: the ring goes, the clock arrives (polish + bug; MED risk)
 
 Owner asked what Home was missing and what should go. Both answers were in the
