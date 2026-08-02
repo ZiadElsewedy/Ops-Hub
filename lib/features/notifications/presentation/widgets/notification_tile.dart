@@ -124,8 +124,8 @@ class NotificationTile extends StatelessWidget {
                                 ? AppColors.textSecondary
                                 : AppColors.textTertiary,
                           ),
-                    maxLines: navigable ? 1 : 5,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: navigable ? 1 : null,
+                    overflow: navigable ? TextOverflow.ellipsis : null,
                   ),
                   if (parts.context != null) ...[
                     const SizedBox(height: 2),
@@ -137,8 +137,8 @@ class NotificationTile extends StatelessWidget {
                             ? AppColors.textTertiary
                             : AppColors.textQuaternary,
                       ),
-                      maxLines: navigable ? 2 : 5,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: navigable ? 2 : null,
+                      overflow: navigable ? TextOverflow.ellipsis : null,
                     ),
                   ],
                 ],

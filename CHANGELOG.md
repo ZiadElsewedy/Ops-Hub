@@ -14,6 +14,39 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-02 — Notification subjects and complete employee broadcasts (polish + bug; LOW risk)
+
+Because `title` is a pure `switch (type)` in every producer, `body` is the only
+line that can say *which* thing a row is about — so a body naming nothing gives
+you a column of identical rows. Tasks were fixed for this on 2026-08-01; cases,
+requests and attendance never were.
+
+- Case status, request lifecycle/comment, and attendance correction/auto-close
+  bodies now lead with their subject, then the event context after ` • `.
+  Attendance gains the shift and Cairo business date (`Morning shift, 2 Aug`),
+  so two missed clock-outs are no longer indistinguishable rows.
+- **Requests use the requester's own `details.message`, deliberately not
+  `lastEventPreview`.** That field is a *rolling* preview of the most recent
+  timeline event, so by the time a request is approved it may hold the latest
+  comment — giving "sounds fine to me • Approved". `details.message` is written
+  once and is the same string the opening notification used, so every row for
+  one request names the same thing. `lastEventPreview` stays as a fallback (it
+  equals the reason at creation), then the durable `REQ-######`.
+- Case notifications remain identity-free — only `subject` is used, never a
+  reporter name or uid.
+- An employee broadcast has no Communications detail route to open, so its
+  non-navigable row was truncating the message at five lines with nowhere to
+  read the rest. It now renders in full. Navigable subjects remain exactly one
+  line — that cap is load-bearing, a wrapping subject makes every card a
+  different height.
+
+Gates: analyze clean (1 pre-existing info) · Dart 1441 pass / 2 pre-existing
+splash failures · functions 82 pass · rules 61 pass.
+⚠️ The body changes are server-side — **needs a Cloud Functions deploy**. The
+tile change ships with the app build.
+
+---
+
 ## 2026-08-02 — Notification delivery guarantees (bug; MED risk)
 
 - **Scheduled broadcasts:** claim the queried due instant transactionally before dispatch and finalize only after it. A failed claimed dispatch is deliberately consumed and logged at error level; if finalization is uncertain, the durable claim prevents an org-wide duplicate.

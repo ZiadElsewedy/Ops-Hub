@@ -109,6 +109,7 @@ const {
   correctionTargetsOwnRecord,
   correctionMatchesExistingRecordOwner,
 } = require("./attendance_correction_target");
+const { attendanceNotificationSubject } = require("./attendance_notification_subject");
 
 // `branchId` marker for a direct message — never a real branch id and never ''
 // (mirrors BroadcastModel.directBranchMarker), so a DM never appears in a
@@ -3097,10 +3098,13 @@ exports.onCaseUpdated = onDocumentUpdated(`${CASES}/{caseId}`, async (event) => 
       waitingResponse: "A response is needed on your case",
       closed: "Your case was closed",
     };
+    const subject = String(after.subject || "Case").trim();
     await writeCaseNotifications([reporterUid], {
       type: closed ? "caseClosed" : "caseUpdated",
       title: closed ? "Case Closed" : "Case Update",
-      body: bodyByStatus[afterStatus] || String(after.subject || "Case updated"),
+      body: bodyByStatus[afterStatus]
+        ? `${subject} • ${bodyByStatus[afterStatus]}`
+        : subject,
       caseId,
     });
   }
@@ -3176,6 +3180,31 @@ function requestEventPreview(text, attachments) {
   if (t) return t.slice(0, 140);
   if (Array.isArray(attachments) && attachments.length > 0) return "📎 Attachment";
   return "";
+}
+
+// Requests have no dedicated subject field, so the inbox subject is the
+// requester's own free-text reason — `details.message` (see RequestModel: "the
+// free-text reason lives in `details`").
+//
+// It is deliberately NOT `lastEventPreview`: that field is a ROLLING preview of
+// the most recent timeline event, so by the time a request is approved it may
+// hold the latest comment rather than what the request is about — producing a
+// row like "sounds fine to me • Approved". `details.message` is written once and
+// stays the same string the opening notification used, so every row for one
+// request names the same thing.
+//
+// `lastEventPreview` remains the first fallback (it equals the reason at
+// creation time, which covers docs written before this field was relied on), and
+// the durable REQ-###### code is the last resort that still identifies which
+// request this is.
+function requestNotificationSubject(requestData) {
+  const details = (requestData && requestData.details) || {};
+  const message = String(details.message || "").trim();
+  if (message) return message.slice(0, 140);
+  const preview = String(requestData.lastEventPreview || "").trim();
+  if (preview) return preview.slice(0, 140);
+  const refCode = String(requestData.refCode || "").trim();
+  return refCode || "Request";
 }
 
 // The routed approvers for a request — the request's own-branch managers and all
@@ -3366,13 +3395,14 @@ exports.onRequestUpdated = onDocumentUpdated(`${REQUESTS}/{requestId}`, async (e
   );
 
   const requesterUid = String(after.requesterId || "");
+  const subject = requestNotificationSubject(after);
   if (afterStatus === "pending") {
     // Reopened → it needs a decision again: tell the branch approvers (minus
     // the admin who reopened) and the requester.
     const approvers = await resolveRequestApprovers(after, actorUid);
     const body = reopenerName
-      ? `${reopenerName} reopened this request — it needs a decision again`
-      : "This request was reopened and needs a decision again";
+      ? `${subject} • ${reopenerName} reopened it — it needs a decision again`
+      : `${subject} • Reopened and needs a decision again`;
     await writeRequestNotifications(approvers, {
       type: "requestSubmitted",
       title: "Request reopened",
@@ -3384,7 +3414,7 @@ exports.onRequestUpdated = onDocumentUpdated(`${REQUESTS}/{requestId}`, async (e
       await writeRequestNotifications([requesterUid], {
         type: "requestSubmitted",
         title: "Request reopened",
-        body: "Your request is being reviewed again",
+        body: `${subject} • Your request is being reviewed again`,
         requestId,
         senderUid: actorUid,
       });
@@ -3395,8 +3425,8 @@ exports.onRequestUpdated = onDocumentUpdated(`${REQUESTS}/{requestId}`, async (e
   // Notify the requester of the decision.
   if (requesterUid) {
     const byStatus = {
-      approved: { type: "requestApproved", title: "Request Approved", body: "Your request was approved" },
-      rejected: { type: "requestRejected", title: "Request Rejected", body: "Your request was rejected" },
+      approved: { type: "requestApproved", title: "Request Approved", body: `${subject} • Approved` },
+      rejected: { type: "requestRejected", title: "Request Rejected", body: `${subject} • Rejected` },
     }[afterStatus];
     await writeRequestNotifications([requesterUid], {
       ...byStatus,
@@ -3431,6 +3461,7 @@ exports.onRequestEventCreated = onDocumentCreated(
 
     const reqSnap = await db.collection(REQUESTS).doc(requestId).get();
     const data = reqSnap.exists ? (reqSnap.data() || {}) : {};
+    const subject = requestNotificationSubject(data);
     const requesterUid = String(data.requesterId || "");
     const authorId = String(ev.authorId || "");
     const byRequester = authorId !== "" && authorId === requesterUid;
@@ -3439,7 +3470,7 @@ exports.onRequestEventCreated = onDocumentCreated(
       await writeRequestNotifications(approvers, {
         type: "requestCommented",
         title: "New Request Comment",
-        body: preview || "New comment on a request",
+        body: `${subject} • ${preview || "New comment on a request"}`,
         requestId,
         senderUid: authorId,
       });
@@ -3447,7 +3478,7 @@ exports.onRequestEventCreated = onDocumentCreated(
       await writeRequestNotifications([requesterUid], {
         type: "requestCommented",
         title: "New Request Comment",
-        body: preview || "New comment on your request",
+        body: `${subject} • ${preview || "New comment on your request"}`,
         requestId,
         senderUid: authorId,
       });
@@ -3689,6 +3720,7 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
     const recordId = String(after.attendanceId || "");
     const employeeUid = String(after.userId || "");
     const data = { correctionKind: String(after.kind || "other") };
+    const subject = attendanceNotificationSubject(after);
 
     // 1) Newly created correction.
     if (!before) {
@@ -3712,8 +3744,8 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
             type: "attendanceCorrectionApproved",
             title: "Attendance updated",
             body: deciderName
-              ? `${deciderName} updated your attendance for this shift`
-              : "Your attendance for this shift was updated",
+              ? `${subject} • Updated by ${deciderName}`
+              : `${subject} • Attendance updated`,
             recordId,
             correctionId,
             senderUid: String(after.decidedBy || ""),
@@ -3734,7 +3766,7 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
       await writeAttendanceNotifications(reviewers, {
         type: "attendanceCorrectionFiled",
         title: "Attendance correction",
-        body: `${String(after.userName || "An employee")} filed a ${attendanceCorrectionKindLabel(after.kind)} correction`,
+        body: `${subject} • ${String(after.userName || "An employee")} filed a ${attendanceCorrectionKindLabel(after.kind)} correction`,
         recordId,
         correctionId,
         senderUid: String(after.requestedBy || ""),
@@ -3774,8 +3806,8 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
             type: "attendanceCorrectionApproved",
             title: "Correction approved",
             body: deciderName
-              ? `${deciderName} approved your attendance correction`
-              : "Your attendance correction was approved",
+              ? `${subject} • Approved by ${deciderName}`
+              : `${subject} • Approved`,
             recordId,
             correctionId,
             senderUid: decidedBy,
@@ -3798,8 +3830,8 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
         type: "attendanceCorrectionRejected",
         title: "Correction rejected",
         body: deciderName
-          ? `${deciderName} rejected your attendance correction`
-          : "Your attendance correction was rejected",
+          ? `${subject} • Rejected by ${deciderName}`
+          : `${subject} • Rejected`,
         recordId,
         correctionId,
         senderUid: decidedBy,
@@ -4128,7 +4160,7 @@ exports.autoCloseAttendance = onSchedule("every 30 minutes", async () => {
         await writeAttendanceNotifications([uid], {
           type: "attendanceAutoClosed",
           title: "Shift needs review",
-          body: "You didn't clock out — file a correction with your real clock-out time.",
+          body: `${attendanceNotificationSubject(d)} • You didn't clock out — file a correction with your real clock-out time.`,
           recordId: doc.id,
           senderUid: "",
         });
