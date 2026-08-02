@@ -55,6 +55,14 @@
 			</dict>
 		</dict>
 	</dict>
+	<!-- Schemes the About page hands to the OS for Support (url_launcher).
+	     Without these iOS reports them as unavailable and the tap falls back
+	     to copying the address instead of opening the app. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>mailto</string>
+		<string>https</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>D R O P needs access to your camera so you can take a profile picture and capture task proof.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

@@ -83,6 +83,19 @@ class SettingsPage extends StatelessWidget {
                 // ── About ──
                 const _SectionHeader(label: 'About'),
                 const SizedBox(height: AppSpacing.md),
+                _SettingsGroup(
+                  children: [
+                    _SettingsRow(
+                      icon: Icons.info_outline_rounded,
+                      label: 'About DROP',
+                      subtitle: 'What it does · contact support',
+                      isFirst: true,
+                      isLast: true,
+                      onTap: () => context.push(RouteNames.about),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
                 _VersionRow(),
 
                 const SizedBox(height: AppSpacing.xxl),

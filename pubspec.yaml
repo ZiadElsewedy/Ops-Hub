@@ -94,6 +94,15 @@ dependencies:
   # is written beside the Schedule PNG export and opened with `open_filex`,
   # exactly like a chat document.
   pdf: ^3.11.1
+  # Hands a mailto: / https: link to the OS so Support on the About page can
+  # open the mail client or WhatsApp. `open_filex` cannot do this — it opens a
+  # local file, not a URL.
+  url_launcher: ^6.3.1
+  # Real brand marks on the About page's Support rows (assets/gmail.svg,
+  # assets/whatsapp.svg). Deliberately NOT an icon font: a font can only paint
+  # one colour, which turned Gmail's four-colour M into a flat red glyph, and a
+  # wrong logo reads worse than no logo.
+  flutter_svg: ^2.0.10
 
 dev_dependencies:
   flutter_test:
@@ -137,6 +146,8 @@ flutter:
 
   assets:
     - assets/drop_logo.png
+    - assets/gmail.svg
+    - assets/whatsapp.svg
     - assets/0704.json
 
   # To add assets to your application, add an assets section, like this:
