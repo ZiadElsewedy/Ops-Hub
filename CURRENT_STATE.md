@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `fix-bugs` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1359 pass · 2 fail** across 187 files (~31s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
+| **Tests** | **1440 pass · 2 fail** across 197 files (~40s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **68 pass** (`cd functions && node --test`); **Firestore rules: 47 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · iOS push unconfigured · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -615,6 +615,7 @@ week does not block the GPS gate for the wrong reason.
 | **Attendance breaks** | 2026-07-15 | Descoped for MVP. `AttendanceBreak` kept as a dormant extension point |
 | **Shift foundation (Phase 2)** | Phase 10 | Dead code; the weekly schedule is the roster |
 | **Public registration / OTP / Google** | 2026-06-26 | DROP is admin-provisioned |
+| **Employee-card KPI strip** (Completed · Pending · Rate · Late) | 2026-08-01 | Owner ask. Identical on every row, so it ranked nobody while costing the tallest band of the card. Performance lives in the Details inspector; `computeEmployeeMetrics` is untouched |
 
 ---
 
@@ -699,6 +700,51 @@ handled as a separate backend/security task before the rules deploy.
 - **First admin** is bootstrapped out of band (set `role: admin`, `isActive: true`
   in the console).
 
+### Attendance gaps found 2026-08-01 (code audit, not runtime)
+
+- **Today-first attendance IA is now wired (2026-08-01).** Attendance & Reports
+  opens the live Today board, not the reports hub: managers are pinned to their
+  branch, admins choose a branch first, and the board groups decision-needed,
+  present/working, late, and absent people. Reports and Person history are named
+  next steps; an unscheduled clock-in can be marked present through the existing
+  audited direct-resolution path. See [ADR-021](docs/decisions/ADR-021-attendance-today-first.md).
+  Person-history ranges now include rolling **Last 7 days** and **Last 30 days**;
+  a Today row opens that person's branch-pinned ledger.
+
+- ~~**`AttendanceLocationPolicy` is dead.**~~ **Fixed 2026-08-01 —
+  [ADR-020](docs/decisions/ADR-020-location-policy-is-real.md)** (amends the locked
+  `ATTENDANCE_SPEC` workflow 6). The policy now actually gates the punch: `none`
+  never refuses, `soft` captures and never refuses, `strict` runs the full gate
+  unchanged. A branch with **no geofence resolves to `none`** instead of being
+  locked out of attendance entirely. Default flipped `none` → `strict` so the
+  config describes what ships. **Still open:** `AttendanceService.configFor`
+  returns one constant for everyone, so `soft` is reachable but unselectable —
+  per-branch `branches/{id}/attendanceConfig` is the follow-up.
+- **A non-geofenced branch clocks in unverified.** The deliberate trade in
+  ADR-020. Closed by an admin drawing the fence in Branches → geofence editor;
+  nothing changes at a branch that already has one.
+- **`/admin/attendance` is a legacy redirect.** It now redirects to Today; the
+  geofence editor remains reachable via Branches.
+- **Stale stub.** `attendance_weekly_report_screen.dart` says *"Daily review is
+  coming next"* on the blockers button while the day table beside it already opens
+  the real Daily Review.
+- ~~**Admin workspace hangs on a spinner.**~~ **Fixed 2026-08-01.** It gated the
+  ledger fan-out on a `BlocListener` that never fires when the app-level
+  `BranchCubit` is already loaded — which is always, coming from the reports hub.
+  ⚠️ **The pattern, not the screen, is the lesson:** `loadIfNeeded()` on a
+  singleton cubit emits nothing, so never make a `BlocListener` the only trigger.
+  Await the load and read the state.
+  **Audited 2026-08-01 across all 19 `BlocListener` + 21 `BlocConsumer` files, all
+  13 per-screen `create:` cubits, and every screen rendering an app-level
+  singleton: this was the only instance.** Two screens already do it correctly and
+  are the reference — `attendance_history_screen._bootstrapReview()` and
+  `chat_notification_listener.initState` (which warms the socket when a session is
+  *already* live). The one latent latch found
+  (`attendance_daily_review_screen`, which flipped `_started` before checking its
+  preconditions) was **fixed the same day** and now uses the same two-path shape.
+- Still genuinely missing on the reporting hub: **period close** and **export**
+  (the monthly PDF/Spreadsheet buttons are disabled).
+
 ### Accepted debt
 
 - **Light theme** exists in `AppTheme.light` but is not wired up — the app is
@@ -768,6 +814,7 @@ unknowingly reversed:
 | [ADR-010](docs/decisions/ADR-010-lean-over-enterprise.md) — lean | Reach for the enterprise shape |
 | [ADR-013](docs/decisions/ADR-013-task-grace-period.md) — fixed 30-min grace | Make grace configurable, add a *Completed Late* status, or let grace delay the **Late** visual (it must fire at the deadline) |
 | [ADR-017](docs/decisions/ADR-017-attendance-reporting-ledger.md) — attendance reporting **ledger, not scoreboard** | Read it as licence for analytics generally (it is attendance-only), fuse attendance + tasks into one score, ship a leaderboard, persist late/overtime as statuses, compute payroll totals on the client, or ship a report before absences are durable |
+| [ADR-020](docs/decisions/ADR-020-location-policy-is-real.md) — the **effective** location policy gates the punch | Read `config.locationPolicy` raw — always resolve it through `AttendanceService.resolveLocationPolicy`. Never re-add the no-geofence lock-out, and never treat the policy as a security boundary (the server does not enforce it) |
 
 **Owner-frozen surfaces** — improve in-language, never replace without sign-off:
 
@@ -811,10 +858,10 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1248 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1440 pass, 2 fail (pre-existing: 2 splash-centering)
 (cd functions && node --test)            # expect: 68 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
-grep -c "static const String" lib/core/routes/route_names.dart   # expect: 49
+grep -c "static const String" lib/core/routes/route_names.dart   # expect: 51
 ls lib/features | wc -l                  # expect: 18
 ```
 

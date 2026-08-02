@@ -47,7 +47,16 @@ class AttendanceConfig {
   /// by the `autoCloseAttendance` sweep (mirrored server-side); no magic numbers.
   final int maxSessionMinutes;
 
-  /// The geofence policy (default [AttendanceLocationPolicy.none] — no GPS).
+  /// The geofence policy for a branch **that has a geofence**.
+  ///
+  /// Defaults to [AttendanceLocationPolicy.strict] because that is what the
+  /// product actually ships and what `ATTENDANCE_SPEC` workflow 6 describes; the
+  /// old [AttendanceLocationPolicy.none] default was a leftover from when GPS was
+  /// planned as opt-in, and it never matched behaviour because nothing read it.
+  ///
+  /// Never read raw — a branch with no geofence resolves to
+  /// [AttendanceLocationPolicy.none] via `AttendanceService.resolveLocationPolicy`
+  /// (ADR-020).
   final AttendanceLocationPolicy locationPolicy;
 
   /// Whether a selfie is required to clock in (default false — optional).
@@ -73,7 +82,7 @@ class AttendanceConfig {
     this.overtimeGraceMinutes = 15,
     this.autoCloseGraceMinutes = 120,
     this.maxSessionMinutes = 16 * 60,
-    this.locationPolicy = AttendanceLocationPolicy.none,
+    this.locationPolicy = AttendanceLocationPolicy.strict,
     this.requirePhoto = false,
     this.allowUnscheduledClockIn = true,
   });

@@ -6,27 +6,32 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/status_badge.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/admin/presentation/employee_metrics.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 
-/// A compact, scan-friendly employee record for the admin Employees directory.
+/// A single-line employee record for the admin Employees directory.
 ///
-/// It deliberately keeps identity, access state, the four task facts, and only
-/// the supplied primary actions in view. Less-frequent administration actions
-/// belong in an [EmployeeOverflowMenu], keeping high-volume directories calm
-/// without removing any capability.
+/// The card answers only the two questions a directory is scanned for — **who**
+/// and **where** — plus the one state that gates everything else (access) and
+/// the supplied actions. Task performance deliberately does not appear here: it
+/// belongs to the Details inspector, where there is room to read it honestly
+/// instead of four numbers competing with every name on the page.
+///
+/// Collapsing identity, access and actions onto one row roughly halves the row
+/// height, so twice as many people fit on screen and the eye runs straight down
+/// a single column of names.
 class EmployeeCard extends StatelessWidget {
   const EmployeeCard({
     super.key,
     required this.user,
-    this.metrics = const EmployeeMetrics(),
     this.branchLabel,
     this.onTap,
     this.actions = const [],
   });
 
   final UserEntity user;
-  final EmployeeMetrics metrics;
+
+  /// Resolved branch name. Null/blank falls back to the raw id, then to the
+  /// explicit "No branch" state — an unassigned employee is worth seeing.
   final String? branchLabel;
   final VoidCallback? onTap;
 
@@ -46,31 +51,32 @@ class EmployeeCard extends StatelessWidget {
       child: GlassContainer(
         onTap: onTap,
         elevated: false,
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        // A compact row needs a tighter radius than a content card: 20 reads as
+        // a pill once the box is only ~68px tall.
+        borderRadius: AppRadius.lgAll,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 620;
             final identity = _Identity(user: user, name: name, branch: branch);
-            final metricsRow = _InlineMetrics(metrics: metrics);
-            final actionRow = _Actions(actions: actions);
+            final badge = _AccessBadge(isActive: user.isActive);
 
+            // Below this the action cluster can no longer share the row with a
+            // readable name, so it drops to its own line rather than crushing
+            // the identity into an ellipsis.
+            final wide = constraints.maxWidth >= 520;
             if (wide) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              return Row(
                 children: [
-                  identity,
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(child: metricsRow),
-                      if (actions.isNotEmpty) ...[
-                        const SizedBox(width: AppSpacing.lg),
-                        actionRow,
-                      ],
-                    ],
-                  ),
+                  Expanded(child: identity),
+                  const SizedBox(width: AppSpacing.md),
+                  badge,
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(width: AppSpacing.md),
+                    _Actions(actions: actions),
+                  ],
                 ],
               );
             }
@@ -79,12 +85,16 @@ class EmployeeCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                identity,
-                const SizedBox(height: AppSpacing.sm),
-                metricsRow,
+                Row(
+                  children: [
+                    Expanded(child: identity),
+                    const SizedBox(width: AppSpacing.sm),
+                    badge,
+                  ],
+                ),
                 if (actions.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  actionRow,
+                  const SizedBox(height: AppSpacing.md),
+                  _Actions(actions: actions),
                 ],
               ],
             );
@@ -99,15 +109,14 @@ class EmployeeCard extends StatelessWidget {
     return name.isNotEmpty ? name : user.email;
   }
 
-  static String _branchLabel(UserEntity user, String? branchLabel) {
+  /// Null when this employee has no branch at all — the card renders that as a
+  /// distinct, quieter state instead of an ordinary-looking label.
+  static String? _branchLabel(UserEntity user, String? branchLabel) {
     final resolved = branchLabel?.trim() ?? '';
     if (resolved.isNotEmpty) return resolved;
     final id = user.branchId?.trim() ?? '';
-    return id.isNotEmpty ? id : 'No branch';
+    return id.isNotEmpty ? id : null;
   }
-
-  static String _capitalize(String value) =>
-      value.isEmpty ? value : '${value[0].toUpperCase()}${value.substring(1)}';
 }
 
 class _Identity extends StatelessWidget {
@@ -119,7 +128,7 @@ class _Identity extends StatelessWidget {
 
   final UserEntity user;
   final String name;
-  final String branch;
+  final String? branch;
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +138,7 @@ class _Identity extends StatelessWidget {
         // quieter white ring gives initials a more intentional desktop finish.
         UserAvatar.fromUser(
           user,
-          size: 48,
+          size: 44,
           ringColor: AppColors.primarySurface,
         ),
         const SizedBox(width: AppSpacing.md),
@@ -144,22 +153,52 @@ class _Identity extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '${EmployeeCard._capitalize(user.role.value)} · $branch',
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              const SizedBox(height: 3),
+              _BranchLine(branch: branch),
             ],
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        // Access state remains the primary status: isActive is the only login
-        // gate. HR employment labels are intentionally not conflated with it.
-        _AccessBadge(isActive: user.isActive),
+      ],
+    );
+  }
+}
+
+/// Where this person works — the card's whole second line, so it carries a mark
+/// of its own instead of hiding behind a middot. Three distinct steps of the
+/// grey ramp keep the name, the mark and the branch from ever flattening into
+/// one another.
+class _BranchLine extends StatelessWidget {
+  const _BranchLine({required this.branch});
+
+  final String? branch;
+
+  @override
+  Widget build(BuildContext context) {
+    final assigned = branch != null;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.storefront_outlined,
+          size: 13,
+          color: assigned ? AppColors.textTertiary : AppColors.textQuaternary,
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            branch ?? 'No branch',
+            style: AppTypography.bodySmall.copyWith(
+              // An unassigned employee reads faint rather than red: it is a gap
+              // to fill, not a failure.
+              color: assigned
+                  ? AppColors.textSecondary
+                  : AppColors.textQuaternary,
+              fontStyle: assigned ? FontStyle.normal : FontStyle.italic,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
@@ -191,89 +230,6 @@ class _AccessBadge extends StatelessWidget {
       child: KeyedSubtree(
         key: ValueKey(isActive),
         child: StatusBadge.active(isActive, compact: true),
-      ),
-    );
-  }
-}
-
-class _InlineMetrics extends StatelessWidget {
-  const _InlineMetrics({required this.metrics});
-
-  final EmployeeMetrics metrics;
-
-  @override
-  Widget build(BuildContext context) {
-    final rate = metrics.completionRatePct;
-    return Wrap(
-      spacing: AppSpacing.lg,
-      runSpacing: AppSpacing.sm,
-      children: [
-        _InlineMetric(
-          icon: Icons.check_rounded,
-          value: '${metrics.completed}',
-          label: 'Completed',
-          color: AppColors.success,
-        ),
-        _InlineMetric(
-          icon: Icons.hourglass_top_rounded,
-          value: '${metrics.pending}',
-          label: 'Pending',
-          color: AppColors.textSecondary,
-        ),
-        _InlineMetric(
-          icon: Icons.star_outline_rounded,
-          value: rate == null ? '—' : '$rate%',
-          label: 'Rate',
-          color: rate == null ? AppColors.textTertiary : AppColors.textPrimary,
-        ),
-        _InlineMetric(
-          icon: Icons.schedule_rounded,
-          value: '${metrics.late}',
-          label: 'Late',
-          color: metrics.late > 0 ? AppColors.warning : AppColors.textTertiary,
-        ),
-      ],
-    );
-  }
-}
-
-class _InlineMetric extends StatelessWidget {
-  const _InlineMetric({
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: '$value $label',
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            value,
-            style: AppTypography.labelSmall.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-        ],
       ),
     );
   }

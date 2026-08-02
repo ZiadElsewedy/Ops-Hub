@@ -8,7 +8,13 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
+import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
+import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/utils/app_date_formatter.dart';
+import 'package:drop/core/widgets/status_badge.dart';
+import 'package:drop/features/attendance/domain/attendance_history_gap.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
@@ -27,7 +33,9 @@ import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 /// * [AttendanceHistoryScreen.self] — the signed-in employee's own history.
 /// * [AttendanceHistoryScreen.review] — a manager/admin reviewing a branch (admin
 ///   gets a branch picker; a manager is pinned to their own branch). An optional
-///   [initialSearch] deep-links the list pre-filtered to one employee's name.
+///   [initialSearch] deep-links the list pre-filtered to one employee's name, and
+///   [initialStart]/[initialEnd] pin it to the period the link came from — that
+///   is how a report's "By person" row opens the same person over the same days.
 ///
 /// It owns nothing but composition: a summary strip, a composable filter bar, and
 /// a list of record cards, all driven by [AttendanceHistoryCubit] over the
@@ -36,17 +44,23 @@ class AttendanceHistoryScreen extends StatelessWidget {
   const AttendanceHistoryScreen.self({super.key})
     : mode = AttendanceHistoryMode.self,
       initialBranchId = null,
-      initialSearch = null;
+      initialSearch = null,
+      initialStart = null,
+      initialEnd = null;
 
   const AttendanceHistoryScreen.review({
     super.key,
     this.initialBranchId,
     this.initialSearch,
+    this.initialStart,
+    this.initialEnd,
   }) : mode = AttendanceHistoryMode.review;
 
   final AttendanceHistoryMode mode;
   final String? initialBranchId;
   final String? initialSearch;
+  final DateTime? initialStart;
+  final DateTime? initialEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +79,8 @@ class AttendanceHistoryScreen extends StatelessWidget {
             userId: user?.uid,
             branchId: branchId,
             initialSearch: initialSearch,
+            initialStart: initialStart,
+            initialEnd: initialEnd,
           )..load(),
         ),
         BlocProvider<AttendanceReportCubit>(
@@ -185,19 +201,24 @@ class _Loaded extends StatelessWidget {
             onSearch: cubit.setSearch,
           ),
           const SizedBox(height: AppSpacing.lg),
-          if (records.isEmpty)
-            _EmptyMessage(hasFacets: query.hasFacets)
-          else
-            for (final r in records)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: AttendanceRecordCard(
-                  record: r,
-                  showEmployee: isReview,
-                  onTap: () =>
-                      context.push(RouteNames.attendanceRecord(r.id), extra: r),
-                ),
-              ),
+          // Rostered shifts with no record (absences are never materialized —
+          // spec R13). Without these the list contradicts the summary strip
+          // directly above it, which counts them.
+          ...() {
+            final gaps = attendanceHistoryGaps(
+              ledger: context.watch<AttendanceReportCubit>().state.rows,
+              query: query,
+            );
+            if (records.isEmpty && gaps.isEmpty) {
+              return [_EmptyMessage(hasFacets: query.hasFacets)];
+            }
+            return _interleave(
+              records: records,
+              gaps: gaps,
+              isReview: isReview,
+              context: context,
+            );
+          }(),
         ],
       ),
     );
@@ -206,6 +227,105 @@ class _Loaded extends StatelessWidget {
 
 AttendancePeriodWindow _reportWindow(DateWindow window) =>
     AttendancePeriodWindow(startDate: window.start, endDate: window.end);
+
+/// One chronological list, newest first, from two sources that will never be
+/// one collection: written records and rostered shifts that produced none.
+List<Widget> _interleave({
+  required List<AttendanceEntity> records,
+  required List<AttendanceHistoryGap> gaps,
+  required bool isReview,
+  required BuildContext context,
+}) {
+  final entries = <({DateTime date, Widget child})>[
+    for (final r in records)
+      (
+        date: r.date,
+        child: AttendanceRecordCard(
+          record: r,
+          showEmployee: isReview,
+          onTap: () =>
+              context.push(RouteNames.attendanceRecord(r.id), extra: r),
+        ),
+      ),
+    for (final g in gaps)
+      (date: g.date, child: _GapCard(gap: g, showEmployee: isReview)),
+  ]..sort((a, b) => b.date.compareTo(a.date));
+
+  return [
+    for (final e in entries)
+      Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+        child: e.child,
+      ),
+  ];
+}
+
+/// A rostered shift with nothing recorded against it.
+///
+/// Deliberately quieter than a record card and **not tappable**: there is no
+/// record to open, and a dead tap target teaches a manager the screen is broken.
+/// It states the fact and where the fix lives.
+class _GapCard extends StatelessWidget {
+  const _GapCard({required this.gap, required this.showEmployee});
+
+  final AttendanceHistoryGap gap;
+  final bool showEmployee;
+
+  @override
+  Widget build(BuildContext context) {
+    final absent = gap.outcome == AttendanceLedgerOutcome.absent;
+    final tone = absent ? AppColors.error : AppColors.textSecondary;
+    final name = (gap.userName ?? '').trim();
+
+    return GlassContainer(
+      elevated: false,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 34,
+            decoration: BoxDecoration(
+              color: tone,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  showEmployee && name.isNotEmpty
+                      ? name
+                      : AppDateFormatter.weekdayDayMonth(gap.date),
+                  style: AppTypography.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  showEmployee && name.isNotEmpty
+                      ? '${AppDateFormatter.weekdayDayMonth(gap.date)} · '
+                            '${gap.shift.label}'
+                      : gap.shift.label,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          StatusBadge(label: gap.label, color: tone, compact: true),
+        ],
+      ),
+    );
+  }
+}
 
 /// A calm inline empty state for the ledger — distinguishes "no matches for these
 /// filters" from "nothing recorded this period".

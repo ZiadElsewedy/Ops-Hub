@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
@@ -32,10 +31,17 @@ class AttendanceReportCoverage extends StatelessWidget {
     super.key,
     required this.coverage,
     required this.totalRows,
+    this.onReviewOpen,
   });
 
   final LedgerCoverage coverage;
   final int totalRows;
+
+  /// Where "Review these" goes. Slot-based because this widget knows a count,
+  /// not a branch or a period. **Null hides the button** rather than showing one
+  /// that cannot act — it previously toasted "Daily review is coming next" long
+  /// after Daily Review shipped.
+  final VoidCallback? onReviewOpen;
 
   bool get _awaiting => coverage.awaitingClose;
   int get _blockers => coverage.blockingExceptionRowCount;
@@ -73,7 +79,11 @@ class AttendanceReportCoverage extends StatelessWidget {
             color: AppColors.darkBorder,
             margin: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
           ),
-          _ActionLine(coverage: coverage, totalRows: totalRows),
+          _ActionLine(
+            coverage: coverage,
+            totalRows: totalRows,
+            onReviewOpen: onReviewOpen,
+          ),
         ],
       ),
     );
@@ -175,10 +185,15 @@ class _TrustLine extends StatelessWidget {
 }
 
 class _ActionLine extends StatelessWidget {
-  const _ActionLine({required this.coverage, required this.totalRows});
+  const _ActionLine({
+    required this.coverage,
+    required this.totalRows,
+    this.onReviewOpen,
+  });
 
   final LedgerCoverage coverage;
   final int totalRows;
+  final VoidCallback? onReviewOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -224,14 +239,14 @@ class _ActionLine extends StatelessWidget {
       ],
     );
 
-    // The Exception queue itself is a later slice. The affordance stays live and
-    // explains itself rather than sitting inert: a disabled button tells a
-    // manager nothing about why it cannot be used.
-    final queue = PremiumButton(
-      label: 'Review these',
-      icon: Icons.lock_clock_outlined,
-      onPressed: () => context.showInfo('Daily review is coming next.'),
-    );
+    final open = onReviewOpen;
+    final queue = open == null
+        ? null
+        : PremiumButton(
+            label: 'Review these',
+            icon: Icons.fact_check_outlined,
+            onPressed: open,
+          );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -239,8 +254,10 @@ class _ActionLine extends StatelessWidget {
           return Row(
             children: [
               Expanded(child: lockup),
-              const SizedBox(width: AppSpacing.md),
-              queue,
+              if (queue != null) ...[
+                const SizedBox(width: AppSpacing.md),
+                queue,
+              ],
             ],
           );
         }
@@ -248,8 +265,10 @@ class _ActionLine extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             lockup,
-            const SizedBox(height: AppSpacing.md),
-            queue,
+            if (queue != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              queue,
+            ],
           ],
         );
       },

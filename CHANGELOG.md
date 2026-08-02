@@ -14,6 +14,343 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-01 — Three controls on the reports that could never work (bug; LOW risk)
+
+Owner asked whether the weekly/monthly reports and the PDF export actually work.
+Auditing them found the reports themselves sound and three controls that were not.
+
+**"Close week" / "Close month" deleted.** Both were the *primary action* of their
+report — filled style, padlock icon, top of the page — and both were hardcoded
+`onPressed: null`. They could never do anything. Worse, they advertised the one
+behaviour the product deliberately refuses:
+[ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md) decides a
+week is **reviewed, never locked** — *"no write is rejected, no rule enforces it,
+no period becomes immutable."* The real mechanism already ships as the **Week
+review** section at the foot of the weekly report: it records who looked and when,
+and is reversible by Reopen. A padlock at the top contradicted it.
+
+**Two stale "Daily review is coming next" toasts wired up.** Daily Review shipped;
+the weekly report's own day table opens it. Yet both "Review these" buttons still
+toasted that it was coming.
+- Weekly → jumps to the **earliest day that still has a blocking decision**, and
+  disables itself when nothing is open rather than sending a manager to a settled
+  day.
+- The coverage widget's button is now **slot-based** (`onReviewOpen`); it knows a
+  count, not a branch or a period. **Null hides the button** instead of rendering
+  one that cannot act. The reports hub supplies the destination.
+
+Verified working and untouched: **the weekly PDF and timesheet CSV are real** —
+`buildWeeklyAttendancePdf` / `attendanceTimesheetCsv`, written via `path_provider`
+and handed to the system viewer, covered by three test files. They are gated by
+`attendanceExportAvailability`: manager/admin, rows exist, and **zero unsettled
+shifts** — a deliberate refusal to emit a document that would change later.
+
+Still genuinely not built (labelled honestly in the UI): the **monthly** PDF and
+spreadsheet.
+
+Suite **1440 pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+---
+
+## 2026-08-01 — History showed "No matches" for a person it had just counted (bug; MED risk)
+
+Owner screenshot: searched **"ziad"** in Attendance history. The summary strip
+said **1 Absent**. The list underneath said **"No matches — try widening the date
+range or clearing a filter."** The range was fine.
+
+The two halves of that screen read different sources. The summary comes from the
+**expectation ledger**, which has a row for every rostered shift including the
+ones nobody worked. The list comes from **attendance records** — and an absence
+deliberately has no record (`ATTENDANCE_SPEC` R13: *"Absent stays virtual… No
+phantom documents"*). That is the right storage decision and the wrong reading
+decision: the one day a manager asks about is the one day that renders nothing,
+under an empty-state that blames the filters.
+
+- New pure `attendanceHistoryGaps()` (`attendance_history_gap.dart`) — the
+  rostered shifts in the already-streamed ledger that have **no record**, narrowed
+  by the same text / shift / status facets the record list uses, so the two halves
+  can never disagree again. No new read, no new query, no minute math.
+- The list interleaves records and gaps chronologically, newest first. A gap
+  renders as a quieter, **deliberately non-tappable** card — there is no record to
+  open, and a dead tap target teaches a manager the screen is broken.
+- A gap can only satisfy facets that describe *not working*; asking for "Late" or
+  "Overtime" is asking about a record, so gaps drop out rather than padding a
+  filtered list with rows that cannot match it.
+
+**Removed "Payroll blockers"** from the summary strip. DROP does no payroll — it is
+a named scope guardrail (ADR-009/ADR-010) — so putting the word on a ledger the
+owner reads daily promised something the product does not do. The same count now
+reads **"Needs a decision"** and appears only when it is non-zero.
+
+**Removed the Today subtitle** *"Who is here, late, absent, or needs a decision"* —
+the counts and the grouped rows underneath already say it.
+
+Tests: `test/attendance_history_gap_test.dart` (8 cases), including the literal
+reproduction — search "ziad" against a ledger holding one absence and no record.
+Suite **1440 pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+---
+
+## 2026-08-01 — Attendance starts with Today (feature; LOW risk)
+
+Attendance & Reports now opens the existing live board rather than the reporting
+hub. Managers see their own branch; admins explicitly choose a branch. The board
+groups people into needs a decision, present/working, late, and absent, with
+Reports and Person history as direct next steps. An unscheduled clock-in now has
+plain **Mark present** copy that reuses the existing audited direct-resolution
+path; an explicit **Leave unapproved** action preserves the exception. `/admin/attendance` redirects to
+Today, avoiding two live board destinations. [ADR-021](docs/decisions/ADR-021-attendance-today-first.md)
+records the IA decision.
+
+Follow-up: Person history now has rolling Last 7 days / Last 30 days presets,
+and a Today row's History action carries that employee and branch into the
+existing reviewer ledger. Today bootstrap also retries when auth resolves late.
+
+---
+
+## 2026-08-01 — Daily Review: don't spend the one-shot on a pass that bailed out (hardening; LOW risk)
+
+Follow-up to the workspace hang. Auditing every screen for the same shape turned
+up one more latch with the same failure mode, reached differently:
+
+```dart
+if (_started) return;
+_started = true;                              // burned before it did anything
+if (date == null || user == null) return;     // …and never retried
+```
+
+A deep link that opens Daily Review before auth finishes restoring would spend the
+latch on a pass that loaded nothing, and the board would sit on its spinner for
+the life of the screen.
+
+Moving the flip below the guard is necessary but **not sufficient**, and the first
+draft of this fix was wrong about why: `context.currentUser` reads `AuthCubit`
+with `read`, registering **no dependency**, so a late session never re-triggers
+`didChangeDependencies` on its own. The latch would simply stay unspent forever.
+
+So it now uses the same two-path shape as the other correct screens: the already
+signed-in case starts from `didChangeDependencies`, and a `BlocListener<AuthCubit>`
+covers the session arriving late. `_maybeStart()` is idempotent, so the two can
+never double-dispatch.
+
+Unreachable in practice today — the route guard makes a null user very unlikely,
+and a malformed `dayKey` already renders an explicit "not a valid day link" panel
+rather than loading. Fixed anyway because the latch was one routing change away
+from mattering.
+
+Tests: `test/attendance_daily_review_bootstrap_test.dart` (4 cases), verified to
+**fail against the old ordering** — the late-session and load-exactly-once cases
+both break, the already-live and malformed-link cases still pass. Suite **1421
+pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+**Audit result, for the record:** across all 19 `BlocListener` + 21 `BlocConsumer`
+files, all 13 per-screen `create:` cubits, and every screen rendering an app-level
+singleton, the Admin workspace was the **only** true instance. Every other
+listener is error- or navigation-driven; the one that starts work
+(`manager_schedule_view`) keys off a busy→idle transition that cannot be
+pre-satisfied at mount. `attendance_history_screen._bootstrapReview()` and
+`chat_notification_listener.initState` already implement the correct pattern.
+
+---
+
+## 2026-08-01 — Admin workspace hung on its spinner forever (bug; LOW risk)
+
+Owner sent a screenshot of `/admin/attendance/workspace` spinning with no content.
+Reproducible 100% of the time by the **only** navigation path that exists.
+
+`_WorkspaceView.didChangeDependencies` called `BranchCubit.loadIfNeeded()` and
+then relied on a `BlocListener` to start the ledger fan-out. But `BranchCubit` is
+an **app-level singleton** (`main.dart` provides one instance for the session) and
+the Attendance & Reports hub — the tile you arrive from — already calls
+`loadIfNeeded()`. So the directory was always already loaded, `loadIfNeeded()`
+emitted nothing, **a `BlocListener` never fires without a state change**,
+`AdminAttendanceOverviewCubit.watch()` was never called, `overview` stayed null,
+and `_Body` rendered its `CircularProgressIndicator` forever.
+
+The codebase had already met this exact trap and written it down —
+`attendance_history_screen.dart` awaits `loadIfNeeded()` and then reads the cubit
+precisely because *"a `BlocListener` alone would miss the [already-loaded] case"*.
+The workspace was the one screen that didn't get the memo (and it echoes the
+standing macOS rule about never gating on a bloc-listener alone).
+
+- `_bootstrap()` awaits `loadIfNeeded()` and then reads `BranchCubit.state`
+  directly, covering the already-loaded case as well as the cold one.
+- The listener stays, for the cold path and for later directory refreshes — it
+  just can no longer be the only trigger.
+- `_watchBranches` is idempotent over the active-branch id set, so both paths can
+  call it without tearing down and re-subscribing an identical fan-out.
+- It now refuses to fan out on a **non-loaded** state. Previously an error state
+  would have produced `watch(branchIds: [])` → an empty overview reading as
+  *"every branch reported nothing"*, which is the one lie this screen exists to
+  prevent. Loading keeps the (honest) spinner.
+
+Tests: `test/attendance_admin_workspace_bootstrap_test.dart` (3 cases). Verified
+to **fail against the old code** — the "already loaded" case reproduces the hang
+while the "loads after mount" case passes, which is exactly the bug's shape. Suite
+**1417 pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+---
+
+## 2026-08-01 — The geofence policy actually governs the punch (bug + feature; MED risk)
+
+Owner: *"fix the geofence policy so it actually works."*
+
+`AttendanceLocationPolicy` — `none` / `soft` / `strict`, with `blocksOutside`,
+`capturesLocation` and a `fromString` parser, calling itself *"the single knob for
+the whole geofence behaviour"* — **was read by nothing.** Not the client, not
+`functions/`, not the rules. What ran instead was hardcoded in two places that
+could not disagree because neither consulted anything: `checkGpsFix` rejected
+`noGeofence`/`lowAccuracy`/`outsideRadius` unconditionally, and the clock screen
+disabled the button unless `geofenceReady && atBranch`.
+
+So every branch behaved as `strict` while the config's default said `none` — and
+**a branch with no geofence configured could never clock in at all.** The locked
+`ATTENDANCE_SPEC` workflow 6 said exactly that (*"no geofence … No record is
+written"*), so the code was faithful; the rule was the defect. `soft` and `strict`
+both mean "compare the fix to the geofence" — with no geofence the question is
+*undefined*, not failed, and the cost landed on someone standing at work unable to
+record it.
+
+**[ADR-020](docs/decisions/ADR-020-location-policy-is-real.md)** — amends the
+locked spec (workflow 6 + the clock-in error list).
+
+- `AttendanceService.resolveLocationPolicy({configured, hasGeofence})` is the one
+  seam. **No geofence → `none`**, so that branch runs a pure time clock instead of
+  being locked out. Draw the fence and it becomes `strict` with no other change.
+- `checkGpsFix` takes the resolved policy: `none` never refuses · `soft` captures,
+  stores, never refuses · `strict` is the full gate, **byte-for-byte unchanged**.
+  A `strict` branch whose fence vanishes still fails loudly rather than passing.
+- Default flipped `none` → `strict`, so the config describes what ships and an
+  un-migrated caller keeps the gate instead of silently losing it.
+- The cubit collapses the resolved policy into `_config` once the geofence is
+  known, so the validation gate, the UI and the record's config snapshot (R19) all
+  read one value.
+- UI: under `none` the GPS card isn't rendered at all; under `soft` it still shows
+  every state but stops saying *"move closer, then tap to retry"* next to an
+  enabled button — an unverifiable fix reads *"Recorded with your punch for a
+  manager to review."*
+
+**The trade, stated plainly:** a non-geofenced branch can now punch from anywhere.
+That is weaker than perfect enforcement — but the status quo was not enforcement,
+it was *no attendance at all* plus manager-typed reconstructions with no location
+evidence, which is the worse evidence ADR-018 already rejected once. Nothing
+changes at any branch that has a fence.
+
+Still open: `AttendanceService.configFor` returns one constant for everyone, so
+`soft` is reachable but unselectable. Per-branch `branches/{id}/attendanceConfig`
+is now data entry rather than another gate rewrite.
+
+Tests: 12 new cases across `attendance_validation_test.dart` (each policy's
+refuse/allow behaviour, the strict default, and `resolveLocationPolicy` over every
+enum value both ways). **One existing test changed meaning** —
+`attendance_cubit_test.dart`'s *"clockIn when the branch has no geofence is blocked
+(no write)"* now asserts the punch is recorded with a null verification; that is
+the reversal made visible. Suite **1414 pass / 2 fail** (the 2 pre-existing
+splash-centering failures).
+
+---
+
+## 2026-08-01 — Attendance reports: open one person from a "By person" row (feature; LOW risk)
+
+Owner question: *"is it easy to get an employee report or see all his history?"*
+For the employee themselves, yes. For a manager, **no** — and the audit found why:
+
+- The "By person" tables in both the weekly and monthly reports were plain text
+  rows. No `onTap`, no `InkWell`. You could read `Ziad Elsewedy · 4 · 0 · 4 ·
+  Absent` and had no way to open him.
+- The one screen that *can* answer it — reviewer-mode Attendance History, which
+  already has a branch-wide **"Search employee"** field — was reachable only from
+  `/attendance/review`, pushed only from `admin_attendance_screen.dart:57`, on a
+  route (`/admin/attendance`) that **nothing in the app navigates to**.
+
+So the capability existed and the door didn't. This adds the door.
+
+**A row now opens that person's own ledger, pinned to the branch and period the
+row was read in.** That pinning is the point: carrying only the name would land
+the reviewer on their own branch's default window and quietly show different
+numbers than the row they just tapped.
+
+- New `AttendanceReviewLink` (pure Dart) — name + optional `branchId` + optional
+  `start`/`end`. `hasWindow` is true only when **both** bounds are present; one
+  alone would half-apply a range the resolver falls back on anyway.
+- The `/attendance/review` route already accepted a bare `String` name as `extra`.
+  It now accepts the typed link and still accepts the String, so any hand-built or
+  older link keeps working.
+- `AttendanceHistoryScreen.review` gains `initialStart`/`initialEnd`; the DI
+  factory turns them into an `AttendanceDateRange.custom` query. The filter bar
+  already renders a custom window as its dates, so the chip reads **"26 Jul – 1
+  Aug"** on arrival with no extra work.
+- `AttendanceWeeklyEmployeeRows` gains a slot-based `onOpenEmployee`. Null leaves
+  the rows exactly as inert as before — the widget stays presentation-only and
+  never learns which branch or period it is inside.
+- Row affordance: pointer cursor plus a hover step where the **name** brightens,
+  not the numbers. The header row is never tappable.
+- **The reviewer search box is now seeded** from the query it filters. It was
+  rendering empty while the ledger was filtered, so a deep-linked list looked
+  mysteriously short with no visible cause and no obvious way back. Seeding a
+  caller-owned controller also gives the shared field's clear button something
+  real to clear.
+- Because hover and a cursor don't exist on a phone, the section says *"Open
+  anyone to see their own records for this period."* — but only when the rows
+  actually open.
+
+Not addressed here, and now written down in CURRENT_STATE under *Attendance gaps*:
+the dead `AttendanceLocationPolicy` (every branch behaves as `strict`; a branch
+with no geofence cannot clock in at all), the orphaned `/admin/attendance` route,
+a stale *"Daily review is coming next"* stub sitting next to a working Daily
+Review, and the still-missing period close + export.
+
+Tests: `test/attendance_person_drilldown_test.dart` (7 cases) — the row reports
+its own employee, the header never opens, rows stay inert **and unadvertised**
+without a callback, `hasWindow` needs both bounds, and the search box shows the
+name it is filtered to. Suite **1407 pass / 2 fail** (the 2 pre-existing
+splash-centering failures).
+
+---
+
+## 2026-08-01 — Employees directory: an identity-only row card (polish; LOW risk)
+
+Owner ask, verbatim: *"redesign the card of the employees and remove the
+complete and rate and all of this — just the name and branch, I don't need all
+of this."*
+
+The card had been carrying four inline KPIs (Completed · Pending · Rate · Late)
+since the 2026-07-27 density pass. In a real directory they were **nine zeros in
+a row** — every employee scored identically, so the numbers said nothing while
+costing the tallest band of every card. `EmployeeCard` is now identity-only:
+
+```
+⬤  Mohamed khaled                                    Active  [Details] [Edit] [⋯]
+MK 🏪 Drop the shop | Arkan
+```
+
+- **Removed** the `metrics` parameter and the whole `_InlineMetrics` block. Row
+  height drops from ~140px to ~68px, so roughly twice as many people fit on a
+  screen and the eye runs down one column of names.
+- **Removed** the role from the subtitle. It read "Employee ·" on nearly every
+  row; the Role filter and the Details inspector both still carry it.
+- **The branch is the second line on its own**, behind a storefront mark and one
+  step down the grey ramp. An unassigned employee reads *No branch* in italic
+  quaternary grey — a gap to fill, deliberately not an error red.
+- Access state, Details / Edit, the ellipsis menu and the desktop right-click
+  menu are **unchanged**; the card is still presentation-only.
+- Radius tightened to 16 (20 reads as a pill at this height); wide/narrow
+  breakpoint moved 620 → 520, since the row no longer has a KPI band to fit.
+
+**Nothing was lost.** `computeEmployeeMetrics` is untouched and still feeds the
+Details inspector, which has the room to present performance honestly. Removing
+the card's dependency on it also let `_body` stop `watch`ing `TaskCubit`, so the
+directory no longer rebuilds on every task-stream tick — the inspector reads the
+cubit on demand when it opens.
+
+Tests: `test/employee_card_test.dart` rewritten around the new contract (name ·
+branch · access · actions, "No branch", KPI labels absent, no overflow at
+280px). Suite **1400 pass / 2 fail** — the 2 are the pre-existing
+splash-centering failures.
+
+---
+
+## 2026-08-01 — Notification inbox: readable rows + the dead attendance tap (polish + bug; LOW/MED risk)
 ## 2026-08-01 — Employee Home: the ring goes, the clock arrives (polish + bug; MED risk)
 
 Owner asked what Home was missing and what should go. Both answers were in the

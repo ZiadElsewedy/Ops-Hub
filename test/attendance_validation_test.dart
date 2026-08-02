@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drop/core/enums/attendance_location_policy.dart';
 import 'package:drop/core/enums/attendance_status.dart';
 import 'package:drop/core/enums/leave_type.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
@@ -7,6 +8,7 @@ import 'package:drop/features/attendance/domain/attendance_config.dart';
 import 'package:drop/features/attendance/domain/attendance_gps.dart';
 import 'package:drop/features/attendance/domain/attendance_location.dart';
 import 'package:drop/features/attendance/domain/attendance_location_service.dart';
+import 'package:drop/features/attendance/domain/attendance_service.dart';
 import 'package:drop/features/attendance/domain/attendance_validation.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 
@@ -143,11 +145,13 @@ void main() {
       LocationError? error,
       AttendanceVerification? v,
       bool geofence = true,
+      AttendanceLocationPolicy policy = AttendanceLocationPolicy.strict,
     }) =>
         AttendanceValidation.checkGpsFix(
           locationError: error,
           verification: v,
           geofenceConfigured: geofence,
+          policy: policy,
         );
 
     test('location service off → serviceDisabled', () {
@@ -175,6 +179,95 @@ void main() {
     });
     test('at the branch with a good fix → allowed', () {
       expect(gps(v: verification()).allowed, isTrue);
+    });
+
+    // ADR-020 — the policy is the single knob, and it is now actually read.
+    group('location policy', () {
+      test('none never refuses a punch, whatever the fix says', () {
+        const none = AttendanceLocationPolicy.none;
+        expect(gps(policy: none, geofence: false).allowed, isTrue);
+        expect(
+          gps(policy: none, error: LocationError.permissionDenied).allowed,
+          isTrue,
+        );
+        expect(
+          gps(policy: none, error: LocationError.serviceDisabled).allowed,
+          isTrue,
+        );
+        expect(gps(policy: none, v: verification(distance: 9000)).allowed,
+            isTrue);
+        expect(
+            gps(policy: none, v: verification(accuracy: 500)).allowed, isTrue);
+      });
+
+      test('soft records but never refuses — outside the fence still punches',
+          () {
+        const soft = AttendanceLocationPolicy.soft;
+        expect(gps(policy: soft, v: verification(distance: 9000)).allowed,
+            isTrue);
+        expect(
+            gps(policy: soft, v: verification(accuracy: 500)).allowed, isTrue);
+        expect(
+          gps(policy: soft, error: LocationError.permissionDenied).allowed,
+          isTrue,
+        );
+      });
+
+      test('strict is the only policy that blocks', () {
+        const strict = AttendanceLocationPolicy.strict;
+        expect(gps(policy: strict, v: verification(distance: 9000)).reason,
+            AttendanceBlock.outsideRadius);
+        expect(gps(policy: strict, v: verification(accuracy: 500)).reason,
+            AttendanceBlock.lowAccuracy);
+        // A strict branch whose geofence vanished must fail loudly, not pass.
+        expect(gps(policy: strict, geofence: false).reason,
+            AttendanceBlock.noGeofence);
+      });
+
+      test('strict is the default, so an un-migrated caller keeps the gate', () {
+        expect(
+          AttendanceValidation.checkGpsFix(
+            locationError: null,
+            verification: verification(distance: 9000),
+            geofenceConfigured: true,
+          ).reason,
+          AttendanceBlock.outsideRadius,
+        );
+      });
+    });
+  });
+
+  group('AttendanceService.resolveLocationPolicy', () {
+    test('a branch with no geofence collapses to none', () {
+      for (final configured in AttendanceLocationPolicy.values) {
+        expect(
+          AttendanceService.resolveLocationPolicy(
+            configured: configured,
+            hasGeofence: false,
+          ),
+          AttendanceLocationPolicy.none,
+          reason: '$configured cannot be checked without a fence',
+        );
+      }
+    });
+
+    test('a branch with a geofence keeps what it configured', () {
+      for (final configured in AttendanceLocationPolicy.values) {
+        expect(
+          AttendanceService.resolveLocationPolicy(
+            configured: configured,
+            hasGeofence: true,
+          ),
+          configured,
+        );
+      }
+    });
+
+    test('the shipped default is strict, matching what the app enforces', () {
+      expect(
+        AttendanceConfig.defaults.locationPolicy,
+        AttendanceLocationPolicy.strict,
+      );
     });
   });
 

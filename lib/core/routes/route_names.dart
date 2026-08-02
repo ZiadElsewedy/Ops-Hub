@@ -76,9 +76,12 @@ class RouteNames {
   /// Employee GPS clock-in/out surface (also reachable by managers who clock).
   static const String attendance = '/attendance';
 
-  /// Attendance & Reports hub — manager/admin reporting surface backed only by
-  /// the materialized `attendance_expectations` ledger.
+  /// Attendance & Reports landing — manager/admin's live board for today.
+  /// Reports and the per-person ledger are deliberate next steps from here.
   static const String attendanceReports = '/attendance/reports';
+
+  /// Reporting-ledger hub, reached deliberately from the Today landing.
+  static const String attendanceReportsHub = '/attendance/reports/hub';
 
   /// The first per-period attendance report destination. The `periodId` is
   /// `{branchId}_weekly_{startKey}_{endKey}_v{version}`.
@@ -110,8 +113,7 @@ class RouteNames {
   static String attendanceDailyReview(String branchId, String dayKey) =>
       '/attendance/daily/$branchId/$dayKey';
 
-  /// Admin attendance dashboard — branch-scoped roster × attendance oversight +
-  /// the correction queue (a future manager view reuses the same screen).
+  /// Retired live-board path. Kept as a redirect so old links land on Today.
   static const String adminAttendance = '/admin/attendance';
 
   /// **Admin attendance workspace** — cross-branch data completeness, the

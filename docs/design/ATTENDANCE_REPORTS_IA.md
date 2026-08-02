@@ -28,8 +28,8 @@ in, clock out, and verify their own record.
 
 | Role | Desktop nav label | Mobile placement | Primary route |
 | --- | --- | --- | --- |
-| Admin | Attendance & Reports | Admin Dashboard attention card, not bottom nav | NEW `RouteNames.attendanceReports` |
-| Manager | Attendance & Reports | Manager Home close-readiness card, not bottom nav | NEW `RouteNames.attendanceBranch(...)` |
+| Admin | Attendance & Reports | Dashboard attention card, not bottom nav | `RouteNames.attendanceReports` (Today; choose branch) |
+| Manager | Attendance & Reports | Manager Home, not bottom nav | `RouteNames.attendanceReports` (Today; own branch) |
 | Employee | Attendance | Existing top action and sidebar item | EXISTING `RouteNames.attendance` |
 
 Decision: the reporting system is not a separate "Analytics" module. It is the
@@ -44,10 +44,12 @@ analytics surface.
 
 ```text
 Attendance & Reports
-|-- Live attendance
-|   |-- Employee clock
-|   |-- Branch live board
-|   `-- Record detail
+|-- Today (manager/admin landing)
+|   |-- Needs a decision (unscheduled clock-in -> Mark present)
+|   |-- Present / working now
+|   |-- Late / absent
+|   |-- Person history
+|   `-- Reports hub
 |
 `-- Reporting ledger
     |-- Reports hub
@@ -76,8 +78,9 @@ Attendance & Reports
 1. The canonical manager/admin module label is **Attendance & Reports**; the
    employee label remains **Attendance**.
 2. Reports are destinations; history is evidence and drill-down only.
-3. The manager lands on a **Branch Attendance Workspace**, not a flat history list.
-4. The admin lands on an **Attendance & Reports Hub**, not a one-branch live board.
+3. Manager and admin land on **Today**, not a flat history list or reports hub.
+   Managers are pinned to their own branch; admins explicitly choose a branch.
+4. Reports remain a named secondary destination, one obvious action away.
 5. The first-class Weekly Report uses the Schedule week: **Sunday through
    Saturday**, in `Africa/Cairo`.
 6. The first-class Monthly Report uses the calendar month in `Africa/Cairo` and
@@ -143,8 +146,8 @@ source for command-palette destinations (`lib/core/widgets/app_shell.dart:53`,
 
 | Role | Existing slot | Decision |
 | --- | --- | --- |
-| Admin | Existing Attendance item currently points to `RouteNames.adminAttendance` (`lib/core/widgets/app_shell.dart:117`) | Rename label to Attendance & Reports and point to NEW `RouteNames.attendanceReports`. |
-| Manager | Existing Attendance item currently points to `RouteNames.attendanceReview` (`lib/core/widgets/app_shell.dart:182`) | Rename label to Attendance & Reports and point to NEW branch workspace route. |
+| Admin | Existing Attendance item | Attendance & Reports -> `RouteNames.attendanceReports` (Today). |
+| Manager | Existing Attendance item | Attendance & Reports -> `RouteNames.attendanceReports` (Today; own branch). |
 | Employee | Existing Attendance item points to `RouteNames.attendance` (`lib/core/widgets/app_shell.dart:87`) | Keep label Attendance and route. |
 
 No new sidebar item is added. The module uses the existing Attendance slot.
@@ -157,8 +160,8 @@ Attendance & Reports does not become a fifth bottom item.
 
 | Role | Mobile entry | What gets demoted |
 | --- | --- | --- |
-| Admin | Admin Dashboard attention card: "Attendance periods blocked" -> Reports hub. | Nothing in bottom nav. Admin Analytics stays in desktop admin section only; reports do not move there. |
-| Manager | Manager Home card: "Close attendance" -> Branch workspace. | The old "review history" meaning of Attendance is demoted to evidence. |
+| Admin | Admin Dashboard attention card -> Today. | Nothing in bottom nav. |
+| Manager | Manager Home card -> Today. | The old "review history" meaning of Attendance is demoted to evidence. |
 | Employee | Existing fingerprint app-bar action -> Attendance (`lib/core/widgets/role_scaffold.dart:118`) | Nothing. Clocking remains a direct action. |
 
 Considered and rejected: replacing Chat in the mobile bottom nav. Chat is a
@@ -185,7 +188,15 @@ the attendance workflow.
 
 ```text
 Attendance & Reports                                  destination
-|-- Reports hub                                       destination
+|-- Today                                             destination
+|   |-- Needs review / unscheduled -> Mark present    section + action
+|   |-- Present / working now                         section
+|   |-- Late / absent                                 section
+|   |-- Person history                                drill-down
+|   `-- Reports hub                                   destination
+|
+`-- Reporting ledger
+    |-- Reports hub                                   destination
 |   |-- Branch comparison                             report
 |   |-- Export ledger                                 report-adjacent destination
 |   `-- Branch workspace                              destination
@@ -201,12 +212,6 @@ Attendance & Reports                                  destination
 |       |   `-- Attendance record detail              drill-down
 |       |-- Pay-period report                         report
 |       `-- Branch ledger evidence                    drill-down
-|
-|-- Live board                                        destination inside workspace
-|   |-- Needs review                                  section
-|   |-- Absent / Overdue                              section
-|   |-- Working now                                   section
-|   `-- Completed today                               section
 |
 `-- My attendance                                     employee destination
     |-- Clock                                         workflow
@@ -262,7 +267,7 @@ Employees are blocked only from the branch review area
 | Existing constant | Existing path | Disposition | Migration note |
 | --- | --- | --- | --- |
 | `RouteNames.attendance` | `/attendance` | **Stays** | Employee clock plus My Attendance period record. Managers who personally clock can still use it from the mobile app-bar action. |
-| `RouteNames.adminAttendance` | `/admin/attendance` | **Dies as canonical route** | Redirect to NEW `RouteNames.attendanceReports`. Existing admin sidebar changes away from it. |
+| `RouteNames.adminAttendance` | `/admin/attendance` | **Legacy redirect** | Redirects to `RouteNames.attendanceReports` (Today). |
 | `RouteNames.attendanceHistory` | `/attendance/history` | **Dies as destination** | Redirect to NEW `RouteNames.attendanceEmployee(currentUid)` with the ledger tab open. |
 | `RouteNames.attendanceReview` | `/attendance/review` | **Dies as destination** | Redirect managers to their branch workspace and admins to reports hub. No notification deep link currently targets an attendance route, so retiring this breaks no existing push target. New report notifications must be added to `lib/features/notifications/domain/notification_deep_link.dart`. |
 | `RouteNames.attendanceRecordPattern` | `/attendance/record/:id` | **Stays** | Canonical evidence detail. Add report-period/export/restatement context, but keep route and helper. |
@@ -279,7 +284,8 @@ parameterized paths.
 
 | Constant | Path | Role guard | Parent | Answers |
 | --- | --- | --- | --- | --- |
-| NEW `RouteNames.attendanceReports` | `/attendance/reports` | admin or manager | Attendance & Reports | Which branches/periods need close, restatement, or export? |
+| `RouteNames.attendanceReports` | `/attendance/reports` | admin or manager | Attendance & Reports | Who is present, late, absent, or needs a decision today? |
+| `RouteNames.attendanceReportsHub` | `/attendance/reports/hub` | admin or manager | Today | Which closed periods need attention? |
 | NEW `RouteNames.attendanceBranchPattern` | `/attendance/branch/:branchId` | admin or manager with scope | Reports hub | What is happening in this branch, and what blocks close? |
 | NEW `RouteNames.attendanceDailyClosePattern` | `/attendance/close/:branchId/:date` | admin or manager with scope | Branch workspace | Can this business day close? |
 | NEW `RouteNames.attendanceExceptions` | `/attendance/exceptions` | admin or manager | Branch workspace / hub | Which attendance facts need a decision? |
@@ -324,8 +330,8 @@ static String attendanceBranchComparison(String periodId) =>
 
 | Role | Sidebar item | Route | Notes |
 | --- | --- | --- | --- |
-| Admin | Attendance & Reports | NEW `RouteNames.attendanceReports` | Replaces the existing Attendance destination that points to `/admin/attendance`. |
-| Manager | Attendance & Reports | NEW `RouteNames.attendanceBranch(manager.branchId)` | Manager does not choose scope by default. |
+| Admin | Attendance & Reports | `RouteNames.attendanceReports` | Today; explicit branch choice before live data loads. |
+| Manager | Attendance & Reports | `RouteNames.attendanceReports` | Today; own branch is the only scope. |
 | Employee | Attendance | EXISTING `RouteNames.attendance` | No report wording. |
 
 Command palette entries mirror the sidebar because it uses the same section list
@@ -335,8 +341,8 @@ Command palette entries mirror the sidebar because it uses the same section list
 
 | Role | Entry point | First screen |
 | --- | --- | --- |
-| Admin | Dashboard attention card or notification | Reports hub |
-| Manager | Manager Home attention card or notification | Branch workspace, exception tab selected if needed |
+| Admin | Dashboard attention card or notification | Today |
+| Manager | Manager Home attention card or notification | Today |
 | Employee | Fingerprint app-bar action | Attendance clock |
 
 Mobile bottom nav stays unchanged. The role scaffold already explains that the
