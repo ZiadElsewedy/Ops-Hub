@@ -42,8 +42,8 @@ requests and attendance never were.
 
 Gates: analyze clean (1 pre-existing info) · Dart 1441 pass / 2 pre-existing
 splash failures · functions 82 pass · rules 61 pass.
-⚠️ The body changes are server-side — **needs a Cloud Functions deploy**. The
-tile change ships with the app build.
+✅ The server-side body changes are **deployed 2026-08-02**; the tile change
+ships with the app build.
 
 ---
 
@@ -55,11 +55,9 @@ tile change ships with the app build.
 - **Broadcast pushes:** one retry is allowed only for transient/thrown Admin Messaging sends. Dead/invalid tokens remain prune-only, and final delivery logs include real success/failure counts.
 
 The client half of the swap change ships with the app build; everything else is
-server-side. ⚠️ **Needs a Cloud Functions deploy** — until then `approveSwap`
-still exchanges rosters without notifying, and since the duplicate client
-producer is already removed, an app build deployed *ahead* of the functions
-would leave approved swaps silently unannounced. **Deploy functions before, or
-with, that build.**
+server-side. ✅ **Deployed 2026-08-02** — functions went out *ahead* of any app
+build carrying the client change, which is the correct order: shipping the build
+first would have left approved swaps announced to nobody.
 
 Gates: analyze clean (1 pre-existing info) · Dart 1440 pass / 2 pre-existing
 splash failures · functions 80 pass · rules 61 pass.
@@ -97,7 +95,7 @@ The same gap let a manager evade the no-self-approval rule (rule (b) only checke
   coverage of the guard.
 
 Gates: analyze clean · Dart 1440 pass / 2 pre-existing · functions 76 · rules 61.
-⚠️ **Needs a rules + functions deploy to take effect.**
+✅ **Rules + functions deployed 2026-08-02** — the hole is closed in production.
 
 ---
 
@@ -655,10 +653,9 @@ now opens the exact record (`/attendance/record/:id` — all four producers stam
 **The in-app tap is fixed by the app build.** The *push* tap needed the other
 half — `onNotificationCreated` was also dropping `recordId` / `correctionId`
 from the push `data`, so a background/cold-start tap had no id to resolve. Both
-are now forwarded, but that half is **⚠️ inert until
-`firebase deploy --only functions`**; until then a background attendance tap
-lands on the ledger fallback rather than the exact record. Functions tests:
-68 pass.
+are now forwarded — ✅ **deployed 2026-08-02**, so a background/cold-start
+attendance tap now reaches the exact record instead of the ledger fallback.
+Functions tests: 68 pass.
 
 The tile now also *tells the truth about* a tap that can't go anywhere: the
 screen resolves each notification through the same resolver and passes

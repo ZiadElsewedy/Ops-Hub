@@ -11,8 +11,8 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1440 pass · 2 fail** (~32s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **82 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
-| **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
+| **Tests** | **1441 pass · 2 fail** (~32s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **82 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
+| **Blocking release** | ~~Firebase deploy~~ **re-deployed 2026-08-02 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
 DROP is **feature-complete for its intended scope** and now gated on QA, not on
@@ -39,15 +39,33 @@ paths, and — for this module — `onAttendanceCorrectionWritten`, so a manager
 Resolve / Add record / Excuse should now report **applied** rather than *saved,
 not applied yet*.
 
-⚠️ **Not independently verified at runtime.** `firebase functions:log` returned
-*"Failed to retrieve log entries"* for this CLI login (a Cloud Logging access
-problem, not a deploy failure), so the deploy's own success reports are the only
-confirmation. First real proof will be the next 01:00 Cairo close run and the
-next manager correction.
-
 Pre-deploy gates that did pass: Firestore rules **37/37** against the repo's own
 rules file via the emulator, Cloud Functions **86/86**, Dart **1312 pass / 2
 pre-existing splash failures**.
+
+---
+
+### Deploy 2026-08-02 — notification hardening + the attendance-correction P0
+
+Everything from the 2026-08-02 audit work is **live** on `bazic-d9ad7`:
+
+| Target | Result |
+| --- | --- |
+| **Firestore rules** | Released. Carries the `notifications` update restriction and the `attendance_corrections` `attendanceId` ownership binding |
+| **Functions** | **All 24 updated** — task reminders, `approveSwap`'s server-owned notice, the broadcast schedule claim + push retry, the case-reopen actor exclusion, the correction ownership guard, and every subject-led body |
+
+✅ **Verified at runtime this time, not just reported.** `onNotificationCreated`'s
+`firebase-functions-hash` changed (`5cc7b753…` → `a154bf53…`), it rolled to a new
+revision (`onnotificationcreated-00019-qif` → `00020-bek`), the startup probe
+succeeded and state is `ACTIVE`.
+
+⚠️ **The earlier note that `firebase functions:log` fails for this CLI login is
+no longer true** — it works, and it is how the above was confirmed. Use it.
+
+⚠️ **Deploy-order hazard, now resolved in the safe direction.** The client no
+longer produces `swapApproved` (the server does). Functions are deployed *ahead*
+of any app build carrying that change, which is the correct order — shipping the
+build first would have left approved swaps announced to nobody.
 
 ---
 
@@ -84,7 +102,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | **Admin** | User administration, account provisioning, Admin Home V2 command center. **Employees P19** (2026-07-27, uncommitted): a presentation-only, scalable directory pass — compact desktop header summary + Create Employee CTA, horizontal Branch/Role/Status/Sort/View controls, lazy list/natural-height two-column rendering (no fixed card extent), inline task KPIs, and Details/Edit with existing secondary actions in an overflow menu. The desktop FAB is removed while mobile keeps it; routing, cubits, repositories, and account semantics remain unchanged. **"Today" strip fix (2026-08-01, committed `fdaf66d`):** `admin_dashboard_screen.dart`'s `_today()` gained an `Open` stat (pending/started/completed/rejected — the same definition Task Management's "Active" uses) to answer "how much is on the table", since `Running now` (`started` only) was being misread as that number. `Delayed` renamed to **`Late`** with `AppColors.error` (was amber) — one concept, one name, one colour with Task Management's `Late` and Operations' `Late tasks`; grepped for other `Delayed` task copy, found none. `Approval rate` (a second, disagreeing completion formula — `Approved ÷ (Approved + Rejected)` from `StatisticsCubit`, next to §10.1's `Approved ÷ (Approved + Missed)`) is removed. `_today()` no longer subscribes to `StatisticsCubit` at all — `Completed today` now derives from the task stream (`completedTodayCount`, new in `task_metrics.dart`, reusing `isTaskInActiveWindow` so it can't drift from what a drill-down would list) instead of the lifetime-scoped `StatisticsCubit.completedTasksToday`. Every cell except `Due soon` is now tappable (`Stat.onTap` → `FilteredTasksScreen`, with a one-line `description`); `Due soon` stays inert on purpose — no `TaskFeedFilter` can reproduce `schedulePhase`'s dueSoon precedence (it excludes `completed`/`waitingReview` even though the active window includes them) without either an over-counting filter or a reverse dependency from `task_feed.dart` into `task_schedule.dart`. `manager_home_screen.dart`'s own `Completed today` (line ~130) reads the same `StatisticsCubit` field but isn't tappable, so it has no count-vs-list risk today — left unchanged, report-only per this pass's scope. |
 | **Operations** | Branch Operations cockpit, workload derivation, KPI drills, and a visible branch-scoped Automation summary opening the existing Center sheet |
 | **Communications** | Broadcasts, templates, custom audiences, scheduler, reminders |
-| **Notifications** | In-app inbox + deep-link resolver. **Android has a named high-importance `drop_default` FCM channel; iOS app-side APNs entitlement/background-mode wiring is complete, awaiting only the APNs credential.** Inbox rows redesigned 2026-08-01, two passes (owner: *"looks bad and messy"*, then *"all the tasks look the same"*). Rows are now **subject-led**: `kicker (event, 10px uppercase, semantic tint) → subject (14.5px, ONE line) → context (12px grey)`. Every producer writes the event into `title` and the thing into `body`, so the old headline was the one line guaranteed to repeat; `title` is now the kicker and `body` the headline, split on its first ` • `/` — ` by pure `splitNotificationBody`. Case status, request lifecycle/comment, and attendance correction/auto-close bodies now lead with their subject; requests use the requester's own `details.message` (**not** the rolling `lastEventPreview`, which by approval time may hold the latest comment) then `REQ-######`, and attendance uses `Shift, d Mon`. Employee broadcast rows are non-navigable reading text with **no line cap**, so the inbox retains the full message; navigable subjects remain one line. No stored data changed. The duplicated category pill is gone, read/unread is carried by row brightness, and only a **critical unread** item keeps the semantic halo. Day headers are a labelled hairline with that day's unread count; the filter rail is edge-masked and each pill carries its unread count. **`route: "attendance"` was a dead tap** (the resolver had no case for the string `writeAttendanceNotifications` has always stamped) — now opens `/attendance/record/:id`, falling back to `/attendance/review` · `/attendance/history` by role; **client-side, no deploy needed**. **Delivery hardening (2026-08-02, needs functions deploy):** scheduled broadcasts claim their due instant before dispatch (no duplicate after an uncertain finalize; a claimed failed run is consumed), `approveSwap` server-writes both `swapApproved` inbox docs after the roster transaction, case reopen suppresses the manager actor via `statusChangedBy`, and inline broadcast pushes retry one transient Admin Messaging failure while retaining inbox-first delivery. |
+| **Notifications** | In-app inbox + deep-link resolver. **Android has a named high-importance `drop_default` FCM channel; iOS app-side APNs entitlement/background-mode wiring is complete, awaiting only the APNs credential.** Inbox rows redesigned 2026-08-01, two passes (owner: *"looks bad and messy"*, then *"all the tasks look the same"*). Rows are now **subject-led**: `kicker (event, 10px uppercase, semantic tint) → subject (14.5px, ONE line) → context (12px grey)`. Every producer writes the event into `title` and the thing into `body`, so the old headline was the one line guaranteed to repeat; `title` is now the kicker and `body` the headline, split on its first ` • `/` — ` by pure `splitNotificationBody`. Case status, request lifecycle/comment, and attendance correction/auto-close bodies now lead with their subject; requests use the requester's own `details.message` (**not** the rolling `lastEventPreview`, which by approval time may hold the latest comment) then `REQ-######`, and attendance uses `Shift, d Mon`. Employee broadcast rows are non-navigable reading text with **no line cap**, so the inbox retains the full message; navigable subjects remain one line. No stored data changed. The duplicated category pill is gone, read/unread is carried by row brightness, and only a **critical unread** item keeps the semantic halo. Day headers are a labelled hairline with that day's unread count; the filter rail is edge-masked and each pill carries its unread count. **`route: "attendance"` was a dead tap** (the resolver had no case for the string `writeAttendanceNotifications` has always stamped) — now opens `/attendance/record/:id`, falling back to `/attendance/review` · `/attendance/history` by role; **client-side, no deploy needed**. **Delivery hardening (2026-08-02, DEPLOYED):** scheduled broadcasts claim their due instant before dispatch (no duplicate after an uncertain finalize; a claimed failed run is consumed), `approveSwap` server-writes both `swapApproved` inbox docs after the roster transaction, case reopen suppresses the manager actor via `statusChangedBy`, and inline broadcast pushes retry one transient Admin Messaging failure while retaining inbox-first delivery. |
 | **Cases** | Private employee ↔ manager/admin conversations, confidential reporter split |
 | **Requests** | Employee → manager yes/no approvals |
 | **Statistics** | Live role-scoped counts on all three dashboards |
@@ -192,7 +210,7 @@ phases and committed; what remains is deployment and on-device verification.
 | Phase | State |
 | --- | --- |
 | P1 — data foundation | Done. Deterministic `attendance/{uid}_{yyyyMMdd}_{shift}` id, `AttendanceCalculator` |
-| P2 — corrections + audit | Done. Server-authoritative audit + `attendance_corrections/` approval object. **Correction target ownership is bound at create time in the rules and re-checked by the apply trigger** — closing a P0 where a correction could name another employee's `attendanceId` and overwrite their record on approval. Pinned by `firestore-tests/attendance_corrections.rules.test.mjs` (8 cases, emulator-verified). ⚠️ **needs a rules + functions deploy** |
+| P2 — corrections + audit | Done. Server-authoritative audit + `attendance_corrections/` approval object. **Correction target ownership is bound at create time in the rules and re-checked by the apply trigger** — closing a P0 where a correction could name another employee's `attendanceId` and overwrite their record on approval. Pinned by `firestore-tests/attendance_corrections.rules.test.mjs` (8 cases, emulator-verified). **Rules + functions DEPLOYED 2026-08-02.** |
 | P3 — GPS engine | Done. `geolocator`, Haversine verification, separate clock-in/out verifications |
 | P3 — UI | Done. Employee clock screen · admin board · geofence editor |
 | History | Done. Ledger (`/attendance/history` self · `/attendance/review` branch, admin‖manager) + audit-log record details (`/attendance/record/:id`). Reuses the existing reads + `AttendanceStats`; holds ADR-009/010 (no score/analytics/export) |
