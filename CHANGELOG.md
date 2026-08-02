@@ -14,6 +14,25 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-02 — Notification delivery guarantees (bug; MED risk)
+
+- **Scheduled broadcasts:** claim the queried due instant transactionally before dispatch and finalize only after it. A failed claimed dispatch is deliberately consumed and logged at error level; if finalization is uncertain, the durable claim prevents an org-wide duplicate.
+- **Approved swaps:** `approveSwap` now server-writes one `swapApproved` inbox doc per party after its atomic roster exchange, so manager app termination cannot lose both notices. The duplicate client producer was removed; notification-write failure remains best-effort.
+- **Cases:** `changeStatus` stamps the authenticated manager/admin in `statusChangedBy`; reopen notices exclude that actor without exposing an identity in any notification content.
+- **Broadcast pushes:** one retry is allowed only for transient/thrown Admin Messaging sends. Dead/invalid tokens remain prune-only, and final delivery logs include real success/failure counts.
+
+The client half of the swap change ships with the app build; everything else is
+server-side. ⚠️ **Needs a Cloud Functions deploy** — until then `approveSwap`
+still exchanges rosters without notifying, and since the duplicate client
+producer is already removed, an app build deployed *ahead* of the functions
+would leave approved swaps silently unannounced. **Deploy functions before, or
+with, that build.**
+
+Gates: analyze clean (1 pre-existing info) · Dart 1440 pass / 2 pre-existing
+splash failures · functions 80 pass · rules 61 pass.
+
+---
+
 ## 2026-08-02 — A correction could overwrite someone else's attendance (bug; MED risk)
 
 Found while auditing attendance *notifications* — the notification deep-linked the

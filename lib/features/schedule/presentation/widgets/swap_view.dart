@@ -197,7 +197,7 @@ class _SwapCard extends StatelessWidget {
           label: 'Approve swap',
           icon: Icons.check_circle_outline_rounded,
           style: PremiumButtonStyle.filled,
-          onPressed: () => cubit.managerApprove(swap, actorId: currentUid),
+          onPressed: () => cubit.managerApprove(swap),
         ));
         buttons.add(_SwapButton(
           label: 'Reject',

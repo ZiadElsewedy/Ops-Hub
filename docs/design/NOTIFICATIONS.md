@@ -49,7 +49,16 @@ case / request /             onCase* / onRequest*        pushedByFunction:true) 
 - **In-app tile tap** → `NotificationsScreen._deepLink` → **the same resolver**.
 
 `pushedByFunction:true` on broadcast docs prevents `onNotificationCreated` from
-double-pushing (the broadcast engine already pushed inline).
+double-pushing (the broadcast engine already pushed inline). The inline send is
+best-effort and retries one time only when the Admin Messaging call fails with a
+transient service error (or throws before returning per-token outcomes); dead or
+invalid tokens are pruned, never retried. Its final log records success and
+failure counts. The inbox doc remains authoritative regardless of push outcome.
+
+**Server-owned transitions:** `approveSwap` writes one `swapApproved` inbox doc
+for each swap party only after its roster-exchange transaction commits; the
+client no longer produces that event. `onNotificationCreated` mirrors both docs
+to FCM. The other swap events remain client-produced through `sendNotification`.
 
 ### Recipient safety (defense-in-depth #3)
 Every push carries `data.recipientUid`. The client **drops** any push whose

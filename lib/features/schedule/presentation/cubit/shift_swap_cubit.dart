@@ -211,18 +211,16 @@ class ShiftSwapCubit extends Cubit<ShiftSwapState> {
       .updateSwapStatus(swapId: swap.id, status: SwapStatus.cancelled));
 
   // ── Manager action ─────────────────────────────────────────────
-  /// Manager/admin approves → schedule is exchanged + both employees notified.
-  /// [actorId] is the reviewer (excluded from the notification).
-  Future<void> managerApprove(ShiftSwapEntity swap, {required String actorId}) =>
-      _mutate(() async {
-        await _repository.managerApproveSwap(swap);
-        await _notifySwap(
-          swap: swap,
-          type: NotificationType.swapApproved,
-          actorId: actorId,
-          recipients: [swap.requesterId, swap.targetId],
-        );
-      });
+  /// Manager/admin approves → the `approveSwap` callable exchanges the schedule
+  /// **and writes both employees' `swapApproved` notifications itself**.
+  ///
+  /// Deliberately no client-side [NotifySwapEvent] here: the server owns the
+  /// roster exchange, so it must own the notice. Sending it from here as well
+  /// would notify both employees twice, and sending it *only* from here meant a
+  /// manager whose app died after the callable returned left two schedules
+  /// swapped and nobody told.
+  Future<void> managerApprove(ShiftSwapEntity swap) =>
+      _mutate(() => _repository.managerApproveSwap(swap));
 
   /// The branch's manager uids (the swap reviewers). Best-effort.
   Future<List<String>> _branchManagers(String branchId) async {

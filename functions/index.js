@@ -103,6 +103,8 @@ const {
   buildExecutionSnapshot,
 } = require("./automation_run");
 const { isReminderEligibleStatus } = require("./task_reminders");
+const { isRetryableBroadcastPushError } = require("./broadcast_delivery");
+const { canClaimScheduledBroadcast } = require("./broadcast_schedule");
 const {
   correctionTargetsOwnRecord,
   correctionMatchesExistingRecordOwner,
@@ -307,6 +309,7 @@ async function dispatchBroadcast(params) {
 
   // ── Push the notification (chunked; prune dead tokens) — push channels only ──
   let deliveredCount = 0;
+  let pushFailureCount = 0;
   // Diagnostics: how many times the SAME device token was found on two different
   // recipients in one send — an ownership-drift signal (defense-in-depth #3).
   let tokenDriftCount = 0;
@@ -382,8 +385,21 @@ async function dispatchBroadcast(params) {
         apns: { headers: { "apns-priority": apnsPriority } },
         data: { ...baseData, recipientUid: tokenOwner.get(token) || "" },
       }));
-      const response = await messaging.sendEach(messages);
+      let response;
+      try {
+        response = await messaging.sendEach(messages);
+      } catch (err) {
+        if (!isRetryableBroadcastPushError(err)) throw err;
+        logger.warn("broadcast push failed; retrying once", {
+          broadcastId: broadcastRef.id,
+          tokenCount: batch.length,
+          code: err && err.code,
+          error: String(err),
+        });
+        response = await messaging.sendEach(messages);
+      }
       deliveredCount += response.successCount;
+      pushFailureCount += response.failureCount;
 
       // Remove tokens FCM reports as permanently invalid, per owner.
       const removals = new Map(); // uid -> [badToken]
@@ -424,6 +440,7 @@ async function dispatchBroadcast(params) {
         broadcastId: broadcastRef.id,
         tokenCount: tokens.length,
         deliveredCount,
+        failureCount: pushFailureCount,
         error: String(err),
       });
     }
@@ -438,6 +455,7 @@ async function dispatchBroadcast(params) {
     audience,
     recipientCount,
     deliveredCount,
+    failureCount: pushFailureCount,
     tokenDriftCount,
   });
 
@@ -945,6 +963,46 @@ exports.approveSwap = onCall(async (request) => {
     });
   });
 
+  // The roster exchange is authoritative on the server, so its approval notice
+  // is too. Delivery remains best-effort: an inbox write failure cannot undo a
+  // committed exchange or turn this callable into a false failure.
+  try {
+    // Mirrors ScheduleDay.fromString(raw).label: unknown/missing values fall
+    // back to Sunday rather than inventing a different inbox label.
+    const dayLabels = {
+      sunday: "Sunday",
+      monday: "Monday",
+      tuesday: "Tuesday",
+      wednesday: "Wednesday",
+      thursday: "Thursday",
+      friday: "Friday",
+      saturday: "Saturday",
+    };
+    const dayLabel = dayLabels[day] || "Sunday";
+    const batch = db.batch();
+    for (const recipientUid of new Set([requesterId, targetId])) {
+      if (!recipientUid) continue;
+      const ref = db.collection(NOTIFICATIONS).doc();
+      batch.set(ref, {
+        id: ref.id,
+        recipientUid,
+        senderUid: auth.uid,
+        type: "swapApproved",
+        title: "Swap Approved",
+        body: `Your ${dayLabel} shift swap was approved — the schedule is updated.`,
+        readAt: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        payload: { swapId, route: "schedule" },
+      });
+    }
+    await batch.commit();
+  } catch (err) {
+    logger.error("failed to write swap approval notifications", {
+      swapId,
+      error: String(err),
+    });
+  }
+
   return { success: true };
 });
 
@@ -1286,6 +1344,28 @@ exports.runBroadcastSchedules = onSchedule("every 5 minutes", async () => {
     const s = doc.data() || {};
     if (s.enabled === false) continue; // paused
 
+    const expectedNextRunAt = s.nextRunAt;
+    const expectedNextRunAtMs =
+      expectedNextRunAt && typeof expectedNextRunAt.toMillis === "function"
+        ? expectedNextRunAt.toMillis()
+        : null;
+    if (expectedNextRunAtMs == null) continue;
+
+    // Claim before dispatch. A claim deliberately remains if finalization later
+    // fails: at this scale, avoiding a duplicate org-wide broadcast wins over
+    // retrying an uncertain send.
+    const claimed = await db.runTransaction(async (tx) => {
+      const current = await tx.get(doc.ref);
+      const currentData = current.exists ? current.data() || {} : null;
+      if (!canClaimScheduledBroadcast(currentData, expectedNextRunAtMs)) return false;
+      tx.update(doc.ref, {
+        dispatchClaimedFor: expectedNextRunAt,
+        dispatchClaimedAt: now,
+      });
+      return true;
+    });
+    if (!claimed) continue;
+
     // The sender's current branch (for a manager's custom-recipient filter).
     let senderBranch = "";
     try {
@@ -1312,7 +1392,10 @@ exports.runBroadcastSchedules = onSchedule("every 5 minutes", async () => {
       });
       fired += 1;
     } catch (err) {
-      logger.warn("schedule dispatch failed", { id: doc.id, error: String(err) });
+      logger.error("schedule dispatch failed after claim; run consumed", {
+        id: doc.id,
+        error: String(err),
+      });
     }
 
     const nextRunAt = computeScheduleNextRun(s, now.toDate());
@@ -1322,6 +1405,8 @@ exports.runBroadcastSchedules = onSchedule("every 5 minutes", async () => {
         runCount: (Number(s.runCount) || 0) + 1,
         nextRunAt: nextRunAt, // null disables a completed schedule
         enabled: nextRunAt !== null,
+        dispatchClaimedFor: admin.firestore.FieldValue.delete(),
+        dispatchClaimedAt: admin.firestore.FieldValue.delete(),
       })
       .catch((err) =>
         logger.warn("schedule advance failed", { id: doc.id, error: String(err) }),
@@ -2995,7 +3080,10 @@ exports.onCaseUpdated = onDocumentUpdated(`${CASES}/{caseId}`, async (event) => 
   const reporterUid = await caseReporterUid(caseId);
   const reopened = beforeStatus === "closed" && afterStatus !== "closed";
   if (reopened) {
-    const recipients = await resolveCaseRecipients(after, reporterUid);
+    const actorUid = String(after.statusChangedBy || "");
+    const recipients = (await resolveCaseRecipients(after, reporterUid)).filter(
+      (uid) => uid !== actorUid,
+    );
     await writeCaseNotifications(recipients, {
       type: "caseUpdated",
       title: "Case Reopened",
