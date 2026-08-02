@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1440 pass · 2 fail** across 197 files (~40s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
+| **Tests** | **1440 pass · 2 fail** (~32s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **76 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -192,7 +192,7 @@ phases and committed; what remains is deployment and on-device verification.
 | Phase | State |
 | --- | --- |
 | P1 — data foundation | Done. Deterministic `attendance/{uid}_{yyyyMMdd}_{shift}` id, `AttendanceCalculator` |
-| P2 — corrections + audit | Done. Server-authoritative audit + `attendance_corrections/` approval object |
+| P2 — corrections + audit | Done. Server-authoritative audit + `attendance_corrections/` approval object. **Correction target ownership is bound at create time in the rules and re-checked by the apply trigger** — closing a P0 where a correction could name another employee's `attendanceId` and overwrite their record on approval. Pinned by `firestore-tests/attendance_corrections.rules.test.mjs` (8 cases, emulator-verified). ⚠️ **needs a rules + functions deploy** |
 | P3 — GPS engine | Done. `geolocator`, Haversine verification, separate clock-in/out verifications |
 | P3 — UI | Done. Employee clock screen · admin board · geofence editor |
 | History | Done. Ledger (`/attendance/history` self · `/attendance/review` branch, admin‖manager) + audit-log record details (`/attendance/record/:id`). Reuses the existing reads + `AttendanceStats`; holds ADR-009/010 (no score/analytics/export) |

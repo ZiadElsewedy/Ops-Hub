@@ -162,7 +162,7 @@ overtime remain **derived facts, not states** (Technical Constraint T2).
 | R9 | Does an incomplete session block new attendance? | **Never.** |
 | R10 | Auto-close open sessions? | **Yes** (R6 + R7). |
 | R11 | Managers create attendance directly? | **Yes — manager manual entry and direct resolve apply immediately with audit.** Managers are the branch authority. |
-| R12 | Do employees still file requests? | **Yes.** Employee-filed corrections/missed-punch requests **require reviewer approval**. Self-approval forbidden server-side. |
+| R12 | Do employees still file requests? | **Yes.** Employee-filed corrections/missed-punch requests **require reviewer approval**. Self-approval is forbidden server-side, and every correction's deterministic `attendanceId` must name the same `userId` as the correction owner; a correction can never target another employee's record. |
 | R13 | Do absent shifts create records? | **No — lazily.** Absent stays virtual until a manager excuses/creates or an employee files a missed-punch. No phantom documents. |
 | R14 | Excused absence? | **Yes, a real outcome** (`status=excused`, zero minutes, reason). Materialized only when acted on. |
 | R15 | Duplicate corrections? | **No.** At most **one open correction per record**. A new one is blocked while one is pending. |
@@ -394,6 +394,12 @@ overnight-session prompt.
 - **T4 — Clients write only the record**; the `events` subcollection is Admin-SDK
   only. Manual entry / direct resolve therefore go through the same
   correction-apply (upsert) path, not a client write to `events`.
+- **T4a — Correction target ownership is bound twice.** Firestore creation rules
+  require the first `_`-separated segment of deterministic `attendanceId` to equal
+  correction `userId` (including missing-record materialization); the server apply
+  path independently refuses an existing record whose `userId` differs or a missing
+  record id with a different owner prefix. A refused target sends no lifecycle
+  notification.
 - **T5 — Date/week resolved from device local date** (calendar), not device clock
   instants; wrong device *date* resolves the wrong schedule week (low-likelihood,
   documented).

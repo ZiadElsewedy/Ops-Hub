@@ -103,6 +103,10 @@ const {
   buildExecutionSnapshot,
 } = require("./automation_run");
 const { isReminderEligibleStatus } = require("./task_reminders");
+const {
+  correctionTargetsOwnRecord,
+  correctionMatchesExistingRecordOwner,
+} = require("./attendance_correction_target");
 
 // `branchId` marker for a direct message — never a real branch id and never ''
 // (mirrors BroadcastModel.directBranchMarker), so a DM never appears in a
@@ -3522,7 +3526,7 @@ exports.onAttendanceWritten = onDocumentWritten(`${ATTENDANCE}/{recordId}`, asyn
 // The dayKey is lifted from the deterministic id (`{uid}_{yyyyMMdd}_{shift}`) so it
 // matches the client's calendar day without a timezone round-trip.
 async function applyCorrectionResolution(recordId, after) {
-  if (!recordId) return;
+  if (!recordId) return false;
   const res = (after.resolution && typeof after.resolution === "object") ? after.resolution : {};
   const fields = {
     clockIn: res.clockIn || null,
@@ -3543,9 +3547,26 @@ async function applyCorrectionResolution(recordId, after) {
   const snap = await ref.get();
   if (snap.exists) {
     // Guard a concurrent soft-delete — never resurrect a deleted record.
-    if ((snap.data() || {}).deletedAt) return;
+    const record = snap.data() || {};
+    if (record.deletedAt) return false;
+    if (!correctionMatchesExistingRecordOwner(record, after.userId)) {
+      logger.error("refusing attendance correction for another employee's record", {
+        recordId,
+        recordUserId: record.userId,
+        correctionUserId: String(after.userId || ""),
+      });
+      return false;
+    }
     await ref.update(fields);
-    return;
+    return true;
+  }
+  if (!correctionTargetsOwnRecord(recordId, after.userId)) {
+    logger.error("refusing attendance correction for another employee's record", {
+      recordId,
+      recordUserId: String(recordId || "").split("_")[0] || "",
+      correctionUserId: String(after.userId || ""),
+    });
+    return false;
   }
   // Materialize a missing record from the correction's identity + schedule.
   const dayKey = String(recordId).split("_").find((p) => /^\d{8}$/.test(p)) || "";
@@ -3561,6 +3582,7 @@ async function applyCorrectionResolution(recordId, after) {
     scheduledEnd: after.scheduledEnd || null,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+  return true;
 }
 
 // Any write to a correction → own its lifecycle events + notifications, and (on
@@ -3588,7 +3610,7 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
       // Apply immediately (materializing a missing record), audit, and notify the
       // employee. No reviewer step, so no reviewer notification.
       if (createStatus === "approved") {
-        await applyCorrectionResolution(recordId, after);
+        const applied = await applyCorrectionResolution(recordId, after);
         await appendAttendanceEvent(recordId, {
           kind: "correctionApproved",
           actorId: String(after.decidedBy || ""),
@@ -3596,7 +3618,7 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
           note: after.decisionNote != null ? String(after.decisionNote) : (after.reason != null ? String(after.reason) : null),
           data,
         });
-        if (employeeUid) {
+        if (applied && employeeUid) {
           const deciderName = String(after.decidedByName || "").trim();
           await writeAttendanceNotifications([employeeUid], {
             type: "attendanceCorrectionApproved",
@@ -3646,8 +3668,9 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
       // AttendanceCalculator) onto the parent record — server-authoritative,
       // upserting a missing record (a missed-punch materializes on approval).
       if (recordId) {
+        let applied = false;
         try {
-          await applyCorrectionResolution(recordId, after);
+          applied = await applyCorrectionResolution(recordId, after);
         } catch (e) {
           logger.warn("failed to apply approved correction", { recordId, error: String(e) });
         }
@@ -3658,18 +3681,18 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
           note: after.decisionNote != null ? String(after.decisionNote) : null,
           data,
         });
-      }
-      if (employeeUid) {
-        await writeAttendanceNotifications([employeeUid], {
-          type: "attendanceCorrectionApproved",
-          title: "Correction approved",
-          body: deciderName
-            ? `${deciderName} approved your attendance correction`
-            : "Your attendance correction was approved",
-          recordId,
-          correctionId,
-          senderUid: decidedBy,
-        });
+        if (applied && employeeUid) {
+          await writeAttendanceNotifications([employeeUid], {
+            type: "attendanceCorrectionApproved",
+            title: "Correction approved",
+            body: deciderName
+              ? `${deciderName} approved your attendance correction`
+              : "Your attendance correction was approved",
+            recordId,
+            correctionId,
+            senderUid: decidedBy,
+          });
+        }
       }
       return;
     }

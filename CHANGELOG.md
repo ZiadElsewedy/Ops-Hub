@@ -14,6 +14,41 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-02 — A correction could overwrite someone else's attendance (bug; MED risk)
+
+Found while auditing attendance *notifications* — the notification deep-linked the
+employee to a record they could not read, which is what exposed it.
+
+`attendance_corrections` bound `userId`, `requestedBy`, `status` and `branchId` on
+create, but **never `attendanceId`**, and `applyCorrectionResolution` trusted it:
+it fetched that record and called `ref.update()` with no check that the record's
+owner matched the correction's. Since record ids are deterministic
+(`{uid}_{yyyyMMdd}_{shift}`) and branch members can read own-branch users, a
+victim's id is constructible — so an employee could file a correction carrying
+their own `userId` and someone else's `attendanceId`, and a manager approving it
+would overwrite that person's clock times, worked minutes, lateness and overtime.
+The same gap let a manager evade the no-self-approval rule (rule (b) only checked
+`uid != userId`) by naming their own record.
+
+- **Rules:** both create branches now require the `attendanceId`'s owner prefix to
+  equal the correction's `userId`, and deny a malformed id outright. This is an
+  id-prefix check rather than a `get()` of the attendance doc **on purpose** —
+  manager "Add record" legitimately files against a record that does not exist yet,
+  which an `exists()` check would deny.
+- **Server (defence in depth):** `applyCorrectionResolution` returns a boolean and
+  refuses when an existing record declares a different `userId`, or when a
+  to-be-materialized id's prefix does not match. Both call sites now suppress the
+  approval notification on refusal — telling someone their correction was applied
+  when it was not is worse than silence.
+- **Tests:** new `firestore-tests/attendance_corrections.rules.test.mjs` (8 cases;
+  the collection previously had **no** rules test at all) plus pure Functions
+  coverage of the guard.
+
+Gates: analyze clean · Dart 1440 pass / 2 pre-existing · functions 76 · rules 61.
+⚠️ **Needs a rules + functions deploy to take effect.**
+
+---
+
 ## 2026-08-02 — Task notification path hardening (bug; HIGH risk)
 
 Found by an end-to-end audit of the task-notification path (backend + client,
