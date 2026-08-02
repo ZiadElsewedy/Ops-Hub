@@ -242,7 +242,11 @@ class _WeeklyReportContent extends StatelessWidget {
 
         // 1 — Needs your attention.
         if (blockingGroups.isNotEmpty) ...[
-          _NeedsAttention(report: report, groups: blockingGroups),
+          _NeedsAttention(
+            report: report,
+            groups: blockingGroups,
+            period: period,
+          ),
           const SizedBox(height: AppSpacing.xl),
         ],
 
@@ -325,16 +329,18 @@ class _HeaderSection extends StatelessWidget {
       // manager has one timezone and no decision to make about `v1`. Both move
       // to the admin audit surface in Phase 3.
       subtitle: '${_weekLabel(period.window)} · ${coverage.statusLabel}',
-      primaryAction: PremiumButton(
-        label: 'Close week',
-        icon: Icons.lock_outline_rounded,
-        onPressed: null,
-        style: PremiumButtonStyle.filled,
-      ),
-      // Only the status pill travels in the hero. A third disabled action here
-      // overflowed PageHero's stacked Row by 155px at mobile width, and the
-      // share panel at the foot of the report already carries the PDF/CSV
-      // affordances — so this was redundant as well as too wide.
+      // No "Close week" here. It was the most prominent control on the report,
+      // wore a padlock, and was hardcoded `onPressed: null` — it could never do
+      // anything. Worse, it promised the one thing the product deliberately
+      // refuses: [ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md)
+      // decides a week is **reviewed, never locked** — "no write is rejected, no
+      // rule enforces it, no period becomes immutable". The real mechanism is the
+      // Week review section at the foot of this report, which records who looked
+      // and when, and is reversible.
+      //
+      // Only the status pill travels in the hero. A third action here overflowed
+      // PageHero's stacked Row by 155px at mobile width, and the share panel at
+      // the foot already carries the PDF/CSV affordances.
       trailing: [_StatusPill(status: coverage.status)],
     );
   }
@@ -351,10 +357,28 @@ class _HeaderSection extends StatelessWidget {
 /// because it is the most common state, but because when it exists it outranks
 /// everything else on the page.
 class _NeedsAttention extends StatelessWidget {
-  const _NeedsAttention({required this.report, required this.groups});
+  const _NeedsAttention({
+    required this.report,
+    required this.groups,
+    required this.period,
+  });
 
   final WeeklyAttendanceReport report;
   final List<WeeklyAttendanceExceptionGroup> groups;
+
+  /// Carries the branch id — the report itself does not, and Daily Review is
+  /// addressed by branch + day.
+  final WeeklyAttendancePeriodRef period;
+
+  /// The earliest day this week that still has a blocking decision, as a
+  /// `yyyyMMdd` key. Null when nothing is open, which disables the action rather
+  /// than sending a manager to an already-settled day.
+  static String? _firstDayNeedingAttention(WeeklyAttendanceReport report) {
+    for (final day in report.days) {
+      if (day.blockingExceptionCount > 0) return day.dayKey;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -382,13 +406,22 @@ class _NeedsAttention extends StatelessWidget {
                 _MiniFact(label: group.label, value: '${group.count}'),
             ],
           );
-          // The queue itself is Phase 2. The affordance explains itself rather
-          // than sitting inert — a disabled button tells a manager nothing
-          // about why it cannot be used.
+          // This said "Daily review is coming next" long after Daily Review
+          // shipped — the day table directly below already opens it. It now goes
+          // where the decisions are actually made: the earliest day in this week
+          // that still has something open.
+          final openDay = _firstDayNeedingAttention(report);
           final action = PremiumButton(
             label: 'Review these',
             icon: Icons.fact_check_outlined,
-            onPressed: () => context.showInfo('Daily review is coming next.'),
+            onPressed: openDay == null
+                ? null
+                : () => context.push(
+                    RouteNames.attendanceDailyReview(
+                      period.branchId,
+                      openDay,
+                    ),
+                  ),
           );
           if (constraints.maxWidth < 560) {
             return Column(

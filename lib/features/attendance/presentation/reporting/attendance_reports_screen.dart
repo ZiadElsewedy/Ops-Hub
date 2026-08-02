@@ -269,6 +269,17 @@ class _ReportBody extends StatelessWidget {
     final verdict = AttendanceReportCoverage(
       coverage: state.coverage,
       totalRows: state.rows.length,
+      // Decisions get made on the week: its day table opens Daily Review, and
+      // its own "Review these" jumps to the first day still open.
+      onReviewOpen: () => context.push(
+        RouteNames.attendanceWeekly(
+          attendancePeriodId(
+            type: AttendancePeriodType.weekly,
+            scopeKey: branchId,
+            window: window,
+          ),
+        ),
+      ),
     );
     final deeper = _GoDeeper(branchId: branchId, window: window);
 

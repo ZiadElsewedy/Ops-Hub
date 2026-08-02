@@ -14,6 +14,44 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-01 — Three controls on the reports that could never work (bug; LOW risk)
+
+Owner asked whether the weekly/monthly reports and the PDF export actually work.
+Auditing them found the reports themselves sound and three controls that were not.
+
+**"Close week" / "Close month" deleted.** Both were the *primary action* of their
+report — filled style, padlock icon, top of the page — and both were hardcoded
+`onPressed: null`. They could never do anything. Worse, they advertised the one
+behaviour the product deliberately refuses:
+[ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md) decides a
+week is **reviewed, never locked** — *"no write is rejected, no rule enforces it,
+no period becomes immutable."* The real mechanism already ships as the **Week
+review** section at the foot of the weekly report: it records who looked and when,
+and is reversible by Reopen. A padlock at the top contradicted it.
+
+**Two stale "Daily review is coming next" toasts wired up.** Daily Review shipped;
+the weekly report's own day table opens it. Yet both "Review these" buttons still
+toasted that it was coming.
+- Weekly → jumps to the **earliest day that still has a blocking decision**, and
+  disables itself when nothing is open rather than sending a manager to a settled
+  day.
+- The coverage widget's button is now **slot-based** (`onReviewOpen`); it knows a
+  count, not a branch or a period. **Null hides the button** instead of rendering
+  one that cannot act. The reports hub supplies the destination.
+
+Verified working and untouched: **the weekly PDF and timesheet CSV are real** —
+`buildWeeklyAttendancePdf` / `attendanceTimesheetCsv`, written via `path_provider`
+and handed to the system viewer, covered by three test files. They are gated by
+`attendanceExportAvailability`: manager/admin, rows exist, and **zero unsettled
+shifts** — a deliberate refusal to emit a document that would change later.
+
+Still genuinely not built (labelled honestly in the UI): the **monthly** PDF and
+spreadsheet.
+
+Suite **1440 pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+---
+
 ## 2026-08-01 — History showed "No matches" for a person it had just counted (bug; MED risk)
 
 Owner screenshot: searched **"ziad"** in Attendance history. The summary strip

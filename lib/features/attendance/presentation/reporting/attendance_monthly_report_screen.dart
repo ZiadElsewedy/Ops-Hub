@@ -274,12 +274,9 @@ class _HeaderSection extends StatelessWidget {
           eyebrow: 'Attendance & Reports / Monthly',
           title: branchName,
           subtitle: '${monthLabel(period.window)} · ${coverage.statusLabel}',
-          primaryAction: PremiumButton(
-            label: 'Close month',
-            icon: Icons.lock_outline_rounded,
-            onPressed: null,
-            style: PremiumButtonStyle.filled,
-          ),
+          // "Close month" removed for the same reason as the weekly twin: it was
+          // permanently disabled and it promised locking, which ADR-019 refuses.
+          // A month is a rollup of reviewed weeks; there is nothing here to close.
           trailing: [_StatusPill(status: coverage.status)],
         ),
         const SizedBox(height: AppSpacing.md),
