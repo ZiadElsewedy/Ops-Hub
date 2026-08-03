@@ -4,6 +4,7 @@ import 'package:drop/core/enums/attachment_type.dart';
 import 'package:drop/core/enums/case_status.dart';
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/cases/data/datasources/case_remote_datasource.dart';
 import 'package:drop/features/cases/data/models/case_model.dart';
 import 'package:drop/features/cases/domain/case_ordering.dart';
@@ -66,6 +67,7 @@ class CaseRepositoryImpl implements CaseRepository {
     CaseEntity newCase,
     CaseIdentity identity,
   ) async {
+    NetworkGuard.ensureWritable();
     try {
       final created =
           await _remote.createCase(CaseModel.fromEntity(newCase), identity);
@@ -86,6 +88,7 @@ class CaseRepositoryImpl implements CaseRepository {
 
   @override
   Future<void> sendMessage(String caseId, CaseMessage message) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.sendMessage(caseId, message);
     } on ServerException catch (e) {
@@ -129,6 +132,7 @@ class CaseRepositoryImpl implements CaseRepository {
 
   @override
   Future<void> deleteCase(String caseId) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.deleteCase(caseId);
     } on ServerException catch (e) {

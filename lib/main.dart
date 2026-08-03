@@ -18,6 +18,7 @@ import 'package:drop/core/services/usage_tracker.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/theme/app_theme.dart';
+import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
@@ -387,9 +388,18 @@ class App extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           // Above the router so a new chat message can raise an in-app banner
           // from any screen (suppressed for the conversation on screen).
-          builder: (context, child) => ChatNotificationListener(
-            router: router,
-            child: child ?? const SizedBox.shrink(),
+          //
+          // `ConnectivityScope` is outermost so every screen — and every
+          // `requireOnline` call inside one — can read the connection state.
+          // It does not block the app: the offline rule is "gate the actions,
+          // never the app" (see the class doc for why).
+          builder: (context, child) => ConnectivityScope(
+            child: OfflineBar(
+              child: ChatNotificationListener(
+                router: router,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
           ),
         ),
       ),

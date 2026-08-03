@@ -32,6 +32,7 @@ import 'package:drop/features/task/domain/work_types/task_work_x.dart';
 import 'package:drop/features/task/presentation/activity_format.dart';
 import 'package:drop/features/task/presentation/attachment_format.dart';
 import 'package:drop/core/media/picked_attachment.dart';
+import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/submission_progress.dart';
@@ -1857,6 +1858,8 @@ class _ReviewBlockState extends State<_ReviewBlock> {
             color: AppColors.textDark,
           ),
           onPressed: () {
+            // Server-authoritative decision — never taken against stale data.
+            if (!requireOnline(context, action: 'approving work')) return;
             widget.cubit.approveTask(widget.task, reviewNotes: _note);
             Navigator.of(context).pop();
           },
@@ -1867,6 +1870,7 @@ class _ReviewBlockState extends State<_ReviewBlock> {
         AppButton.secondary(
           label: 'Request Rework',
           onPressed: () async {
+            if (!requireOnline(context, action: 'requesting rework')) return;
             final confirmed = await showConfirmDialog(
               context,
               title: 'Request rework?',
@@ -1884,6 +1888,7 @@ class _ReviewBlockState extends State<_ReviewBlock> {
         // destructive confirm.
         TextButton(
           onPressed: () async {
+            if (!requireOnline(context, action: 'rejecting work')) return;
             final confirmed = await showConfirmDialog(
               context,
               title: 'Reject task?',

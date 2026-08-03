@@ -9,7 +9,6 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_dialog.dart';
-import 'package:drop/core/widgets/app_empty_state.dart';
 import 'package:drop/core/widgets/drop_empty_state.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
@@ -19,6 +18,7 @@ import 'package:drop/features/notifications/presentation/cubit/notification_cubi
 import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
 import 'package:drop/features/notifications/presentation/notification_format.dart';
 import 'package:drop/features/notifications/presentation/widgets/notification_tile.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 
 /// The in-app Notification Center — an **operations workflow inbox** (§5). Not a
 /// flat feed: notifications are **grouped by time** (Today / Yesterday / Earlier),
@@ -352,18 +352,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _errorState() => AppEmptyState(
+  Widget _errorState() => AppErrorState(
         icon: Icons.wifi_off_rounded,
         title: 'Could not load notifications',
         message: 'Check your connection and try again.',
-        action: TextButton(
-          onPressed: () {
-            final uid = context.currentUser?.uid;
-            if (uid != null) context.read<NotificationCubit>().load(uid);
-          },
-          child: Text('Retry',
-              style: AppTypography.label.copyWith(color: AppColors.primary)),
-        ),
+        retryLabel: 'Retry',
+        onRetry: () {
+          final uid = context.currentUser?.uid;
+          if (uid != null) context.read<NotificationCubit>().load(uid);
+        },
       );
 }
 

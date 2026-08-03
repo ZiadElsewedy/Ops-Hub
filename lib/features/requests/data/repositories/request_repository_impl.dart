@@ -4,6 +4,7 @@ import 'package:drop/core/enums/attachment_type.dart';
 import 'package:drop/core/enums/request_status.dart';
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/requests/data/datasources/request_remote_datasource.dart';
 import 'package:drop/features/requests/data/models/request_model.dart';
 import 'package:drop/features/requests/domain/entities/request_entity.dart';
@@ -62,6 +63,7 @@ class RequestRepositoryImpl implements RequestRepository {
 
   @override
   Future<RequestEntity> createRequest(RequestEntity request) async {
+    NetworkGuard.ensureWritable();
     try {
       final created =
           await _remote.createRequest(RequestModel.fromEntity(request));
@@ -92,6 +94,7 @@ class RequestRepositoryImpl implements RequestRepository {
 
   @override
   Future<void> addEvent(String requestId, RequestEvent event) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.addEvent(requestId, event);
     } on ServerException catch (e) {
@@ -126,6 +129,7 @@ class RequestRepositoryImpl implements RequestRepository {
 
   @override
   Future<void> deleteRequest(String requestId) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.deleteRequest(requestId);
     } on ServerException catch (e) {

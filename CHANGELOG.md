@@ -14,6 +14,152 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-03 — Bundled typeface + premium empty / error / loading states (polish + bug; LOW risk)
+
+Branch `claude/ui-fix-608998`, **uncommitted**. Presentation only — no cubit,
+repository, rules or payload change.
+
+- **Typeface is now bundled (bug).** Every style pointed at the string
+  `'SF Pro Display'` while `pubspec.yaml` shipped **no font at all**, so the name
+  resolved to the system face on Apple platforms and fell back to **Roboto on
+  Android** — the app rendered in two different typefaces depending on platform.
+  **Inter** (400/500/600/700) now ships in `assets/fonts/`, `AppTypography`
+  exposes one public `fontFamily` constant, and both `ThemeData`s carry it so
+  unstyled text inherits it too. The five widgets that hardcoded the family
+  string now reference the constant. ⚠️ **Inter is an unconfirmed stand-in** for
+  the face in the owner's redesign mockup — the swap is one constant if wrong.
+- **Empty bar on a first-run Home (bug).** Every cell of the employee Home stat
+  strip is gated on a non-zero count, and its "Nothing to do" phrase needs
+  `total > 0` — so an employee with no tasks (or whose only open item is a
+  *rejected* task, which has no chip) got a bordered container with nothing in
+  it, reading as a component that failed to load. `_StatStrip.hasContent` now
+  gates the strip **and its spacing**, and shares the cell-building helpers with
+  `build` so the gate cannot drift from what is drawn.
+- **Rework has a figure of its own (polish).** Rejected work counted toward
+  `open` but had no chip, which is *why* the rejected-only case produced a blank
+  strip — and meant the strip stayed silent while work sat below waiting to be
+  redone. A **Rework** chip now leads the strip (ahead of To do / Active), using
+  the same `replay_rounded` glyph as the "Needs attention" section it refers to.
+  Verified at the five-column worst case: no ellipsis at 402pt.
+- **New `test/employee_home_stat_strip_test.dart`** (3 cases) pins all of it —
+  strip absent on a first run, present-with-Rework on a rejected-only day, and
+  collapsing to "Nothing to do" when there is history but nothing open. The first
+  two were confirmed to **fail against the pre-fix code**; text assertions alone
+  could not catch this bug, since the broken strip rendered no text either.
+- **Empty states are one crafted object (polish).** New
+  `core/widgets/empty_state_medallion.dart` — halo, two concentric hairlines and
+  a top-lit disc, strictly monochrome — replaces the flat grey glyph in
+  `AppEmptyState` and the bare faded mark in `DropEmptyState`. New public
+  `EmptyStateBody` holds the shared title/message/action rhythm and a 264px
+  measure. Because the two core states kept their APIs, all **~39** call sites
+  (task lists, pending review, My Tasks tabs, inbox, cases, requests, branch
+  lists) inherit it; Home's bespoke in-card empty state now composes the same
+  pieces at `size: 84`.
+
+- **A failure looked exactly like an empty screen (bug-adjacent).** Screens
+  rendered errors through `AppEmptyState` with an error glyph, so "the request
+  failed" and "you have nothing" were the same picture — and most offered no way
+  out. New `core/widgets/app_error_state.dart`:
+  - `AppErrorState` — full-area failure. Same medallion silhouette, tinted with
+    the semantic error tone (status colour expressing status, ADR-004), plus a
+    **Retry** control. Adopted in notifications, communications, broadcast
+    templates + schedules, branch operations and cases — **six surfaces that had
+    no retry, or a bare `TextButton`, now have the same one.**
+  - `AppProblemPanel` — the inline banner that existed as **three byte-identical
+    private `_ProblemPanel` copies** in the attendance weekly / monthly / daily
+    screens. Deduped into core, with optional retry.
+  - `EmptyStateMedallion` grew an optional `tone` so one silhouette serves both
+    "nothing here" (monochrome) and "this failed" (error-tinted).
+- **Loading states (polish).** `Skeleton`'s sweep ran `darkSurface` →
+  `darkSurfaceElevated` — a 6-value step, invisible on a card already painted
+  `darkSurface`, so every skeleton read as a dead grey slab. It now rests one
+  surface above its card and sweeps through a real highlight. Centred
+  `CircularProgressIndicator` bodies in cases, swap view, the attendance admin
+  workspace and daily review were replaced with the skeleton language so the
+  screen keeps the shape of what is arriving. In-button and in-sheet spinners
+  were deliberately left alone.
+
+### Offline policy: gate the actions, never the app (feature; MED risk)
+
+Asked for as a hard "the app does not open without internet", then **reversed
+the same session** once the consequence was spelled out — the shipped behaviour
+is the second design.
+
+**Why the wall was wrong here.** Clock-in happens *at a branch*, which is
+exactly where signal is worst — and attendance was built to survive that:
+`attendance/{uid}_{yyyyMMdd}_{shift}` is deterministic, so a write that replays
+late cannot duplicate. A launch gate broke the highest-value, lowest-risk
+offline case in the product, made the (deliberately enabled) Firestore cache
+useless, and had no override: the reachability probe is a DNS lookup, so a
+network throttling that one host would strand a user outside the app entirely.
+
+What shipped instead:
+
+- **`core/network/connectivity_service.dart`** — unchanged from the first pass
+  and the hard part. ⚠️ `connectivity_plus` reports the network *interface*, so
+  a captive portal or a dead upstream both report `wifi`. The interface is the
+  **trigger**; a DNS lookup of `firestore.googleapis.com` (5s) is the
+  **verdict** — "can this app reach its backend", not "is the internet up". No
+  interface short-circuits the probe.
+- **`core/widgets/connectivity_scope.dart`** — `ConnectivityScope` (inherited
+  state, mounted outermost in `main.dart`'s router builder), `OfflineBar`, and
+  the `requireOnline(context, action:)` guard.
+- **`OfflineBar`** is permanent while offline and names *when* the connection
+  dropped ("Offline since 18:15 — showing saved data"). A snackbar cannot stop a
+  manager trusting a stale roster ten minutes later; the timestamp answers the
+  question stale data actually raises. It takes the status-bar inset itself and
+  removes it from the child, so screens below lay out exactly as they do online.
+- **Gated:** every review decision — approve / request rework / reject — across
+  all four surfaces that carry them (`submission_details_sheet`,
+  `task_details_screen`, `task_action_sheets/review_sheet`,
+  `task_feed_expansion`). **Not gated:** reads, and clock in / out.
+- `requireOnline` defaults to **allowing** the action when no scope is above it,
+  so a widget tested in isolation is never accidentally offline.
+- New `test/connectivity_scope_test.dart` (8 cases) covering the false-online
+  verdict, that the app is never blocked, and both sides of the action gate.
+
+**The write guard (the part that actually closes this).** Gating UI buttons was
+never enough: with persistence on, *any* write issued offline is accepted into
+the cache, reported as a success, and replayed later — so a manager creates a
+task, sees it confirmed, nobody receives it, and it arrives an hour on. That is
+the silent delay the whole exercise was about.
+
+- **`core/network/network_guard.dart`** — `NetworkGuard.ensureWritable()` throws
+  the new `OfflineFailure` when there is no connection. Placed as the first
+  statement of every **write** repository method: **58 explicit call sites**,
+  plus the admin repository's `_run` helper which covers a further 9 in one
+  place. Reads never call it — serving a cached roster is the point of the cache.
+- It lives at the repository layer on purpose. Cubits already `catch (Failure)`
+  and emit their error state, so this surfaces on every screen with **zero
+  per-screen work** — and any *future* UI calling an existing repository method
+  is covered automatically. Guarding the 81 UI call sites instead would have been
+  complete today and decayed on the next screen.
+- ⚠️ **A cached flag, not a live probe.** The DNS lookup takes seconds; running
+  one in front of every write would put that on the happy path. `ConnectivityScope`
+  keeps the flag fresh from the same stream the bar uses.
+- ⚠️ **Defaults to online.** A test or script that never installs a status must
+  behave exactly as before — failing closed would turn a missing wire-up into
+  "every write in the app is broken".
+- **Exempt: `clockIn` / `clockOut`.** Pinned by a test, not just a comment.
+- **Not guarded, deliberately:** the three chat methods on the NestJS backend
+  (`startConversation`, `deleteMessageForMe`, `deleteMessageForEveryone`). They
+  go over HTTP, not Firestore, so they already fail loudly offline — there is no
+  silent queue to prevent.
+- New `test/offline_write_guard_test.dart` (4 cases): the online default, a
+  guarded write throwing and **never reaching the datasource**, clock-in still
+  writing while offline, and recovery.
+
+Still open: **Firestore offline persistence stays enabled** and now agrees with
+this design rather than contradicting it — the cache serves reads, and writes are
+refused honestly. Not exercised against a real radio — airplane mode and a
+captive portal on device are still untested.
+
+Verified: `flutter analyze lib test` at the documented baseline (1 pre-existing
+test-style info); suite **1455 pass / 2 pre-existing splash failures** (+15 new) —
+no regressions. Not device-verified.
+
+---
+
 ## 2026-08-02 — Task notification path hardening (bug; HIGH risk)
 
 Found by an end-to-end audit of the task-notification path (backend + client,

@@ -26,6 +26,7 @@ import 'package:drop/features/schedule/domain/swap_validation.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
 import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:drop/core/widgets/list_skeleton.dart';
 
 /// The semantic accent for a swap status (subtle status glow + chip colour).
 /// Strictly monochrome elsewhere — only the status signal is tinted.
@@ -66,7 +67,7 @@ class SwapListView extends StatelessWidget {
       listener: (context, state) =>
           state.whenOrNull(error: (m) => AppSnackbar.error(context, m)),
       builder: (context, state) => state.maybeWhen(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ListSkeleton(count: 3, cardHeight: 120),
         loaded: (swaps, busy) => _list(context, swaps, busy),
         orElse: () => const SizedBox.shrink(),
       ),

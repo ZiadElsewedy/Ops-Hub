@@ -309,7 +309,7 @@ class WorkTypePanel extends StatelessWidget {
               children: [
                 Text('$pass',
                     style: const TextStyle(
-                      fontFamily: 'SF Pro Display',
+                      fontFamily: AppTypography.fontFamily,
                       fontSize: 34,
                       fontWeight: FontWeight.w700,
                       height: 1,

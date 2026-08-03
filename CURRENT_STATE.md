@@ -3,15 +3,15 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-02.
+> **Last verified against the code:** 2026-08-03.
 
 ## At a glance
 
 | | |
 | --- | --- |
-| **Branch** | `release/v1-preparation` |
+| **Branch** | `claude/ui-fix-608998` (worktree off `release/v1-preparation`) |
 | **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1440 pass · 2 fail** across 197 files (~40s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
+| **Tests** | **1455 pass · 2 fail** across 201 files (~35s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -55,7 +55,8 @@ pre-existing splash failures**.
 
 | Branch | Holds | State |
 | --- | --- | --- |
-| **`fix-bugs`** ← current | Current stabilization and UI-polish worktree | In progress |
+| **`claude/ui-fix-608998`** ← current | Bundled Inter typeface · premium empty / error / loading states · Home stat-strip empty-bar fix · **offline write-gating** | **Uncommitted**; not device-verified. The offline policy is a behaviour change, not polish — see Known issues |
+| `fix-bugs` | Stabilization and UI-polish worktree | In progress |
 | `feature/chat-nestjs` | Chat (new feature, NestJS backend) — Phase 1 networking foundation done | In progress; carries everything from `feature/attendance-management` |
 | `feature/attendance-management` | Attendance P1–P3 (data · corrections · GPS · UI) | Committed, **not merged**, deploy + QA pending |
 | `main` | Trunk | Behind this branch |
@@ -620,6 +621,29 @@ week does not block the GPS gate for the wrong reason.
 ---
 
 ## Known issues
+
+### Offline behaviour (settled 2026-08-03)
+
+The rule is **gate the writes, never the app**. Reads keep working from cache
+under `OfflineBar`; **clock in / out is the one write allowed offline**;
+everything else is refused honestly.
+
+Enforced at the **repository** layer by `NetworkGuard.ensureWritable()` (58 write
+methods + the admin `_run` helper covering 9 more), which throws `OfflineFailure`
+— cubits already catch `Failure`, so it surfaces everywhere for free and future
+screens are covered automatically. `requireOnline` in the UI adds an earlier,
+friendlier stop on review decisions. ⚠️ The guard is a **cached flag defaulting
+to online**; a test that never installs a status behaves exactly as before.
+
+A hard "app does not open offline" gate was asked for and built first, then
+reversed the same session: clock-in happens at a branch with the worst signal,
+and attendance IDs are deterministic so a late write cannot duplicate — the wall
+broke the one case the data model was designed to survive. Firestore offline
+persistence stays enabled and is now consistent with this.
+
+⚠️ **Not exercised against a real radio.** The tests cover the logic, not the
+platform channel — airplane mode and a captive portal still need a device pass.
+Worth an ADR, since the first decision was reversed.
 
 ### Analyzer info (1)
 

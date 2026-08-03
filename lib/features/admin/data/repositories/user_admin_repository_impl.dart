@@ -1,6 +1,7 @@
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/admin/data/datasources/user_admin_remote_datasource.dart';
 import 'package:drop/features/admin/domain/entities/user_compensation.dart';
 import 'package:drop/features/admin/domain/repositories/user_admin_repository.dart';
@@ -41,6 +42,7 @@ class UserAdminRepositoryImpl implements UserAdminRepository {
     String? assignedShift,
     String? position,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       return await _remote.createAccount(
         name: name,
@@ -131,7 +133,10 @@ class UserAdminRepositoryImpl implements UserAdminRepository {
     }
   }
 
+  /// Every single-shot admin write funnels through here, so this is the one
+  /// place the offline guard has to live for all nine of them.
   Future<void> _run(Future<void> Function() action) async {
+    NetworkGuard.ensureWritable();
     try {
       await action();
     } on ServerException catch (e) {

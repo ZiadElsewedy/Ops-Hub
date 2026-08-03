@@ -1,6 +1,7 @@
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
 import 'package:drop/core/utils/app_logger.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:drop/features/chat/data/local/chat_local_datasource.dart';
 import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
@@ -152,6 +153,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? replyToMessageId,
     void Function(int sent, int total)? onSendProgress,
   }) async {
+    NetworkGuard.ensureWritable();
     // Durable outbox — text sends only. Persist before dispatch so a message
     // composed offline (or lost to a crash) survives and can be retried after
     // reconnect; the same idempotency key makes the retry duplicate-safe. An

@@ -1,5 +1,6 @@
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/communications/data/datasources/broadcast_schedule_remote_datasource.dart';
 import 'package:drop/features/communications/data/models/broadcast_schedule_model.dart';
 import 'package:drop/features/communications/domain/entities/broadcast_schedule_entity.dart';
@@ -28,6 +29,7 @@ class BroadcastScheduleRepositoryImpl implements BroadcastScheduleRepository {
     BroadcastScheduleEntity schedule, {
     List<String> targetUserIds = const [],
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       final created = await _remote.create(
         BroadcastScheduleModel.fromEntity(schedule, targetUserIds: targetUserIds),
@@ -40,6 +42,7 @@ class BroadcastScheduleRepositoryImpl implements BroadcastScheduleRepository {
 
   @override
   Future<void> update(BroadcastScheduleEntity schedule) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.update(BroadcastScheduleModel.fromEntity(schedule));
     } on ServerException catch (e) {
@@ -49,6 +52,7 @@ class BroadcastScheduleRepositoryImpl implements BroadcastScheduleRepository {
 
   @override
   Future<void> setEnabled(String id, bool enabled) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setEnabled(id, enabled);
     } on ServerException catch (e) {
@@ -58,6 +62,7 @@ class BroadcastScheduleRepositoryImpl implements BroadcastScheduleRepository {
 
   @override
   Future<void> delete(String id) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.delete(id);
     } on ServerException catch (e) {

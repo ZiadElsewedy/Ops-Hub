@@ -49,6 +49,8 @@ class _ReviewSheetState extends State<_ReviewSheet> {
               color: AppColors.textDark,
             ),
             onPressed: () {
+              // Server-authoritative decision — never taken against stale data.
+              if (!requireOnline(context, action: 'approving work')) return;
               widget.cubit.approveTask(widget.task, reviewNotes: _note);
               Navigator.of(context).pop();
             },
@@ -59,6 +61,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
           AppButton.secondary(
             label: 'Request Rework',
             onPressed: () {
+              if (!requireOnline(context, action: 'requesting rework')) return;
               widget.cubit.reworkTask(widget.task, reviewNotes: _note);
               Navigator.of(context).pop();
             },
@@ -67,6 +70,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
           // Terminal "Reject" — distinct from rework (no resubmit expected).
           TextButton(
             onPressed: () {
+              if (!requireOnline(context, action: 'rejecting work')) return;
               widget.cubit.rejectTask(widget.task, reviewNotes: _note);
               Navigator.of(context).pop();
             },

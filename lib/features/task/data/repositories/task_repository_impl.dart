@@ -5,6 +5,7 @@ import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/media/media_upload_service.dart';
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/task/data/datasources/task_remote_datasource.dart';
 import 'package:drop/features/task/data/models/recurring_task_template_model.dart';
 import 'package:drop/features/task/data/models/task_model.dart';
@@ -100,6 +101,7 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<TaskEntity> createTask(TaskEntity task) async {
+    NetworkGuard.ensureWritable();
     try {
       final created = await _remote.createTask(TaskModel.fromEntity(task));
       return created.toEntity();
@@ -110,6 +112,7 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<TaskEntity?> createTaskWithId(TaskEntity task) async {
+    NetworkGuard.ensureWritable();
     try {
       final created = await _remote.createTaskWithId(TaskModel.fromEntity(task));
       return created?.toEntity();
@@ -120,6 +123,7 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<void> updateTask(TaskEntity task) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.updateTask(TaskModel.fromEntity(task));
     } on ServerException catch (e) {
@@ -134,6 +138,7 @@ class TaskRepositoryImpl implements TaskRepository {
     required Map<String, Object?> patch,
     required List<ActivityEntry> appendLog,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.transitionTask(
         taskId: taskId,
@@ -150,6 +155,7 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<void> deleteTask(String taskId) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.deleteTask(taskId);
     } on ServerException catch (e) {
@@ -163,6 +169,7 @@ class TaskRepositoryImpl implements TaskRepository {
     required List<String> employeeIds,
     String? assignedShiftId,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.assignTask(
         taskId: taskId,
@@ -239,6 +246,7 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<TaskTemplateEntity> createTemplate(TaskTemplateEntity template) async {
+    NetworkGuard.ensureWritable();
     try {
       final created =
           await _remote.createTemplate(TaskTemplateModel.fromEntity(template));
@@ -251,6 +259,7 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<void> deleteTemplate(String templateId) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.deleteTemplate(templateId);
       _invalidateTemplates();
@@ -274,6 +283,7 @@ class TaskRepositoryImpl implements TaskRepository {
   @override
   Future<RecurringTaskTemplateEntity> createRecurringTemplate(
       RecurringTaskTemplateEntity template) async {
+    NetworkGuard.ensureWritable();
     try {
       final created = await _remote.createRecurringTemplate(
           RecurringTaskTemplateModel.fromEntity(template));
@@ -286,6 +296,7 @@ class TaskRepositoryImpl implements TaskRepository {
   @override
   Future<void> updateRecurringTemplate(
       RecurringTaskTemplateEntity template) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.updateRecurringTemplate(
           RecurringTaskTemplateModel.fromEntity(template));
@@ -296,6 +307,7 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<void> deleteRecurringTemplate(String templateId) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.deleteRecurringTemplate(templateId);
     } on ServerException catch (e) {

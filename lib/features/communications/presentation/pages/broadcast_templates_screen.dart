@@ -19,6 +19,7 @@ import 'package:drop/features/communications/domain/entities/broadcast_template_
 import 'package:drop/features/communications/presentation/cubit/broadcast_template_cubit.dart';
 import 'package:drop/features/communications/presentation/cubit/broadcast_template_state.dart';
 import 'package:drop/features/communications/presentation/widgets/template_card.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 
 /// The broadcast Template Library (Communications Center — Phase 2 Commit 2).
 /// Grid/list toggle, search, category filter, favorites + recents, and a
@@ -136,10 +137,11 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
         builder: (context, state) => state.maybeWhen(
           loading: () => const ListSkeleton(),
           loaded: (templates, _) => _content(templates),
-          error: (m) => AppEmptyState(
+          error: (m) => AppErrorState(
               icon: Icons.wifi_off_rounded,
               title: 'Could not load templates',
-              message: m),
+              message: m,
+              onRetry: () => context.read<BroadcastTemplateCubit>().load()),
           orElse: () => const SizedBox.shrink(),
         ),
       ),

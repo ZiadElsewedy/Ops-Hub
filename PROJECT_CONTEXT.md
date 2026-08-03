@@ -234,6 +234,12 @@ Reuse these. Do not re-implement or duplicate them.
 | Role chrome (bottom nav) | `core/widgets/role_scaffold.dart` + `app_bottom_nav.dart` |
 | Desktop chrome (sidebar, ⌘K) | `core/widgets/app_shell.dart` + `app_sidebar.dart` + `command_palette.dart` |
 | Colours / type / spacing / radius | `core/theme/` — never inline a `Color(...)` or `TextStyle(...)` |
+| The typeface itself | `assets/fonts/` + the `fonts:` block in `pubspec.yaml` + `AppTypography.fontFamily` — all three, or the app falls back per platform |
+| Connectivity / offline behaviour | `core/network/connectivity_service.dart` + `core/widgets/connectivity_scope.dart` — never trust the interface alone; the probe is the verdict |
+| **Any new repository write** | start it with `NetworkGuard.ensureWritable()` (`core/network/network_guard.dart`) — without it, an offline write is cached, reported as success, and replayed silently an hour later |
+| Any "nothing here" state | `core/widgets/app_empty_state.dart` · `drop_empty_state.dart` · `empty_state_medallion.dart` — never a bespoke circle + icon |
+| Any failure or retry surface | `core/widgets/app_error_state.dart` (`AppErrorState` full-area · `AppProblemPanel` inline) — never an empty state with an error glyph |
+| Any loading placeholder | `core/widgets/list_skeleton.dart` · `skeleton.dart` — a centred spinner only inside a button or sheet action |
 | Global component styling | `core/theme/app_theme.dart` |
 | Firestore / Storage security | `firestore.rules` · `storage.rules` → add a case in `firestore-tests/` → **deploy** |
 | Server logic | `functions/index.js` → **deploy** |
@@ -336,6 +342,31 @@ colour.
   signed off on a mockup first. Two standing rules came out of that: **emphasis
   means unseen, never status**, and **nothing on a resting surface animates
   forever**.
+- **One typeface, bundled.** `AppTypography.fontFamily` is the single source and
+  both `ThemeData`s carry it. The face ships in `assets/fonts/` — never name a font
+  that is not bundled, or the app silently renders in a different face per platform
+  (that is exactly how it ran on Roboto on Android for months).
+- **An empty state is a finished state, not a missing one.** Every "nothing here"
+  surface renders through `AppEmptyState` (glyph) or `DropEmptyState` (brand), both
+  of which carry their mark in `EmptyStateMedallion`. Don't hand-roll a circle and
+  a grey icon per screen. Equally: a container whose every cell is conditional must
+  gate **itself and its spacing** on having content — an empty bordered box reads to
+  users as a component that failed to load.
+- **Empty ≠ failed, and a failure offers a way out.** A failure never renders as an
+  empty state: use `AppErrorState` (full area, error-tinted medallion, **Retry**) or
+  `AppProblemPanel` (inline, when the screen still has content around it). Both are
+  in `core/widgets/app_error_state.dart`.
+- **Loading keeps the shape of what is arriving.** A list loads as `ListSkeleton`,
+  a panel as `Skeleton` blocks — not a centred `CircularProgressIndicator`, which
+  tells the user nothing and makes the screen jump when data lands. Spinners are
+  fine *inside* a button or a sheet action, where the shape is already known.
+- **Offline gates the writes, never the app.** Reads stay available from cache
+  under a permanent `OfflineBar` that says *when* the connection dropped.
+  **Clock in / out is the one write allowed offline** — it happens at a branch,
+  where signal is worst, and `attendance/{uid}_{yyyyMMdd}_{shift}` is
+  deterministic so a late write cannot duplicate. A launch-blocking gate was
+  built and reversed on 2026-08-03; don't reintroduce one without reading that
+  entry.
 - **One primary CTA per screen.**
 - Task action sheets may use neutral tonal depth, restrained entrance/stagger motion,
   and pointer lift feedback; chromatic colour remains semantic-only and reduced

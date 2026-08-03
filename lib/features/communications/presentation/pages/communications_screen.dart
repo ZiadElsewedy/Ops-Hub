@@ -17,6 +17,7 @@ import 'package:drop/features/communications/domain/entities/broadcast_entity.da
 import 'package:drop/features/communications/presentation/cubit/broadcast_cubit.dart';
 import 'package:drop/features/communications/presentation/cubit/broadcast_state.dart';
 import 'package:drop/features/communications/presentation/widgets/broadcast_card.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 
 /// The "···" overflow destinations — everything secondary lives here so the home
 /// stays the feed + one primary action.
@@ -415,15 +416,12 @@ class _CommunicationsScreenState extends State<CommunicationsScreen> {
     );
   }
 
-  Widget _errorState() => AppEmptyState(
+  Widget _errorState() => AppErrorState(
         icon: Icons.wifi_off_rounded,
         title: 'Could not load broadcasts',
         message: 'Check your connection and try again.',
-        action: TextButton(
-          onPressed: _load,
-          child: Text('Retry',
-              style: AppTypography.label.copyWith(color: AppColors.primary)),
-        ),
+        retryLabel: 'Retry',
+        onRetry: _load,
       );
 
   // ── Desktop: command-center (history feed + delivery/command panel) ──

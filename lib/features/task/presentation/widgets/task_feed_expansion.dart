@@ -9,6 +9,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
+import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/activity_entry.dart';
 import 'package:drop/features/task/domain/entities/task_attachment.dart';
@@ -280,6 +281,7 @@ class TaskFeedActions extends StatelessWidget {
   }
 
   Future<void> _approve(BuildContext context) async {
+    if (!requireOnline(context, action: 'approving work')) return;
     final cubit = context.read<TaskCubit>();
     // Proof-safety: never one-tap approve evidence you haven't looked at.
     if (_hasProof && await _showApproveConfirm(context, task) != true) return;

@@ -9,6 +9,11 @@
          no-op and every notification is silently dropped. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Reading the connectivity state for the online-only gate
+         (`ConnectivityGate`). connectivity_plus declares this in its own
+         manifest and the merger would supply it either way; it is declared here
+         because this app's permissions are documented in one place. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
         android:label="DROP"
         android:name="${applicationName}"
