@@ -47,6 +47,52 @@ ships with the app build.
 
 ---
 
+## 2026-08-03 — iOS push: UIScene silently swallowed the APNs token (bug; MED risk)
+
+APNs keys correct, Bundle ID correct, entitlement signed, permission
+`authorized` — and `getAPNSToken()` still returned null forever. The cause was
+the **UIScene lifecycle**, which ships in the stock Flutter 3.44.2 template.
+
+`firebase_messaging` receives the APNs token only through
+`[_registrar addApplicationDelegate:self]` — Flutter's `UIApplicationDelegate`
+forwarding — and sets it via `[FIRMessaging setAPNSToken:]`. Flutter 3.44 added a
+*separate* `addSceneDelegate:` path for scene-based apps, and
+firebase_messaging 15.2.10 **never calls it** (zero occurrences in the plugin).
+With `UIApplicationSceneManifest` active the callback never reaches the plugin,
+so the token is never set and every later step is dead. Android was untouched —
+none of this exists there.
+
+**Proven by A/B on the physical iPhone**, not by inspection:
+
+| Run | Config | `getAPNSToken()` |
+| --- | --- | --- |
+| 1 | DROP, scenes ON | null ×10 |
+| 2 | brand-new `flutter create` 3.44.2 + fbm 15.2.10, scenes ON | null ×10 — identical, so **not DROP-specific** |
+| 3 | same control, **scenes OFF** (only variable changed) | **token on attempt 1**, FCM token minted |
+| 4 | same control, scenes ON + manual `Messaging.apnsToken` in AppDelegate | null ×10 — the AppDelegate override is **not** sufficient |
+
+Run 4 is why the fix is removing the manifest rather than a three-line
+AppDelegate forward: under scenes the callback does not execute at all, so there
+is nothing to forward.
+
+- **Fix:** removed `UIApplicationSceneManifest` from `ios/Runner/Info.plist`.
+  `SceneDelegate.swift` is left on disk but is never instantiated without the
+  manifest, so it is inert — that is exactly how run 3 was configured.
+- **Trade-off:** DROP opts out of iOS 26 multi-window / multi-scene. It was
+  already opted out functionally (`UIApplicationSupportsMultipleScenes: false`)
+  and is a single-window app, so nothing observable is lost. Revisit when
+  firebase_messaging adopts `addSceneDelegate:`.
+
+Verified on the physical iPhone: `APNs token acquired` on the first attempt ·
+`FCM token` minted · `token written to users/{uid}.fcmTokens` · Firestore
+`fcmTokens` 0 → 1 · a real push logged `tokenCount:1 successCount:1
+failureCount:0`, which also confirms the APNs key on `com.ziad.drop`.
+
+Gates: analyze clean (1 pre-existing info) · Dart 1441 pass / 2 pre-existing
+splash · functions 82 · rules 61.
+
+---
+
 ## 2026-08-03 — iOS push: the app was registering as the wrong Firebase app (bug; MED risk)
 
 APNs keys were uploaded, yet iOS still could not have received a push. The cause

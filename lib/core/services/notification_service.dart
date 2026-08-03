@@ -58,17 +58,31 @@ class NotificationService {
           'requestPermission',
           () => _messaging.requestPermission(
               alert: true, badge: true, sound: true));
-      // Whether the OS granted notification permission. `denied` /
-      // `notDetermined` means iOS never registers with APNs, so `getAPNSToken()`
-      // stays null forever and no push can arrive — the single most common
-      // cause of "push works on Android, silently not on iOS".
+      // What the OS actually granted. `denied` / `notDetermined`
+      // means iOS may never complete APNs registration, so `getAPNSToken()`
+      // stays null and no push can arrive.
       //
-      // Deliberately AppLog, not developer.log: on a device/simulator the
-      // `developer.log` line does NOT surface in `xcrun simctl log stream` or
-      // the Xcode console, so this diagnostic was invisible on the exact
-      // platform it exists to debug. AppLog lines do show.
+      // Deliberately AppLog, not developer.log: on a device the
+      // `developer.log` line does NOT surface in the Xcode/Cursor console, so
+      // this diagnostic was invisible on the exact platform it exists to debug.
+      //
+      // `alert`/`badge`/`sound` are logged separately from `authorizationStatus`
+      // because they can be denied INDIVIDUALLY while the status still reads
+      // `authorized` — a push then arrives and displays nothing, which looks
+      // identical to "push is broken".
       AppLog.success(
-          'fcm', 'permission status = ${settings.authorizationStatus.name}');
+          'fcm',
+          'permission: status=${settings.authorizationStatus.name} '
+          'alert=${settings.alert.name} badge=${settings.badge.name} '
+          'sound=${settings.sound.name}');
+      if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+          settings.authorizationStatus != AuthorizationStatus.provisional) {
+        AppLog.error(
+            'fcm',
+            'notifications are ${settings.authorizationStatus.name} — iOS will '
+            'not issue an APNs token, so no push can arrive until this is '
+            'granted (Settings > DROP > Notifications).');
+      }
 
       // iOS ONLY: without this, iOS shows nothing while the app is open — the
       // system suppresses the banner and only `onMessage` fires. Android is
@@ -138,25 +152,32 @@ class NotificationService {
       if (requiresApnsToken) {
         final apns = await _awaitApnsToken();
         if (apns == null) {
-          AppLog.error('fcm',
-              'registerToken aborted — APNS token not available after retrying '
-              '(push entitlement missing, or APNs registration failed)');
+          AppLog.error(
+              'fcm',
+              'no APNs token after retrying — registration never completed, so '
+              'no FCM token can be minted and no push can arrive.');
           return;
         }
+        AppLog.success(
+            'fcm', 'APNs token acquired (…${apns.substring(apns.length - 8)})');
       }
       final token = await AppLog.time(
           'fcm', 'getToken', () => _messaging.getToken());
-      // DIAGNOSTIC (temporary): did the device obtain an FCM token at all? A
-      // null token = the device can't register (iOS without APNs/entitlement,
-      // missing Play Services, permission denied). A non-null token that never
-      // reaches Firestore points at the write (see _rotateToken below).
-      developer.log(
-        'registerToken uid=$uid token=${token == null ? "NULL" : "…${token.substring(token.length - 8)}"}',
-        name: 'fcm',
-      );
-      if (token != null) await _rotateToken(uid, token);
-    } catch (e) {
-      developer.log('registerToken FAILED: $e', name: 'fcm');
+      if (token == null) {
+        AppLog.error(
+            'fcm',
+            'APNs token exists but getToken() returned null — FCM could not '
+            'mint a token, which points at the Firebase app / APNs-key pairing '
+            'rather than the device.');
+        return;
+      }
+      AppLog.success(
+          'fcm', 'FCM token (…${token.substring(token.length - 12)})');
+      await _rotateToken(uid, token);
+    } catch (e, st) {
+      AppLog.error('fcm', 'registerToken THREW — $e');
+      developer.log('registerToken FAILED: $e',
+          name: 'fcm', error: e, stackTrace: st);
       // Best-effort; push is non-critical to app function.
     }
   }
@@ -183,9 +204,11 @@ class NotificationService {
     for (var i = 0; i < attempts; i++) {
       final token = await _messaging.getAPNSToken();
       if (token != null) {
+        // Only worth a line when it took more than one try — that is the signal
+        // that registration is running slow rather than not happening at all.
         if (i > 0) {
-          developer.log('APNS token arrived after ${i + 1} attempt(s)',
-              name: 'fcm');
+          AppLog.success(
+              'fcm', 'APNs token arrived on attempt ${i + 1}/$attempts');
         }
         return token;
       }
@@ -254,7 +277,13 @@ class NotificationService {
   /// Adds [token] to the user's `fcmTokens` array and drops the previously
   /// tracked token for this device (token refresh), in a single merge write.
   Future<void> _rotateToken(String uid, String token) async {
-    if (_currentToken == token && _uid == uid) return;
+    if (_currentToken == token && _uid == uid) {
+      // Not an error, but it IS a way the token can appear "not uploaded":
+      // this device already wrote this exact token for this uid in-process.
+      // Not an error: this device already wrote this exact token for this uid
+      // in-process, so there is nothing to re-persist.
+      return;
+    }
     try {
       final doc =
           _firestore.collection(AppConstants.usersCollection).doc(uid);
@@ -271,13 +300,16 @@ class NotificationService {
         }, SetOptions(merge: true));
       }
       _currentToken = token;
-      // DIAGNOSTIC (temporary): the token write to users/{uid}.fcmTokens
-      // succeeded — the recipient is now registered for push.
-      developer.log('token written to users/$uid (push registered)', name: 'fcm');
+      AppLog.success('fcm',
+          'token written to users/$uid.fcmTokens — device registered for push');
     } catch (e) {
-      // DIAGNOSTIC (temporary): a PERMISSION_DENIED here means firestore.rules
-      // rejected the self-write of fcmTokens — the device stays unregistered and
-      // every send to this user reports "0 delivered / failed".
+      // A PERMISSION_DENIED here means firestore.rules rejected the self-write
+      // of fcmTokens: the device stays unregistered and every send to this user
+      // reports "0 delivered / failed".
+      AppLog.error(
+          'fcm',
+          'token write to users/$uid rejected — $e. An FCM token exists but no '
+          'server can find it, so every push to this user will report 0 delivered.');
       developer.log('token write FAILED for users/$uid: $e', name: 'fcm');
       // Non-fatal.
     }
