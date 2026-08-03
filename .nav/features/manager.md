@@ -72,9 +72,14 @@ embedded `TaskFeedSection` browser.
   Admin Home's inert `Due soon` became **`Due today`** here, counted by the same
   `applyFeed(…, FeedPreset.dueToday, …)` call its drill-down renders. Don't add
   a figure to this row that no `TaskFeedFilter` can reproduce.
-- **`On shift today` is one card, not four cells** — and it is a tap target into
-  the weekly schedule. Roster context that nobody can act on doesn't earn a
-  metric cell each.
+- **`On shift today` is one card, not four cells**, and it opens the **roster
+  peek** (`schedule/presentation/widgets/today_roster_sheet.dart`) — who is on
+  each shift — **not** the weekly editor. The grid is for *changing* a roster;
+  it answers "who's in?" only after a navigation and a day/shift hunt.
+  ⚠️ The peek reads the app-wide `ScheduleCubit`, so it **restores whatever
+  (branch, week) that cubit was showing** when it closes — otherwise opening it
+  from Home silently resets the Schedule tab to this week. Keep that behaviour
+  if you touch the sheet.
 - **There is no Quick actions section, and Recent messages is desktop-only.**
   Both were duplicated navigation on a phone (bottom nav + app bar). Don't
   re-add them without a fresh ask.

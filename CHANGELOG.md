@@ -175,6 +175,58 @@ of this needs to be way more easy to read."* Three faults, all structural:
 
 The activity timeline — the part the owner said works — is untouched.
 
+### Third pass — "on shift today" answers *who*, not *where to edit*
+
+Owner: *"when I click on 2 of 8 on shift today I want to click on it to see
+who's morning and who's night, not open the schedule and edit it — make it
+easy to see the schedule fast, for both manager and admin."*
+
+The coverage card pushed the weekly grid, which answers a different question:
+the grid is where you *change* a roster, and asked "who's in today" it costs a
+navigation, a week header, a day/shift hunt and a mental filter first. It now
+opens a **roster peek** — `showTodayRosterSheet` (bottom sheet on mobile,
+centred dialog on desktop): each shift with its hours and headcount, the people
+under it with avatar · name · role, and **Open weekly schedule** as the footer
+for when editing really is the intent. An empty shift is called out in the
+warning tone rather than left blank — "nobody is on nights" is the most
+operationally important thing this view can say.
+
+- The join is pure and unit-tested: `schedule/domain/today_roster.dart`
+  (`todayRoster(schedule:, members:, day:)` → per-shift rosters + hours,
+  sorted by display name), 7 tests in `today_roster_test.dart` covering the
+  both-shifts case, empty shifts, an unpublished week, per-slot hour overrides,
+  and a rostered uid that no longer resolves to a branch member.
+- That last one is **surfaced, not swallowed** — it is the only reason the
+  sheet's headcount could disagree with a count derived from the raw
+  assignment list, so the sheet says so in a footer line.
+- **The peek does not move a shared view.** `ScheduleCubit` is app-wide, so
+  loading from here would silently reset the Schedule tab to this week; if the
+  manager had paged forward, they'd come back to a different one. The sheet
+  reads in place when the cubit already holds (this branch, this week), and
+  otherwise remembers what it displaced and restores it on close.
+- Branch is a parameter, so admin gets the same sheet for any branch.
+
+Also shortened the calm hero headline from *"All caught up — nothing needs you
+right now"* to **"All caught up"**: the long form truncated to "…nothing needs
+you rig…" in the single-line hero on a phone, and its second clause only
+repeated the all-clear panel directly beneath it.
+
+**The all-clear panel was slimmed in the same pass** (owner: *"all clear takes a
+big space of the screen … ana msh ba7b za7ma"*). A 52px check, an `h3`
+headline, a full reassuring sentence and a wrapped `0 late · 0 pending review ·
+…` list came to roughly 230px — which made *nothing to do* the tallest thing on
+a calm board, and pushed Today below the fold. It is now one compact row: a
+34px check, the title, and the signal names phrased the way the active state's
+cleared footer already phrases them. The sentence is deleted (the hero says
+"All caught up" three lines above and the title says it again), so
+`AttentionPanel.clearMessage` is gone as a parameter. What it exists for
+survives: the green check, and the derived list of what was checked, so it can
+never read as a panel that failed to load. Applies to Admin Home too — it is
+the same shared primitive.
+
+Gates after this pass: analyze clean (1 pre-existing test-style info) · Dart
+**1504 pass / 0 fail**. Verified on the iPhone 17 simulator.
+
 Gates: analyze clean (1 pre-existing test-style info) · Dart **1482 pass / 0
 fail**; `manager_home_test.dart` grew to 10 (every Today tile is a door · the
 coverage card is one tap target · the hero carries one supporting line), and

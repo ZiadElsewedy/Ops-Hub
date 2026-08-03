@@ -7,7 +7,7 @@ void main() {
     test('zero needs-attention reads the calm, reassuring line (grey pulse)', () {
       final m = dashboardMood(needsAttention: 0);
       expect(m.tone, MoodTone.calm);
-      expect(m.headline, 'All caught up — nothing needs you right now');
+      expect(m.headline, 'All caught up');
       expect(m.emphasised, isFalse);
       expect(m.pulseColor, AppColors.textSecondary);
     });

@@ -271,15 +271,25 @@ void main() {
     await tester.pumpWidget(_host(taskCubit));
     await _settle(tester);
 
-    expect(find.text('All clear'), findsOneWidget);
+    // Scoped to the panel: the activity feed's own empty state uses the same
+    // two words further down the page.
     expect(
-      find.text('Nothing needs you right now — your branch is on top of it.'),
+      find.descendant(
+        of: find.byType(AttentionPanel),
+        matching: find.text('All clear'),
+      ),
       findsOneWidget,
     );
+    // The panel is one compact row: a check, the title, and the derived list of
+    // what was checked. The old reassuring sentence is gone — on a calm board
+    // "nothing to do" was the tallest thing on the screen, and the hero says
+    // "All caught up" three lines above it anyway.
+    expect(find.text('All caught up'), findsOneWidget);
     expect(
-      find.text('All caught up — nothing needs you right now'),
+      find.text('late · pending review · sent back · unassigned · swap requests'),
       findsOneWidget,
     );
+    expect(find.textContaining('is on top of it'), findsNothing);
     await _unmount(tester);
   });
 

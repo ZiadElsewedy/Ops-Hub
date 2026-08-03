@@ -44,10 +44,12 @@ class DashboardMood {
 ///   ("3 tasks need your attention"), singular-aware for one item.
 DashboardMood dashboardMood({required int needsAttention}) {
   if (needsAttention <= 0) {
-    return const DashboardMood(
-      'All caught up — nothing needs you right now',
-      MoodTone.calm,
-    );
+    // Deliberately three words (shortened 2026-08-03). The long form —
+    // "All caught up — nothing needs you right now" — truncated to
+    // "…nothing needs you rig…" in the single-line hero on a phone, and its
+    // second clause only repeated the all-clear panel sitting directly below
+    // it. A headline that gets cut off is worse than a short one.
+    return const DashboardMood('All caught up', MoodTone.calm);
   }
   final noun = needsAttention == 1 ? 'task needs' : 'tasks need';
   return DashboardMood(

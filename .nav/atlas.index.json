@@ -1154,7 +1154,7 @@
     },
     "schedule": {
       "path": "lib/features/schedule/",
-      "file_count": 55,
+      "file_count": 57,
       "layers": {
         "data:datasource": [
           "lib/features/schedule/data/datasources/schedule_remote_datasource.dart",
@@ -1179,7 +1179,8 @@
           "lib/features/schedule/domain/shift_window.dart",
           "lib/features/schedule/domain/swap_eligibility.dart",
           "lib/features/schedule/domain/swap_policy.dart",
-          "lib/features/schedule/domain/swap_validation.dart"
+          "lib/features/schedule/domain/swap_validation.dart",
+          "lib/features/schedule/domain/today_roster.dart"
         ],
         "domain:entity": [
           "lib/features/schedule/domain/entities/shift_swap_entity.dart",
@@ -1229,7 +1230,8 @@
           "lib/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart",
           "lib/features/schedule/presentation/widgets/shift_templates_sheet.dart",
           "lib/features/schedule/presentation/widgets/swap_alert_card.dart",
-          "lib/features/schedule/presentation/widgets/swap_view.dart"
+          "lib/features/schedule/presentation/widgets/swap_view.dart",
+          "lib/features/schedule/presentation/widgets/today_roster_sheet.dart"
         ]
       },
       "routes": {
