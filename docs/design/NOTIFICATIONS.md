@@ -48,6 +48,32 @@ case / request /             onCase* / onRequest*        pushedByFunction:true) 
 - **Terminated / cold-start** (`getInitialMessage`) → same `onMessageTap`.
 - **In-app tile tap** → `NotificationsScreen._deepLink` → **the same resolver**.
 
+### Direct-chat push exception
+
+Chat messages are pushed by the NestJS chat backend, not by `functions/index.js`
+or a `notifications/{id}` document. Its pinned FCM `data` contract is
+`route: "chat_message"` with `conversationId`, `messageId`,
+`senderExternalId`, and `recipientUid`; all values are strings. The shared
+resolver opens `/chat/:conversationId` for every role and falls back to `/chat`
+when a legacy or malformed message has no conversation id.
+
+**Foreground de-duplication.** Chat is the only route with **two** independent
+delivery paths — the chat socket and FCM — so both can fire for one message
+while the app is open. Exactly one surface must win per platform, and the two
+suppressions are exact opposites:
+
+| Platform | Chat surface in the foreground | How the other one stands down |
+| --- | --- | --- |
+| iOS / macOS | the **OS banner** (FlutterFire presents it for every route) | `ChatNotificationListener` returns early on `suppressesInAppChatBanner` |
+| Android | the **in-app socket banner** (the OS draws nothing in the foreground) | `suppressForegroundFcmNotification` drops the chat FCM before `onForeground` |
+
+This deliberately preserves the pre-existing app-wide rule that Apple platforms
+rely on the OS banner and Android on the in-app snackbar — chat did not change
+foreground behaviour for any other route. Per-message iOS presentation cannot be
+selected from Dart, which is why the socket banner (not the OS one) is what
+yields there. Background and terminated chat pushes render normally and route
+through `onMessageOpenedApp` / `getInitialMessage`.
+
 `pushedByFunction:true` on broadcast docs prevents `onNotificationCreated` from
 double-pushing (the broadcast engine already pushed inline). The inline send is
 best-effort and retries one time only when the Admin Messaging call fails with a
@@ -128,7 +154,8 @@ Route strings are the shared contract, centralized as `NotificationRoute.*` and
 referenced by the client producers. **The server producers (`functions/index.js`)
 and the FCM push `data` block must mirror these exact strings and forward every
 id the resolver reads** — `taskId · caseId · requestId · broadcastId · swapId ·
-recordId`.
+recordId · conversationId`. `chat_message` is the exception: it is produced by
+the NestJS chat backend, not by `functions/index.js`.
 (A missing id in the push `data` silently breaks the deep link on a background /
 cold-start tap; this pass fixed `requestId` + `swapId` being omitted.)
 
@@ -234,8 +261,10 @@ take effect:
   physical hardware. A monochrome notification icon remains owner design work.
 - [ ] **iOS** — app-side configuration is complete: `Runner.entitlements` has
   `aps-environment`, all Runner configurations sign it, and `remote-notification`
-  is declared. Delivery awaits the APNs credential; no foreground OS delegate is
-  installed because the app already presents its own foreground snackbar.
+  is declared. Delivery awaits the APNs credential. Foreground OS presentation
+  stays **enabled** (the Apple foreground surface); no native delegate is
+  installed, which is why chat yields its in-app banner on Apple rather than the
+  OS banner yielding per-message.
 
 ---
 

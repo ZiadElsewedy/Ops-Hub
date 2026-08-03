@@ -14,6 +14,65 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-03 — Chat push notifications (feature; MED risk)
+
+**Uncommitted, and gated on a Railway deploy of `drop-api`.** Chat notifications
+did not exist. The only surface was `ChatNotificationListener`, a socket-driven
+in-app SnackBar that needs the app foregrounded and connected — background or
+kill the app and a chat message reached the user **nowhere**. Three independent
+confirmations: no chat push code in `functions/index.js`, no messaging code at
+all in the chat backend, and `NotificationRoute` had no chat value, so even a
+correctly-formed chat push would resolve to `null` and open the inbox.
+
+- **Backend (`drop-api`, uncommitted).** `ChatPushSubscriber` listens to the
+  same `MessageSentEvent` as `ChatRealtimeSubscriber` — the sibling seam both
+  that class's doc and `RealtimeModule`'s doc already named. New
+  `PushNotificationPort` + `FirebasePushAdapter` keep `firebase-admin` confined
+  to `src/platform/firebase/` (a documented rule), so the subscriber talks to a
+  port and never to the SDK. Device tokens are read from the Flutter project's
+  `users/{uid}.fcmTokens` with the service account the backend already holds;
+  dead tokens are pruned on `registration-token-not-registered` /
+  `invalid-registration-token`. Delivery is best-effort like its realtime
+  sibling — a push failure can never fail or block a committed send.
+- **Presence, the WhatsApp rule.** The push is suppressed only when the
+  recipient actually has *that conversation* on screen (new
+  `ChatGateway.isUserInRoom`, additive — `broadcast()` untouched). A recipient
+  who is connected but elsewhere in the app **still gets the push**; that
+  distinction is the difference between correct and annoying.
+- **The push says who it is from.** Title resolves
+  `displayName → fullName → email → 'New message'` from the same `users/{uid}`
+  document the adapter already reads for tokens — one extra field, no schema
+  change, no new column.
+- **Client.** `NotificationRoute.chat = 'chat_message'` plus its branch in the
+  shared resolver — no role gate (chat is available to everyone), falling back
+  to `/chat` when a malformed push carries no `conversationId`, mirroring the
+  existing cases/requests behaviour. `resolveNotificationRoute` stays pure.
+- **Foreground de-duplication.** Chat is now the only route with **two**
+  delivery paths, so both could fire for one message. Exactly one surface wins
+  per platform and the two suppressions are exact opposites: Apple keeps the OS
+  banner (the socket listener stands down via the new
+  `suppressesInAppChatBanner`), Android keeps the in-app banner (the chat FCM is
+  dropped before `onForeground`). **This deliberately preserves the pre-existing
+  app-wide rule** — no other notification type changed foreground behaviour.
+  An earlier draft achieved de-duplication by disabling iOS foreground
+  presentation *globally*, which would have silently changed how task,
+  attendance, case, request and broadcast pushes appear on iOS; that was
+  reverted in favour of the chat-only fix.
+
+Gates: analyze 1 pre-existing info · Dart **1481 pass / 0 fail** (+9) ·
+`drop-api` **105 pass / 0 fail** (+21) · `nest build` clean.
+
+> ⚠️ **Not device-verified, and inert until `drop-api` ships to Railway.** The
+> client half is live-safe on its own (an unknown route was already a guarded
+> no-op), but no push will arrive until the server half is deployed.
+>
+> Still fake, and out of scope for this pass: the **mute toggle** in
+> `chat_conversation_screen.dart` is a local `bool` that never persists and
+> resets on close. Now that chat actually pushes, a mute that does nothing is
+> materially worse than before it did.
+
+---
+
 ## 2026-08-03 — Merge conflict repair on PR #25 (bug; LOW risk)
 
 Merging `claude/ui-fix-608998` into `release/v1-preparation` (PR #25, `6584808`)

@@ -5,6 +5,20 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:drop/core/constants/app_constants.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/utils/platform_capabilities.dart';
+import 'package:drop/features/notifications/domain/notification_deep_link.dart';
+
+/// Whether a foreground FCM message is intentionally left to chat's
+/// socket-backed in-app banner instead of surfacing a second notification.
+///
+/// Chat is the one route with **two** independent delivery paths — the chat
+/// socket and FCM — so without this the same message notifies twice while the
+/// app is open. The socket banner wins on Android because a foreground push
+/// there reaches `onMessage` only and the OS draws nothing; on Apple platforms
+/// the OS banner wins instead and `ChatNotificationListener` stands down (see
+/// its `_onIncoming`). Every FCM data value is a string, but this stays lenient
+/// for tests and legacy callers.
+bool suppressForegroundFcmNotification(Map<String, dynamic> data) =>
+    data['route']?.toString() == NotificationRoute.chat;
 
 /// Firebase Cloud Messaging engine (Phase 6 foundation + Phase 2 receive
 /// handling). Requests notification permission, keeps the device's FCM token in
@@ -12,7 +26,7 @@ import 'package:drop/core/utils/platform_capabilities.dart';
 /// sign-out), and routes incoming messages:
 /// - **foreground** → [onForeground] (e.g. an in-app snackbar);
 /// - **tap** (background-opened or cold-start) → [onMessageTap] with the push
-///   `data` payload (category · senderId · broadcastId), for navigation.
+///   `data` payload (category · target ids · route), for navigation.
 ///
 /// Sending is done server-side by the `sendBroadcast` Cloud Function; this is
 /// the client device + delivery side.
@@ -30,7 +44,7 @@ class NotificationService {
   /// Set by the app to show foreground notifications in-app (e.g. a snackbar).
   /// Receives the push `data` payload too, so the in-app surface can offer a
   /// tappable action that deep-links to the same destination a background tap
-  /// would (route · taskId · caseId · requestId · broadcastId).
+  /// would (route · taskId · caseId · requestId · broadcastId · conversationId).
   void Function(String? title, String? body, Map<String, dynamic> data)?
       onForeground;
 
@@ -102,6 +116,10 @@ class NotificationService {
           _handleMismatch(message);
           return;
         }
+        // The chat socket listener is the only foreground chat surface. This
+        // prevents Android's Dart-side snackbar from duplicating it; iOS's
+        // system presentation is disabled above for the same reason.
+        if (suppressForegroundFcmNotification(message.data)) return;
         final n = message.notification;
         if (n != null) onForeground?.call(n.title, n.body, message.data);
       });

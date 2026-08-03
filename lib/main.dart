@@ -213,7 +213,7 @@ String _initialLocationFor(AuthState state) => state.maybeWhen(
 void _configureNotificationService() {
   AppDependencies.notificationService
     ..onForeground = (title, body, data) {
-      // iOS now presents its own foreground banner
+      // iOS presents its own foreground banner
       // (`setForegroundNotificationPresentationOptions`, set in
       // NotificationService.init). Showing the in-app snackbar as well would
       // double-notify for the same message, so Apple platforms rely on the OS

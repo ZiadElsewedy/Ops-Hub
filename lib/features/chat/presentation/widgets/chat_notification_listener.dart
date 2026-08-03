@@ -10,6 +10,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_logger.dart';
+import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
@@ -33,9 +34,16 @@ class ChatNotificationListener extends StatefulWidget {
     super.key,
     required this.child,
     required this.router,
+    this.suppressBanner,
   });
 
   final Widget child;
+
+  /// Overrides the platform decision about whether the OS banner already covers
+  /// an incoming chat message (see [suppressesInAppChatBanner]). Production
+  /// leaves this null and takes the platform default; tests set it explicitly,
+  /// since `Platform` cannot be varied from a widget test.
+  final bool? suppressBanner;
 
   /// The app router. This widget is mounted in `MaterialApp.router`'s `builder`,
   /// which sits **above** the `GoRouter` in the tree, so `context.push` here
@@ -96,6 +104,13 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener> {
     if (AppDependencies.activeChatConversation.value == event.conversationId) {
       return;
     }
+    // A chat message now arrives by TWO paths — this socket and an FCM push
+    // from the chat backend. On Apple platforms the OS draws its own foreground
+    // banner (NotificationService enables it for every route), so raising this
+    // one as well would notify twice for the same message. There the OS banner
+    // wins and this stands down; Android keeps the in-app banner, because a
+    // foreground push there reaches `onMessage` only and the OS draws nothing.
+    if (widget.suppressBanner ?? suppressesInAppChatBanner) return;
     final user = event.counterpartExternalId == null
         ? null
         : _directory[event.counterpartExternalId];

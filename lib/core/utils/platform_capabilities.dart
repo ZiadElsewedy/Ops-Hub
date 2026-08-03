@@ -37,3 +37,13 @@ bool get supportsPushNotifications =>
 /// `getToken()` before it arrives is the "APNS token not available" failure.
 /// Callers on these platforms must check `getAPNSToken()` first.
 bool get requiresApnsToken => !kIsWeb && (Platform.isIOS || Platform.isMacOS);
+
+/// Whether chat's in-app socket banner must stand down for the OS banner.
+///
+/// Chat is the only route delivered by **two** independent paths — the chat
+/// socket and an FCM push from the chat backend — so both can fire for one
+/// message while the app is open. Apple platforms draw a foreground banner for
+/// every push (`setForegroundNotificationPresentationOptions`), so there the OS
+/// banner is the notification and the in-app one would be a duplicate. Android
+/// draws nothing in the foreground, so it keeps the in-app banner.
+bool get suppressesInAppChatBanner => requiresApnsToken;
