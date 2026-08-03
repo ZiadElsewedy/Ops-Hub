@@ -15,8 +15,10 @@ import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/widgets/app_empty_state.dart';
 import 'package:drop/core/widgets/app_glass_card.dart';
 import 'package:drop/core/widgets/app_motion.dart';
+import 'package:drop/core/widgets/empty_state_medallion.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
@@ -355,11 +357,16 @@ class _Dashboard extends StatelessWidget {
           delay: staggerDelay(1),
           child: _HeroTodayCard(counts: counts),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        EntranceFade(
-          delay: staggerDelay(2),
-          child: _StatStrip(counts: counts),
-        ),
+        // With no tasks at all the strip has nothing to say, and an empty
+        // bordered bar is worse than no bar — it reads as a component that
+        // failed to load. Drop it *and* its spacing in that case.
+        if (_StatStrip.hasContent(counts)) ...[
+          const SizedBox(height: AppSpacing.lg),
+          EntranceFade(
+            delay: staggerDelay(2),
+            child: _StatStrip(counts: counts),
+          ),
+        ],
         const SizedBox(height: AppSpacing.xl),
         EntranceFade(
           delay: staggerDelay(3),
@@ -931,44 +938,71 @@ class _StatStrip extends StatelessWidget {
   const _StatStrip({required this.counts});
   final _Counts counts;
 
+  /// The figures the strip would show. Every chip is gated on a non-zero count,
+  /// so this is empty more often than it looks — a first-run employee has none.
+  ///
+  /// Order is "what needs your hands first". Rework leads: it is the only
+  /// category that means *you already did this and it came back*, and the
+  /// section below sorts it above everything else for the same reason.
+  static List<_StatChipData> _chipsFor(_Counts counts) => [
+        if (counts.rejected > 0)
+          _StatChipData(
+            label: 'Rework',
+            value: counts.rejected,
+            // Same glyph as the "Needs attention" section header below, so the
+            // figure and the cards it refers to read as one thing.
+            icon: Icons.replay_rounded,
+            highlight: true,
+          ),
+        if (counts.pending > 0)
+          _StatChipData(
+            label: 'To do',
+            value: counts.pending,
+            icon: Icons.radio_button_unchecked_rounded,
+            highlight: true,
+          ),
+        if (counts.started > 0)
+          _StatChipData(
+            label: 'Active',
+            value: counts.started,
+            icon: Icons.timelapse_rounded,
+            highlight: true,
+          ),
+        if (counts.inReview > 0)
+          _StatChipData(
+            label: 'In review',
+            value: counts.inReview,
+            icon: Icons.hourglass_top_rounded,
+            highlight: false,
+          ),
+        if (counts.done > 0)
+          _StatChipData(
+            label: 'Done',
+            value: counts.done,
+            icon: Icons.check_circle_outline_rounded,
+            highlight: false,
+          ),
+      ];
+
+  /// The strip collapses to the phrase when there is history but nothing left
+  /// to act on.
+  static bool _showsPhrase(_Counts counts) =>
+      counts.open == 0 && counts.total > 0;
+
+  /// Whether the strip would render anything at all — in practice only a
+  /// first-run employee with no tasks at all. Checked by the caller before
+  /// reserving space: with no cells the container was still painting its surface
+  /// and border, which read as a component that had failed to load.
+  static bool hasContent(_Counts counts) =>
+      _showsPhrase(counts) || _chipsFor(counts).isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     // A zero is not a fact worth a column. "0 To do · 0 Active" spent half the
     // strip saying nothing; with no open work the two collapse into one phrase,
     // and they come back as figures the moment there is work (2026-08-01).
-    final items = [
-      if (counts.pending > 0)
-        _StatChipData(
-          label: 'To do',
-          value: counts.pending,
-          icon: Icons.radio_button_unchecked_rounded,
-          highlight: true,
-        ),
-      if (counts.started > 0)
-        _StatChipData(
-          label: 'Active',
-          value: counts.started,
-          icon: Icons.timelapse_rounded,
-          highlight: true,
-        ),
-      if (counts.inReview > 0)
-        _StatChipData(
-          label: 'In review',
-          value: counts.inReview,
-          icon: Icons.hourglass_top_rounded,
-          highlight: false,
-        ),
-      if (counts.done > 0)
-        _StatChipData(
-          label: 'Done',
-          value: counts.done,
-          icon: Icons.check_circle_outline_rounded,
-          highlight: false,
-        ),
-    ];
-
     final cells = <Widget>[
-      if (counts.open == 0 && counts.total > 0)
+      if (_showsPhrase(counts))
         const Expanded(
           child: Text(
             'Nothing to do',
@@ -976,7 +1010,7 @@ class _StatStrip extends StatelessWidget {
             style: AppTypography.caption,
           ),
         ),
-      for (final item in items) Expanded(child: _StatChip(data: item)),
+      for (final item in _chipsFor(counts)) Expanded(child: _StatChip(data: item)),
     ];
 
     // One calm surface with hairline dividers — the Design System V2 fact-row
@@ -1886,31 +1920,19 @@ class _EmptyTaskState extends StatelessWidget {
         borderRadius: AppRadius.cardAll,
         border: Border.all(color: AppColors.darkBorder),
       ),
-      child: Column(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.darkSurfaceElevated,
-              border: Border.all(color: AppColors.darkBorder),
-            ),
-            child: const Icon(
-              Icons.inbox_outlined,
-              size: 24,
-              color: AppColors.textTertiary,
-            ),
+      // The same medallion the full-page empty states use, scaled down for a
+      // card. One silhouette everywhere beats a bespoke circle per screen.
+      child: const EmptyStateBody(
+        mark: EmptyStateMedallion(
+          size: 84,
+          child: Icon(
+            Icons.inbox_outlined,
+            size: 21,
+            color: AppColors.textSecondary,
           ),
-          const SizedBox(height: AppSpacing.md),
-          const Text('No tasks yet', style: AppTypography.h3),
-          const SizedBox(height: 4),
-          const Text(
-            'When your manager assigns work, it shows up right here.',
-            style: AppTypography.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
+        title: 'No tasks yet',
+        message: 'When your manager assigns work, it shows up right here.',
       ),
     );
   }

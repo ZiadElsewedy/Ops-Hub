@@ -1,5 +1,6 @@
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/communications/data/datasources/broadcast_template_remote_datasource.dart';
 import 'package:drop/features/communications/data/models/broadcast_template_model.dart';
 import 'package:drop/features/communications/domain/entities/broadcast_template_entity.dart';
@@ -44,6 +45,7 @@ class BroadcastTemplateRepositoryImpl implements BroadcastTemplateRepository {
 
   @override
   Future<BroadcastTemplateEntity> create(BroadcastTemplateEntity template) async {
+    NetworkGuard.ensureWritable();
     try {
       final created =
           await _remote.create(BroadcastTemplateModel.fromEntity(template));
@@ -56,6 +58,7 @@ class BroadcastTemplateRepositoryImpl implements BroadcastTemplateRepository {
 
   @override
   Future<void> update(BroadcastTemplateEntity template) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.update(BroadcastTemplateModel.fromEntity(template));
       _invalidateTemplates();
@@ -66,6 +69,7 @@ class BroadcastTemplateRepositoryImpl implements BroadcastTemplateRepository {
 
   @override
   Future<void> setFavorite(String id, bool favorite) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setFavorite(id, favorite);
       _invalidateTemplates();
@@ -86,6 +90,7 @@ class BroadcastTemplateRepositoryImpl implements BroadcastTemplateRepository {
 
   @override
   Future<void> delete(String id) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.delete(id);
       _invalidateTemplates();

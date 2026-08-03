@@ -24,9 +24,16 @@ const double kLogoArtworkTop = 59;
 
 /// How far above the window's geometric centre the lockup's visible bounding
 /// box sits. A mass dead-centred geometrically reads LOW to the eye, and the
-/// owner's reference mock frames the lockup high with breathing room below —
-/// currently tuned to 50 logical pixels on desktop.
-const double kSplashOpticalLift = 50;
+/// owner's reference mock frames the lockup high with breathing room below.
+///
+/// **65.5, not 50.** This constant read 50 while the page actually rendered a
+/// 65.5px lift at 1440×900 and 61.6px at 1024×720 — the lift formula predated
+/// [kLogoManualScale] (owner-tuned by eye 2026-07-05) and never accounted for
+/// it, so the real framing drifted with window size and no longer matched the
+/// number. The owner tuned the *pixels*, so the pixels are the specification:
+/// this is now the measured value of the framing they signed off at 1440×900,
+/// and the formula below reproduces it at **every** window size.
+const double kSplashOpticalLift = 65.5;
 
 /// MANUAL visual correction (owner-tuned by eye, 2026-07-05): the whole Lottie
 /// box is nudged right and scaled up. Paint-only — OPERATIONS, the bar and
@@ -164,11 +171,20 @@ class _SplashPageState extends State<SplashPage>
     // group by `lift` while keeping the layout pure Center → Column — the
     // combined artwork→bar bbox then sits kSplashOpticalLift above the
     // window's geometric centre.
+    // The lockup's VISIBLE top is the artwork's first bright pixel, which is
+    // not the top of the layout box. Two things separate them, and the old
+    // formula only knew about the first:
+    //   1. the Lottie frame bakes `kLogoArtworkTop` of dead space above the
+    //      artwork, and
+    //   2. `kLogoManualScale` magnifies the box about its own centre — so the
+    //      box's painted top rises by half its growth, while the dead space
+    //      inside it is magnified too.
+    // Leaving (2) out is what made the real lift drift with window size.
     final boxH = logoWidth * 9 / 16;
-    final scale = logoWidth / 720;
-    final topInset =
-        kLogoArtworkTop / 405 * boxH - kLogoVisualCenterOffset.dy * scale;
-    final lift = kSplashOpticalLift + topInset / 2;
+    final artworkInset = kLogoArtworkTop / 405 * boxH;
+    final scaleRise = boxH * (kLogoManualScale - 1) / 2;
+    final visibleTopVsLayoutTop = artworkInset * kLogoManualScale - scaleRise;
+    final lift = kSplashOpticalLift + visibleTopVsLayoutTop / 2;
 
     return Scaffold(
       backgroundColor: Colors.black,

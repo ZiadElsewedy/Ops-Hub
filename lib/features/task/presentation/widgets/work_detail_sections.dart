@@ -26,7 +26,7 @@ import 'package:drop/core/theme/app_typography.dart';
 /// Big-number metric type (Apple Health / Wallet). Kept here so every metric
 /// across every work type reads at exactly the same weight and rhythm.
 const TextStyle _kMetricValue = TextStyle(
-  fontFamily: 'SF Pro Display',
+  fontFamily: AppTypography.fontFamily,
   fontSize: 26,
   fontWeight: FontWeight.w700,
   height: 1.05,
@@ -35,7 +35,7 @@ const TextStyle _kMetricValue = TextStyle(
 );
 
 const TextStyle _kMetricValueLg = TextStyle(
-  fontFamily: 'SF Pro Display',
+  fontFamily: AppTypography.fontFamily,
   fontSize: 34,
   fontWeight: FontWeight.w700,
   height: 1.0,

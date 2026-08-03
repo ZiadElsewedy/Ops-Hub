@@ -13,6 +13,7 @@ import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/premium_button.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/features/attendance/domain/attendance_board.dart';
 import 'package:drop/features/attendance/domain/attendance_id.dart';
 import 'package:drop/features/attendance/domain/daily_review.dart';
@@ -21,6 +22,7 @@ import 'package:drop/features/attendance/presentation/cubit/attendance_admin_sta
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/attendance/presentation/widgets/attendance_manager_actions.dart';
+import 'package:drop/core/widgets/skeleton.dart';
 
 /// **Daily Review** — where a manager settles yesterday in about two minutes.
 ///
@@ -141,7 +143,7 @@ class _DailyReviewViewState extends State<_DailyReviewView> {
           ),
           children: [
             if (date == null)
-              const _ProblemPanel(
+              const AppProblemPanel(
                 title: 'That day link is not valid',
                 message:
                     'Open Daily review from a day row on the weekly report.',
@@ -167,7 +169,7 @@ class _DailyReviewBody extends StatelessWidget {
     final user = context.currentUser;
     if ((user?.role ?? UserRole.employee).isManager &&
         user?.branchId != branchId) {
-      return const _ProblemPanel(
+      return const AppProblemPanel(
         title: 'Daily review unavailable',
         message: 'This manager account cannot review another branch.',
         icon: Icons.lock_outline_rounded,
@@ -185,7 +187,7 @@ class _DailyReviewBody extends StatelessWidget {
       },
       builder: (context, state) => state.maybeMap(
         loaded: (s) => _Loaded(date: date, board: s.board),
-        error: (e) => _ProblemPanel(
+        error: (e) => AppProblemPanel(
           title: 'Daily review unavailable',
           message: e.message,
           icon: Icons.error_outline_rounded,
@@ -531,54 +533,19 @@ class _LoadingPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Skeleton over spinner: the panel keeps the shape of what is arriving.
     return const Padding(
-      padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
-      child: Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
-class _ProblemPanel extends StatelessWidget {
-  const _ProblemPanel({
-    required this.title,
-    required this.message,
-    required this.icon,
-    this.tone = AppColors.warning,
-  });
-
-  final String title;
-  final String message;
-  final IconData icon;
-  final Color tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassContainer(
-      highlight: true,
-      accent: tone,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Column(
         children: [
-          Icon(icon, color: tone),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.h3),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  message,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Skeleton(height: 84, borderRadius: AppRadius.cardAll),
+          SizedBox(height: AppSpacing.md),
+          Skeleton(height: 84, borderRadius: AppRadius.cardAll),
+          SizedBox(height: AppSpacing.md),
+          Skeleton(height: 84, borderRadius: AppRadius.cardAll),
         ],
       ),
     );
   }
 }
+

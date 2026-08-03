@@ -22,3 +22,17 @@ class AuthFailure extends Failure {
 class CacheFailure extends Failure {
   const CacheFailure(super.message);
 }
+
+/// A write was refused because the device is offline (see `NetworkGuard`).
+///
+/// Firestore's offline cache would otherwise accept the write silently and
+/// replay it whenever the connection returns — so the user is told it worked,
+/// nobody receives it, and it lands an hour later. This failure is what turns
+/// that into an honest "not now". It rides the normal cubit error channel, so
+/// every screen already surfaces it.
+class OfflineFailure extends Failure {
+  const OfflineFailure([super.message = _default]);
+
+  static const _default =
+      'You are offline. This needs a connection — try again once you are back.';
+}

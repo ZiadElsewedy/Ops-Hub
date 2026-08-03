@@ -21,6 +21,12 @@ class Skeleton extends StatefulWidget {
   State<Skeleton> createState() => _SkeletonState();
 }
 
+/// The crest of the sweep — the elevated surface lifted toward white. Kept as a
+/// single constant so every skeleton in the app shimmers at the same intensity.
+final Color _highlight =
+    Color.alphaBlend(AppColors.textPrimary.withValues(alpha: 0.07),
+        AppColors.darkSurfaceElevated);
+
 class _SkeletonState extends State<Skeleton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
@@ -45,15 +51,20 @@ class _SkeletonState extends State<Skeleton>
           decoration: BoxDecoration(
             shape: widget.circle ? BoxShape.circle : BoxShape.rectangle,
             borderRadius: widget.circle ? null : widget.borderRadius,
+            // The old sweep ran darkSurface → darkSurfaceElevated, a 6-value
+            // step that was invisible on a card already painted darkSurface —
+            // the "loading" state looked like a dead grey slab. The block now
+            // rests one surface above its card and the sweep carries a real
+            // highlight, so the shimmer is legible while staying calm.
             gradient: LinearGradient(
               begin: Alignment(-1 - 2 * _controller.value, 0),
               end: Alignment(1 - 2 * _controller.value, 0),
-              colors: const [
-                AppColors.darkSurface,
+              colors: [
                 AppColors.darkSurfaceElevated,
-                AppColors.darkSurface,
+                _highlight,
+                AppColors.darkSurfaceElevated,
               ],
-              stops: const [0.35, 0.5, 0.65],
+              stops: const [0.3, 0.5, 0.7],
             ),
           ),
         );

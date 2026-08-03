@@ -44,6 +44,11 @@ dependencies:
   # import dio directly.
   dio: ^5.7.0
 
+  # Connectivity — DROP requires a live connection to open (see
+  # `core/network/connectivity_service.dart`). Reports the *interface* only,
+  # which is why the service pairs it with a real reachability probe.
+  connectivity_plus: ^6.1.0
+
   # Firebase
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
@@ -149,6 +154,18 @@ flutter:
     - assets/gmail.svg
     - assets/whatsapp.svg
     - assets/0704.json
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

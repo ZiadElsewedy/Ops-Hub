@@ -23,6 +23,7 @@ import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_export_gate.dart';
@@ -1004,7 +1005,7 @@ class _InvalidPeriodPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ProblemPanel(
+    return AppProblemPanel(
       title: 'Invalid weekly report link',
       message:
           'The period id "$rawPeriodId" is not parseable. Expected branch_weekly_YYYYMMDD_YYYYMMDD_vN.',
@@ -1018,7 +1019,7 @@ class _ScopeDeniedPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _ProblemPanel(
+    return const AppProblemPanel(
       title: 'Weekly report unavailable',
       message:
           'This manager account cannot open a weekly report for another branch.',
@@ -1043,7 +1044,7 @@ class _ErrorPanel extends StatelessWidget {
         ? 'Attendance reports are not switched on yet — an administrator needs '
               'to finish setting them up. Details: $raw'
         : raw;
-    return _ProblemPanel(
+    return AppProblemPanel(
       title: 'Weekly attendance unavailable',
       message: actionable,
       icon: Icons.error_outline_rounded,
@@ -1052,50 +1053,6 @@ class _ErrorPanel extends StatelessWidget {
   }
 }
 
-class _ProblemPanel extends StatelessWidget {
-  const _ProblemPanel({
-    required this.title,
-    required this.message,
-    required this.icon,
-    this.tone = AppColors.warning,
-  });
-
-  final String title;
-  final String message;
-  final IconData icon;
-  final Color tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassContainer(
-      highlight: true,
-      accent: tone,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: tone),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.h3),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  message,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class WeeklyAttendancePeriodRef {
   const WeeklyAttendancePeriodRef({

@@ -14,6 +14,251 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-03 — Bundled typeface + premium empty / error / loading states (polish + bug; LOW risk)
+
+Branch `claude/ui-fix-608998`, **uncommitted**. Presentation only — no cubit,
+repository, rules or payload change.
+
+- **Typeface is now bundled (bug).** Every style pointed at the string
+  `'SF Pro Display'` while `pubspec.yaml` shipped **no font at all**, so the name
+  resolved to the system face on Apple platforms and fell back to **Roboto on
+  Android** — the app rendered in two different typefaces depending on platform.
+  **Inter** (400/500/600/700) now ships in `assets/fonts/`, `AppTypography`
+  exposes one public `fontFamily` constant, and both `ThemeData`s carry it so
+  unstyled text inherits it too. The five widgets that hardcoded the family
+  string now reference the constant. ⚠️ **Inter is an unconfirmed stand-in** for
+  the face in the owner's redesign mockup — the swap is one constant if wrong.
+- **Empty bar on a first-run Home (bug).** Every cell of the employee Home stat
+  strip is gated on a non-zero count, and its "Nothing to do" phrase needs
+  `total > 0` — so an employee with no tasks (or whose only open item is a
+  *rejected* task, which has no chip) got a bordered container with nothing in
+  it, reading as a component that failed to load. `_StatStrip.hasContent` now
+  gates the strip **and its spacing**, and shares the cell-building helpers with
+  `build` so the gate cannot drift from what is drawn.
+- **Rework has a figure of its own (polish).** Rejected work counted toward
+  `open` but had no chip, which is *why* the rejected-only case produced a blank
+  strip — and meant the strip stayed silent while work sat below waiting to be
+  redone. A **Rework** chip now leads the strip (ahead of To do / Active), using
+  the same `replay_rounded` glyph as the "Needs attention" section it refers to.
+  Verified at the five-column worst case: no ellipsis at 402pt.
+- **New `test/employee_home_stat_strip_test.dart`** (3 cases) pins all of it —
+  strip absent on a first run, present-with-Rework on a rejected-only day, and
+  collapsing to "Nothing to do" when there is history but nothing open. The first
+  two were confirmed to **fail against the pre-fix code**; text assertions alone
+  could not catch this bug, since the broken strip rendered no text either.
+- **Empty states are one crafted object (polish).** New
+  `core/widgets/empty_state_medallion.dart` — halo, two concentric hairlines and
+  a top-lit disc, strictly monochrome — replaces the flat grey glyph in
+  `AppEmptyState` and the bare faded mark in `DropEmptyState`. New public
+  `EmptyStateBody` holds the shared title/message/action rhythm and a 264px
+  measure. Because the two core states kept their APIs, all **~39** call sites
+  (task lists, pending review, My Tasks tabs, inbox, cases, requests, branch
+  lists) inherit it; Home's bespoke in-card empty state now composes the same
+  pieces at `size: 84`.
+
+- **A failure looked exactly like an empty screen (bug-adjacent).** Screens
+  rendered errors through `AppEmptyState` with an error glyph, so "the request
+  failed" and "you have nothing" were the same picture — and most offered no way
+  out. New `core/widgets/app_error_state.dart`:
+  - `AppErrorState` — full-area failure. Same medallion silhouette, tinted with
+    the semantic error tone (status colour expressing status, ADR-004), plus a
+    **Retry** control. Adopted in notifications, communications, broadcast
+    templates + schedules, branch operations and cases — **six surfaces that had
+    no retry, or a bare `TextButton`, now have the same one.**
+  - `AppProblemPanel` — the inline banner that existed as **three byte-identical
+    private `_ProblemPanel` copies** in the attendance weekly / monthly / daily
+    screens. Deduped into core, with optional retry.
+  - `EmptyStateMedallion` grew an optional `tone` so one silhouette serves both
+    "nothing here" (monochrome) and "this failed" (error-tinted).
+- **Loading states (polish).** `Skeleton`'s sweep ran `darkSurface` →
+  `darkSurfaceElevated` — a 6-value step, invisible on a card already painted
+  `darkSurface`, so every skeleton read as a dead grey slab. It now rests one
+  surface above its card and sweeps through a real highlight. Centred
+  `CircularProgressIndicator` bodies in cases, swap view, the attendance admin
+  workspace and daily review were replaced with the skeleton language so the
+  screen keeps the shape of what is arriving. In-button and in-sheet spinners
+  were deliberately left alone.
+
+### Offline policy: gate the actions, never the app (feature; MED risk)
+
+Asked for as a hard "the app does not open without internet", then **reversed
+the same session** once the consequence was spelled out — the shipped behaviour
+is the second design.
+
+**Why the wall was wrong here.** Clock-in happens *at a branch*, which is
+exactly where signal is worst — and attendance was built to survive that:
+`attendance/{uid}_{yyyyMMdd}_{shift}` is deterministic, so a write that replays
+late cannot duplicate. A launch gate broke the highest-value, lowest-risk
+offline case in the product, made the (deliberately enabled) Firestore cache
+useless, and had no override: the reachability probe is a DNS lookup, so a
+network throttling that one host would strand a user outside the app entirely.
+
+What shipped instead:
+
+- **`core/network/connectivity_service.dart`** — unchanged from the first pass
+  and the hard part. ⚠️ `connectivity_plus` reports the network *interface*, so
+  a captive portal or a dead upstream both report `wifi`. The interface is the
+  **trigger**; a DNS lookup of `firestore.googleapis.com` (5s) is the
+  **verdict** — "can this app reach its backend", not "is the internet up". No
+  interface short-circuits the probe.
+- **`core/widgets/connectivity_scope.dart`** — `ConnectivityScope` (inherited
+  state, mounted outermost in `main.dart`'s router builder), `OfflineBar`, and
+  the `requireOnline(context, action:)` guard.
+- **`OfflineBar`** is permanent while offline and names *when* the connection
+  dropped ("Offline since 18:15 — showing saved data"). A snackbar cannot stop a
+  manager trusting a stale roster ten minutes later; the timestamp answers the
+  question stale data actually raises. It takes the status-bar inset itself and
+  removes it from the child, so screens below lay out exactly as they do online.
+- **Gated:** every review decision — approve / request rework / reject — across
+  all four surfaces that carry them (`submission_details_sheet`,
+  `task_details_screen`, `task_action_sheets/review_sheet`,
+  `task_feed_expansion`). **Not gated:** reads, and clock in / out.
+- `requireOnline` defaults to **allowing** the action when no scope is above it,
+  so a widget tested in isolation is never accidentally offline.
+- New `test/connectivity_scope_test.dart` (8 cases) covering the false-online
+  verdict, that the app is never blocked, and both sides of the action gate.
+
+**The write guard (the part that actually closes this).** Gating UI buttons was
+never enough: with persistence on, *any* write issued offline is accepted into
+the cache, reported as a success, and replayed later — so a manager creates a
+task, sees it confirmed, nobody receives it, and it arrives an hour on. That is
+the silent delay the whole exercise was about.
+
+- **`core/network/network_guard.dart`** — `NetworkGuard.ensureWritable()` throws
+  the new `OfflineFailure` when there is no connection. Placed as the first
+  statement of every **write** repository method: **58 explicit call sites**,
+  plus the admin repository's `_run` helper which covers a further 9 in one
+  place. Reads never call it — serving a cached roster is the point of the cache.
+- It lives at the repository layer on purpose. Cubits already `catch (Failure)`
+  and emit their error state, so this surfaces on every screen with **zero
+  per-screen work** — and any *future* UI calling an existing repository method
+  is covered automatically. Guarding the 81 UI call sites instead would have been
+  complete today and decayed on the next screen.
+- ⚠️ **A cached flag, not a live probe.** The DNS lookup takes seconds; running
+  one in front of every write would put that on the happy path. `ConnectivityScope`
+  keeps the flag fresh from the same stream the bar uses.
+- ⚠️ **Defaults to online.** A test or script that never installs a status must
+  behave exactly as before — failing closed would turn a missing wire-up into
+  "every write in the app is broken".
+- **Exempt: `clockIn` / `clockOut`.** Pinned by a test, not just a comment.
+- **Not guarded, deliberately:** the three chat methods on the NestJS backend
+  (`startConversation`, `deleteMessageForMe`, `deleteMessageForEveryone`). They
+  go over HTTP, not Firestore, so they already fail loudly offline — there is no
+  silent queue to prevent.
+- New `test/offline_write_guard_test.dart` (4 cases): the online default, a
+  guarded write throwing and **never reaching the datasource**, clock-in still
+  writing while offline, and recovery.
+
+Still open: **Firestore offline persistence stays enabled** and now agrees with
+this design rather than contradicting it — the cache serves reads, and writes are
+refused honestly. Not exercised against a real radio — airplane mode and a
+captive portal on device are still untested.
+
+### Chat inbox N+1 removed — server now serves the preview (feature; MED risk)
+
+**Cross-repo.** Backend `~/Desktop/Developer/drop-api` (branch
+`feature/chat-backend`) + this app. **Not deployed** — the server half must ship
+first, but the client works either way (see below).
+
+The inbox issued one extra request per visible row because
+`ConversationListItemResponseDto` carried `lastMessageAt` but not the message,
+with the comment *"Last-message preview is intentionally absent"*. Checking the
+spec, that was not a decision: **FR-021 already requires the list to indicate a
+preview of the latest message.** The DTO was a deviation, so this implements the
+spec rather than reversing anything — no ADR needed.
+
+The cost turned out to be near-zero: `conversation.last_message_id` is a real FK
+the write side already maintains, so the preview is a **join**, not a query per
+row. Ten conversations went from **eleven requests to one**.
+
+- **Backend:** `LastMessagePreview` on the repository port; `include:
+  { lastMessage: true }` on the list query; the field threaded through view →
+  use case → DTO. One extra batched lookup honours **delete-for-me** — a message
+  the requester deleted for themselves is still the conversation's
+  `lastMessage` for everyone else and must be withheld from *their* inbox.
+  Payload is unformatted (`type` / `body` / `deletedForEveryoneAt`) so preview
+  wording stays in one language, on the client. +3 spec cases; **92 pass**.
+- **Client:** additive `ChatLastMessage` on the summary + `chatLastMessagePreviewText`.
+  ⚠️ **The per-row fallback was kept on purpose** — the deployed server does not
+  send the field yet, and removing the fallback would blank every preview until
+  the API ships. +8 cases covering both the served and the omitted shape.
+
+### Chat inbox state churn (bug; LOW risk)
+
+Owner report: "every time I open chat it keeps requesting things, and something
+changes every second." Diagnosed by reading the path, not by profiling a live
+session — the API was not available here.
+
+**Root cause is structural: the inbox is N+1.** `ChatConversationSummary`
+carries `lastMessageAt` but **not the message**, so `ChatScreen` fires one
+`latestChatMessage(id)` per visible row on open. Ten conversations = ten extra
+requests. That is by design today (`chat_conversation.dart`: *"Last-message
+previews remain client-resolved"*), and the real fix belongs in the NestJS list
+DTO — **not done here**.
+
+Three client-side defects sat on top of it and were fixed:
+
+- **A retry loop.** A lookup returning `null` removed the id from
+  `_previewFetching` but never recorded a result, so `containsKey` stayed false
+  and the row re-queued its fetch on **every rebuild** — and since each landing
+  lookup triggered a rebuild, the two fed each other. `ChatListCubit` now
+  distinguishes *resolved-empty* from *not-yet-resolved*.
+- **N full-screen repaints.** Every resolved preview called `setState`
+  individually, so a ten-row inbox repainted itself ten times in under a second
+  — the visible "everything keeps changing". Results are now written to the
+  cache as they land and a **single** repaint is scheduled for the batch (60ms
+  coalescing window).
+- **The memo died with the screen.** It lived on `_ChatScreenState`, so walking
+  into a conversation and back re-fetched every row. It now lives on the
+  app-wide `ChatListCubit` — resolved once per session. ⚠️ Deliberately placed
+  where `reset()` already clears it, so one account's previews can never appear
+  in the next account's inbox on a shared device.
+
+Not changed: `ChatListCubit.load()` (already idempotent, cache-paints before the
+network, and freezed's `DeepCollectionEquality` suppresses duplicate emits) and
+`ChatMessageList` (its `didUpdateWidget` guards are sound). The churn was not
+there.
+
+New `test/chat_preview_cache_test.dart` (5 cases), including the account-switch
+clear.
+
+### Splash centering — the suite is green again (bug; LOW risk)
+
+`splash_centering_test.dart` had been failing for weeks, written off in the docs
+as "either the layout regressed or `kSplashOpticalLift` changed". Neither guess
+was right: there were **two independent bugs**, one on each side, and they
+partly masked each other.
+
+- **The test mixed coordinate spaces.** `getRect` reports a box *as painted*, so
+  it already carries the centre-anchored `kLogoManualScale` (1.5×). The test then
+  added the **unscaled** artwork inset to that already-scaled rect — the dead
+  space above the artwork is magnified too. Worth ~9px.
+- **The page's lift formula never knew about the scale.** It predated
+  `kLogoManualScale` (owner-tuned by eye 2026-07-05), so the framing it produced
+  **drifted with window size** — a real 65.5px lift at 1440×900 but 61.6px at
+  1024×720 — while `kSplashOpticalLift` claimed 50 at both. The formula also
+  still carried a `kLogoVisualCenterOffset` term left over from an earlier
+  "centre the artwork" approach, which is not what the bbox framing needs.
+
+Fixed on both sides. The lift is now derived from the **visible** geometry
+(artwork inset × scale, minus the box's centre-anchored growth), and
+`kSplashOpticalLift` was set to **65.5** — the measured value of the framing the
+owner actually signed off. Net effect: **zero pixel change at 1440×900**, and
+1024×720 moves up ~4px to match it instead of drifting. The owner tuned pixels,
+so the pixels were treated as the specification and the constant was corrected to
+tell the truth about them.
+
+`kLogoVisualCenterOffset` is retained — it is still documented and separately
+pinned by `splash_visual_centering_test.dart` — but no longer feeds the lift.
+
+**`flutter test` is now fully green: 1457 pass, 0 fail.** That matters beyond
+this test: with two permanent failures, a genuine regression had somewhere to
+hide.
+
+Verified: `flutter analyze lib test` at the documented baseline (1 pre-existing
+test-style info); suite **1470 pass / 0 fail** (+30 new this branch); backend `npx jest` **92 pass** — no
+regressions. Geometry was confirmed by measuring the real widget at both window
+sizes, not by algebra alone. Not device-verified.
 ## 2026-08-03 — Explicit broadcast delivery and premium templates (feature + polish; MED risk)
 
 - The New Broadcast composer now defaults to the visible **Push + Inbox** delivery

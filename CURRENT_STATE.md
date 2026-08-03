@@ -3,16 +3,16 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-02.
+> **Last verified against the code:** 2026-08-03.
 
 ## At a glance
 
 | | |
 | --- | --- |
-| **Branch** | `release/v1-preparation` |
-| **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1441 pass · 2 fail** (~32s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **82 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
-| **Blocking release** | ~~Firebase deploy~~ **re-deployed 2026-08-02 — see below.** Remaining: recurring-template manager read isolation · **iOS push on-device QA** (config fixed 2026-08-03; needs a physical device + confirmation the APNs key sits on the `com.ziad.drop` Firebase app) · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
+| **Branch** | `claude/ui-fix-608998` (worktree off `release/v1-preparation`) |
+| **Build** | `flutter analyze lib test`: 1 info, no errors/warnings (pre-existing test style) |
+| **Tests** | **1470 pass · 0 fail** across 203 files (~35s) — **green**; the two long-standing splash-centering failures were fixed 2026-08-03. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
+| **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
 DROP is **feature-complete for its intended scope** and now gated on QA, not on
@@ -73,7 +73,8 @@ build first would have left approved swaps announced to nobody.
 
 | Branch | Holds | State |
 | --- | --- | --- |
-| **`fix-bugs`** ← current | Current stabilization and UI-polish worktree | In progress |
+| **`claude/ui-fix-608998`** ← current | Bundled Inter typeface · premium empty / error / loading states · Home stat-strip empty-bar fix · **offline write-gating** | **Uncommitted**; not device-verified. The offline policy is a behaviour change, not polish — see Known issues |
+| `fix-bugs` | Stabilization and UI-polish worktree | In progress |
 | `feature/chat-nestjs` | Chat (new feature, NestJS backend) — Phase 1 networking foundation done | In progress; carries everything from `feature/attendance-management` |
 | `feature/attendance-management` | Attendance P1–P3 (data · corrections · GPS · UI) | Committed, **not merged**, deploy + QA pending |
 | `main` | Trunk | Behind this branch |
@@ -101,8 +102,8 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | **Branches** | CRUD, soft delete, swap policy, GPS geofences |
 | **Admin** | User administration, account provisioning, Admin Home V2 command center. **Employees P19** (2026-07-27, uncommitted): a presentation-only, scalable directory pass — compact desktop header summary + Create Employee CTA, horizontal Branch/Role/Status/Sort/View controls, lazy list/natural-height two-column rendering (no fixed card extent), inline task KPIs, and Details/Edit with existing secondary actions in an overflow menu. The desktop FAB is removed while mobile keeps it; routing, cubits, repositories, and account semantics remain unchanged. **"Today" strip fix (2026-08-01, committed `fdaf66d`):** `admin_dashboard_screen.dart`'s `_today()` gained an `Open` stat (pending/started/completed/rejected — the same definition Task Management's "Active" uses) to answer "how much is on the table", since `Running now` (`started` only) was being misread as that number. `Delayed` renamed to **`Late`** with `AppColors.error` (was amber) — one concept, one name, one colour with Task Management's `Late` and Operations' `Late tasks`; grepped for other `Delayed` task copy, found none. `Approval rate` (a second, disagreeing completion formula — `Approved ÷ (Approved + Rejected)` from `StatisticsCubit`, next to §10.1's `Approved ÷ (Approved + Missed)`) is removed. `_today()` no longer subscribes to `StatisticsCubit` at all — `Completed today` now derives from the task stream (`completedTodayCount`, new in `task_metrics.dart`, reusing `isTaskInActiveWindow` so it can't drift from what a drill-down would list) instead of the lifetime-scoped `StatisticsCubit.completedTasksToday`. Every cell except `Due soon` is now tappable (`Stat.onTap` → `FilteredTasksScreen`, with a one-line `description`); `Due soon` stays inert on purpose — no `TaskFeedFilter` can reproduce `schedulePhase`'s dueSoon precedence (it excludes `completed`/`waitingReview` even though the active window includes them) without either an over-counting filter or a reverse dependency from `task_feed.dart` into `task_schedule.dart`. `manager_home_screen.dart`'s own `Completed today` (line ~130) reads the same `StatisticsCubit` field but isn't tappable, so it has no count-vs-list risk today — left unchanged, report-only per this pass's scope. |
 | **Operations** | Branch Operations cockpit, workload derivation, KPI drills, and a visible branch-scoped Automation summary opening the existing Center sheet |
-| **Communications** | Broadcasts, templates, custom audiences, scheduler, reminders. Composer delivery is explicit (`Push + Inbox` default or `Inbox only`); Emergency remains high priority. |
-| **Notifications** | In-app inbox + deep-link resolver. **Android has a named high-importance `drop_default` FCM channel and is verified end-to-end on-device. iOS: APNs keys uploaded 2026-08-03 and the app-side config is complete — but iOS push had a second, independent blocker: `firebase_options.dart` AND `GoogleService-Info.plist` both described the `com.example.fbro` Firebase iOS app while Xcode builds `com.ziad.drop`, so tokens were minted against an app nobody sends to. Both now point at `1:450092605249:ios:c938624f6a08c77d5a0bc0`. iOS foreground banners enabled (`setForegroundNotificationPresentationOptions`), and the in-app snackbar is suppressed on Apple platforms only so it can't double-notify — Android keeps the snackbar unchanged.** Inbox rows redesigned 2026-08-01, two passes (owner: *"looks bad and messy"*, then *"all the tasks look the same"*). Rows are now **subject-led**: `kicker (event, 10px uppercase, semantic tint) → subject (14.5px, ONE line) → context (12px grey)`. Every producer writes the event into `title` and the thing into `body`, so the old headline was the one line guaranteed to repeat; `title` is now the kicker and `body` the headline, split on its first ` • `/` — ` by pure `splitNotificationBody`. Case status, request lifecycle/comment, and attendance correction/auto-close bodies now lead with their subject; requests use the requester's own `details.message` (**not** the rolling `lastEventPreview`, which by approval time may hold the latest comment) then `REQ-######`, and attendance uses `Shift, d Mon`. Employee broadcast rows are non-navigable reading text with **no line cap**, so the inbox retains the full message; navigable subjects remain one line. No stored data changed. The duplicated category pill is gone, read/unread is carried by row brightness, and only a **critical unread** item keeps the semantic halo. Day headers are a labelled hairline with that day's unread count; the filter rail is edge-masked and each pill carries its unread count. **`route: "attendance"` was a dead tap** (the resolver had no case for the string `writeAttendanceNotifications` has always stamped) — now opens `/attendance/record/:id`, falling back to `/attendance/review` · `/attendance/history` by role; **client-side, no deploy needed**. **Delivery hardening (2026-08-02, DEPLOYED):** scheduled broadcasts claim their due instant before dispatch (no duplicate after an uncertain finalize; a claimed failed run is consumed), `approveSwap` server-writes both `swapApproved` inbox docs after the roster transaction, case reopen suppresses the manager actor via `statusChangedBy`, and inline broadcast pushes retry one transient Admin Messaging failure while retaining inbox-first delivery. |
+| **Communications** | Broadcasts, templates, custom audiences, scheduler, reminders |
+| **Notifications** | In-app inbox + deep-link resolver. **Android has a named high-importance `drop_default` FCM channel; iOS app-side APNs entitlement/background-mode wiring is complete, awaiting only the APNs credential.** Inbox rows redesigned 2026-08-01, two passes (owner: *"looks bad and messy"*, then *"all the tasks look the same"*). Rows are now **subject-led**: `kicker (event, 10px uppercase, semantic tint) → subject (14.5px, ONE line) → context (12px grey)`. Every producer writes the event into `title` and the thing into `body`, so the old headline was the one line guaranteed to repeat; `title` is now the kicker and `body` the headline, split on its first ` • `/` — ` by pure `splitNotificationBody`. No stored data changed. The duplicated category pill is gone, read/unread is carried by row brightness, and only a **critical unread** item keeps the semantic halo. Day headers are a labelled hairline with that day's unread count; the filter rail is edge-masked and each pill carries its unread count. **`route: "attendance"` was a dead tap** (the resolver had no case for the string `writeAttendanceNotifications` has always stamped) — now opens `/attendance/record/:id`, falling back to `/attendance/review` · `/attendance/history` by role; **client-side, no deploy needed** |
 | **Cases** | Private employee ↔ manager/admin conversations, confidential reporter split |
 | **Requests** | Employee → manager yes/no approvals |
 | **Statistics** | Live role-scoped counts on all three dashboards |
@@ -639,14 +640,47 @@ week does not block the GPS gate for the wrong reason.
 
 ## Known issues
 
+### Offline behaviour (settled 2026-08-03)
+
+The rule is **gate the writes, never the app**. Reads keep working from cache
+under `OfflineBar`; **clock in / out is the one write allowed offline**;
+everything else is refused honestly.
+
+Enforced at the **repository** layer by `NetworkGuard.ensureWritable()` (58 write
+methods + the admin `_run` helper covering 9 more), which throws `OfflineFailure`
+— cubits already catch `Failure`, so it surfaces everywhere for free and future
+screens are covered automatically. `requireOnline` in the UI adds an earlier,
+friendlier stop on review decisions. ⚠️ The guard is a **cached flag defaulting
+to online**; a test that never installs a status behaves exactly as before.
+
+A hard "app does not open offline" gate was asked for and built first, then
+reversed the same session: clock-in happens at a branch with the worst signal,
+and attendance IDs are deterministic so a late write cannot duplicate — the wall
+broke the one case the data model was designed to survive. Firestore offline
+persistence stays enabled and is now consistent with this.
+
+⚠️ **Not exercised against a real radio.** The tests cover the logic, not the
+platform channel — airplane mode and a captive portal still need a device pass.
+Worth an ADR, since the first decision was reversed.
+
+### Chat inbox N+1 — fixed in code, **awaiting a backend deploy**
+
+The list DTO now serves the last-message preview (FR-021), taking a ten-row
+inbox from eleven requests to one. Both halves are written and tested
+(`drop-api` **92 pass**, app **1470 pass**) but the **server is not deployed**,
+so today's app still uses the per-row fallback.
+
+⚠️ **Deploy the API before assuming the inbox is cheap.** The client is additive
+and works against either server; the fallback must stay until the deploy lands.
+
 ### Analyzer info (1)
 
 The remaining `use_null_aware_elements` info is the pre-existing test-style lint
 in `task_submission_gate_test.dart`. It is not an Automation Center finding.
 
-### Failing tests (2)
+### Failing tests — none (2026-08-03)
 
-Both reproduce with the working tree stashed — neither is caused by current work.
+**`flutter test` is fully green for the first time in weeks: 1470 pass, 0 fail.**
 
 > The three `notification_tap_flow_probe_test.dart` failures were **fixed
 > 2026-07-25** by deleting the temporary `debug_auth_probe.dart` and its two
@@ -654,12 +688,15 @@ Both reproduce with the working tree stashed — neither is caused by current wo
 > probe touched `FirebaseAuth.instance` during `restoreSession` in a Firebase-less
 > test; removing it is dead-code cleanup that also greened those cases.
 
-`test/splash_centering_test.dart` — both cases fail. The splash lockup's optical
-centering is off: the combined logo→bar bounding box centre sits at **375.5** where
-the test expects **400 ±1** (and **291.7** vs **310 ±1** at 1024×720). Either the
-splash layout regressed or `kSplashOpticalLift` changed without the test following.
-**Pre-existing and unrelated to any current work** — but it means `flutter test` is
-not green, so a real regression could hide behind it. Worth fixing or deleting.
+The two long-standing `splash_centering_test.dart` failures were **fixed
+2026-08-03**. Neither guess in the old note was right — it was *both* sides, and
+they were separate bugs. See CHANGELOG for the full derivation. Short version:
+the test added the **unscaled** artwork inset to a rect `getRect` had already
+returned **scaled** (paint-time `kLogoManualScale`), and the page's own lift
+formula never accounted for that scale either, so the real framing drifted with
+window size (65.5px at 1440×900, 61.6px at 1024×720) while the constant claimed
+50. Fixed on both sides with **zero pixel change at 1440×900** — the size the
+owner tuned by eye — and the framing is now identical at every window size.
 
 ### Live deploy state (verified 2026-07-29)
 
@@ -816,6 +853,9 @@ Requires the **Blaze** plan.
 3. **Supply the iOS APNs credential** — app-side Push/Background-Modes configuration is complete.
 4. **Merge `feature/attendance-management`** once deployed and QA'd.
 5. **Prune ~15 stale branches.**
+6. **Run the app on Android.** The bundled-typeface bug (2026-08-03) shipped
+   unnoticed for months because nothing exercises Android — that is a QA gap, not
+   a font bug.
 
 ---
 
@@ -878,7 +918,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1440 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1470 pass, 0 fail — GREEN; any red is a real regression
 (cd functions && node --test)            # expect: 68 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 51

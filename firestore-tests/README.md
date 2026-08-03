@@ -50,8 +50,5 @@ rules backwards-compatible.
 - **Notifications** — recipients may only change `readAt`, `archivedAt`, or
   `pinnedAt`; notification content, recipient, and deep-link payload remain
   server-owned.
-- **Attendance corrections** — correction `attendanceId` must be bound to its
-  `userId` at creation (including missing-record Add record materialization),
-  and correction identity, read scope, and delete behavior remain pinned.
 
 Add a case here whenever you touch `firestore.rules`.

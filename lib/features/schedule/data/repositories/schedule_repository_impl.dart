@@ -5,6 +5,7 @@ import 'package:drop/features/schedule/domain/shift_hours.dart';
 import 'package:drop/core/enums/swap_status.dart';
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/schedule/data/datasources/schedule_remote_datasource.dart';
 import 'package:drop/features/schedule/data/models/shift_swap_model.dart';
 import 'package:drop/features/schedule/data/models/weekly_schedule_model.dart';
@@ -68,6 +69,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     String? createdBy,
     ShiftPlan? shiftPlan,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       final start = ScheduleWeek.startOf(weekStart);
       final created = await _remote.createSchedule(
@@ -109,6 +111,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required ScheduleShift shift,
     required String employeeId,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.assignEmployee(
         scheduleId: scheduleId,
@@ -128,6 +131,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required ScheduleShift shift,
     required String employeeId,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.removeEmployee(
         scheduleId: scheduleId,
@@ -146,6 +150,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required ScheduleDay day,
     required String note,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setDayNote(scheduleId: scheduleId, day: day, note: note);
     } on ServerException catch (e) {
@@ -160,6 +165,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required String employeeId,
     required LeaveType? type,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setLeave(
         scheduleId: scheduleId,
@@ -179,6 +185,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required ScheduleShift shift,
     required ShiftHours? hours,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setShiftHours(
         scheduleId: scheduleId,
@@ -242,6 +249,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
 
   @override
   Future<ShiftSwapEntity> createSwap(ShiftSwapEntity swap) async {
+    NetworkGuard.ensureWritable();
     try {
       final created = await _remote.createSwap(ShiftSwapModel.fromEntity(swap));
       return created.toEntity();
@@ -255,6 +263,7 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
     required String swapId,
     required SwapStatus status,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.updateSwapStatus(swapId: swapId, status: status);
     } on ServerException catch (e) {

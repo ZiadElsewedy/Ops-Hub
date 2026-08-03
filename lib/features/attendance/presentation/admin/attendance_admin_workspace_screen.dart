@@ -19,6 +19,7 @@ import 'package:drop/features/attendance/presentation/admin/admin_attendance_ove
 import 'package:drop/features/attendance/presentation/admin/widgets/attendance_evidence_table.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
+import 'package:drop/core/widgets/skeleton.dart';
 
 /// **Admin Workspace** — where the attendance record is proved rather than
 /// operated (`ATTENDANCE_PRODUCT_REDESIGN_PLAN` §8).
@@ -172,9 +173,16 @@ class _Body extends StatelessWidget {
           );
         }
         if (overview == null) {
+          // Skeleton over spinner — the workspace holds its shape while it loads.
           return const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
-            child: Center(child: CircularProgressIndicator()),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Column(
+              children: [
+                Skeleton(height: 96, borderRadius: AppRadius.cardAll),
+                SizedBox(height: AppSpacing.md),
+                Skeleton(height: 96, borderRadius: AppRadius.cardAll),
+              ],
+            ),
           );
         }
         final now = DateTime.now();

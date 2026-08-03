@@ -107,9 +107,14 @@ void main() {
       ),
     );
 
-    // Artwork top inside the (already compensation-lifted) logo box.
+    // `getRect` reports the box as PAINTED, so it already carries the
+    // centre-anchored `kLogoManualScale`. The dead space above the artwork is
+    // magnified by that same scale, so it has to be scaled here too — adding
+    // the raw inset to an already-scaled rect mixed two coordinate spaces and
+    // put this assertion ~9px out, which is what made it fail for weeks.
     final boxH = logoWidth * 9 / 16;
-    final artworkTop = logoBox.top + kLogoArtworkTop / 405 * boxH;
+    final artworkTop =
+        logoBox.top + kLogoArtworkTop / 405 * boxH * kLogoManualScale;
     final visibleCentreY = (artworkTop + bar.bottom) / 2;
 
     expect(
