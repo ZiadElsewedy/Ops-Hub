@@ -141,10 +141,13 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener> {
 
   void _open(String conversationId) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final role = context.currentRole;
+    if (role == null) return;
     context.read<ChatListCubit>().clearUnread(conversationId);
     openChatDeepLink(
       widget.router,
       conversationId,
+      role: role,
       // This listener's directory is the fresher of the two while the async
       // load is still in flight; the shared resolver falls back to the session
       // snapshot when it isn't passed one.

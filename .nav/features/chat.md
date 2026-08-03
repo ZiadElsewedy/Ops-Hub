@@ -131,13 +131,25 @@ UI (page/widget)
 <!-- ═══════════════ HAND-AUTHORED INTELLIGENCE (edit freely) ═══════════════ -->
 
 ## Purpose
-_TODO: one-paragraph what & why. See `docs/design/` spec above if present._
+Direct 1:1 staff chat over the NestJS API. The inbox and thread are cache-first
+for instant reads; REST is authoritative while Socket.IO delivers live updates.
+Thread identity comes from route args first, then the inbox summary plus the
+session directory — never from backend ids.
 
 ## ⚠️ Dangerous areas / invariants
-_TODO: what breaks if you touch this. Cross-check `.nav/05_DANGER.md`._
+- Chat is not Firebase: do not cache attachment/image bytes, fabricate presence,
+  or make socket delivery authoritative.
+- `ChatConversationCubit` ordering/dedup/optimistic slots and message-list keys
+  are deliberate.
+- A notification-opened chat must build `Home → Chat → Conversation` after the
+  authenticated startup rendezvous; re-tapping the visible conversation is a no-op.
 
 ## 🧩 Extension points
-_TODO: where to plug in new behavior without forking._
+- Use `ChatListCubit` for inbox state and `chatThreadArgsFromSummary` for one
+  consistent, cache-backed participant identity.
+- Route all chat notification opens through `openChatDeepLink`; keep
+  `resolveNotificationRoute` pure.
 
 ## 🔗 Related
-_TODO: sibling features, shared core widgets, ADRs._
+`core/routes/app_router.dart` owns routes and auth redirects; `main.dart` owns
+FCM startup/tap sequencing; `notifications` owns pure deep-link resolution.

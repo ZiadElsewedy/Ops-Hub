@@ -283,9 +283,15 @@ bool _isChatDestination(String destination) =>
 
 void _openChatNotification(GoRouter router, String destination) {
   final conversationId = Uri.parse(destination).pathSegments.last;
+  final role = AppDependencies.authCubit.state.maybeWhen(
+    authenticated: (user) => user.role,
+    orElse: () => null,
+  );
+  if (role == null) return;
   openChatDeepLink(
     router,
     conversationId,
+    role: role,
     args: chatThreadArgsFor(conversationId),
   );
 }

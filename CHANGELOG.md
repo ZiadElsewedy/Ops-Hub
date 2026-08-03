@@ -14,6 +14,45 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-03 — Chat production-polish follow-up (bug + polish; HIGH risk)
+
+Fixed three remaining chat-thread defects without changing the UI or backend.
+
+- The thread header no longer awaits `ChatListCubit.load()`'s server round trip.
+  It listens to inbox state and resolves immediately from the cache-painted/live
+  summary plus the session directory; it still starts a load when no summary is
+  present. Route arguments remain an instant first-frame optimization.
+- `ChatThreadArgs` is now a value object, so the warm directory snapshot and its
+  cached async re-resolution do not cause a duplicate `setState`/header rebuild.
+- Chat push/banner taps now deliberately establish `Home → Chat → Conversation`
+  using the restored user's `homeForRole`, matching ordinary navigation. The
+  current-thread guard remains idempotent. Other notification routes and the
+  pure resolver are unchanged.
+
+- **The idempotency guard had never worked (bug, found by the new test).** The
+  guard read `router.routeInformationProvider.value.uri.path`, but an imperative
+  `push` is **delegate-level and never writes back to the route-information
+  provider** — so that value still reported whatever the last `go` set, and the
+  comparison was against a stale location. In practice a re-tap on the thread
+  already open would have stacked a duplicate. It now reads `router.state.uri`,
+  the delegate's real current location. The stack-parity test caught this: it
+  failed with `Expected '/chat/c-1', Actual '/'`, which is exactly the symptom.
+  The guard has been wrong since it was introduced two passes ago; no test had
+  pinned it until now.
+
+Added focused coverage for cache-backed identity resolution, `ChatThreadArgs`
+equality, stack parity (asserted through a `NavigatorObserver` on the real route
+stack, not just the final page), and re-tap idempotence. The established
+notification resolver suite continues to cover task, broadcast, schedule, case,
+request, and attendance unchanged.
+
+Gates: analyze 1 pre-existing info · **1501 pass / 0 fail**.
+
+> ⚠️ **Still not device-verified.** The stack-parity test runs against a plain
+> router, not the app's real `ShellRoute`, so it proves the call sequence rather
+> than the in-shell result. **Verify by hand:** kill the app, tap a chat
+> notification, then press Back twice — expect Chat list, then Home.
+
 ## 2026-08-03 — Manager Home rebuilt as a branch command center (feature + polish + bug; MED risk)
 
 Owner review of the manager role on device: *"it looks trash and not premium…
