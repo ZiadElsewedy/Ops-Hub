@@ -58,13 +58,17 @@ class NotificationService {
           'requestPermission',
           () => _messaging.requestPermission(
               alert: true, badge: true, sound: true));
-      // DIAGNOSTIC (temporary): surface whether the OS granted notification
-      // permission — a denied/notDetermined status means no system push will
-      // ever show. Check this in `flutter logs` / logcat / Xcode console.
-      developer.log(
-        'permission status = ${settings.authorizationStatus}',
-        name: 'fcm',
-      );
+      // Whether the OS granted notification permission. `denied` /
+      // `notDetermined` means iOS never registers with APNs, so `getAPNSToken()`
+      // stays null forever and no push can arrive — the single most common
+      // cause of "push works on Android, silently not on iOS".
+      //
+      // Deliberately AppLog, not developer.log: on a device/simulator the
+      // `developer.log` line does NOT surface in `xcrun simctl log stream` or
+      // the Xcode console, so this diagnostic was invisible on the exact
+      // platform it exists to debug. AppLog lines do show.
+      AppLog.success(
+          'fcm', 'permission status = ${settings.authorizationStatus.name}');
 
       // iOS ONLY: without this, iOS shows nothing while the app is open — the
       // system suppresses the banner and only `onMessage` fires. Android is
