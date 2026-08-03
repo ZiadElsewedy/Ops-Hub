@@ -49,7 +49,16 @@ case / request /             onCase* / onRequest*        pushedByFunction:true) 
 - **In-app tile tap** → `NotificationsScreen._deepLink` → **the same resolver**.
 
 `pushedByFunction:true` on broadcast docs prevents `onNotificationCreated` from
-double-pushing (the broadcast engine already pushed inline).
+double-pushing (the broadcast engine already pushed inline). The inline send is
+best-effort and retries one time only when the Admin Messaging call fails with a
+transient service error (or throws before returning per-token outcomes); dead or
+invalid tokens are pruned, never retried. Its final log records success and
+failure counts. The inbox doc remains authoritative regardless of push outcome.
+
+**Server-owned transitions:** `approveSwap` writes one `swapApproved` inbox doc
+for each swap party only after its roster-exchange transaction commits; the
+client no longer produces that event. `onNotificationCreated` mirrors both docs
+to FCM. The other swap events remain client-produced through `sendNotification`.
 
 ### Recipient safety (defense-in-depth #3)
 Every push carries `data.recipientUid`. The client **drops** any push whose
@@ -150,9 +159,10 @@ doesn't; it is a label, never content.
 | The subject holds **one line**, never wraps | A wrapping headline gives every card a different height; the column reads ragged |
 | `splitNotificationBody` cuts `body` on its **first** ` • ` / ` — ` | Producers already use these to hang context off a subject; no separator → all subject |
 | **Every producer must name its subject in `body`** | A body that only restates the event ("Task approved") leaves a row that names nothing |
+| **Case, request, and attendance notifications lead with their specific subject** | Case status notices use the case subject; requests use `lastEventPreview`, falling back to `refCode`; attendance uses a compact `Shift, d Mon` label. The event/result follows the first separator. Case notices remain identity-free. |
 | No per-card category badge | The filter pills own category; the kicker's tint carries what the pill meant |
 | The unread dot is **always white** | It means "unread" and nothing else — the kicker owns semantic colour |
-| `navigable: false` → the subject is set as **reading text**, not a headline | With nowhere to tap, the row *is* the message, not a pointer to it |
+| `navigable: false` → the subject is set as **reading text**, not a headline, and has no line cap | With nowhere to tap, the row *is* the message, not a pointer to it; employees therefore can read a complete broadcast in the inbox. Navigable subjects remain one line. |
 
 > Widget tests must find a tile by `find.byType(NotificationTile)`, **not** by
 > its title text — the kicker is uppercased.

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:drop/core/constants/app_constants.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/attachment_type.dart';
@@ -191,8 +192,19 @@ class CaseRemoteDataSourceImpl implements CaseRemoteDataSource {
   @override
   Future<void> changeStatus(String caseId, CaseStatus to) async {
     try {
+      // Who moved the status — the ONLY way `onCaseUpdated` can know, since a
+      // Firestore trigger carries no auth. The trigger excludes this uid from
+      // the reopen recipients so a manager isn't notified about their own
+      // reopen. Omitted rather than force-unwrapped when there is no session:
+      // the trigger then notifies everyone routed, exactly as it did before —
+      // a missing stamp must never fail the status change itself.
+      // Confidentiality: `firestore.rules` lets only an admin or a same-branch
+      // manager update a case doc, so this can never hold a confidential
+      // reporter's uid, and it never reaches a notification's content.
+      final actorUid = FirebaseAuth.instance.currentUser?.uid;
       await _cases.doc(caseId).update({
         'status': to.value,
+        'statusChangedBy': ?actorUid,
         'updatedAt': FieldValue.serverTimestamp(),
         // Stamp on close, clear on reopen.
         'closedAt':

@@ -34,9 +34,12 @@ mixin _$BroadcastEntity {
   /// The individual recipient when [audience] is [BroadcastAudience.user].
   String? get targetUserId => throw _privateConstructorUsedError;
 
-  /// Notification category (announcement / reminder / emergency) — the single
-  /// dial; it derives delivery (push/inbox + FCM priority) on send.
+  /// Notification category (announcement / reminder / emergency). Emergency
+  /// retains high FCM priority; delivery is the independent [sendsPush] axis.
   String get category => throw _privateConstructorUsedError;
+
+  /// Explicit delivery choice. `true` = Push + Inbox; `false` = Inbox only.
+  bool get sendsPush => throw _privateConstructorUsedError;
 
   /// How many users the send engine resolved as recipients (set by the
   /// function on send; null on an unsent/legacy doc).
@@ -76,6 +79,7 @@ abstract class $BroadcastEntityCopyWith<$Res> {
     String? branchId,
     String? targetUserId,
     String category,
+    bool sendsPush,
     int? recipientCount,
     int? deliveredCount,
     DateTime? archivedAt,
@@ -108,6 +112,7 @@ class _$BroadcastEntityCopyWithImpl<$Res, $Val extends BroadcastEntity>
     Object? branchId = freezed,
     Object? targetUserId = freezed,
     Object? category = null,
+    Object? sendsPush = null,
     Object? recipientCount = freezed,
     Object? deliveredCount = freezed,
     Object? archivedAt = freezed,
@@ -155,6 +160,10 @@ class _$BroadcastEntityCopyWithImpl<$Res, $Val extends BroadcastEntity>
                 ? _value.category
                 : category // ignore: cast_nullable_to_non_nullable
                       as String,
+            sendsPush: null == sendsPush
+                ? _value.sendsPush
+                : sendsPush // ignore: cast_nullable_to_non_nullable
+                      as bool,
             recipientCount: freezed == recipientCount
                 ? _value.recipientCount
                 : recipientCount // ignore: cast_nullable_to_non_nullable
@@ -197,6 +206,7 @@ abstract class _$$BroadcastEntityImplCopyWith<$Res>
     String? branchId,
     String? targetUserId,
     String category,
+    bool sendsPush,
     int? recipientCount,
     int? deliveredCount,
     DateTime? archivedAt,
@@ -228,6 +238,7 @@ class __$$BroadcastEntityImplCopyWithImpl<$Res>
     Object? branchId = freezed,
     Object? targetUserId = freezed,
     Object? category = null,
+    Object? sendsPush = null,
     Object? recipientCount = freezed,
     Object? deliveredCount = freezed,
     Object? archivedAt = freezed,
@@ -275,6 +286,10 @@ class __$$BroadcastEntityImplCopyWithImpl<$Res>
             ? _value.category
             : category // ignore: cast_nullable_to_non_nullable
                   as String,
+        sendsPush: null == sendsPush
+            ? _value.sendsPush
+            : sendsPush // ignore: cast_nullable_to_non_nullable
+                  as bool,
         recipientCount: freezed == recipientCount
             ? _value.recipientCount
             : recipientCount // ignore: cast_nullable_to_non_nullable
@@ -310,6 +325,7 @@ class _$BroadcastEntityImpl extends _BroadcastEntity {
     this.branchId,
     this.targetUserId,
     this.category = 'general',
+    this.sendsPush = true,
     this.recipientCount,
     this.deliveredCount,
     this.archivedAt,
@@ -344,11 +360,16 @@ class _$BroadcastEntityImpl extends _BroadcastEntity {
   @override
   final String? targetUserId;
 
-  /// Notification category (announcement / reminder / emergency) — the single
-  /// dial; it derives delivery (push/inbox + FCM priority) on send.
+  /// Notification category (announcement / reminder / emergency). Emergency
+  /// retains high FCM priority; delivery is the independent [sendsPush] axis.
   @override
   @JsonKey()
   final String category;
+
+  /// Explicit delivery choice. `true` = Push + Inbox; `false` = Inbox only.
+  @override
+  @JsonKey()
+  final bool sendsPush;
 
   /// How many users the send engine resolved as recipients (set by the
   /// function on send; null on an unsent/legacy doc).
@@ -369,7 +390,7 @@ class _$BroadcastEntityImpl extends _BroadcastEntity {
 
   @override
   String toString() {
-    return 'BroadcastEntity(id: $id, title: $title, message: $message, senderId: $senderId, senderName: $senderName, senderRole: $senderRole, audience: $audience, branchId: $branchId, targetUserId: $targetUserId, category: $category, recipientCount: $recipientCount, deliveredCount: $deliveredCount, archivedAt: $archivedAt, createdAt: $createdAt)';
+    return 'BroadcastEntity(id: $id, title: $title, message: $message, senderId: $senderId, senderName: $senderName, senderRole: $senderRole, audience: $audience, branchId: $branchId, targetUserId: $targetUserId, category: $category, sendsPush: $sendsPush, recipientCount: $recipientCount, deliveredCount: $deliveredCount, archivedAt: $archivedAt, createdAt: $createdAt)';
   }
 
   @override
@@ -394,6 +415,8 @@ class _$BroadcastEntityImpl extends _BroadcastEntity {
                 other.targetUserId == targetUserId) &&
             (identical(other.category, category) ||
                 other.category == category) &&
+            (identical(other.sendsPush, sendsPush) ||
+                other.sendsPush == sendsPush) &&
             (identical(other.recipientCount, recipientCount) ||
                 other.recipientCount == recipientCount) &&
             (identical(other.deliveredCount, deliveredCount) ||
@@ -417,6 +440,7 @@ class _$BroadcastEntityImpl extends _BroadcastEntity {
     branchId,
     targetUserId,
     category,
+    sendsPush,
     recipientCount,
     deliveredCount,
     archivedAt,
@@ -447,6 +471,7 @@ abstract class _BroadcastEntity extends BroadcastEntity {
     final String? branchId,
     final String? targetUserId,
     final String category,
+    final bool sendsPush,
     final int? recipientCount,
     final int? deliveredCount,
     final DateTime? archivedAt,
@@ -480,10 +505,14 @@ abstract class _BroadcastEntity extends BroadcastEntity {
   @override
   String? get targetUserId;
 
-  /// Notification category (announcement / reminder / emergency) — the single
-  /// dial; it derives delivery (push/inbox + FCM priority) on send.
+  /// Notification category (announcement / reminder / emergency). Emergency
+  /// retains high FCM priority; delivery is the independent [sendsPush] axis.
   @override
   String get category;
+
+  /// Explicit delivery choice. `true` = Push + Inbox; `false` = Inbox only.
+  @override
+  bool get sendsPush;
 
   /// How many users the send engine resolved as recipients (set by the
   /// function on send; null on an unsent/legacy doc).

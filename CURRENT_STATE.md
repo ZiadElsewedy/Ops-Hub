@@ -39,15 +39,33 @@ paths, and — for this module — `onAttendanceCorrectionWritten`, so a manager
 Resolve / Add record / Excuse should now report **applied** rather than *saved,
 not applied yet*.
 
-⚠️ **Not independently verified at runtime.** `firebase functions:log` returned
-*"Failed to retrieve log entries"* for this CLI login (a Cloud Logging access
-problem, not a deploy failure), so the deploy's own success reports are the only
-confirmation. First real proof will be the next 01:00 Cairo close run and the
-next manager correction.
-
 Pre-deploy gates that did pass: Firestore rules **37/37** against the repo's own
 rules file via the emulator, Cloud Functions **86/86**, Dart **1312 pass / 2
 pre-existing splash failures**.
+
+---
+
+### Deploy 2026-08-02 — notification hardening + the attendance-correction P0
+
+Everything from the 2026-08-02 audit work is **live** on `bazic-d9ad7`:
+
+| Target | Result |
+| --- | --- |
+| **Firestore rules** | Released. Carries the `notifications` update restriction and the `attendance_corrections` `attendanceId` ownership binding |
+| **Functions** | **All 24 updated** — task reminders, `approveSwap`'s server-owned notice, the broadcast schedule claim + push retry, the case-reopen actor exclusion, the correction ownership guard, and every subject-led body |
+
+✅ **Verified at runtime this time, not just reported.** `onNotificationCreated`'s
+`firebase-functions-hash` changed (`5cc7b753…` → `a154bf53…`), it rolled to a new
+revision (`onnotificationcreated-00019-qif` → `00020-bek`), the startup probe
+succeeded and state is `ACTIVE`.
+
+⚠️ **The earlier note that `firebase functions:log` fails for this CLI login is
+no longer true** — it works, and it is how the above was confirmed. Use it.
+
+⚠️ **Deploy-order hazard, now resolved in the safe direction.** The client no
+longer produces `swapApproved` (the server does). Functions are deployed *ahead*
+of any app build carrying that change, which is the correct order — shipping the
+build first would have left approved swaps announced to nobody.
 
 ---
 
@@ -193,7 +211,7 @@ phases and committed; what remains is deployment and on-device verification.
 | Phase | State |
 | --- | --- |
 | P1 — data foundation | Done. Deterministic `attendance/{uid}_{yyyyMMdd}_{shift}` id, `AttendanceCalculator` |
-| P2 — corrections + audit | Done. Server-authoritative audit + `attendance_corrections/` approval object |
+| P2 — corrections + audit | Done. Server-authoritative audit + `attendance_corrections/` approval object. **Correction target ownership is bound at create time in the rules and re-checked by the apply trigger** — closing a P0 where a correction could name another employee's `attendanceId` and overwrite their record on approval. Pinned by `firestore-tests/attendance_corrections.rules.test.mjs` (8 cases, emulator-verified). **Rules + functions DEPLOYED 2026-08-02.** |
 | P3 — GPS engine | Done. `geolocator`, Haversine verification, separate clock-in/out verifications |
 | P3 — UI | Done. Employee clock screen · admin board · geofence editor |
 | History | Done. Ledger (`/attendance/history` self · `/attendance/review` branch, admin‖manager) + audit-log record details (`/attendance/record/:id`). Reuses the existing reads + `AttendanceStats`; holds ADR-009/010 (no score/analytics/export) |
@@ -831,7 +849,7 @@ Requires the **Blaze** plan.
 ### Then
 
 1. **On-device attendance QA** — GPS clock in/out on real hardware, both platforms.
-2. ~~Fix or delete `splash_centering_test.dart`~~ — **done 2026-08-03; the suite is green.**
+2. **Fix or delete `splash_centering_test.dart`** so the suite is green.
 3. **Supply the iOS APNs credential** — app-side Push/Background-Modes configuration is complete.
 4. **Merge `feature/attendance-management`** once deployed and QA'd.
 5. **Prune ~15 stale branches.**

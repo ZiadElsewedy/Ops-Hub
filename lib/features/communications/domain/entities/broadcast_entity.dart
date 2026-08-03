@@ -24,25 +24,35 @@ class BroadcastEntity with _$BroadcastEntity {
     required String id,
     required String title,
     required String message,
+
     /// Who sent it.
     required String senderId,
     required String senderName,
     @Default(UserRole.manager) UserRole senderRole,
     @Default(BroadcastAudience.allBranches) BroadcastAudience audience,
+
     /// Target branch when [audience] is [BroadcastAudience.branch]; null for an
     /// all-branches or individual broadcast.
     String? branchId,
+
     /// The individual recipient when [audience] is [BroadcastAudience.user].
     String? targetUserId,
-    /// Notification category (announcement / reminder / emergency) — the single
-    /// dial; it derives delivery (push/inbox + FCM priority) on send.
+
+    /// Notification category (announcement / reminder / emergency). Emergency
+    /// retains high FCM priority; delivery is the independent [sendsPush] axis.
     @Default('general') String category,
+
+    /// Explicit delivery choice. `true` = Push + Inbox; `false` = Inbox only.
+    @Default(true) bool sendsPush,
+
     /// How many users the send engine resolved as recipients (set by the
     /// function on send; null on an unsent/legacy doc).
     int? recipientCount,
+
     /// How many devices the push was actually delivered to (set by the function
     /// after the FCM multicast completes; null until then / legacy).
     int? deliveredCount,
+
     /// When this broadcast was archived (hidden from the default feed but kept
     /// for history). Null = active.
     DateTime? archivedAt,

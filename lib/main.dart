@@ -17,6 +17,7 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/services/usage_tracker.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/utils/app_logger.dart';
+import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
@@ -212,6 +213,15 @@ String _initialLocationFor(AuthState state) => state.maybeWhen(
 void _configureNotificationService() {
   AppDependencies.notificationService
     ..onForeground = (title, body, data) {
+      // iOS now presents its own foreground banner
+      // (`setForegroundNotificationPresentationOptions`, set in
+      // NotificationService.init). Showing the in-app snackbar as well would
+      // double-notify for the same message, so Apple platforms rely on the OS
+      // banner — which is tappable and routes through the same
+      // `onMessageOpenedApp` → resolver path, so nothing is lost.
+      // ANDROID IS UNCHANGED: it keeps the snackbar, because a foreground push
+      // on Android is delivered to `onMessage` only and the OS shows nothing.
+      if (requiresApnsToken) return;
       final text = [
         title,
         body,

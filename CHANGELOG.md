@@ -259,6 +259,209 @@ Verified: `flutter analyze lib test` at the documented baseline (1 pre-existing
 test-style info); suite **1470 pass / 0 fail** (+30 new this branch); backend `npx jest` **92 pass** — no
 regressions. Geometry was confirmed by measuring the real widget at both window
 sizes, not by algebra alone. Not device-verified.
+## 2026-08-03 — Explicit broadcast delivery and premium templates (feature + polish; MED risk)
+
+- The New Broadcast composer now defaults to the visible **Push + Inbox** delivery
+  choice, with **Inbox only** as the only alternative. `sendsPush` travels through
+  the callable and schedules; the Cloud Function retains category-based fallback
+  for legacy payloads. Emergency keeps its separate high-priority treatment.
+- The composer leads with title and message, puts delivery before the nested
+  routing configuration, and retains the sticky send action. Templates now have
+  a structured monochrome library summary without changing library/picker/editor
+  behavior.
+
+Risk: MED — delivery wiring spans client, schedules, and the server; the fallback
+keeps existing scheduled broadcasts compatible.
+
+---
+
+## 2026-08-02 — Notification subjects and complete employee broadcasts (polish + bug; LOW risk)
+
+Because `title` is a pure `switch (type)` in every producer, `body` is the only
+line that can say *which* thing a row is about — so a body naming nothing gives
+you a column of identical rows. Tasks were fixed for this on 2026-08-01; cases,
+requests and attendance never were.
+
+- Case status, request lifecycle/comment, and attendance correction/auto-close
+  bodies now lead with their subject, then the event context after ` • `.
+  Attendance gains the shift and Cairo business date (`Morning shift, 2 Aug`),
+  so two missed clock-outs are no longer indistinguishable rows.
+- **Requests use the requester's own `details.message`, deliberately not
+  `lastEventPreview`.** That field is a *rolling* preview of the most recent
+  timeline event, so by the time a request is approved it may hold the latest
+  comment — giving "sounds fine to me • Approved". `details.message` is written
+  once and is the same string the opening notification used, so every row for
+  one request names the same thing. `lastEventPreview` stays as a fallback (it
+  equals the reason at creation), then the durable `REQ-######`.
+- Case notifications remain identity-free — only `subject` is used, never a
+  reporter name or uid.
+- An employee broadcast has no Communications detail route to open, so its
+  non-navigable row was truncating the message at five lines with nowhere to
+  read the rest. It now renders in full. Navigable subjects remain exactly one
+  line — that cap is load-bearing, a wrapping subject makes every card a
+  different height.
+
+Gates: analyze clean (1 pre-existing info) · Dart 1441 pass / 2 pre-existing
+splash failures · functions 82 pass · rules 61 pass.
+✅ The server-side body changes are **deployed 2026-08-02**; the tile change
+ships with the app build.
+
+---
+
+Gates: analyze clean (1 pre-existing info) · Dart **1442 pass / 2 pre-existing
+splash failures** · functions **83 pass** · rules **61 pass**.
+⚠️ The `sendsPush` field is honoured server-side — **needs a Cloud Functions
+deploy**. Deploy the server before shipping an app build that sends it;
+until then broadcasts fall back to the old category-derived delivery.
+
+---
+
+## 2026-08-03 — iOS push: UIScene silently swallowed the APNs token (bug; MED risk)
+
+APNs keys correct, Bundle ID correct, entitlement signed, permission
+`authorized` — and `getAPNSToken()` still returned null forever. The cause was
+the **UIScene lifecycle**, which ships in the stock Flutter 3.44.2 template.
+
+`firebase_messaging` receives the APNs token only through
+`[_registrar addApplicationDelegate:self]` — Flutter's `UIApplicationDelegate`
+forwarding — and sets it via `[FIRMessaging setAPNSToken:]`. Flutter 3.44 added a
+*separate* `addSceneDelegate:` path for scene-based apps, and
+firebase_messaging 15.2.10 **never calls it** (zero occurrences in the plugin).
+With `UIApplicationSceneManifest` active the callback never reaches the plugin,
+so the token is never set and every later step is dead. Android was untouched —
+none of this exists there.
+
+**Proven by A/B on the physical iPhone**, not by inspection:
+
+| Run | Config | `getAPNSToken()` |
+| --- | --- | --- |
+| 1 | DROP, scenes ON | null ×10 |
+| 2 | brand-new `flutter create` 3.44.2 + fbm 15.2.10, scenes ON | null ×10 — identical, so **not DROP-specific** |
+| 3 | same control, **scenes OFF** (only variable changed) | **token on attempt 1**, FCM token minted |
+| 4 | same control, scenes ON + manual `Messaging.apnsToken` in AppDelegate | null ×10 — the AppDelegate override is **not** sufficient |
+
+Run 4 is why the fix is removing the manifest rather than a three-line
+AppDelegate forward: under scenes the callback does not execute at all, so there
+is nothing to forward.
+
+- **Fix:** removed `UIApplicationSceneManifest` from `ios/Runner/Info.plist`.
+  `SceneDelegate.swift` is left on disk but is never instantiated without the
+  manifest, so it is inert — that is exactly how run 3 was configured.
+- **Trade-off:** DROP opts out of iOS 26 multi-window / multi-scene. It was
+  already opted out functionally (`UIApplicationSupportsMultipleScenes: false`)
+  and is a single-window app, so nothing observable is lost. Revisit when
+  firebase_messaging adopts `addSceneDelegate:`.
+
+Verified on the physical iPhone: `APNs token acquired` on the first attempt ·
+`FCM token` minted · `token written to users/{uid}.fcmTokens` · Firestore
+`fcmTokens` 0 → 1 · a real push logged `tokenCount:1 successCount:1
+failureCount:0`, which also confirms the APNs key on `com.ziad.drop`.
+
+Gates: analyze clean (1 pre-existing info) · Dart 1441 pass / 2 pre-existing
+splash · functions 82 · rules 61.
+
+---
+
+## 2026-08-03 — iOS push: the app was registering as the wrong Firebase app (bug; MED risk)
+
+APNs keys were uploaded, yet iOS still could not have received a push. The cause
+was not the credential — it was identity.
+
+**Xcode builds `com.ziad.drop`. Both `lib/firebase_options.dart` and
+`ios/Runner/GoogleService-Info.plist` described `com.example.fbro`** — a
+*different* Firebase iOS app (`…f1d3167839a737155a0bc0`). The project has three
+registered iOS apps, which is how this went unnoticed. Because `main.dart`
+initializes with `DefaultFirebaseOptions.currentPlatform`, the Dart values win
+over the plist, so **fixing only the plist would not have helped.** An APNs key
+is attached per iOS app, so tokens were minted against an app the sender never
+targets, and every push silently went nowhere. Android was unaffected — its own
+`google-services.json` was always correct — which is exactly why this looked like
+"Android works, iOS doesn't".
+
+Both now point at `1:450092605249:ios:c938624f6a08c77d5a0bc0` (`com.ziad.drop`),
+with the correct `iosClientId`. macOS shared the same wrong id and the same
+bundle id, so it was corrected too.
+
+- **iOS foreground notifications** now appear: `NotificationService.init` calls
+  `setForegroundNotificationPresentationOptions`, gated to Apple platforms. The
+  in-app snackbar is suppressed there so the OS banner cannot double-notify;
+  **Android keeps the snackbar exactly as before**, since a foreground push on
+  Android reaches `onMessage` only and the OS shows nothing.
+- **APNs token race fixed.** `registerToken` aborted whenever `getAPNSToken()`
+  returned null — routine on a cold start, since the auth listener fires the
+  moment sign-in completes. The old comment claimed `onTokenRefresh` would
+  re-register later, but that stream fires only when the **FCM** token *changes*;
+  on a returning device it never fires, so the token never reached
+  `users/{uid}.fcmTokens` and every push to that device vanished. Now polls up
+  to ~5s before giving up.
+
+Audited and deliberately left alone: `AppDelegate.swift` (firebase_messaging
+15.2.10 has swizzling enabled — it calls `registerForRemoteNotifications` and
+implements `didRegisterForRemoteNotificationsWithDeviceToken` itself, so adding
+them would duplicate or conflict), and `aps-environment=development` (Xcode
+rewrites it to `production` when exporting a distribution archive).
+
+Verified in the built artifact: the `.app` carries `CFBundleIdentifier`
+`com.ziad.drop`, a `GoogleService-Info.plist` whose `BUNDLE_ID` matches it,
+`UIBackgroundModes: [remote-notification]`, `MinimumOSVersion 13.0`.
+Gates: analyze clean · Dart 1441 pass / 2 pre-existing splash · functions 82 ·
+rules 61 · `flutter build ios --no-codesign` succeeds.
+
+⚠️ **Still unverified from here:** actual delivery needs a physical iPhone, and
+the APNs key must sit on the **`com.ziad.drop`** app in Firebase — not one of the
+other two iOS entries.
+
+---
+
+## 2026-08-02 — Notification delivery guarantees (bug; MED risk)
+
+- **Scheduled broadcasts:** claim the queried due instant transactionally before dispatch and finalize only after it. A failed claimed dispatch is deliberately consumed and logged at error level; if finalization is uncertain, the durable claim prevents an org-wide duplicate.
+- **Approved swaps:** `approveSwap` now server-writes one `swapApproved` inbox doc per party after its atomic roster exchange, so manager app termination cannot lose both notices. The duplicate client producer was removed; notification-write failure remains best-effort.
+- **Cases:** `changeStatus` stamps the authenticated manager/admin in `statusChangedBy`; reopen notices exclude that actor without exposing an identity in any notification content.
+- **Broadcast pushes:** one retry is allowed only for transient/thrown Admin Messaging sends. Dead/invalid tokens remain prune-only, and final delivery logs include real success/failure counts.
+
+The client half of the swap change ships with the app build; everything else is
+server-side. ✅ **Deployed 2026-08-02** — functions went out *ahead* of any app
+build carrying the client change, which is the correct order: shipping the build
+first would have left approved swaps announced to nobody.
+
+Gates: analyze clean (1 pre-existing info) · Dart 1440 pass / 2 pre-existing
+splash failures · functions 80 pass · rules 61 pass.
+
+---
+
+## 2026-08-02 — A correction could overwrite someone else's attendance (bug; MED risk)
+
+Found while auditing attendance *notifications* — the notification deep-linked the
+employee to a record they could not read, which is what exposed it.
+
+`attendance_corrections` bound `userId`, `requestedBy`, `status` and `branchId` on
+create, but **never `attendanceId`**, and `applyCorrectionResolution` trusted it:
+it fetched that record and called `ref.update()` with no check that the record's
+owner matched the correction's. Since record ids are deterministic
+(`{uid}_{yyyyMMdd}_{shift}`) and branch members can read own-branch users, a
+victim's id is constructible — so an employee could file a correction carrying
+their own `userId` and someone else's `attendanceId`, and a manager approving it
+would overwrite that person's clock times, worked minutes, lateness and overtime.
+The same gap let a manager evade the no-self-approval rule (rule (b) only checked
+`uid != userId`) by naming their own record.
+
+- **Rules:** both create branches now require the `attendanceId`'s owner prefix to
+  equal the correction's `userId`, and deny a malformed id outright. This is an
+  id-prefix check rather than a `get()` of the attendance doc **on purpose** —
+  manager "Add record" legitimately files against a record that does not exist yet,
+  which an `exists()` check would deny.
+- **Server (defence in depth):** `applyCorrectionResolution` returns a boolean and
+  refuses when an existing record declares a different `userId`, or when a
+  to-be-materialized id's prefix does not match. Both call sites now suppress the
+  approval notification on refusal — telling someone their correction was applied
+  when it was not is worse than silence.
+- **Tests:** new `firestore-tests/attendance_corrections.rules.test.mjs` (8 cases;
+  the collection previously had **no** rules test at all) plus pure Functions
+  coverage of the guard.
+
+Gates: analyze clean · Dart 1440 pass / 2 pre-existing · functions 76 · rules 61.
+✅ **Rules + functions deployed 2026-08-02** — the hole is closed in production.
 
 ---
 
@@ -816,10 +1019,9 @@ now opens the exact record (`/attendance/record/:id` — all four producers stam
 **The in-app tap is fixed by the app build.** The *push* tap needed the other
 half — `onNotificationCreated` was also dropping `recordId` / `correctionId`
 from the push `data`, so a background/cold-start tap had no id to resolve. Both
-are now forwarded, but that half is **⚠️ inert until
-`firebase deploy --only functions`**; until then a background attendance tap
-lands on the ledger fallback rather than the exact record. Functions tests:
-68 pass.
+are now forwarded — ✅ **deployed 2026-08-02**, so a background/cold-start
+attendance tap now reaches the exact record instead of the ledger fallback.
+Functions tests: 68 pass.
 
 The tile now also *tells the truth about* a tap that can't go anywhere: the
 screen resolves each notification through the same resolver and passes

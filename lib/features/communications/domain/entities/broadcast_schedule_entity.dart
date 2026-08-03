@@ -21,6 +21,7 @@ class BroadcastScheduleEntity {
   final String title;
   final String message;
   final BroadcastCategory category;
+  final bool sendsPush;
 
   // ── Targeting ──
   final BroadcastAudience audience;
@@ -48,6 +49,7 @@ class BroadcastScheduleEntity {
     required this.title,
     required this.message,
     this.category = BroadcastCategory.announcement,
+    this.sendsPush = true,
     this.audience = BroadcastAudience.allBranches,
     this.branchId,
     this.roleFilter = 'all',
@@ -70,11 +72,11 @@ class BroadcastScheduleEntity {
   /// Whether the schedule is currently live (enabled + has a future run that
   /// hasn't passed its end date).
   bool isActive({DateTime? now}) => RecurrenceRule.isActive(
-        enabled,
-        nextRunAt: nextRunAt,
-        endDate: endDate,
-        now: now,
-      );
+    enabled,
+    nextRunAt: nextRunAt,
+    endDate: endDate,
+    now: now,
+  );
 
   /// Whether the schedule has finished (one-time already run, or past endDate).
   bool get isCompleted => nextRunAt == null;
@@ -88,26 +90,26 @@ class BroadcastScheduleEntity {
     DateTime? endDate,
     BroadcastRecurrence? recurrenceType,
     int? interval,
-  }) =>
-      BroadcastScheduleEntity(
-        id: id ?? this.id,
-        title: title,
-        message: message,
-        category: category,
-        audience: audience,
-        branchId: branchId,
-        roleFilter: roleFilter,
-        senderId: senderId,
-        senderName: senderName,
-        senderRole: senderRole,
-        recurrenceType: recurrenceType ?? this.recurrenceType,
-        interval: interval ?? this.interval,
-        startDate: startDate,
-        endDate: endDate ?? this.endDate,
-        nextRunAt: nextRunAt ?? this.nextRunAt,
-        enabled: enabled ?? this.enabled,
-        lastRunAt: lastRunAt ?? this.lastRunAt,
-        runCount: runCount ?? this.runCount,
-        createdAt: createdAt,
-      );
+  }) => BroadcastScheduleEntity(
+    id: id ?? this.id,
+    title: title,
+    message: message,
+    category: category,
+    sendsPush: sendsPush,
+    audience: audience,
+    branchId: branchId,
+    roleFilter: roleFilter,
+    senderId: senderId,
+    senderName: senderName,
+    senderRole: senderRole,
+    recurrenceType: recurrenceType ?? this.recurrenceType,
+    interval: interval ?? this.interval,
+    startDate: startDate,
+    endDate: endDate ?? this.endDate,
+    nextRunAt: nextRunAt ?? this.nextRunAt,
+    enabled: enabled ?? this.enabled,
+    lastRunAt: lastRunAt ?? this.lastRunAt,
+    runCount: runCount ?? this.runCount,
+    createdAt: createdAt,
+  );
 }

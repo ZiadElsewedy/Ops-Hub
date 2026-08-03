@@ -919,6 +919,12 @@ service cloud.firestore {
         || isOwner(resource.data.get('userId', ''));
 
       allow create: if isSignedIn()
+        // Deterministic record ids start with their owner's Firebase uid.
+        // This is deliberately an id-prefix check, not an attendance get(), so
+        // manager Add record can still materialize an absent record.
+        && request.resource.data.get('attendanceId', '').split('_').size() > 1
+        && request.resource.data.get('attendanceId', '').split('_')[0] ==
+           request.resource.data.get('userId', '')
         && (
           // (a) employee self-files a pending correction for their own record
           (

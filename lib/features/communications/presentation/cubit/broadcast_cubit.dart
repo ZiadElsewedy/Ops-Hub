@@ -75,18 +75,20 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     _hasSnapshot = false;
     emit(const BroadcastState.loading());
     await _sub?.cancel();
-    _sub = _repository.watchBroadcasts(branchId: branchId).listen(
-      (broadcasts) {
-        _hasSnapshot = true;
-        emit(BroadcastState.loaded(broadcasts, sending: _sending));
-      },
-      onError: (Object e, StackTrace st) {
-        AppLog.error('communications', 'feed stream error', e, st);
-        // Only surface if no first snapshot arrived; otherwise keep the last
-        // good feed visible (mirrors TaskCubit / BranchOperationsCubit).
-        if (!_hasSnapshot) emit(BroadcastState.error(_message(e)));
-      },
-    );
+    _sub = _repository
+        .watchBroadcasts(branchId: branchId)
+        .listen(
+          (broadcasts) {
+            _hasSnapshot = true;
+            emit(BroadcastState.loaded(broadcasts, sending: _sending));
+          },
+          onError: (Object e, StackTrace st) {
+            AppLog.error('communications', 'feed stream error', e, st);
+            // Only surface if no first snapshot arrived; otherwise keep the last
+            // good feed visible (mirrors TaskCubit / BranchOperationsCubit).
+            if (!_hasSnapshot) emit(BroadcastState.error(_message(e)));
+          },
+        );
   }
 
   /// Sends a broadcast from [sender] to [audience]:
@@ -109,8 +111,11 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     String? targetUserId,
     String? targetUserBranchId,
     String category = 'general',
+    bool sendsPush = true,
+
     /// Recipient list for a [BroadcastAudience.custom] send.
     List<String> targetUserIds = const [],
+
     /// Restricts a branch/all send to one role (''/`all` = everyone).
     String roleFilter = '',
   }) async {
@@ -124,8 +129,9 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     }
 
     // Branch broadcasts default to the sender's own branch when unspecified.
-    final targetBranch =
-        (branchId ?? '').trim().isNotEmpty ? branchId!.trim() : (sender.branchId ?? '');
+    final targetBranch = (branchId ?? '').trim().isNotEmpty
+        ? branchId!.trim()
+        : (sender.branchId ?? '');
     final target = (targetUserId ?? '').trim();
 
     // Client-side permission guard (the function re-enforces it authoritatively).
@@ -164,6 +170,7 @@ class BroadcastCubit extends Cubit<BroadcastState> {
       branchId: audience == BroadcastAudience.branch ? targetBranch : null,
       targetUserId: audience == BroadcastAudience.user ? target : null,
       category: category.trim().isEmpty ? 'general' : category.trim(),
+      sendsPush: sendsPush,
     );
 
     final prev = _broadcasts;
@@ -171,8 +178,9 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     try {
       final sent = await _sendBroadcast(
         broadcast,
-        targetUserIds:
-            audience == BroadcastAudience.custom ? targetUserIds : const [],
+        targetUserIds: audience == BroadcastAudience.custom
+            ? targetUserIds
+            : const [],
         roleFilter: roleFilter,
       );
       // Keep the feed visible; the stream emits the new broadcast (branch/all).
@@ -194,18 +202,17 @@ class BroadcastCubit extends Cubit<BroadcastState> {
   Future<int?> repeatNow({
     required UserEntity sender,
     required BroadcastEntity source,
-  }) =>
-      send(
-        sender: sender,
-        title: source.title,
-        message: source.message,
-        audience: source.audience,
-        branchId: source.branchId,
-        targetUserId: source.targetUserId,
-        targetUserBranchId:
-            sender.role.isManager ? sender.branchId : null,
-        category: source.category,
-      );
+  }) => send(
+    sender: sender,
+    title: source.title,
+    message: source.message,
+    audience: source.audience,
+    branchId: source.branchId,
+    targetUserId: source.targetUserId,
+    targetUserBranchId: sender.role.isManager ? sender.branchId : null,
+    category: source.category,
+    sendsPush: source.sendsPush,
+  );
 
   /// Archives ([archived] true) / unarchives a broadcast. The feed stream
   /// re-emits with the updated flag; an error keeps the current feed visible.
