@@ -653,7 +653,7 @@
     },
     "chat": {
       "path": "lib/features/chat/",
-      "file_count": 56,
+      "file_count": 58,
       "layers": {
         "data:datasource": [
           "lib/features/chat/data/datasources/chat_remote_datasource.dart"
@@ -701,6 +701,8 @@
         ],
         "presentation:other": [
           "lib/features/chat/presentation/chat_attachment_picker.dart",
+          "lib/features/chat/presentation/chat_conversation_presence.dart",
+          "lib/features/chat/presentation/chat_deep_link_navigation.dart",
           "lib/features/chat/presentation/chat_document_service.dart",
           "lib/features/chat/presentation/chat_format.dart",
           "lib/features/chat/presentation/chat_message_preview.dart",
@@ -745,9 +747,11 @@
       "cloud_functions": [],
       "tests": [
         "test/chat_conversation_actions_test.dart",
+        "test/chat_conversation_presence_test.dart",
         "test/chat_conversation_tile_test.dart",
         "test/chat_conversation_view_test.dart",
         "test/chat_document_bubble_test.dart",
+        "test/chat_image_attachment_layout_test.dart",
         "test/chat_list_realtime_test.dart",
         "test/chat_message_delete_test.dart",
         "test/chat_nav_promotion_test.dart",

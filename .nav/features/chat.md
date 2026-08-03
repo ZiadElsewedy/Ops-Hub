@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `chat`
 
-> `lib/features/chat/` · **56 files** · layer-complete clean-architecture slice
+> `lib/features/chat/` · **58 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -42,6 +42,8 @@
 
 **presentation:other**
 - `lib/features/chat/presentation/chat_attachment_picker.dart`
+- `lib/features/chat/presentation/chat_conversation_presence.dart`
+- `lib/features/chat/presentation/chat_deep_link_navigation.dart`
 - `lib/features/chat/presentation/chat_document_service.dart`
 - `lib/features/chat/presentation/chat_format.dart`
 - `lib/features/chat/presentation/chat_message_preview.dart`
@@ -100,9 +102,11 @@
 
 ## Tests
 - `test/chat_conversation_actions_test.dart`
+- `test/chat_conversation_presence_test.dart`
 - `test/chat_conversation_tile_test.dart`
 - `test/chat_conversation_view_test.dart`
 - `test/chat_document_bubble_test.dart`
+- `test/chat_image_attachment_layout_test.dart`
 - `test/chat_list_realtime_test.dart`
 - `test/chat_message_delete_test.dart`
 - `test/chat_nav_promotion_test.dart`

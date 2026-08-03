@@ -284,9 +284,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
             return false;
           },
           // Opening a thread must land on the NEWEST message. A single
-          // jump-to-bottom on the first frame isn't enough: inline images have
-          // no known dimensions until they decode, so the content grows *after*
-          // that jump and the view is left stranded mid-history.
+          // jump-to-bottom on the first frame isn't always enough: viewport
+          // metrics can still change afterwards (for example keyboard or
+          // window resizing). Image thumbnails use a fixed footprint, so image
+          // decoding is deliberately no longer one of those changes.
           // ScrollMetricsNotification fires when the extent changes without a
           // user scroll — re-pin to the new bottom, but ONLY while the reader is
           // already at the bottom AND is not actively dragging (otherwise the
@@ -875,6 +876,11 @@ class _ImageAttachment extends StatefulWidget {
 }
 
 class _ImageAttachmentState extends State<_ImageAttachment> {
+  /// Deliberately the footprint a portrait photo ALREADY occupied (the former
+  /// `width: 240` + `maxHeight: 280`), so pinning the size buys scroll
+  /// stability without shrinking anyone's photos. The stability comes from the
+  /// box being fixed, not from it being small.
+  static const _thumbnailSize = Size(240, 280);
   Future<String?>? _url;
 
   @override
@@ -888,7 +894,7 @@ class _ImageAttachmentState extends State<_ImageAttachment> {
     final b = widget.bytes;
     final Widget content;
     if (b != null) {
-      content = Image.memory(b, width: 240, fit: BoxFit.cover);
+      content = Image.memory(b, fit: BoxFit.cover);
     } else if (_url != null) {
       content = FutureBuilder<String?>(
         future: _url,
@@ -902,7 +908,6 @@ class _ImageAttachmentState extends State<_ImageAttachment> {
           }
           return Image.network(
             url,
-            width: 240,
             fit: BoxFit.cover,
             gaplessPlayback: true,
             loadingBuilder: (context, child, progress) => progress == null
@@ -919,8 +924,13 @@ class _ImageAttachmentState extends State<_ImageAttachment> {
       tag: widget.heroTag,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 280),
+        // Attachment metadata deliberately has no image dimensions, so the
+        // true aspect ratio cannot be known before the download. A fixed
+        // thumbnail viewport is the only way to guarantee that decoding never
+        // changes a message row's layout. The full-screen viewer remains the
+        // uncropped route for the original photo.
+        child: SizedBox.fromSize(
+          size: _thumbnailSize,
           child: content,
         ),
       ),
@@ -937,8 +947,6 @@ class _ImagePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 240,
-      height: 150,
       color: AppColors.darkSurface,
       alignment: Alignment.center,
       child: loading
@@ -948,13 +956,18 @@ class _ImagePlaceholder extends StatelessWidget {
               child: CircularProgressIndicator(
                   strokeWidth: 2, color: AppColors.textTertiary),
             )
-          : const Column(
+          : Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.image_rounded,
+                const Icon(Icons.image_rounded,
                     size: 30, color: AppColors.textTertiary),
-                SizedBox(height: 6),
-                Text('Photo', style: TextStyle(color: AppColors.textTertiary)),
+                const SizedBox(height: 6),
+                Text(
+                  'Photo',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
               ],
             ),
     );

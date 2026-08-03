@@ -10,10 +10,13 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/chat/domain/entities/chat_message.dart';
+import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/chat/presentation/chat_format.dart';
 import 'package:drop/features/chat/presentation/chat_thread_args.dart';
+import 'package:drop/features/chat/presentation/chat_conversation_presence.dart';
 import 'package:drop/features/chat/presentation/cubit/chat_conversation_cubit.dart';
 import 'package:drop/features/chat/presentation/cubit/chat_conversation_state.dart';
+import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
 import 'package:drop/features/chat/presentation/pages/conversation_info_screen.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_conversation_view.dart';
 
@@ -39,8 +42,11 @@ class ChatConversationScreen extends StatefulWidget {
   State<ChatConversationScreen> createState() => _ChatConversationScreenState();
 }
 
-class _ChatConversationScreenState extends State<ChatConversationScreen> {
+class _ChatConversationScreenState extends State<ChatConversationScreen>
+    with WidgetsBindingObserver {
   late final ChatConversationCubit _cubit;
+  late final ChatConversationPresence _presence;
+  ChatThreadArgs? _resolvedArgs;
 
   // ── In-conversation search ──
   bool _searching = false;
@@ -59,17 +65,21 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     _cubit = AppDependencies.createChatConversationCubit(
       widget.conversationId,
       counterpartUserId: widget.args?.counterpartUserId,
+      manageRealtimeRoom: false,
     );
-    // Mark this conversation as the one on screen so the global in-app
-    // notification listener suppresses banners for it.
-    AppDependencies.activeChatConversation.value = widget.conversationId;
+    _presence = ChatConversationPresence(
+      conversationId: widget.conversationId,
+      realtime: AppDependencies.chatRealtime,
+      activeConversation: AppDependencies.activeChatConversation,
+    )..show();
+    WidgetsBinding.instance.addObserver(this);
+    _resolveHeader();
   }
 
   @override
   void dispose() {
-    if (AppDependencies.activeChatConversation.value == widget.conversationId) {
-      AppDependencies.activeChatConversation.value = null;
-    }
+    WidgetsBinding.instance.removeObserver(this);
+    _presence.dispose();
     _debounce?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
@@ -77,10 +87,78 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _presence.onLifecycleChanged(state);
+  }
+
+  ChatThreadArgs? get _headerArgs {
+    final instant = widget.args;
+    final resolved = _resolvedArgs;
+    if (instant == null) return resolved;
+    if (resolved == null) return instant;
+    return ChatThreadArgs(
+      counterpartUserId:
+          instant.counterpartUserId ?? resolved.counterpartUserId,
+      counterpartExternalId:
+          instant.counterpartExternalId ?? resolved.counterpartExternalId,
+      counterpartName: instant.counterpartName ?? resolved.counterpartName,
+      counterpartPhotoUrl:
+          instant.counterpartPhotoUrl ?? resolved.counterpartPhotoUrl,
+      counterpartRoleLine:
+          instant.counterpartRoleLine ?? resolved.counterpartRoleLine,
+    );
+  }
+
+  Future<void> _resolveHeader() async {
+    final list = context.read<ChatListCubit>();
+    final currentUser = context.currentUser;
+    var summary = list.conversationById(widget.conversationId);
+    if (summary == null) {
+      await list.load();
+      summary = list.conversationById(widget.conversationId);
+    }
+    if (summary == null) return;
+    final resolvedSummary = summary;
+
+    void apply(Map<String, UserEntity> directory) {
+      final user = resolvedSummary.counterpartExternalId == null
+          ? null
+          : directory[resolvedSummary.counterpartExternalId];
+      final role = user == null ? null : chatRoleLabel(user.role);
+      final position = user?.position?.trim();
+      final roleLine = role == null
+          ? null
+          : position == null || position.isEmpty
+          ? role
+          : '$position · $role';
+      final args = ChatThreadArgs(
+        counterpartUserId: resolvedSummary.counterpartUserId,
+        counterpartExternalId: resolvedSummary.counterpartExternalId,
+        counterpartName: chatDisplayName(
+          user,
+          fallbackId: resolvedSummary.counterpartUserId,
+        ),
+        counterpartPhotoUrl: user?.photoUrl,
+        counterpartRoleLine: roleLine,
+      );
+      if (mounted) setState(() => _resolvedArgs = args);
+    }
+
+    final snapshot = AppDependencies.chatDirectorySnapshot;
+    if (snapshot.isNotEmpty) apply(snapshot);
+    try {
+      apply(await AppDependencies.loadChatDirectory(currentUser));
+    } catch (_) {
+      // The summary remains a safe identity fallback; directory failures must
+      // never block opening a thread.
+    }
+  }
+
   String get _name {
-    final n = widget.args?.counterpartName?.trim();
+    final n = _headerArgs?.counterpartName?.trim();
     if (n != null && n.isNotEmpty) return n;
-    final id = widget.args?.counterpartUserId;
+    final id = _headerArgs?.counterpartUserId;
     return id == null ? 'Conversation' : chatCounterpartLabel(id);
   }
 
@@ -88,8 +166,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   void _openSearch() {
     setState(() => _searching = true);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _searchFocus.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _searchFocus.requestFocus(),
+    );
   }
 
   void _closeSearch() {
@@ -124,8 +203,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
     return [
       for (final m in messages)
-        if (!m.deletedForEveryone &&
-            (m.body ?? '').toLowerCase().contains(q))
+        if (!m.deletedForEveryone && (m.body ?? '').toLowerCase().contains(q))
           m.id,
     ];
   }
@@ -138,9 +216,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   void _jump(int delta, int count) {
     if (count == 0) return;
-    setState(() => _matchIndex = (_matchIndex + delta) % count < 0
-        ? (_matchIndex + delta) % count + count
-        : (_matchIndex + delta) % count);
+    setState(
+      () => _matchIndex = (_matchIndex + delta) % count < 0
+          ? (_matchIndex + delta) % count + count
+          : (_matchIndex + delta) % count,
+    );
   }
 
   // ── Menu actions ──────────────────────────────────────────────────────────
@@ -150,8 +230,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     ConversationInfoScreen.push(
       context,
       name: _name,
-      photoUrl: widget.args?.counterpartPhotoUrl,
-      counterpartExternalId: widget.args?.counterpartExternalId,
+      photoUrl: _headerArgs?.counterpartPhotoUrl,
+      counterpartExternalId: _headerArgs?.counterpartExternalId,
       mediaCount: counts.media,
       documentCount: counts.documents,
       muted: _muted,
@@ -170,7 +250,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   Future<void> _confirmClear() async {
     final ok = await _confirmDestructive(
       title: 'Clear chat history?',
-      body: 'This removes every message from your view only — the other person '
+      body:
+          'This removes every message from your view only — the other person '
           'still has their copy. This cannot be undone.',
       confirmLabel: 'Clear',
     );
@@ -182,7 +263,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   Future<void> _confirmDelete() async {
     final ok = await _confirmDestructive(
       title: 'Delete conversation?',
-      body: 'This clears the conversation for you and closes it. The other '
+      body:
+          'This clears the conversation for you and closes it. The other '
           'person keeps their copy. This cannot be undone.',
       confirmLabel: 'Delete',
     );
@@ -240,7 +322,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     onSubmitted: () => _jump(1, matches.length),
                   )
                 : _Header(
-                    name: _name, photoUrl: widget.args?.counterpartPhotoUrl),
+                    name: _name,
+                    photoUrl: _headerArgs?.counterpartPhotoUrl,
+                    roleLine: _headerArgs?.counterpartRoleLine,
+                  ),
             leading: _searching
                 ? IconButton(
                     tooltip: 'Close search',
@@ -248,15 +333,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     onPressed: _closeSearch,
                   )
                 : null,
-            actions: _searching
-                ? _searchActions(matches)
-                : _menuActions(),
+            actions: _searching ? _searchActions(matches) : _menuActions(),
             bottom: _searching && _searchQuery.isNotEmpty && matches.isEmpty
                 ? const _NoMatchesBar()
                 : null,
             contentMaxWidth: 820,
             body: ChatConversationView(
-              counterpartName: widget.args?.counterpartName,
+              counterpartName: _headerArgs?.counterpartName,
               attachmentSource: AppDependencies.chatAttachmentSource,
               searchQuery: _searching ? _searchQuery : null,
               activeMatchId: activeId,
@@ -276,8 +359,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
               '${_matchIndex.clamp(0, count - 1) + 1}/$count',
-              style: AppTypography.caption
-                  .copyWith(color: AppColors.textSecondary),
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         ),
@@ -303,8 +387,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       ),
       PopupMenuButton<_ConvMenu>(
         tooltip: 'Conversation options',
-        icon: const Icon(Icons.more_vert_rounded,
-            color: AppColors.textSecondary),
+        icon: const Icon(
+          Icons.more_vert_rounded,
+          color: AppColors.textSecondary,
+        ),
         color: AppColors.darkSurfaceElevated,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -325,10 +411,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           }
         },
         itemBuilder: (context) => [
-          _menuItem(_ConvMenu.info, Icons.info_outline_rounded,
-              'Conversation info'),
-          _menuItem(_ConvMenu.search, Icons.search_rounded,
-              'Search in conversation'),
+          _menuItem(
+            _ConvMenu.info,
+            Icons.info_outline_rounded,
+            'Conversation info',
+          ),
+          _menuItem(
+            _ConvMenu.search,
+            Icons.search_rounded,
+            'Search in conversation',
+          ),
           _menuItem(
             _ConvMenu.mute,
             _muted
@@ -336,11 +428,17 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                 : Icons.notifications_none_rounded,
             _muted ? 'Unmute conversation' : 'Mute conversation',
           ),
-          _menuItem(_ConvMenu.clear, Icons.cleaning_services_outlined,
-              'Clear chat history'),
-          _menuItem(_ConvMenu.delete, Icons.delete_outline_rounded,
-              'Delete conversation',
-              destructive: true),
+          _menuItem(
+            _ConvMenu.clear,
+            Icons.cleaning_services_outlined,
+            'Clear chat history',
+          ),
+          _menuItem(
+            _ConvMenu.delete,
+            Icons.delete_outline_rounded,
+            'Delete conversation',
+            destructive: true,
+          ),
         ],
       ),
     ];
@@ -429,9 +527,10 @@ class _NoMatchesBar extends StatelessWidget implements PreferredSizeWidget {
 
 /// Avatar + name lockup for the thread app bar.
 class _Header extends StatelessWidget {
-  const _Header({required this.name, this.photoUrl});
+  const _Header({required this.name, this.photoUrl, this.roleLine});
   final String name;
   final String? photoUrl;
+  final String? roleLine;
 
   @override
   Widget build(BuildContext context) {
@@ -441,10 +540,27 @@ class _Header extends StatelessWidget {
         UserAvatar(imageUrl: photoUrl, name: name, size: 32),
         const SizedBox(width: AppSpacing.sm),
         Flexible(
-          child: Text(name,
-              style: AppTypography.h3,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: AppTypography.h3,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (roleLine != null)
+                Text(
+                  roleLine!,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
         ),
       ],
     );

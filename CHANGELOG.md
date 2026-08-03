@@ -184,6 +184,126 @@ Task Details (app bar + body headline). Re-verified on the iPhone 17 simulator.
 Gates: analyze clean (1 pre-existing test-style info) · Dart **1479 pass / 0
 fail**. Verified on the iPhone 17 simulator; the desktop tier is covered by the
 widget test rather than a screenshot.
+## 2026-08-03 — Chat stability & UX audit (bug; HIGH risk)
+
+**Uncommitted.** Six reported defects, each traced to a root cause rather than
+patched. The through-line: chat had grown two of everything — two delivery paths
+(socket + FCM), two identity sources (route args + directory), two notions of
+"the user is here" — and each pair had drifted.
+
+- **Header said "Conversation" (bug).** The FCM tap navigated with no `extra`,
+  so `ChatThreadArgs` was null and the title fell through to a hardcoded string.
+  Route args are now a **first-paint optimization, not the source of truth**: the
+  thread resolves its own name/avatar/role from the inbox summary + session
+  directory, so *every* entry point renders a real identity — including ones
+  that never carried args. Presence/online is still deliberately absent; the
+  backend has none and DROP does not fabricate it.
+- **Deep link re-initialized repeatedly (bug).** Two causes. The tap always
+  `push`ed, so tapping a notification for the thread already on screen stacked a
+  second screen **and a second cubit**, doubling loads, subscriptions and
+  rebuilds. And `load()` could emit a full-screen `loading` **over already-painted
+  cached content** — the "messages appear, disappear, appear" flicker. Chat deep
+  links are now idempotent, and a skeleton may never replace painted content.
+- **Back was trapped (bug).** `push` appended the thread to whatever stack
+  existed — on a cold start, nothing. Chat taps now build `thread ← inbox ← home`.
+  The other five routes keep their existing behaviour.
+- **Scroll jumped (bug).** Not ordering, keys or diffing — those were already
+  correct. `_ImagePlaceholder` reserved a hard **240×150** while the decoded image
+  sized to its own aspect ratio capped at 280, so a portrait photo **grew the row
+  ~130px the instant it decoded** and shoved every row below it. Image bubbles now
+  occupy one fixed viewport in every state. Size chosen as **240×280 — the
+  footprint a portrait photo already had** — because the stability comes from the
+  box being *fixed*, not from it being *small*; an earlier 240×150 draft would have
+  silently shrunk every photo to a cropped landscape thumbnail. The full-screen
+  viewer remains the uncropped path.
+- **No push while backgrounded (bug — a regression from the push feature above).**
+  Nothing in the app observed `AppLifecycleState`, so a backgrounded app kept its
+  socket in `conversation:{id}` and the server's "they're reading it" suppression
+  correctly skipped the push. The suppression was right; **the client was lying to
+  it.** New `ChatConversationPresence` makes presence honest — resume joins,
+  inactive/hidden/paused/detached leave — using the `conversation:leave` event
+  **both sides already implemented**, so no protocol or backend change. The cubit
+  takes `manageRealtimeRoom: false` so presence is the single owner of the room.
+- **Refetching (bug).** `getAttachmentDownloadUrl` was a bare network
+  pass-through, while the entity it returns already modelled `expiresAt`/
+  `isExpired` — built to be cached, never cached. So every scroll-back minted a
+  *new signed URL*, which meant Flutter's URL-keyed `ImageCache` missed and
+  re-downloaded the whole image. The repository now caches until expiry and
+  coalesces concurrent requests; a stable URL lets the framework's own cache work.
+  **No new dependency** — `cached_network_image` was rejected because a plugin
+  means `pod install` and risk to the iOS build under active device testing. The
+  cache is dropped on sign-out beside the other chat wipes: brokered URLs are
+  short-lived **credentials**, and a shared device must not carry them over.
+
+Audited and found **already correct** (left alone, which is the point): message
+ordering/dedup/optimistic slots, row `ValueKey`s, the lazy `ListView.builder`, the
+session-cached chat directory, and the Drift contract (metadata only, never image
+bytes).
+
+Gates: analyze 1 pre-existing info · **1487 pass / 0 fail**.
+
+> ⚠️ **Not device-verified.** The back-stack behaviour is the weakest claim: `go`
+> then `push` across a shell route has no test coverage and behaves differently at
+> runtime, especially on a cold start where an auth redirect can land between the
+> two calls. **Verify by hand:** kill the app, open a chat from a notification,
+> then press Back twice.
+
+## 2026-08-03 — Chat push notifications (feature; MED risk)
+
+**Uncommitted, and gated on a Railway deploy of `drop-api`.** Chat notifications
+did not exist. The only surface was `ChatNotificationListener`, a socket-driven
+in-app SnackBar that needs the app foregrounded and connected — background or
+kill the app and a chat message reached the user **nowhere**. Three independent
+confirmations: no chat push code in `functions/index.js`, no messaging code at
+all in the chat backend, and `NotificationRoute` had no chat value, so even a
+correctly-formed chat push would resolve to `null` and open the inbox.
+
+- **Backend (`drop-api`, uncommitted).** `ChatPushSubscriber` listens to the
+  same `MessageSentEvent` as `ChatRealtimeSubscriber` — the sibling seam both
+  that class's doc and `RealtimeModule`'s doc already named. New
+  `PushNotificationPort` + `FirebasePushAdapter` keep `firebase-admin` confined
+  to `src/platform/firebase/` (a documented rule), so the subscriber talks to a
+  port and never to the SDK. Device tokens are read from the Flutter project's
+  `users/{uid}.fcmTokens` with the service account the backend already holds;
+  dead tokens are pruned on `registration-token-not-registered` /
+  `invalid-registration-token`. Delivery is best-effort like its realtime
+  sibling — a push failure can never fail or block a committed send.
+- **Presence, the WhatsApp rule.** The push is suppressed only when the
+  recipient actually has *that conversation* on screen (new
+  `ChatGateway.isUserInRoom`, additive — `broadcast()` untouched). A recipient
+  who is connected but elsewhere in the app **still gets the push**; that
+  distinction is the difference between correct and annoying.
+- **The push says who it is from.** Title resolves
+  `displayName → fullName → email → 'New message'` from the same `users/{uid}`
+  document the adapter already reads for tokens — one extra field, no schema
+  change, no new column.
+- **Client.** `NotificationRoute.chat = 'chat_message'` plus its branch in the
+  shared resolver — no role gate (chat is available to everyone), falling back
+  to `/chat` when a malformed push carries no `conversationId`, mirroring the
+  existing cases/requests behaviour. `resolveNotificationRoute` stays pure.
+- **Foreground de-duplication.** Chat is now the only route with **two**
+  delivery paths, so both could fire for one message. Exactly one surface wins
+  per platform and the two suppressions are exact opposites: Apple keeps the OS
+  banner (the socket listener stands down via the new
+  `suppressesInAppChatBanner`), Android keeps the in-app banner (the chat FCM is
+  dropped before `onForeground`). **This deliberately preserves the pre-existing
+  app-wide rule** — no other notification type changed foreground behaviour.
+  An earlier draft achieved de-duplication by disabling iOS foreground
+  presentation *globally*, which would have silently changed how task,
+  attendance, case, request and broadcast pushes appear on iOS; that was
+  reverted in favour of the chat-only fix.
+
+Gates: analyze 1 pre-existing info · Dart **1481 pass / 0 fail** (+9) ·
+`drop-api` **105 pass / 0 fail** (+21) · `nest build` clean.
+
+> ⚠️ **Not device-verified, and inert until `drop-api` ships to Railway.** The
+> client half is live-safe on its own (an unknown route was already a guarded
+> no-op), but no push will arrive until the server half is deployed.
+>
+> Still fake, and out of scope for this pass: the **mute toggle** in
+> `chat_conversation_screen.dart` is a local `bool` that never persists and
+> resets on close. Now that chat actually pushes, a mute that does nothing is
+> materially worse than before it did.
 
 ---
 
