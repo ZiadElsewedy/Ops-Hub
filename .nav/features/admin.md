@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `admin`
 
-> `lib/features/admin/` · **22 files** · layer-complete clean-architecture slice
+> `lib/features/admin/` · **21 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -43,7 +43,6 @@
 - `lib/features/admin/presentation/widgets/user_inspector_panel.dart`
 
 **presentation:other**
-- `lib/features/admin/presentation/dashboard_mood.dart`
 - `lib/features/admin/presentation/employee_metrics.dart`
 
 **domain:entity**
@@ -69,6 +68,7 @@
 - `test/admin_dashboard_today_strip_test.dart`
 - `test/admin_task_overview_screen_test.dart`
 - `test/attendance_admin_direct_action_test.dart`
+- `test/attendance_admin_workspace_bootstrap_test.dart`
 - `test/user_admin_update_details_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)

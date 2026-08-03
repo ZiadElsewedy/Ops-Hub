@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `attendance`
 
-> `lib/features/attendance/` · **93 files** · layer-complete clean-architecture slice
+> `lib/features/attendance/` · **95 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -14,6 +14,7 @@
 | `RouteNames.attendanceHistory` | `/attendance/history` |  |
 | `RouteNames.attendanceRecordPattern` | `/attendance/record/:id` |  |
 | `RouteNames.attendanceReports` | `/attendance/reports` |  |
+| `RouteNames.attendanceReportsHub` | `/attendance/reports/hub` |  |
 | `RouteNames.attendanceMonthlyPattern` | `/attendance/reports/monthly/:periodId` |  |
 | `RouteNames.attendanceWeeklyPattern` | `/attendance/reports/weekly/:periodId` |  |
 | `RouteNames.attendanceReview` | `/attendance/review` |  |
@@ -96,11 +97,13 @@
 - `lib/features/attendance/domain/attendance_config.dart`
 - `lib/features/attendance/domain/attendance_feed.dart`
 - `lib/features/attendance/domain/attendance_gps.dart`
+- `lib/features/attendance/domain/attendance_history_gap.dart`
 - `lib/features/attendance/domain/attendance_history_query.dart`
 - `lib/features/attendance/domain/attendance_id.dart`
 - `lib/features/attendance/domain/attendance_location.dart`
 - `lib/features/attendance/domain/attendance_location_service.dart`
 - `lib/features/attendance/domain/attendance_resolution.dart`
+- `lib/features/attendance/domain/attendance_review_link.dart`
 - `lib/features/attendance/domain/attendance_service.dart`
 - `lib/features/attendance/domain/attendance_validation.dart`
 - `lib/features/attendance/domain/attendance_write_outcome.dart`
@@ -146,6 +149,7 @@
 - `test/admin_attendance_overview_test.dart`
 - `test/attendance_action_sheet_test.dart`
 - `test/attendance_admin_direct_action_test.dart`
+- `test/attendance_admin_workspace_bootstrap_test.dart`
 - `test/attendance_analytics_test.dart`
 - `test/attendance_board_test.dart`
 - `test/attendance_break_test.dart`
@@ -154,6 +158,7 @@
 - `test/attendance_correction_validation_test.dart`
 - `test/attendance_coverage_status_test.dart`
 - `test/attendance_cubit_test.dart`
+- `test/attendance_daily_review_bootstrap_test.dart`
 - `test/attendance_daily_review_test.dart`
 - `test/attendance_entity_test.dart`
 - `test/attendance_exception_test.dart`
@@ -161,6 +166,7 @@
 - `test/attendance_export_gate_test.dart`
 - `test/attendance_gps_test.dart`
 - `test/attendance_history_cubit_test.dart`
+- `test/attendance_history_gap_test.dart`
 - `test/attendance_history_query_test.dart`
 - `test/attendance_history_widgets_test.dart`
 - `test/attendance_id_test.dart`
@@ -170,6 +176,7 @@
 - `test/attendance_monthly_report_screen_test.dart`
 - `test/attendance_monthly_report_test.dart`
 - `test/attendance_period_test.dart`
+- `test/attendance_person_drilldown_test.dart`
 - `test/attendance_report_cubit_test.dart`
 - `test/attendance_report_ledger_test.dart`
 - `test/attendance_report_metrics_test.dart`
@@ -179,6 +186,7 @@
 - `test/attendance_status_filter_test.dart`
 - `test/attendance_status_test.dart`
 - `test/attendance_timesheet_csv_test.dart`
+- `test/attendance_today_screen_test.dart`
 - `test/attendance_validation_test.dart`
 - `test/attendance_week_review_test.dart`
 - `test/attendance_weekly_pdf_test.dart`

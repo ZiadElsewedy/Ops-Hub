@@ -191,7 +191,7 @@ features' cubits.
 | `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (49 routes) |
 | `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
-| `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` |
+| `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
 
 **`core/` is feature-neutral except `app_shell.dart`, the existing
@@ -381,8 +381,15 @@ colour.
 | Buttons | `AppButton` (`primary`/`secondary`/`ghost`, built-in `isLoading`) · `PremiumButton` (compact inline) |
 | Card surface | `GlassContainer` — the shared gradient/border/depth surface |
 | Page header | `PageHero` (eyebrow · title · subtitle · one CTA) |
+| A hero's one CTA | `PrimaryCta` (filled monochrome, hover-lift/press-scale) |
+| A hero's live state line | `HeroMood` + `dashboardMood(needsAttention:)` |
+| "Act on these first" | `AttentionPanel` + `AttentionSignal` — ONE grouped box: triage rows most-urgent-first, cleared ones in a footer, all-clear summary at zero, one living border |
+| "Everything else" doors | `DigestPanel` + `DigestEntry` (a figure is optional) |
+| Dashboard refresh control | `SyncButton` (+ pure `syncLabel`) |
+| Desktop ⌘K discoverability | `CommandHint` |
 | Triage cell | `AttentionTile` (monochrome at zero, tints only when there's work) |
-| Fact row | `StatStrip` |
+| Tappable figure cell | `MetricTile` + `MetricTileRow` — **every tile must open a list**; never draw an inert cell beside tappable ones |
+| Fact row | `StatStrip` (read-only facts; if a cell should drill, use `MetricTile`) |
 | Feed row | `ActivityCard` |
 | Status pill | `StatusBadge` (`.task` is canonical) |
 | Task card edge | `TaskAttentionSurface` + `taskAttentionTone` (Employee Home) |

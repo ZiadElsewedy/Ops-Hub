@@ -108,8 +108,10 @@
 - `test/chat_nav_promotion_test.dart`
 - `test/chat_new_conversation_test.dart`
 - `test/chat_offline_cache_test.dart`
+- `test/chat_preview_cache_test.dart`
 - `test/chat_realtime_sync_test.dart`
 - `test/chat_screen_test.dart`
+- `test/chat_served_preview_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)
 ```

@@ -130,6 +130,18 @@ void main() {
       find.descendant(of: find.byType(AppBar), matching: find.byType(DropLogo)),
       findsOneWidget,
     );
-    expect(find.text('Dashboard'), findsOneWidget);
+    // The role word is no longer drawn beside the mark — it was the first thing
+    // a crowded action cluster truncated ("Mana…") and each home's hero already
+    // names the user and their scope. It survives as the bar's accessible label.
+    expect(find.text('Dashboard'), findsNothing);
+    expect(
+      tester.getSemantics(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(DropLogo),
+        ),
+      ),
+      matchesSemantics(label: 'Dashboard', isHeader: true, isImage: true),
+    );
   });
 }

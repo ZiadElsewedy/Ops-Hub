@@ -104,6 +104,49 @@ collection (safe at 100 branches / 5,000 employees / multi-tenant).
   trailing · meta`). The V2 replacement for the horizontal "spreadsheet" feed;
   generic slots, feature code maps its entity onto them.
 
+### Command-center chrome (shared 2026-08-03)
+
+These were private classes inside `admin_dashboard_screen.dart` until Manager
+Home became a second caller. They are the **whole** dashboard language — a role
+home should compose them and derive its own counts, never re-draw them.
+
+- **`PrimaryCta`** — a hero's one filled monochrome action (hover-lift,
+  press-scale, key-light shadow). At most **one** per screen.
+- **`HeroMood`** + `dashboardMood(needsAttention:)` (`core/utils/`) — the hero's
+  one live state sentence beside a breathing pulse dot, plus the quiet scope
+  line. Pure derivation from a single total, so the sentence and the attention
+  layer below it **cannot disagree**.
+- **`AttentionPanel`** / **`AttentionSignal`** — the dominant "act on these
+  first" layer: ONE grouped box that never moves. Signals are passed in urgency
+  order; those with work render as triage rows (glyph · label + sublabel ·
+  counting-up figure · chevron), the cleared ones collapse into a single quiet
+  footer, and at zero the whole box becomes an all-clear summary whose proof
+  line (`0 late · 0 pending review · …`) is **derived from the signals given**,
+  never hardcoded. A fresh signal slides in as a *row*; one unified
+  `LiveStatusBorder` orbits the box, reading the most-urgent signal's tone.
+- **`DigestPanel`** / **`DigestEntry`** — the quiet "everything else" layer: one
+  grouped surface of module doors. Rows report a figure, they never count up,
+  pulse, or wear a living border — anything needing a decision belongs in the
+  attention panel above. `DigestEntry.value` is optional so a door with no
+  honest number renders label + chevron instead of a placeholder dash.
+- **`SyncButton`** (+ pure `syncLabel`) — the manual refresh escape hatch and
+  the "Synced 3m ago" freshness label. Dashboards stay live without it.
+  ⚠️ It drives a 30s `Timer.periodic`, so a widget test hosting a hero **must
+  unmount the tree**; `pumpAndSettle` will hang on the pulse dot by design.
+- **`CommandHint`** — the desktop "Search or run a command ⌘K" pill, so the
+  palette is discoverable rather than merely known.
+- **`MetricTile`** / **`MetricTileRow`** — the light, **always tappable** figure
+  cell: a counting-up number, a glyph + label, and an `arrow_outward`
+  affordance, laid out one row on desktop and 2-up on mobile. The quieter
+  sibling of `AttentionTile` (which is the *triage* layer and rewards a cleared
+  queue with a reassurance instead of a number); a `MetricTile` always shows its
+  figure, because its job is a fact you can open.
+  **Every tile opens something.** A figure no list can reproduce does not belong
+  here — a cell identical to its tappable neighbours that does nothing is worse
+  than one that isn't drawn. Where a count and its drill-down could disagree,
+  derive the count with the same predicate the drill-down filters on (Manager
+  Home's `Due today` counts with the very `applyFeed` call its list renders).
+
 ## Navigation — preview, never lose context
 
 **Pattern:** tap → **preview sheet** → optional **full details** → back to exactly

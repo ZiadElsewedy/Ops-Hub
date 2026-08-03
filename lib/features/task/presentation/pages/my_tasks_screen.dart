@@ -19,7 +19,7 @@ import 'package:drop/features/task/presentation/activity_format.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/pages/task_details_screen.dart';
-import 'package:drop/features/task/presentation/widgets/live_status_border.dart';
+import 'package:drop/core/widgets/live_status_border.dart';
 import 'package:drop/features/task/presentation/widgets/task_card.dart';
 import 'package:drop/features/task/presentation/widgets/task_empty_state.dart';
 

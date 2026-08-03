@@ -201,8 +201,11 @@ void main() {
     await tester.pumpWidget(_detailsHost(taskCubit, task));
     await tester.pumpAndSettle();
 
-    // Visible, named, and explained — never hidden.
-    expect(find.text('Open the cold case'), findsOneWidget);
+    // Visible, named, and explained — never hidden. The title now renders
+    // twice on Task Details: the app-bar label and, since 2026-08-03, the
+    // body headline — the page used to open on a status pill and a wall of
+    // metadata chips without ever saying what the task was.
+    expect(find.text('Open the cold case'), findsNWidgets(2));
     expect(find.text('Start Task'), findsOneWidget);
     expect(find.text(_reason(startsAt)), findsOneWidget);
     // An upcoming task is not a failing one.

@@ -15,7 +15,7 @@ import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_outcomes.dart';
 import 'package:drop/features/task/presentation/activity_format.dart';
-import 'package:drop/features/task/presentation/widgets/live_status_border.dart';
+import 'package:drop/core/widgets/live_status_border.dart';
 import 'package:drop/features/task/presentation/widgets/task_badge.dart';
 import 'package:drop/features/task/presentation/widgets/task_surface.dart';
 

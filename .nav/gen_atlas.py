@@ -4,7 +4,12 @@ plus per-feature mechanical inventory cards. Judgment sections are hand-authored
 elsewhere; this only emits what is *derivable from the code* so it never fabricates."""
 import os, re, json, subprocess, pathlib, collections
 
-ROOT = pathlib.Path("/Users/ziad/Desktop/Developer/Projects/Flutter Projects/fbro")
+# Resolve from this script's own location, never a hardcoded absolute path: the
+# repo is worked in through git worktrees under `.claude/worktrees/`, and an
+# absolute ROOT made every run from a worktree silently regenerate the MAIN
+# checkout's cards from the MAIN checkout's code — dirtying a tree nobody was
+# editing while leaving the worktree's own cards stale.
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 NAV = ROOT / ".nav"
 (NAV / "features").mkdir(parents=True, exist_ok=True)
 
@@ -197,6 +202,23 @@ def card(f):
     A("_TODO: sibling features, shared core widgets, ADRs._")
     return "\n".join(L)
 
+HAND_MARKER = "<!-- ═══════════════ HAND-AUTHORED INTELLIGENCE (edit freely) ═══════════════ -->"
+
+def write_card(path, fresh):
+    """Rewrite the mechanical half, **keep whatever a human wrote below the
+    marker**. The header has always promised this ("Do not delete that section")
+    but the generator used to emit the TODO placeholders unconditionally, so
+    every regeneration silently erased the judgment the ATLAS protocol tells
+    agents to read first — which is why the cards were a field of TODOs."""
+    if path.exists():
+        old = path.read_text()
+        if HAND_MARKER in old:
+            kept = old.split(HAND_MARKER, 1)[1]
+            # Only carry it over when it holds more than the seeded TODOs.
+            if kept.replace("_TODO", "").count("##") and "_TODO:" not in kept:
+                fresh = fresh.split(HAND_MARKER, 1)[0] + HAND_MARKER + kept
+    path.write_text(fresh)
+
 for f in features:
-    (NAV / "features" / f"{f}.md").write_text(card(f))
+    write_card(NAV / "features" / f"{f}.md", card(f))
 print("wrote", len(features), "feature cards")

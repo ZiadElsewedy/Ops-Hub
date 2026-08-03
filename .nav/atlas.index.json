@@ -87,7 +87,9 @@
     "ADR-016-task-start-gate.md",
     "ADR-017-attendance-reporting-ledger.md",
     "ADR-018-unscheduled-clock-in.md",
-    "ADR-019-operational-exports-and-week-review.md"
+    "ADR-019-operational-exports-and-week-review.md",
+    "ADR-020-location-policy-is-real.md",
+    "ADR-021-attendance-today-first.md"
   ],
   "design_specs": [
     "ATTENDANCE.md",
@@ -113,7 +115,7 @@
   "features": {
     "admin": {
       "path": "lib/features/admin/",
-      "file_count": 22,
+      "file_count": 21,
       "layers": {
         "data:datasource": [
           "lib/features/admin/data/datasources/user_admin_remote_datasource.dart"
@@ -133,7 +135,6 @@
           "lib/features/admin/presentation/cubit/admin_users_state.freezed.dart"
         ],
         "presentation:other": [
-          "lib/features/admin/presentation/dashboard_mood.dart",
           "lib/features/admin/presentation/employee_metrics.dart"
         ],
         "presentation:page": [
@@ -177,13 +178,14 @@
         "test/admin_dashboard_today_strip_test.dart",
         "test/admin_task_overview_screen_test.dart",
         "test/attendance_admin_direct_action_test.dart",
+        "test/attendance_admin_workspace_bootstrap_test.dart",
         "test/user_admin_update_details_test.dart"
       ],
       "design_specs": []
     },
     "attendance": {
       "path": "lib/features/attendance/",
-      "file_count": 93,
+      "file_count": 95,
       "layers": {
         "data:datasource": [
           "lib/features/attendance/data/datasources/attendance_remote_datasource.dart",
@@ -210,11 +212,13 @@
           "lib/features/attendance/domain/attendance_config.dart",
           "lib/features/attendance/domain/attendance_feed.dart",
           "lib/features/attendance/domain/attendance_gps.dart",
+          "lib/features/attendance/domain/attendance_history_gap.dart",
           "lib/features/attendance/domain/attendance_history_query.dart",
           "lib/features/attendance/domain/attendance_id.dart",
           "lib/features/attendance/domain/attendance_location.dart",
           "lib/features/attendance/domain/attendance_location_service.dart",
           "lib/features/attendance/domain/attendance_resolution.dart",
+          "lib/features/attendance/domain/attendance_review_link.dart",
           "lib/features/attendance/domain/attendance_service.dart",
           "lib/features/attendance/domain/attendance_validation.dart",
           "lib/features/attendance/domain/attendance_write_outcome.dart",
@@ -306,6 +310,7 @@
       "routes": {
         "attendance": "/attendance",
         "attendanceReports": "/attendance/reports",
+        "attendanceReportsHub": "/attendance/reports/hub",
         "attendanceWeeklyPattern": "/attendance/reports/weekly/:periodId",
         "attendanceMonthlyPattern": "/attendance/reports/monthly/:periodId",
         "attendanceDailyReviewPattern": "/attendance/daily/:branchId/:dayKey",
@@ -331,6 +336,7 @@
         "test/admin_attendance_overview_test.dart",
         "test/attendance_action_sheet_test.dart",
         "test/attendance_admin_direct_action_test.dart",
+        "test/attendance_admin_workspace_bootstrap_test.dart",
         "test/attendance_analytics_test.dart",
         "test/attendance_board_test.dart",
         "test/attendance_break_test.dart",
@@ -339,6 +345,7 @@
         "test/attendance_correction_validation_test.dart",
         "test/attendance_coverage_status_test.dart",
         "test/attendance_cubit_test.dart",
+        "test/attendance_daily_review_bootstrap_test.dart",
         "test/attendance_daily_review_test.dart",
         "test/attendance_entity_test.dart",
         "test/attendance_exception_test.dart",
@@ -346,6 +353,7 @@
         "test/attendance_export_gate_test.dart",
         "test/attendance_gps_test.dart",
         "test/attendance_history_cubit_test.dart",
+        "test/attendance_history_gap_test.dart",
         "test/attendance_history_query_test.dart",
         "test/attendance_history_widgets_test.dart",
         "test/attendance_id_test.dart",
@@ -355,6 +363,7 @@
         "test/attendance_monthly_report_screen_test.dart",
         "test/attendance_monthly_report_test.dart",
         "test/attendance_period_test.dart",
+        "test/attendance_person_drilldown_test.dart",
         "test/attendance_report_cubit_test.dart",
         "test/attendance_report_ledger_test.dart",
         "test/attendance_report_metrics_test.dart",
@@ -364,6 +373,7 @@
         "test/attendance_status_filter_test.dart",
         "test/attendance_status_test.dart",
         "test/attendance_timesheet_csv_test.dart",
+        "test/attendance_today_screen_test.dart",
         "test/attendance_validation_test.dart",
         "test/attendance_week_review_test.dart",
         "test/attendance_weekly_pdf_test.dart",
@@ -743,8 +753,10 @@
         "test/chat_nav_promotion_test.dart",
         "test/chat_new_conversation_test.dart",
         "test/chat_offline_cache_test.dart",
+        "test/chat_preview_cache_test.dart",
         "test/chat_realtime_sync_test.dart",
-        "test/chat_screen_test.dart"
+        "test/chat_screen_test.dart",
+        "test/chat_served_preview_test.dart"
       ],
       "design_specs": []
     },
@@ -863,8 +875,10 @@
       "cloud_functions": [],
       "tests": [
         "test/employee_card_test.dart",
+        "test/employee_home_stat_strip_test.dart",
         "test/employee_metrics_test.dart",
-        "test/employee_week_stats_test.dart"
+        "test/employee_week_stats_test.dart",
+        "test/manager_home_test.dart"
       ],
       "design_specs": []
     },
@@ -885,7 +899,9 @@
       },
       "collections": [],
       "cloud_functions": [],
-      "tests": [],
+      "tests": [
+        "test/manager_home_test.dart"
+      ],
       "design_specs": []
     },
     "notifications": {
@@ -1259,6 +1275,7 @@
         "test/task_model_schedule_test.dart",
         "test/task_model_shift_test.dart",
         "test/task_schedule_test.dart",
+        "test/task_shift_stream_binding_test.dart",
         "test/weekly_schedule_model_test.dart"
       ],
       "design_specs": [
@@ -1268,16 +1285,18 @@
     },
     "settings": {
       "path": "lib/features/settings/",
-      "file_count": 2,
+      "file_count": 3,
       "layers": {
         "presentation:page": [
+          "lib/features/settings/presentation/pages/about_page.dart",
           "lib/features/settings/presentation/pages/change_password_page.dart",
           "lib/features/settings/presentation/pages/settings_page.dart"
         ]
       },
       "routes": {
         "settings": "/settings",
-        "changePassword": "/settings/change-password"
+        "changePassword": "/settings/change-password",
+        "about": "/settings/about"
       },
       "collections": [],
       "cloud_functions": [],
@@ -1328,7 +1347,7 @@
     },
     "task": {
       "path": "lib/features/task/",
-      "file_count": 101,
+      "file_count": 100,
       "layers": {
         "data:datasource": [
           "lib/features/task/data/datasources/task_remote_datasource.dart"
@@ -1422,7 +1441,6 @@
           "lib/features/task/presentation/widgets/attachment_picker.dart",
           "lib/features/task/presentation/widgets/attachment_viewer.dart",
           "lib/features/task/presentation/widgets/dynamic_work_form.dart",
-          "lib/features/task/presentation/widgets/live_status_border.dart",
           "lib/features/task/presentation/widgets/manager_task_card.dart",
           "lib/features/task/presentation/widgets/recent_activity_feed.dart",
           "lib/features/task/presentation/widgets/recurring_shift_task_sheets.dart",
@@ -1474,6 +1492,7 @@
       ],
       "tests": [
         "test/admin_task_overview_screen_test.dart",
+        "test/my_tasks_tabs_test.dart",
         "test/recurring_shift_task_test.dart",
         "test/task_access_test.dart",
         "test/task_archive_test.dart",
@@ -1500,6 +1519,7 @@
         "test/task_preview_sheet_test.dart",
         "test/task_schedule_test.dart",
         "test/task_seen_store_test.dart",
+        "test/task_shift_stream_binding_test.dart",
         "test/task_start_gate_widget_test.dart",
         "test/task_status_test.dart",
         "test/task_submission_gate_test.dart",

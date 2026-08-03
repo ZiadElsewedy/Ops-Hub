@@ -940,8 +940,15 @@ class _SecondaryButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: AppRadius.buttonAll,
         child: Container(
-          height: 52,
+          // The label is a full sentence on the unscheduled-shift offer, so the
+          // row must be able to give it the width it has: min-sized with an
+          // unbounded Text, it overflowed the button on a 390pt phone.
+          constraints: const BoxConstraints(minHeight: 52),
           alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
           decoration: BoxDecoration(
             borderRadius: AppRadius.buttonAll,
             border: Border.all(color: AppColors.darkBorder),
@@ -951,12 +958,15 @@ class _SecondaryButton extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                label,
-                style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600),
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
