@@ -21,6 +21,7 @@ import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
+import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/auth/presentation/pages/splash_page.dart';
@@ -238,7 +239,15 @@ void _configureNotificationService() {
               ? null
               : SnackBarAction(
                   label: 'View',
-                  onPressed: () => _router?.push(destination),
+                  onPressed: () {
+                    final router = _router;
+                    if (router == null) return;
+                    if (_isChatDestination(destination)) {
+                      _openChatNotification(router, destination);
+                    } else {
+                      router.push(destination);
+                    }
+                  },
                 ),
         ),
       );
@@ -257,12 +266,28 @@ void _configureNotificationService() {
       // crashes on a stale or unknown notification.
       final destination = _resolveTapLocation(data);
       if (destination != null) {
-        router.push(destination);
+        if (_isChatDestination(destination)) {
+          _openChatNotification(router, destination);
+        } else {
+          router.push(destination);
+        }
       } else {
         router.go(RouteNames.notifications);
       }
     };
   unawaited(AppDependencies.notificationService.init());
+}
+
+bool _isChatDestination(String destination) =>
+    destination.startsWith('${RouteNames.chat}/');
+
+void _openChatNotification(GoRouter router, String destination) {
+  final conversationId = Uri.parse(destination).pathSegments.last;
+  openChatDeepLink(
+    router,
+    conversationId,
+    args: chatThreadArgsFor(conversationId),
+  );
 }
 
 /// Resolves an FCM push `data` map to a deep-link location for the signed-in

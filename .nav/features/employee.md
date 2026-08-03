@@ -26,6 +26,7 @@
 
 ## Tests
 - `test/employee_card_test.dart`
+- `test/employee_home_stat_strip_test.dart`
 - `test/employee_metrics_test.dart`
 - `test/employee_week_stats_test.dart`
 

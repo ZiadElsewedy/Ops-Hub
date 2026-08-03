@@ -28,23 +28,26 @@ void main() {
     test('without a taskId falls back to the role task list', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.task,
-            payload: const {},
-            role: UserRole.employee),
+          route: NotificationRoute.task,
+          payload: const {},
+          role: UserRole.employee,
+        ),
         RouteNames.myTasks,
       );
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.task,
-            payload: const {},
-            role: UserRole.admin),
+          route: NotificationRoute.task,
+          payload: const {},
+          role: UserRole.admin,
+        ),
         RouteNames.adminTasks,
       );
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.task,
-            payload: const {},
-            role: UserRole.manager),
+          route: NotificationRoute.task,
+          payload: const {},
+          role: UserRole.manager,
+        ),
         RouteNames.managerTasks,
       );
     });
@@ -52,7 +55,10 @@ void main() {
     test('without a taskId AND no known role → null (guarded)', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.task, payload: const {}, role: null),
+          route: NotificationRoute.task,
+          payload: const {},
+          role: null,
+        ),
         isNull,
       );
     });
@@ -61,9 +67,10 @@ void main() {
       // FCM data values are all strings; a missing id arrives as "".
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.task,
-            payload: const {'taskId': ''},
-            role: UserRole.employee),
+          route: NotificationRoute.task,
+          payload: const {'taskId': ''},
+          role: UserRole.employee,
+        ),
         RouteNames.myTasks,
       );
     });
@@ -98,9 +105,10 @@ void main() {
     test('admin without an id → null (nothing to open)', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.broadcast,
-            payload: const {},
-            role: UserRole.admin),
+          route: NotificationRoute.broadcast,
+          payload: const {},
+          role: UserRole.admin,
+        ),
         isNull,
       );
     });
@@ -110,21 +118,26 @@ void main() {
     test('opens the role schedule; null role → null', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.schedule,
-            payload: const {'swapId': 's1'},
-            role: UserRole.employee),
+          route: NotificationRoute.schedule,
+          payload: const {'swapId': 's1'},
+          role: UserRole.employee,
+        ),
         RouteNames.mySchedule,
       );
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.schedule,
-            payload: const {},
-            role: UserRole.manager),
+          route: NotificationRoute.schedule,
+          payload: const {},
+          role: UserRole.manager,
+        ),
         RouteNames.managerSchedule,
       );
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.schedule, payload: const {}, role: null),
+          route: NotificationRoute.schedule,
+          payload: const {},
+          role: null,
+        ),
         isNull,
       );
     });
@@ -134,16 +147,18 @@ void main() {
     test('with a caseId opens the thread; without → the case list', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.caseThread,
-            payload: const {'caseId': 'c1'},
-            role: UserRole.employee),
+          route: NotificationRoute.caseThread,
+          payload: const {'caseId': 'c1'},
+          role: UserRole.employee,
+        ),
         RouteNames.caseDetail('c1'),
       );
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.caseThread,
-            payload: const {},
-            role: UserRole.employee),
+          route: NotificationRoute.caseThread,
+          payload: const {},
+          role: UserRole.employee,
+        ),
         RouteNames.cases,
       );
     });
@@ -153,16 +168,18 @@ void main() {
     test('with a requestId opens it; without → the request list', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.request,
-            payload: const {'requestId': 'r1'},
-            role: UserRole.manager),
+          route: NotificationRoute.request,
+          payload: const {'requestId': 'r1'},
+          role: UserRole.manager,
+        ),
         RouteNames.requestDetail('r1'),
       );
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.request,
-            payload: const {},
-            role: UserRole.manager),
+          route: NotificationRoute.request,
+          payload: const {},
+          role: UserRole.manager,
+        ),
         RouteNames.requests,
       );
     });
@@ -189,23 +206,26 @@ void main() {
     test('without a recordId falls back to the ledger the role may open', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.attendance,
-            payload: const {},
-            role: UserRole.admin),
+          route: NotificationRoute.attendance,
+          payload: const {},
+          role: UserRole.admin,
+        ),
         RouteNames.attendanceReview,
       );
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.attendance,
-            payload: const {},
-            role: UserRole.manager),
+          route: NotificationRoute.attendance,
+          payload: const {},
+          role: UserRole.manager,
+        ),
         RouteNames.attendanceReview,
       );
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.attendance,
-            payload: const {},
-            role: UserRole.employee),
+          route: NotificationRoute.attendance,
+          payload: const {},
+          role: UserRole.employee,
+        ),
         RouteNames.attendanceHistory,
       );
     });
@@ -213,9 +233,10 @@ void main() {
     test('an empty-string recordId (FCM data map) is treated as missing', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.attendance,
-            payload: const {'recordId': ''},
-            role: UserRole.employee),
+          route: NotificationRoute.attendance,
+          payload: const {'recordId': ''},
+          role: UserRole.employee,
+        ),
         RouteNames.attendanceHistory,
       );
     });
@@ -223,9 +244,10 @@ void main() {
     test('an unknown role has no destination', () {
       expect(
         resolveNotificationRoute(
-            route: NotificationRoute.attendance,
-            payload: const {},
-            role: null),
+          route: NotificationRoute.attendance,
+          payload: const {},
+          role: null,
+        ),
         isNull,
       );
     });
@@ -279,6 +301,28 @@ void main() {
         RouteNames.chatConversation('conversation-1'),
       );
     });
+
+    test(
+      'chat fallback remains the inbox while every non-chat route is pure',
+      () {
+        expect(
+          resolveNotificationRoute(
+            route: NotificationRoute.chat,
+            payload: const {'conversationId': ''},
+            role: UserRole.employee,
+          ),
+          RouteNames.chat,
+        );
+        expect(
+          resolveNotificationRoute(
+            route: NotificationRoute.caseThread,
+            payload: const {'caseId': 'case-1'},
+            role: UserRole.employee,
+          ),
+          RouteNames.caseDetail('case-1'),
+        );
+      },
+    );
   });
 
   group('foreground FCM chat de-duplication', () {
@@ -305,9 +349,12 @@ void main() {
     // socket and an FCM push from the NestJS backend), so both can fire for one
     // message while the app is open. The two suppressions must be exact
     // opposites, or the user is either notified twice or not at all.
-    test('the in-app banner stands down exactly where the OS draws its own', () {
-      expect(suppressesInAppChatBanner, requiresApnsToken);
-    });
+    test(
+      'the in-app banner stands down exactly where the OS draws its own',
+      () {
+        expect(suppressesInAppChatBanner, requiresApnsToken);
+      },
+    );
 
     test('Apple: the OS banner is the only chat surface', () {
       // main.dart returns early from `onForeground` when requiresApnsToken, and
@@ -357,9 +404,10 @@ void main() {
     test('an unknown route → null (safe fallback handled by the caller)', () {
       expect(
         resolveNotificationRoute(
-            route: 'something_new',
-            payload: const {'taskId': 't1'},
-            role: UserRole.admin),
+          route: 'something_new',
+          payload: const {'taskId': 't1'},
+          role: UserRole.admin,
+        ),
         isNull,
       );
     });
@@ -367,7 +415,10 @@ void main() {
     test('a null route → null', () {
       expect(
         resolveNotificationRoute(
-            route: null, payload: const {}, role: UserRole.admin),
+          route: null,
+          payload: const {},
+          role: UserRole.admin,
+        ),
         isNull,
       );
     });

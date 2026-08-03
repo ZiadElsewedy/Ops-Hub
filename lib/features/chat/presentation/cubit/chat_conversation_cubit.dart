@@ -58,6 +58,7 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
   final DeleteChatMessageForEveryone _deleteForEveryone;
   final GetChatAttachmentUrl? _getAttachmentUrl;
   final ChatRealtime? _realtime;
+  final bool _manageRealtimeRoom;
   StreamSubscription<ChatRealtimeEvent>? _realtimeSub;
 
   final String conversationId;
@@ -103,10 +104,11 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     required this.conversationId,
     this.counterpartUserId,
     this._realtime,
+    this._manageRealtimeRoom = true,
     this._cache,
     this._getAttachmentUrl,
     this._onReadSync,
-  })  : super(const ChatConversationState.loading()) {
+  }) : super(const ChatConversationState.loading()) {
     // Instant re-open: paint the last-known confirmed messages synchronously
     // from the cache, then refresh from REST in the background (load()).
     final cached = _cache?.get(conversationId);
@@ -127,7 +129,7 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
       _realtimeSub = rt.events.listen(_onRealtimeEvent);
       // Fire-and-forget: a refused/failed join leaves the thread REST-only
       // (and the service keeps retrying the connection underneath).
-      rt.joinConversation(conversationId);
+      if (_manageRealtimeRoom) rt.joinConversation(conversationId);
     }
     load();
   }
@@ -137,7 +139,7 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
   @override
   Future<void> close() async {
     await _realtimeSub?.cancel();
-    await _realtime?.leaveConversation(conversationId);
+    if (_manageRealtimeRoom) await _realtime?.leaveConversation(conversationId);
     return super.close();
   }
 
@@ -145,15 +147,17 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     if (isClosed) return;
     final conversation = _conversation;
     if (conversation == null) return;
-    emit(ChatConversationState.loaded(
-      conversation,
-      List.of(_messages),
-      myUserId: _myUserId,
-      sending: false,
-      loadingOlder: _loadingOlder,
-      hasMore: _nextCursor != null,
-      deletingMessageId: _deletingMessageId,
-    ));
+    emit(
+      ChatConversationState.loaded(
+        conversation,
+        List.of(_messages),
+        myUserId: _myUserId,
+        sending: false,
+        loadingOlder: _loadingOlder,
+        hasMore: _nextCursor != null,
+        deletingMessageId: _deletingMessageId,
+      ),
+    );
     // Cache only server-confirmed messages, so a re-opened thread never shows a
     // stuck "sending"/"failed" bubble left over from a torn-down session.
     _cache?.put(
@@ -188,7 +192,13 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
   Future<void> load() async {
     if (_loading) return;
     _loading = true;
-    if (_conversation == null) emit(const ChatConversationState.loading());
+    // A durable cache restore races this network request by design. It may have
+    // already painted a thread by the time this call reaches the UI, so never
+    // replace visible content with a full-screen skeleton.
+    if (_conversation == null &&
+        !state.maybeMap(loaded: (_) => true, orElse: () => false)) {
+      emit(const ChatConversationState.loading());
+    }
     try {
       final results = await Future.wait<dynamic>([
         _getConversation(conversationId),
@@ -211,8 +221,11 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
       unawaited(_adoptOutbox());
     } catch (e) {
       AppLog.warning('chat', 'conversation load failed: $e');
-      emit(const ChatConversationState.error(
-          'Failed to load the conversation. Please try again.'));
+      emit(
+        const ChatConversationState.error(
+          'Failed to load the conversation. Please try again.',
+        ),
+      );
       _emit();
     } finally {
       _loading = false;
@@ -246,12 +259,15 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     for (final m in _messages) {
       if (m.seq > maxSeq) maxSeq = m.seq;
     }
-    final pending =
-        await cache.restorePending(conversationId, afterSeq: maxSeq);
+    final pending = await cache.restorePending(
+      conversationId,
+      afterSeq: maxSeq,
+    );
     if (isClosed || pending.isEmpty) return;
     final known = {for (final m in _messages) m.id};
-    final toAdd =
-        pending.where((m) => !known.contains(m.id)).toList(growable: false);
+    final toAdd = pending
+        .where((m) => !known.contains(m.id))
+        .toList(growable: false);
     if (toAdd.isNotEmpty) {
       _messages = [..._messages, ...toAdd];
       _emit();
@@ -329,13 +345,15 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     _messages = [..._messages, local];
     _emit();
 
-    unawaited(_dispatchSend(
-      localId: local.id,
-      idempotencyKey: idempotencyKey,
-      content: trimmed.isEmpty ? null : trimmed,
-      replyToMessageId: replyToMessageId,
-      attachment: attachment,
-    ));
+    unawaited(
+      _dispatchSend(
+        localId: local.id,
+        idempotencyKey: idempotencyKey,
+        content: trimmed.isEmpty ? null : trimmed,
+        replyToMessageId: replyToMessageId,
+        attachment: attachment,
+      ),
+    );
     return true;
   }
 
@@ -370,17 +388,20 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     if (failed.status != _statusFailed) return;
 
     final hasAttachment = _pendingAttachments.containsKey(localMessageId);
-    _messages = [..._messages]..[index] = failed
-        .withStatus(_statusSending)
-        .withUploadProgress(hasAttachment ? 0.0 : null);
+    _messages = [..._messages]
+      ..[index] = failed
+          .withStatus(_statusSending)
+          .withUploadProgress(hasAttachment ? 0.0 : null);
     _emit();
-    unawaited(_dispatchSend(
-      localId: localMessageId,
-      idempotencyKey: localMessageId.substring(_localIdPrefix.length),
-      content: (failed.body ?? '').isEmpty ? null : failed.body,
-      replyToMessageId: failed.replyTo?.id,
-      attachment: _pendingAttachments[localMessageId],
-    ));
+    unawaited(
+      _dispatchSend(
+        localId: localMessageId,
+        idempotencyKey: localMessageId.substring(_localIdPrefix.length),
+        content: (failed.body ?? '').isEmpty ? null : failed.body,
+        replyToMessageId: failed.replyTo?.id,
+        attachment: _pendingAttachments[localMessageId],
+      ),
+    );
   }
 
   /// Resolves a short-lived download URL for a received attachment (the
@@ -490,8 +511,8 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
       type: attachment == null
           ? ChatMessageType.text
           : (attachment.kind == ChatAttachmentKind.image
-              ? ChatMessageType.image
-              : ChatMessageType.document),
+                ? ChatMessageType.image
+                : ChatMessageType.document),
       body: content.isEmpty ? null : content,
       attachment: localAttachment,
       replyTo: replyPreview,
@@ -528,8 +549,10 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
   void _markLocalFailed(String localId) {
     final index = _messages.indexWhere((m) => m.id == localId);
     if (index < 0) return;
-    _messages = [..._messages]..[index] =
-        _messages[index].withStatus(_statusFailed).withUploadProgress(null);
+    _messages = [..._messages]
+      ..[index] = _messages[index]
+          .withStatus(_statusFailed)
+          .withUploadProgress(null);
   }
 
   /// Updates an in-flight attachment's progress ring, throttled to whole-percent
@@ -544,8 +567,8 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     if (clamped < 1.0 && (clamped * 100).floor() == (current * 100).floor()) {
       return;
     }
-    _messages = [..._messages]..[index] =
-        _messages[index].withUploadProgress(clamped);
+    _messages = [..._messages]
+      ..[index] = _messages[index].withUploadProgress(clamped);
     _emit();
   }
 
@@ -560,8 +583,7 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     _deletingMessageId = messageId;
     _emit();
     try {
-      await _deleteForMe(
-          conversationId: conversationId, messageId: messageId);
+      await _deleteForMe(conversationId: conversationId, messageId: messageId);
       _messages = [..._messages]..removeWhere((m) => m.id == messageId);
       return true;
     } on Failure catch (e) {
@@ -569,8 +591,7 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
       return false;
     } catch (e) {
       AppLog.warning('chat', 'delete for me failed: $e');
-      emit(const ChatConversationState.error(
-          'Failed to delete the message.'));
+      emit(const ChatConversationState.error('Failed to delete the message.'));
       return false;
     } finally {
       _deletingMessageId = null;
@@ -589,7 +610,9 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     _emit();
     try {
       final tombstone = await _deleteForEveryone(
-          conversationId: conversationId, messageId: messageId);
+        conversationId: conversationId,
+        messageId: messageId,
+      );
       _insertBySeq(tombstone);
       return true;
     } on Failure catch (e) {
@@ -597,8 +620,7 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
       return false;
     } catch (e) {
       AppLog.warning('chat', 'delete for everyone failed: $e');
-      emit(const ChatConversationState.error(
-          'Failed to delete the message.'));
+      emit(const ChatConversationState.error('Failed to delete the message.'));
       return false;
     } finally {
       _deletingMessageId = null;
@@ -633,8 +655,9 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
       return false;
     } catch (e) {
       AppLog.warning('chat', 'clear chat failed: $e');
-      emit(const ChatConversationState.error(
-          'Failed to clear the conversation.'));
+      emit(
+        const ChatConversationState.error('Failed to clear the conversation.'),
+      );
       return false;
     } finally {
       _clearing = false;

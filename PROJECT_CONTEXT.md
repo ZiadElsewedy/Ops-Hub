@@ -77,7 +77,7 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Navigation | `go_router` | Auth-aware redirects + role guards |
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
 | Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
-| Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Caches metadata/URLs, **never image bytes** |
+| Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Drift caches metadata; `ChatRepositoryImpl` session-caches brokered URLs until their server expiry; **never image bytes** |
 | Server logic | Cloud Functions (Node.js, `functions/`) | 24 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS app-side configuration is present; APNs credential remains — see CURRENT_STATE |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
@@ -160,7 +160,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `requests` | Employee → manager yes/no approvals | [REQUESTS](docs/design/REQUESTS.md) |
 | `cases` | Private employee ↔ manager/admin conversations | [CASES](docs/design/CASES.md) |
-| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync); REST is the source of truth) | — |
+| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox; room membership follows app lifecycle so push suppression is honest) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync); REST is the source of truth) | — |
 | `communications` | Broadcasts, templates, schedules, reminders | [COMMUNICATIONS](docs/design/COMMUNICATIONS.md) |
 | `notifications` | Notification inbox + deep-link resolver | [NOTIFICATIONS](docs/design/NOTIFICATIONS.md) |
 | `operations` | Branch Operations cockpit: workload, KPI drills | [TASKS](docs/design/TASKS.md) |
@@ -210,7 +210,7 @@ Reuse these. Do not re-implement or duplicate them.
 | Any Storage upload | `core/media/media_upload_service.dart` |
 | Any NestJS API call | `core/network/api_client.dart` (never import `dio` elsewhere) |
 | Chat realtime (socket) | `features/chat/data/realtime/chat_socket_service.dart` (never import `socket_io_client` elsewhere; consume the `ChatRealtime` port) |
-| Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Metadata/URLs only, **never image bytes** |
+| Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Drift holds metadata only; the repository session-caches brokered attachment URLs through `ChatAttachmentDownload.isExpired`; **never image bytes** |
 | Task status → colour | `core/widgets/status_badge.dart` (`taskStatusColor`) |
 | Structured logging | `core/utils/app_logger.dart` (`AppLog`) |
 | Shift slot timing | `schedule/domain/shift_window.dart` |

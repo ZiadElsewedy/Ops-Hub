@@ -69,6 +69,7 @@
 - `test/admin_dashboard_today_strip_test.dart`
 - `test/admin_task_overview_screen_test.dart`
 - `test/attendance_admin_direct_action_test.dart`
+- `test/attendance_admin_workspace_bootstrap_test.dart`
 - `test/user_admin_update_details_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)

@@ -11,6 +11,7 @@ class ChatThreadArgs {
     this.counterpartExternalId,
     this.counterpartName,
     this.counterpartPhotoUrl,
+    this.counterpartRoleLine,
   });
 
   /// The counterpart's **backend-internal** id — for own-message alignment
@@ -27,4 +28,8 @@ class ChatThreadArgs {
 
   /// The counterpart's avatar URL, if any.
   final String? counterpartPhotoUrl;
+
+  /// Counterpart position and role, already formatted for the compact thread
+  /// header (for example, `Floor Lead · Employee`).
+  final String? counterpartRoleLine;
 }

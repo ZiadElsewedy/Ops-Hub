@@ -14,6 +14,70 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-03 — Chat stability & UX audit (bug; HIGH risk)
+
+**Uncommitted.** Six reported defects, each traced to a root cause rather than
+patched. The through-line: chat had grown two of everything — two delivery paths
+(socket + FCM), two identity sources (route args + directory), two notions of
+"the user is here" — and each pair had drifted.
+
+- **Header said "Conversation" (bug).** The FCM tap navigated with no `extra`,
+  so `ChatThreadArgs` was null and the title fell through to a hardcoded string.
+  Route args are now a **first-paint optimization, not the source of truth**: the
+  thread resolves its own name/avatar/role from the inbox summary + session
+  directory, so *every* entry point renders a real identity — including ones
+  that never carried args. Presence/online is still deliberately absent; the
+  backend has none and DROP does not fabricate it.
+- **Deep link re-initialized repeatedly (bug).** Two causes. The tap always
+  `push`ed, so tapping a notification for the thread already on screen stacked a
+  second screen **and a second cubit**, doubling loads, subscriptions and
+  rebuilds. And `load()` could emit a full-screen `loading` **over already-painted
+  cached content** — the "messages appear, disappear, appear" flicker. Chat deep
+  links are now idempotent, and a skeleton may never replace painted content.
+- **Back was trapped (bug).** `push` appended the thread to whatever stack
+  existed — on a cold start, nothing. Chat taps now build `thread ← inbox ← home`.
+  The other five routes keep their existing behaviour.
+- **Scroll jumped (bug).** Not ordering, keys or diffing — those were already
+  correct. `_ImagePlaceholder` reserved a hard **240×150** while the decoded image
+  sized to its own aspect ratio capped at 280, so a portrait photo **grew the row
+  ~130px the instant it decoded** and shoved every row below it. Image bubbles now
+  occupy one fixed viewport in every state. Size chosen as **240×280 — the
+  footprint a portrait photo already had** — because the stability comes from the
+  box being *fixed*, not from it being *small*; an earlier 240×150 draft would have
+  silently shrunk every photo to a cropped landscape thumbnail. The full-screen
+  viewer remains the uncropped path.
+- **No push while backgrounded (bug — a regression from the push feature above).**
+  Nothing in the app observed `AppLifecycleState`, so a backgrounded app kept its
+  socket in `conversation:{id}` and the server's "they're reading it" suppression
+  correctly skipped the push. The suppression was right; **the client was lying to
+  it.** New `ChatConversationPresence` makes presence honest — resume joins,
+  inactive/hidden/paused/detached leave — using the `conversation:leave` event
+  **both sides already implemented**, so no protocol or backend change. The cubit
+  takes `manageRealtimeRoom: false` so presence is the single owner of the room.
+- **Refetching (bug).** `getAttachmentDownloadUrl` was a bare network
+  pass-through, while the entity it returns already modelled `expiresAt`/
+  `isExpired` — built to be cached, never cached. So every scroll-back minted a
+  *new signed URL*, which meant Flutter's URL-keyed `ImageCache` missed and
+  re-downloaded the whole image. The repository now caches until expiry and
+  coalesces concurrent requests; a stable URL lets the framework's own cache work.
+  **No new dependency** — `cached_network_image` was rejected because a plugin
+  means `pod install` and risk to the iOS build under active device testing. The
+  cache is dropped on sign-out beside the other chat wipes: brokered URLs are
+  short-lived **credentials**, and a shared device must not carry them over.
+
+Audited and found **already correct** (left alone, which is the point): message
+ordering/dedup/optimistic slots, row `ValueKey`s, the lazy `ListView.builder`, the
+session-cached chat directory, and the Drift contract (metadata only, never image
+bytes).
+
+Gates: analyze 1 pre-existing info · **1487 pass / 0 fail**.
+
+> ⚠️ **Not device-verified.** The back-stack behaviour is the weakest claim: `go`
+> then `push` across a shell route has no test coverage and behaves differently at
+> runtime, especially on a cold start where an auth redirect can land between the
+> two calls. **Verify by hand:** kill the app, open a chat from a notification,
+> then press Back twice.
+
 ## 2026-08-03 — Chat push notifications (feature; MED risk)
 
 **Uncommitted, and gated on a Railway deploy of `drop-api`.** Chat notifications

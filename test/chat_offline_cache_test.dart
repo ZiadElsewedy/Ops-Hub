@@ -9,6 +9,7 @@ import 'package:drop/features/chat/data/datasources/chat_remote_datasource.dart'
 import 'package:drop/features/chat/data/local/chat_database.dart';
 import 'package:drop/features/chat/data/local/chat_local_datasource.dart';
 import 'package:drop/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
 import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
 import 'package:drop/features/chat/domain/entities/chat_message.dart';
 import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
@@ -334,6 +335,62 @@ void main() {
       expect(pending.single.idempotencyKey, 'key-x');
       expect(pending.single.content, 'unsent');
     });
+
+    test('an unexpired brokered attachment URL is fetched once and reused',
+        () async {
+      final remote = _FakeRemote()
+        ..attachmentDownloads = [
+          ChatAttachmentDownload(
+            url: 'https://storage.example/photo-v1',
+            expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
+          ),
+        ];
+      final repo = ChatRepositoryImpl(remote, local);
+
+      final first = await repo.getAttachmentDownloadUrl(
+        conversationId: _conv,
+        messageId: 'image-1',
+      );
+      final second = await repo.getAttachmentDownloadUrl(
+        conversationId: _conv,
+        messageId: 'image-1',
+      );
+
+      expect(first.url, second.url);
+      expect(remote.attachmentDownloadCalls, 1);
+    });
+
+    test('an expired brokered attachment URL refreshes exactly once', () async {
+      final remote = _FakeRemote()
+        ..attachmentDownloads = [
+          ChatAttachmentDownload(
+            url: 'https://storage.example/expired',
+            expiresAt:
+                DateTime.now().toUtc().subtract(const Duration(minutes: 1)),
+          ),
+          ChatAttachmentDownload(
+            url: 'https://storage.example/fresh',
+            expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 5)),
+          ),
+        ];
+      final repo = ChatRepositoryImpl(remote, local);
+
+      await repo.getAttachmentDownloadUrl(
+        conversationId: _conv,
+        messageId: 'image-1',
+      );
+      final refreshed = await repo.getAttachmentDownloadUrl(
+        conversationId: _conv,
+        messageId: 'image-1',
+      );
+      await repo.getAttachmentDownloadUrl(
+        conversationId: _conv,
+        messageId: 'image-1',
+      );
+
+      expect(refreshed.url, 'https://storage.example/fresh');
+      expect(remote.attachmentDownloadCalls, 2);
+    });
   });
 
   group('schema migration v1 → v2', () {
@@ -400,6 +457,8 @@ class _FakeRemote implements ChatRemoteDataSource {
   bool failConversations = false;
   bool failSend = false;
   int historyCalls = 0;
+  int attachmentDownloadCalls = 0;
+  List<ChatAttachmentDownload> attachmentDownloads = [];
 
   @override
   Future<ChatReadReceipt> markRead({
@@ -443,6 +502,15 @@ class _FakeRemote implements ChatRemoteDataSource {
   }) async {
     if (failSend) throw const ServerException('offline');
     return sent!;
+  }
+
+  @override
+  Future<ChatAttachmentDownload> getAttachmentDownloadUrl({
+    required String conversationId,
+    required String messageId,
+  }) async {
+    attachmentDownloadCalls++;
+    return attachmentDownloads.removeAt(0);
   }
 
   // Everything else (createConversation, getConversation, markRead, deletes,

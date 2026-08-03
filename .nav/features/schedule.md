@@ -123,6 +123,7 @@
 - `test/task_model_schedule_test.dart`
 - `test/task_model_shift_test.dart`
 - `test/task_schedule_test.dart`
+- `test/task_shift_stream_binding_test.dart`
 - `test/weekly_schedule_model_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)

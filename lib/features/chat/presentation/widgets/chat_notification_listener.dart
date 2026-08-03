@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_typography.dart';
@@ -15,8 +14,7 @@ import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/chat/presentation/chat_format.dart';
-import 'package:drop/features/chat/presentation/chat_thread_args.dart';
+import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
 import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
 
 /// App-wide in-app message notifications. Mounted once above the router (via
@@ -69,9 +67,9 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener> {
     // If a session is already live (hot reload / already signed in), warm the
     // inbox now so the socket is connected app-wide.
     if (context.read<AuthCubit>().state.maybeWhen(
-          authenticated: (_) => true,
-          orElse: () => false,
-        )) {
+      authenticated: (_) => true,
+      orElse: () => false,
+    )) {
       _activate();
     }
   }
@@ -114,8 +112,9 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener> {
     final user = event.counterpartExternalId == null
         ? null
         : _directory[event.counterpartExternalId];
-    final name =
-        user == null ? 'New message' : (user.displayName ?? user.email);
+    final name = user == null
+        ? 'New message'
+        : (user.displayName ?? user.email);
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -142,25 +141,14 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener> {
 
   void _open(String conversationId) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    final cubit = context.read<ChatListCubit>();
-    cubit.clearUnread(conversationId);
-    final summary = cubit.conversationById(conversationId);
-    final counterpart = summary?.counterpartExternalId == null
-        ? null
-        : _directory[summary!.counterpartExternalId];
-    widget.router.push(
-      RouteNames.chatConversation(conversationId),
-      extra: summary == null
-          ? null
-          : ChatThreadArgs(
-              counterpartUserId: summary.counterpartUserId,
-              counterpartExternalId: summary.counterpartExternalId,
-              counterpartName: counterpart == null
-                  ? null
-                  : chatDisplayName(counterpart,
-                      fallbackId: summary.counterpartUserId),
-              counterpartPhotoUrl: counterpart?.photoUrl,
-            ),
+    context.read<ChatListCubit>().clearUnread(conversationId);
+    openChatDeepLink(
+      widget.router,
+      conversationId,
+      // This listener's directory is the fresher of the two while the async
+      // load is still in flight; the shared resolver falls back to the session
+      // snapshot when it isn't passed one.
+      args: chatThreadArgsFor(conversationId, directory: _directory),
     );
   }
 
@@ -210,23 +198,28 @@ class _NotificationBody extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.label
-                      .copyWith(fontWeight: FontWeight.w700),
+                  style: AppTypography.label.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 1),
                 Text(
                   preview,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption
-                      .copyWith(color: AppColors.textSecondary),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded,
-              size: 18, color: AppColors.textTertiary),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: AppColors.textTertiary,
+          ),
         ],
       ),
     );

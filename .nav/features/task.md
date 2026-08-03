@@ -144,6 +144,7 @@
 
 ## Tests
 - `test/admin_task_overview_screen_test.dart`
+- `test/my_tasks_tabs_test.dart`
 - `test/recurring_shift_task_test.dart`
 - `test/task_access_test.dart`
 - `test/task_archive_test.dart`
@@ -170,6 +171,7 @@
 - `test/task_preview_sheet_test.dart`
 - `test/task_schedule_test.dart`
 - `test/task_seen_store_test.dart`
+- `test/task_shift_stream_binding_test.dart`
 - `test/task_start_gate_widget_test.dart`
 - `test/task_status_test.dart`
 - `test/task_submission_gate_test.dart`

@@ -161,6 +161,10 @@ class AppDependencies {
   /// Direct (1:1) chat — domain + data layers over the NestJS API (Phase 2).
   static late final ChatRepository chatRepository;
 
+  /// The same instance as [chatRepository], typed — only so sign-out can drop
+  /// its cached brokered URLs (a cache concern the port deliberately omits).
+  static ChatRepositoryImpl? _chatRepositoryImpl;
+
   /// Direct chat — the realtime channel (Socket.IO). Read-only delivery; all
   /// writes stay on [chatRepository]. Lazily connected while any thread cubit
   /// has its conversation joined.
@@ -194,8 +198,12 @@ class AppDependencies {
   static ChatConversationCubit createChatConversationCubit(
     String conversationId, {
     String? counterpartUserId,
+    // The screen's lifecycle observer owns join/leave once mounted, so it opts
+    // out of the cubit's own room management to keep one owner of the room.
+    bool manageRealtimeRoom = true,
   }) =>
       ChatConversationCubit(
+        manageRealtimeRoom: manageRealtimeRoom,
         getConversation: _getChatConversation,
         loadHistory: _loadChatHistory,
         sendMessage: _sendChatMessage,
@@ -233,6 +241,10 @@ class AppDependencies {
   /// to the next. Best-effort: a failure is swallowed (nothing to recover).
   static Future<void> clearChatCache() async {
     _chatThreadCache.clear();
+    // Brokered attachment URLs are short-lived credentials for THIS user's
+    // attachments — they must not survive into the next session on a shared
+    // device, same reason as the thread cache below.
+    _chatRepositoryImpl?.clearAttachmentUrlCache();
     try {
       await _chatLocalDataSource.clearAll();
     } catch (_) {/* cache clear is best-effort */}
@@ -553,7 +565,7 @@ class AppDependencies {
     // opened conversation (see createChatConversationCubit).
     _chatLocalDataSource = ChatLocalDataSourceImpl(ChatDatabase.open());
     _chatThreadCache.attachLocal(_chatLocalDataSource);
-    chatRepository = ChatRepositoryImpl(
+    chatRepository = _chatRepositoryImpl = ChatRepositoryImpl(
       ChatRemoteDataSourceImpl(apiClient),
       _chatLocalDataSource,
     );
