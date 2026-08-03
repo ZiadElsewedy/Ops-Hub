@@ -10,8 +10,8 @@
 | | |
 | --- | --- |
 | **Branch** | `claude/ui-fix-608998` (worktree off `release/v1-preparation`) |
-| **Build** | `flutter analyze`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1455 pass · 2 fail** across 201 files (~35s) — the 2 remaining are the pre-existing splash-centering failures. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
+| **Build** | `flutter analyze lib test`: 1 info, no errors/warnings (pre-existing test style) |
+| **Tests** | **1457 pass · 0 fail** across 201 files (~35s) — **green**; the two long-standing splash-centering failures were fixed 2026-08-03. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -650,9 +650,9 @@ Worth an ADR, since the first decision was reversed.
 The remaining `use_null_aware_elements` info is the pre-existing test-style lint
 in `task_submission_gate_test.dart`. It is not an Automation Center finding.
 
-### Failing tests (2)
+### Failing tests — none (2026-08-03)
 
-Both reproduce with the working tree stashed — neither is caused by current work.
+**`flutter test` is fully green for the first time in weeks: 1457 pass, 0 fail.**
 
 > The three `notification_tap_flow_probe_test.dart` failures were **fixed
 > 2026-07-25** by deleting the temporary `debug_auth_probe.dart` and its two
@@ -660,12 +660,15 @@ Both reproduce with the working tree stashed — neither is caused by current wo
 > probe touched `FirebaseAuth.instance` during `restoreSession` in a Firebase-less
 > test; removing it is dead-code cleanup that also greened those cases.
 
-`test/splash_centering_test.dart` — both cases fail. The splash lockup's optical
-centering is off: the combined logo→bar bounding box centre sits at **375.5** where
-the test expects **400 ±1** (and **291.7** vs **310 ±1** at 1024×720). Either the
-splash layout regressed or `kSplashOpticalLift` changed without the test following.
-**Pre-existing and unrelated to any current work** — but it means `flutter test` is
-not green, so a real regression could hide behind it. Worth fixing or deleting.
+The two long-standing `splash_centering_test.dart` failures were **fixed
+2026-08-03**. Neither guess in the old note was right — it was *both* sides, and
+they were separate bugs. See CHANGELOG for the full derivation. Short version:
+the test added the **unscaled** artwork inset to a rect `getRect` had already
+returned **scaled** (paint-time `kLogoManualScale`), and the page's own lift
+formula never accounted for that scale either, so the real framing drifted with
+window size (65.5px at 1440×900, 61.6px at 1024×720) while the constant claimed
+50. Fixed on both sides with **zero pixel change at 1440×900** — the size the
+owner tuned by eye — and the framing is now identical at every window size.
 
 ### Live deploy state (verified 2026-07-29)
 
@@ -818,10 +821,13 @@ Requires the **Blaze** plan.
 ### Then
 
 1. **On-device attendance QA** — GPS clock in/out on real hardware, both platforms.
-2. **Fix or delete `splash_centering_test.dart`** so the suite is green.
+2. ~~Fix or delete `splash_centering_test.dart`~~ — **done 2026-08-03; the suite is green.**
 3. **Supply the iOS APNs credential** — app-side Push/Background-Modes configuration is complete.
 4. **Merge `feature/attendance-management`** once deployed and QA'd.
 5. **Prune ~15 stale branches.**
+6. **Run the app on Android.** The bundled-typeface bug (2026-08-03) shipped
+   unnoticed for months because nothing exercises Android — that is a QA gap, not
+   a font bug.
 
 ---
 
@@ -884,7 +890,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1440 pass, 2 fail (pre-existing: 2 splash-centering)
+flutter test                             # expect: 1457 pass, 0 fail — GREEN; any red is a real regression
 (cd functions && node --test)            # expect: 68 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 51

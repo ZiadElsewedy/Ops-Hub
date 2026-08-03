@@ -154,9 +154,43 @@ this design rather than contradicting it — the cache serves reads, and writes 
 refused honestly. Not exercised against a real radio — airplane mode and a
 captive portal on device are still untested.
 
+### Splash centering — the suite is green again (bug; LOW risk)
+
+`splash_centering_test.dart` had been failing for weeks, written off in the docs
+as "either the layout regressed or `kSplashOpticalLift` changed". Neither guess
+was right: there were **two independent bugs**, one on each side, and they
+partly masked each other.
+
+- **The test mixed coordinate spaces.** `getRect` reports a box *as painted*, so
+  it already carries the centre-anchored `kLogoManualScale` (1.5×). The test then
+  added the **unscaled** artwork inset to that already-scaled rect — the dead
+  space above the artwork is magnified too. Worth ~9px.
+- **The page's lift formula never knew about the scale.** It predated
+  `kLogoManualScale` (owner-tuned by eye 2026-07-05), so the framing it produced
+  **drifted with window size** — a real 65.5px lift at 1440×900 but 61.6px at
+  1024×720 — while `kSplashOpticalLift` claimed 50 at both. The formula also
+  still carried a `kLogoVisualCenterOffset` term left over from an earlier
+  "centre the artwork" approach, which is not what the bbox framing needs.
+
+Fixed on both sides. The lift is now derived from the **visible** geometry
+(artwork inset × scale, minus the box's centre-anchored growth), and
+`kSplashOpticalLift` was set to **65.5** — the measured value of the framing the
+owner actually signed off. Net effect: **zero pixel change at 1440×900**, and
+1024×720 moves up ~4px to match it instead of drifting. The owner tuned pixels,
+so the pixels were treated as the specification and the constant was corrected to
+tell the truth about them.
+
+`kLogoVisualCenterOffset` is retained — it is still documented and separately
+pinned by `splash_visual_centering_test.dart` — but no longer feeds the lift.
+
+**`flutter test` is now fully green: 1457 pass, 0 fail.** That matters beyond
+this test: with two permanent failures, a genuine regression had somewhere to
+hide.
+
 Verified: `flutter analyze lib test` at the documented baseline (1 pre-existing
-test-style info); suite **1455 pass / 2 pre-existing splash failures** (+15 new) —
-no regressions. Not device-verified.
+test-style info); suite **1457 pass / 0 fail** (+17 new this branch) — no
+regressions. Geometry was confirmed by measuring the real widget at both window
+sizes, not by algebra alone. Not device-verified.
 
 ---
 
