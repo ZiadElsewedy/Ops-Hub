@@ -14,10 +14,45 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-03 — Merge conflict repair on PR #25 (bug; LOW risk)
+
+Merging `claude/ui-fix-608998` into `release/v1-preparation` (PR #25, `6584808`)
+had five conflicting files. Three resolved correctly; two silently dropped one
+side's content, and neither loss produced an error — the tree compiled and the
+suite stayed green, so only a side-by-side diff against both parents found them.
+
+- **`broadcast_templates_screen.dart` (bug).** The resolution took the release
+  side's rewrite of the file wholesale but kept the feature side's *import* of
+  `app_error_state.dart` — so the error branch fell back to `AppEmptyState`
+  while carrying an unused import. This was one of the **six surfaces** the
+  entry below claims got `AppErrorState` + Retry; the code no longer matched
+  that claim. Restored to `AppErrorState` with
+  `onRetry: () => context.read<BroadcastTemplateCubit>().load()`.
+- **`firestore-tests/README.md` (doc).** Both sides appended a bullet to the
+  coverage list; the resolution kept only the feature side's **Notifications**
+  bullet and dropped the release side's **Attendance corrections** one. Restored.
+- **Verified intact:** `functions/index.js` (both sides carried the same
+  `isReminderEligibleStatus` extraction, so taking one was lossless),
+  `CHANGELOG.md`, and `CURRENT_STATE.md` — whose dropped *"Failing tests (2)"*
+  section is a correct removal, not a loss, since the splash failures were
+  fixed the same day.
+
+Gates, all re-run on the merged tree: analyze 1 pre-existing info · Dart **1472
+pass / 0 fail** · functions **83** · rules **61**.
+
+> **Also corrected: every test count in `CURRENT_STATE.md` was stale**, and the
+> file disagreed with *itself* — the At-a-glance table claimed 72 functions / 53
+> rules while the verification block below it claimed 68 / 37, the exact
+> "three different test counts in one file" failure the doc rules were written
+> to prevent. Real figures are above; route-name count corrected 51 → **53**.
+
+---
+
 ## 2026-08-03 — Bundled typeface + premium empty / error / loading states (polish + bug; LOW risk)
 
-Branch `claude/ui-fix-608998`, **uncommitted**. Presentation only — no cubit,
-repository, rules or payload change.
+Branch `claude/ui-fix-608998`, **merged into `release/v1-preparation`** via PR
+#25 (`6584808`). Presentation only — no cubit, repository, rules or payload
+change.
 
 - **Typeface is now bundled (bug).** Every style pointed at the string
   `'SF Pro Display'` while `pubspec.yaml` shipped **no font at all**, so the name

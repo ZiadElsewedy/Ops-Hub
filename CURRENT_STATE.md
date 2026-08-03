@@ -9,9 +9,9 @@
 
 | | |
 | --- | --- |
-| **Branch** | `claude/ui-fix-608998` (worktree off `release/v1-preparation`) |
+| **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze lib test`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1470 pass · 0 fail** across 203 files (~35s) — **green**; the two long-standing splash-centering failures were fixed 2026-08-03. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
+| **Tests** | **1472 pass · 0 fail** across 201 files (~30s) — **green**; the two long-standing splash-centering failures were fixed 2026-08-03. Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). All three re-run and verified **2026-08-03**. NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, last verified 2026-08-02 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -73,7 +73,7 @@ build first would have left approved swaps announced to nobody.
 
 | Branch | Holds | State |
 | --- | --- | --- |
-| **`claude/ui-fix-608998`** ← current | Bundled Inter typeface · premium empty / error / loading states · Home stat-strip empty-bar fix · **offline write-gating** | **Uncommitted**; not device-verified. The offline policy is a behaviour change, not polish — see Known issues |
+| **`release/v1-preparation`** ← current | Everything below, plus `claude/ui-fix-608998` (bundled Inter typeface · premium empty / error / loading states · Home stat-strip empty-bar fix · **offline write-gating**) merged in via PR #25 (`6584808`) | Merged, **not device-verified**. The offline policy is a behaviour change, not polish — see Known issues |
 | `fix-bugs` | Stabilization and UI-polish worktree | In progress |
 | `feature/chat-nestjs` | Chat (new feature, NestJS backend) — Phase 1 networking foundation done | In progress; carries everything from `feature/attendance-management` |
 | `feature/attendance-management` | Attendance P1–P3 (data · corrections · GPS · UI) | Committed, **not merged**, deploy + QA pending |
@@ -667,7 +667,7 @@ Worth an ADR, since the first decision was reversed.
 
 The list DTO now serves the last-message preview (FR-021), taking a ten-row
 inbox from eleven requests to one. Both halves are written and tested
-(`drop-api` **92 pass**, app **1470 pass**) but the **server is not deployed**,
+(`drop-api` **92 pass**, app **1472 pass**) but the **server is not deployed**,
 so today's app still uses the per-row fallback.
 
 ⚠️ **Deploy the API before assuming the inbox is cheap.** The client is additive
@@ -680,7 +680,7 @@ in `task_submission_gate_test.dart`. It is not an Automation Center finding.
 
 ### Failing tests — none (2026-08-03)
 
-**`flutter test` is fully green for the first time in weeks: 1470 pass, 0 fail.**
+**`flutter test` is fully green for the first time in weeks: 1472 pass, 0 fail.**
 
 > The three `notification_tap_flow_probe_test.dart` failures were **fixed
 > 2026-07-25** by deleting the temporary `debug_auth_probe.dart` and its two
@@ -918,10 +918,10 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1470 pass, 0 fail — GREEN; any red is a real regression
-(cd functions && node --test)            # expect: 68 pass
-(cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
-grep -c "static const String" lib/core/routes/route_names.dart   # expect: 51
+flutter test                             # expect: 1472 pass, 0 fail — GREEN; any red is a real regression
+(cd functions && node --test)            # expect: 83 pass
+(cd firestore-tests && npm test)         # expect: 61 pass — needs the Firebase CLI + a JDK
+grep -c "static const String" lib/core/routes/route_names.dart   # expect: 53
 ls lib/features | wc -l                  # expect: 18
 ```
 

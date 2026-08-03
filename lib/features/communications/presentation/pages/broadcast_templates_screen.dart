@@ -143,10 +143,11 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
         builder: (context, state) => state.maybeWhen(
           loading: () => const ListSkeleton(),
           loaded: (templates, _) => _content(templates),
-          error: (m) => AppEmptyState(
+          error: (m) => AppErrorState(
             icon: Icons.wifi_off_rounded,
             title: 'Could not load templates',
             message: m,
+            onRetry: () => context.read<BroadcastTemplateCubit>().load(),
           ),
           orElse: () => const SizedBox.shrink(),
         ),
