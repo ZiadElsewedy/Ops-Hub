@@ -45,7 +45,25 @@ class ChatConversationModel {
         createdAt: DateTime.parse(json['createdAt'] as String),
         lastMessageAt: _optionalDate(json['lastMessageAt']),
         unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
+        lastMessage: _lastMessage(json['lastMessage']),
       );
+
+  /// Absent/null on a server that predates the preview field — the inbox then
+  /// falls back to resolving previews itself, so this stays additive.
+  static ChatLastMessage? _lastMessage(dynamic raw) {
+    if (raw is! Map) return null;
+    final json = raw.cast<String, dynamic>();
+    final id = json['id'];
+    final senderId = json['senderId'];
+    if (id is! String || senderId is! String) return null;
+    return ChatLastMessage(
+      id: id,
+      senderId: senderId,
+      type: (json['type'] as String?) ?? 'TEXT',
+      body: json['body'] as String?,
+      deletedForEveryoneAt: _optionalDate(json['deletedForEveryoneAt']),
+    );
+  }
 
   /// A page — `ConversationListResponseDto` (`{items, nextCursor}`).
   static ChatConversationPage pageFromJson(Map<String, dynamic> json) =>

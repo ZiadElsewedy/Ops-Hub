@@ -154,6 +154,74 @@ this design rather than contradicting it — the cache serves reads, and writes 
 refused honestly. Not exercised against a real radio — airplane mode and a
 captive portal on device are still untested.
 
+### Chat inbox N+1 removed — server now serves the preview (feature; MED risk)
+
+**Cross-repo.** Backend `~/Desktop/Developer/drop-api` (branch
+`feature/chat-backend`) + this app. **Not deployed** — the server half must ship
+first, but the client works either way (see below).
+
+The inbox issued one extra request per visible row because
+`ConversationListItemResponseDto` carried `lastMessageAt` but not the message,
+with the comment *"Last-message preview is intentionally absent"*. Checking the
+spec, that was not a decision: **FR-021 already requires the list to indicate a
+preview of the latest message.** The DTO was a deviation, so this implements the
+spec rather than reversing anything — no ADR needed.
+
+The cost turned out to be near-zero: `conversation.last_message_id` is a real FK
+the write side already maintains, so the preview is a **join**, not a query per
+row. Ten conversations went from **eleven requests to one**.
+
+- **Backend:** `LastMessagePreview` on the repository port; `include:
+  { lastMessage: true }` on the list query; the field threaded through view →
+  use case → DTO. One extra batched lookup honours **delete-for-me** — a message
+  the requester deleted for themselves is still the conversation's
+  `lastMessage` for everyone else and must be withheld from *their* inbox.
+  Payload is unformatted (`type` / `body` / `deletedForEveryoneAt`) so preview
+  wording stays in one language, on the client. +3 spec cases; **92 pass**.
+- **Client:** additive `ChatLastMessage` on the summary + `chatLastMessagePreviewText`.
+  ⚠️ **The per-row fallback was kept on purpose** — the deployed server does not
+  send the field yet, and removing the fallback would blank every preview until
+  the API ships. +8 cases covering both the served and the omitted shape.
+
+### Chat inbox state churn (bug; LOW risk)
+
+Owner report: "every time I open chat it keeps requesting things, and something
+changes every second." Diagnosed by reading the path, not by profiling a live
+session — the API was not available here.
+
+**Root cause is structural: the inbox is N+1.** `ChatConversationSummary`
+carries `lastMessageAt` but **not the message**, so `ChatScreen` fires one
+`latestChatMessage(id)` per visible row on open. Ten conversations = ten extra
+requests. That is by design today (`chat_conversation.dart`: *"Last-message
+previews remain client-resolved"*), and the real fix belongs in the NestJS list
+DTO — **not done here**.
+
+Three client-side defects sat on top of it and were fixed:
+
+- **A retry loop.** A lookup returning `null` removed the id from
+  `_previewFetching` but never recorded a result, so `containsKey` stayed false
+  and the row re-queued its fetch on **every rebuild** — and since each landing
+  lookup triggered a rebuild, the two fed each other. `ChatListCubit` now
+  distinguishes *resolved-empty* from *not-yet-resolved*.
+- **N full-screen repaints.** Every resolved preview called `setState`
+  individually, so a ten-row inbox repainted itself ten times in under a second
+  — the visible "everything keeps changing". Results are now written to the
+  cache as they land and a **single** repaint is scheduled for the batch (60ms
+  coalescing window).
+- **The memo died with the screen.** It lived on `_ChatScreenState`, so walking
+  into a conversation and back re-fetched every row. It now lives on the
+  app-wide `ChatListCubit` — resolved once per session. ⚠️ Deliberately placed
+  where `reset()` already clears it, so one account's previews can never appear
+  in the next account's inbox on a shared device.
+
+Not changed: `ChatListCubit.load()` (already idempotent, cache-paints before the
+network, and freezed's `DeepCollectionEquality` suppresses duplicate emits) and
+`ChatMessageList` (its `didUpdateWidget` guards are sound). The churn was not
+there.
+
+New `test/chat_preview_cache_test.dart` (5 cases), including the account-switch
+clear.
+
 ### Splash centering — the suite is green again (bug; LOW risk)
 
 `splash_centering_test.dart` had been failing for weeks, written off in the docs
@@ -188,7 +256,7 @@ this test: with two permanent failures, a genuine regression had somewhere to
 hide.
 
 Verified: `flutter analyze lib test` at the documented baseline (1 pre-existing
-test-style info); suite **1457 pass / 0 fail** (+17 new this branch) — no
+test-style info); suite **1470 pass / 0 fail** (+30 new this branch); backend `npx jest` **92 pass** — no
 regressions. Geometry was confirmed by measuring the real widget at both window
 sizes, not by algebra alone. Not device-verified.
 

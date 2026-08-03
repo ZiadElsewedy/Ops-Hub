@@ -11,7 +11,7 @@
 | --- | --- |
 | **Branch** | `claude/ui-fix-608998` (worktree off `release/v1-preparation`) |
 | **Build** | `flutter analyze lib test`: 1 info, no errors/warnings (pre-existing test style) |
-| **Tests** | **1457 pass · 0 fail** across 201 files (~35s) — **green**; the two long-standing splash-centering failures were fixed 2026-08-03. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
+| **Tests** | **1470 pass · 0 fail** across 203 files (~35s) — **green**; the two long-standing splash-centering failures were fixed 2026-08-03. Cloud Functions: **72 pass** (`cd functions && node --test`); **Firestore rules: 53 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK); NestJS chat backend: **84 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`). All four verified 2026-08-02 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -645,6 +645,16 @@ persistence stays enabled and is now consistent with this.
 platform channel — airplane mode and a captive portal still need a device pass.
 Worth an ADR, since the first decision was reversed.
 
+### Chat inbox N+1 — fixed in code, **awaiting a backend deploy**
+
+The list DTO now serves the last-message preview (FR-021), taking a ten-row
+inbox from eleven requests to one. Both halves are written and tested
+(`drop-api` **92 pass**, app **1470 pass**) but the **server is not deployed**,
+so today's app still uses the per-row fallback.
+
+⚠️ **Deploy the API before assuming the inbox is cheap.** The client is additive
+and works against either server; the fallback must stay until the deploy lands.
+
 ### Analyzer info (1)
 
 The remaining `use_null_aware_elements` info is the pre-existing test-style lint
@@ -652,7 +662,7 @@ in `task_submission_gate_test.dart`. It is not an Automation Center finding.
 
 ### Failing tests — none (2026-08-03)
 
-**`flutter test` is fully green for the first time in weeks: 1457 pass, 0 fail.**
+**`flutter test` is fully green for the first time in weeks: 1470 pass, 0 fail.**
 
 > The three `notification_tap_flow_probe_test.dart` failures were **fixed
 > 2026-07-25** by deleting the temporary `debug_auth_probe.dart` and its two
@@ -890,7 +900,7 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1457 pass, 0 fail — GREEN; any red is a real regression
+flutter test                             # expect: 1470 pass, 0 fail — GREEN; any red is a real regression
 (cd functions && node --test)            # expect: 68 pass
 (cd firestore-tests && npm test)         # expect: 37 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 51

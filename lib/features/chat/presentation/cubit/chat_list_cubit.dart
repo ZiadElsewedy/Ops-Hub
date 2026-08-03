@@ -9,6 +9,7 @@ import 'package:drop/features/chat/domain/entities/chat_message.dart';
 import 'package:drop/features/chat/domain/usecases/get_cached_conversations.dart';
 import 'package:drop/features/chat/domain/usecases/get_conversations.dart';
 import 'package:drop/features/chat/domain/usecases/start_conversation.dart';
+import 'package:drop/features/chat/presentation/chat_format.dart';
 import 'chat_list_state.dart';
 
 /// Drives the chat inbox (conversation list) — REST + cursor pagination,
@@ -182,6 +183,8 @@ class ChatListCubit extends Cubit<ChatListState> {
     _loadingMore = false;
     _starting = false;
     _previews.clear();
+    _resolvedPreviews.clear();
+    _resolvedEmpty.clear();
     _previewMessageIds.clear();
     _lastSeenSeq.clear();
     _unread.clear();
@@ -190,6 +193,49 @@ class ChatListCubit extends Cubit<ChatListState> {
     // the next session's inbox when its in-flight mark-read finally fails.
     _optimisticallyCleared.clear();
     if (!isClosed) emit(const ChatListState.initial());
+  }
+
+  // ── Resolved last-message previews ────────────────────────────────
+  //
+  // The list endpoint returns `lastMessageAt` but not the message itself, so
+  // the inbox resolves one preview per row (see `ChatScreen._resolvePreviews`).
+  // That memo used to live on the *screen's* State, which meant it died on
+  // every navigation — walking into a conversation and back re-fetched every
+  // row. It lives here instead: this cubit is an app-wide singleton, so the
+  // work is done once per session, and [reset] already runs on sign-out so one
+  // account's previews can never surface in the next account's inbox.
+
+  final Map<String, ChatPreview> _resolvedPreviews = {};
+
+  /// Rows whose lookup came back with **nothing**. Tracked separately because
+  /// "resolved to empty" and "not resolved yet" are different states, and
+  /// conflating them re-queued the fetch on every single rebuild — a request
+  /// loop that never settled.
+  final Set<String> _resolvedEmpty = {};
+
+  ChatPreview? resolvedPreview(String conversationId) =>
+      _resolvedPreviews[conversationId];
+
+  bool isPreviewResolved(String conversationId) =>
+      _resolvedPreviews.containsKey(conversationId) ||
+      _resolvedEmpty.contains(conversationId);
+
+  /// Records a lookup result. A `null` [preview] means "there was nothing" and
+  /// is remembered, not retried.
+  void cacheResolvedPreview(String conversationId, ChatPreview? preview) {
+    if (preview == null) {
+      _resolvedEmpty.add(conversationId);
+    } else {
+      _resolvedPreviews[conversationId] = preview;
+      _resolvedEmpty.remove(conversationId);
+    }
+  }
+
+  /// Forgets one row's preview so it resolves again — used when returning from
+  /// a conversation, where the last message has probably changed.
+  void invalidateResolvedPreview(String conversationId) {
+    _resolvedPreviews.remove(conversationId);
+    _resolvedEmpty.remove(conversationId);
   }
 
   /// Populates [_conversations] from the durable cache for an instant cold-start

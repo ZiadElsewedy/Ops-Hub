@@ -47,6 +47,7 @@ class ChatConversationSummary {
     this.counterpartExternalId,
     this.lastMessageAt,
     this.unreadCount = 0,
+    this.lastMessage,
   });
 
   final String id;
@@ -70,6 +71,16 @@ class ChatConversationSummary {
   /// on a cold start (the live socket only increments from here). 0 = none.
   final int unreadCount;
 
+  /// The latest message, served with the row (FR-021) so the inbox can draw a
+  /// preview without a follow-up request per conversation.
+  ///
+  /// Null means **nothing to preview**, which is not the same as "not loaded":
+  /// the conversation has no messages, the requester deleted the latest for
+  /// themselves, or the server predates this field. The inbox falls back to
+  /// resolving the preview itself in that last case, so the client works
+  /// against a deployed server that does not send it yet.
+  final ChatLastMessage? lastMessage;
+
   /// This row with a fresher [lastMessageAt] — how a live `message:new`
   /// bumps a conversation's activity without a REST round trip.
   ChatConversationSummary withLastMessageAt(DateTime at) =>
@@ -81,7 +92,31 @@ class ChatConversationSummary {
         createdAt: createdAt,
         lastMessageAt: at,
         unreadCount: unreadCount,
+        lastMessage: lastMessage,
       );
+}
+
+/// The conversation-list preview message. Deliberately unformatted — the row
+/// composes its line with the rules the client already owns (attachment label,
+/// "You:" prefix, tombstone placeholder).
+class ChatLastMessage {
+  const ChatLastMessage({
+    required this.id,
+    required this.senderId,
+    required this.type,
+    this.body,
+    this.deletedForEveryoneAt,
+  });
+
+  final String id;
+  final String senderId;
+  final String type;
+  final String? body;
+
+  /// Set when the message was deleted for everyone.
+  final DateTime? deletedForEveryoneAt;
+
+  bool get isDeletedForEveryone => deletedForEveryoneAt != null;
 }
 
 /// A page of the conversation list with an opaque keyset cursor. Pass

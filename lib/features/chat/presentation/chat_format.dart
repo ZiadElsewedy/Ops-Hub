@@ -1,5 +1,6 @@
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
 import 'package:drop/features/chat/domain/entities/chat_message.dart';
 
 /// Presentation-side formatting for the chat feature (the `case_format.dart`
@@ -56,4 +57,18 @@ String chatMessagePreviewText(ChatMessage message) {
     return attachment.kind.isImage ? 'Photo' : attachment.originalFilename;
   }
   return '';
+}
+
+/// Preview text for the conversation-list row from the **served** preview
+/// (FR-021), rather than from a separately-fetched [ChatMessage].
+///
+/// Kept beside [chatMessagePreviewText] so the two never drift: same tombstone
+/// placeholder, same "an attachment with no caption still needs a label" rule.
+/// The served payload carries no attachment metadata, so a body-less message
+/// falls back to a generic label instead of a filename.
+String chatLastMessagePreviewText(ChatLastMessage message) {
+  if (message.isDeletedForEveryone) return chatDeletedForEveryonePlaceholder;
+  final body = (message.body ?? '').trim();
+  if (body.isNotEmpty) return body;
+  return message.type.toUpperCase() == 'TEXT' ? '' : 'Attachment';
 }
