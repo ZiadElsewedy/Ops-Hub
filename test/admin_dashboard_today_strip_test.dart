@@ -186,6 +186,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
+      // The strip sits below the hero + Needs-attention panel, whose height
+      // varies with copy — scroll the cell into view so this test asserts the
+      // count↔list agreement, not a pixel position.
+      await tester.ensureVisible(find.text('Completed today'));
+      await tester.pump();
       await tester.tap(find.text('Completed today'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));

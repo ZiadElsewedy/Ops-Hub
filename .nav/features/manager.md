@@ -24,7 +24,7 @@
 - **Design spec(s):** —
 
 ## Tests
-_None matched by name — verify before assuming uncovered._
+- `test/manager_home_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)
 ```
@@ -40,13 +40,75 @@ UI (page/widget)
 <!-- ═══════════════ HAND-AUTHORED INTELLIGENCE (edit freely) ═══════════════ -->
 
 ## Purpose
-_TODO: one-paragraph what & why. See `docs/design/` spec above if present._
+
+**Presentation-only.** Two files: `ManagerShell` (a `RoleScaffold` wrapper) and
+`ManagerHomeScreen`, the manager's **branch command center**. It owns no data —
+every number is a scoped `BlocSelector` over app-wide cubits (`TaskCubit`,
+`StatisticsCubit`, `ShiftSwapCubit`, `RequestsListCubit`, `CaseListCubit`,
+`BranchCubit`), and every visual is a `core/widgets/` V2 primitive.
+
+Rebuilt 2026-08-03 into the same ranked ladder the Admin command center was
+signed off on — hero → `AttentionPanel` → Today → On shift today → Recent
+activity → `DigestPanel` · quick actions — with a fixed 360px right rail on
+desktop. It replaced a flat wall of ten equal-weight `StatGrid` cards plus an
+embedded `TaskFeedSection` browser.
 
 ## ⚠️ Dangerous areas / invariants
-_TODO: what breaks if you touch this. Cross-check `.nav/05_DANGER.md`._
+
+- **The hero sentence and the attention panel must read the same total.** Both
+  switch off `reviews + overdue + unassigned + rejected + swaps` via the shared
+  `_attentionCounts` / `_openSwapCount` selectors and `dashboardMood(...)`. The
+  old screen's headline figure came from a different source than the strip
+  beneath it and the two disagreed on screen — do not reintroduce a second
+  source for the same number.
+- **Counts come from `task_metrics.dart`, never from `StatisticsCubit`**, so a
+  cell's figure and the list its tap opens are derived from the one live stream.
+  `StatisticsCubit` is used only for roster context (team size, shift coverage),
+  which no drill-down lists.
+- **`Late` is drawn exactly once** (the attention panel's lead row). It is
+  deliberately absent from the Today row — pinned by `manager_home_test.dart`.
+- **Every Today tile opens a list.** The row is `MetricTile`s, and a cell that
+  looks tappable but isn't is worse than one that isn't drawn — which is why
+  Admin Home's inert `Due soon` became **`Due today`** here, counted by the same
+  `applyFeed(…, FeedPreset.dueToday, …)` call its drill-down renders. Don't add
+  a figure to this row that no `TaskFeedFilter` can reproduce.
+- **`On shift today` is one card, not four cells** — and it is a tap target into
+  the weekly schedule. Roster context that nobody can act on doesn't earn a
+  metric cell each.
+- **There is no Quick actions section, and Recent messages is desktop-only.**
+  Both were duplicated navigation on a phone (bottom nav + app bar). Don't
+  re-add them without a fresh ask.
+- **The hero carries one supporting line.** The branch rides the *eyebrow*
+  (uppercased by `PageHero` — match the uppercase form in tests), `HeroMood`'s
+  scope slot is passed `''`, and freshness is not printed: `SyncButton` has it.
+- **Swaps load `loadBranch`, never `loadAll`** — a manager runs one branch.
+- **Every pushed filter passes `branchId` explicitly**, even though the
+  manager's `TaskCubit` stream is already branch-scoped: a drill-down should
+  state its scope, not inherit it.
+- Widget tests **must unmount the tree** (`pumpWidget(SizedBox.shrink())`) — the
+  hero's `SyncButton` drives a 30s `Timer.periodic`. `pumpAndSettle` will hang:
+  the hero's live pulse dot repeats forever by design. A `scrollUntilVisible`
+  fling leaves a ballistic simulation pending for the same reason.
 
 ## 🧩 Extension points
-_TODO: where to plug in new behavior without forking._
+
+- A new triage signal → append an `AttentionSignal` to `_signals(...)` **in
+  urgency order**; the panel handles ranking, the cleared footer and the
+  all-clear copy from the list itself.
+- A new module door → an entry in `_digest()`; `DigestEntry.value` is optional,
+  so a door with no honest figure renders label + chevron.
+- A new light metric → a `Stat` in `_today()`, derived in `task_metrics.dart`.
 
 ## 🔗 Related
-_TODO: sibling features, shared core widgets, ADRs._
+
+- **The same language, one tier up:** `features/admin` →
+  `admin_dashboard_screen.dart`. Both compose the shared primitives; changing
+  one's *layout* should not silently diverge the other's.
+- **Shared V2 primitives** (all in `core/widgets/`): `page_hero` · `primary_cta`
+  · `hero_mood` (+ `core/utils/dashboard_mood.dart`) · `attention_panel` ·
+  `digest_panel` · `stat_strip` · `sync_button` · `command_hint` ·
+  `live_status_border`.
+- **Where the manager's work actually happens:** `features/operations` (the
+  Branch Operations cockpit at `/manager/tasks`) — Home links into it, it is not
+  duplicated on Home.
+- ADR-004 (monochrome) · ADR-010 (lean over enterprise).

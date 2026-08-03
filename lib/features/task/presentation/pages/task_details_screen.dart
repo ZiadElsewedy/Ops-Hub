@@ -315,10 +315,12 @@ class _DetailsView extends StatelessWidget {
                   const SizedBox(height: AppSpacing.lg),
                 ],
 
-                // ── Status + meta header ────────────────────────────────
+                // ── Status · title · description · facts ────────────────
                 _StatusHeader(
                   task: task,
                   branchName: cubit.branchNames[task.branchId ?? ''],
+                  // The banner above already names the branch when it renders.
+                  showBranch: !(branch?.coverUrl?.isNotEmpty ?? false),
                 ),
                 const SizedBox(height: AppSpacing.xl),
 
@@ -360,28 +362,20 @@ class _DetailsView extends StatelessWidget {
                 ],
 
                 // ── Assignment ─────────────────────────────────────────
+                // "Assignment", not "Assigned to": the block now carries both
+                // halves of the handover (who is doing it, who gave it), and
+                // the old label only named one of them.
                 _Section(
                   icon: Icons.people_alt_outlined,
-                  title: 'Assigned to',
+                  title: 'Assignment',
                   child: _AssigneeBlock(task: task, directory: directory),
                 ),
                 const SizedBox(height: AppSpacing.xl),
 
-                // ── Description ─────────────────────────────────────────
-                if ((task.description ?? '').isNotEmpty) ...[
-                  _Section(
-                    icon: Icons.notes_rounded,
-                    title: 'Description',
-                    child: Text(
-                      task.description!,
-                      style: AppTypography.body.copyWith(
-                        color: AppColors.textSecondary,
-                        height: 1.6,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                ],
+                // No standalone Description section — the brief now sits
+                // directly under the title in the header, where a task's own
+                // words belong. It used to be a third section down, separated
+                // from its title by the whole assignment block.
 
                 // ── Reference images (manager-attached) ────────────────
                 if (task.hasReferences) ...[
@@ -541,6 +535,7 @@ class _DetailsView extends StatelessWidget {
               _StatusHeader(
                 task: task,
                 branchName: cubit.branchNames[task.branchId ?? ''],
+                showBranch: !(branch?.coverUrl?.isNotEmpty ?? false),
               ),
               const SizedBox(height: AppSpacing.xl),
               // Metrics first (Summary → Status → Metrics → Details).
@@ -558,20 +553,8 @@ class _DetailsView extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xl),
               ],
-              if ((task.description ?? '').isNotEmpty) ...[
-                _Section(
-                  icon: Icons.notes_rounded,
-                  title: 'Description',
-                  child: Text(
-                    task.description!,
-                    style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondary,
-                      height: 1.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-              ],
+              // The brief lives under the title in the header now — see
+              // `_StatusHeader`. No standalone Description section.
               if (task.hasReferences) ...[
                 _Section(
                   icon: Icons.image_outlined,
@@ -676,7 +659,7 @@ class _DetailsView extends StatelessWidget {
               ],
               _Section(
                 icon: Icons.people_alt_outlined,
-                title: 'Assigned to',
+                title: 'Assignment',
                 child: _AssigneeBlock(task: task, directory: directory),
               ),
               if (task.recurrence != null &&
@@ -805,13 +788,43 @@ class _BranchBanner extends StatelessWidget {
   }
 }
 
+/// The task header — **what this task is**, above everything else.
+///
+/// Rebuilt 2026-08-03 (owner: *"the header or the description of the task not
+/// clear … assignment from who? … too much things"*). Three faults:
+///
+/// * **The title was not on the page.** It lived only in the app bar, at app-bar
+///   size, above a full-bleed branch cover photo. The first thing the body said
+///   about a task was its status, then seven metadata chips — you could not read
+///   what the work actually *was*.
+/// * **The description was a separate section further down**, so a one-line task
+///   brief was separated from its own title by the assignment block.
+/// * **The meta row printed everything it had** — up to eleven chips of equal
+///   weight, including the branch (already named by the banner directly above)
+///   and the raw `type` string ("special"), and a `Normal` priority that is the
+///   default and therefore says nothing.
+///
+/// Now: status → **title** → description → the facts that change what you do
+/// (schedule · priority when it isn't normal · timeliness). Every chip left is
+/// one a manager would act on.
 class _StatusHeader extends StatelessWidget {
-  const _StatusHeader({required this.task, this.branchName});
+  const _StatusHeader({
+    required this.task,
+    this.branchName,
+    this.showBranch = true,
+  });
+
   final TaskEntity task;
   final String? branchName;
 
+  /// False when a branch cover banner sits directly above this header — the
+  /// chip would then be the branch name twice in ~80px.
+  final bool showBranch;
+
   @override
   Widget build(BuildContext context) {
+    final description = (task.description ?? '').trim();
+    final phase = schedulePhase(task, DateTime.now());
     // Reuses the shared de-flashed [TaskSurface] (same flat surface + whisper
     // shadow as the task card) so the treatment is defined in one place.
     return TaskSurface(
@@ -820,40 +833,57 @@ class _StatusHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status pill
           _StatusPill(task.status),
           const SizedBox(height: AppSpacing.md),
-          // Meta row
+
+          // ── The task itself ────────────────────────────────────────
+          // The headline of the whole screen. Wraps rather than ellipsizing:
+          // this is the one string the page exists to communicate.
+          Text(
+            task.title,
+            style: AppTypography.h2.copyWith(height: 1.25),
+          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              description,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.55,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: AppSpacing.lg),
+          const Divider(color: AppColors.darkBorder, height: 1),
+          const SizedBox(height: AppSpacing.md),
+
+          // ── The facts that change what you do ──────────────────────
           Wrap(
-            spacing: AppSpacing.xl,
+            spacing: AppSpacing.lg,
             runSpacing: AppSpacing.sm,
             children: [
-              if ((branchName ?? '').isNotEmpty)
+              // Only when no cover banner named the branch already.
+              if (showBranch && (branchName ?? '').isNotEmpty)
                 _MetaPill(
                   icon: Icons.store_mall_directory_outlined,
                   label: branchName!,
                 ),
-              _MetaPill(
-                icon: Icons.flag_outlined,
-                label: _priorityLabel(task.priority),
-              ),
-              _MetaPill(
-                icon: Icons.label_outline_rounded,
-                label: task.type.value,
-              ),
-              // Scheduling V2 — the start of the task's schedule window.
-              if (task.startsAt != null)
-                _MetaPill(
-                  icon: Icons.play_circle_outline_rounded,
-                  label: 'Starts ${_dateLabel(task.startsAt!)}',
-                ),
-              if (task.deadline != null) ...[
+              // Scheduling V2 — the start of the task's schedule window. Only
+              // while it is still ahead: once work can start, "Starts 3 Aug" is
+              // history the activity timeline already records.
+              if (task.startsAt case final startsAt?)
+                if (startsAt.isAfter(DateTime.now()))
+                  _MetaPill(
+                    icon: Icons.play_circle_outline_rounded,
+                    label: 'Starts ${_dateLabel(startsAt)}',
+                  ),
+              if (task.deadline != null)
                 _MetaPill(
                   icon: Icons.schedule_outlined,
                   label: 'Due ${_dateLabel(task.deadline!)}',
                   highlight: _isOverdue(task),
                 ),
-              ],
               // Finished work that missed its deadline — a timeliness signal
               // (ADR-013), never the error/highlight treatment Missed or an
               // active overdue pill wear.
@@ -862,15 +892,25 @@ class _StatusHeader extends StatelessWidget {
                   icon: Icons.timer_outlined,
                   label: formatLateness(lateness),
                 ),
-              // Current time-aware phase (Scheduled/Active/Due-soon/Overdue) for
-              // in-flight work; a finished task's story is the status pill.
-              if (schedulePhase(task, DateTime.now()).isActionable)
+              // The live phase, but only when it says something the Due chip
+              // beside it doesn't: "Overdue" and "Due soon" are warnings,
+              // whereas "Active" merely restates that an unfinished task with a
+              // future deadline is unfinished.
+              if (phase.isActionable &&
+                  (phase == TaskSchedulePhase.overdue ||
+                      phase == TaskSchedulePhase.dueSoon))
                 _MetaPill(
                   icon: Icons.timelapse_outlined,
-                  label: schedulePhase(task, DateTime.now()).label,
-                  highlight:
-                      schedulePhase(task, DateTime.now()) ==
-                      TaskSchedulePhase.overdue,
+                  label: phase.label,
+                  highlight: phase == TaskSchedulePhase.overdue,
+                ),
+              // Priority only when it is a decision: `normal` is the default
+              // every task carries, so printing it is noise on every screen.
+              if (task.priority != TaskPriority.normal)
+                _MetaPill(
+                  icon: Icons.flag_outlined,
+                  label: _priorityLabel(task.priority),
+                  highlight: task.priority == TaskPriority.high,
                 ),
               if (scheduledDuration(task) != null &&
                   formatScheduleDuration(scheduledDuration(task)!).isNotEmpty)
@@ -1118,47 +1158,87 @@ class _AssigneeBlock extends StatelessWidget {
         style: AppTypography.body.copyWith(color: AppColors.textTertiary),
       );
     }
+    // One lockup, one relationship (2026-08-03, owner: *"assignment from
+    // who?"*). It used to be a name + role, a hairline divider, and then an
+    // orphan grey caption "Assigned by  Admin" — two separate facts stacked
+    // with nothing tying them together, so the page never said who handed the
+    // work to whom. The handover is now a single sentence directly under the
+    // person doing the work, with the giver's name reading white.
+    final by = (task.createdBy ?? '').isEmpty
+        ? null
+        : _assignedByName(directory, task.createdBy!);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final u in assignees)
+        for (final (i, u) in assignees.indexed) ...[
+          if (i > 0) const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              UserAvatar.fromUser(u, size: 38),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _name(u),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.label.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      _roleLabel(u.role),
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (by != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          // Indented to sit under the person, and glyphed as a handover — this
+          // reads as "…and it came from X", not as an unrelated second row.
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            padding: const EdgeInsets.only(left: 2),
             child: Row(
               children: [
-                UserAvatar.fromUser(u, size: 38),
-                const SizedBox(width: AppSpacing.md),
+                const Icon(
+                  Icons.subdirectory_arrow_right_rounded,
+                  size: 15,
+                  color: AppColors.textTertiary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_name(u), style: AppTypography.label),
-                      Text(_roleLabel(u.role), style: AppTypography.caption),
-                    ],
+                  child: RichText(
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                      children: [
+                        const TextSpan(text: 'Assigned by '),
+                        TextSpan(
+                          text: by,
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-        // Assigned by
-        if ((task.createdBy ?? '').isNotEmpty) ...[
-          const Divider(color: AppColors.darkBorder, height: 1),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              const Icon(
-                Icons.person_outlined,
-                size: 14,
-                color: AppColors.textTertiary,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              const Text('Assigned by  ', style: AppTypography.caption),
-              Text(
-                _assignedByName(directory, task.createdBy!),
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
           ),
         ],
       ],

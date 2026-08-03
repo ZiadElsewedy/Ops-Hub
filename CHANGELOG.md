@@ -14,6 +14,176 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-03 — Manager Home rebuilt as a branch command center (feature + polish + bug; MED risk)
+
+Owner review of the manager role on device: *"it looks trash and not premium…
+the UI didn't give the answer of their questions."* Two concrete faults sat
+behind that, and both were structural rather than cosmetic:
+
+- **Nothing was ranked.** Home drew ten equal-weight `StatGrid` cards —
+  `Employees 8` had the same visual authority as `Waiting reviews 0` — then an
+  embedded `TaskFeedSection` (its own search · filter chips · sort · grouped
+  list) below them. The screen answered *how many rows exist*, never *what
+  needs you first*.
+- **The numbers disagreed on screen.** A `Active tasks 4` hero card sat above a
+  feed strip reading `Late 1 · Pending review 0 · Unassigned 0`, from a
+  different source.
+
+**Manager Home is now the same ranked ladder the Admin command center was
+signed off on**, scoped to one branch: hero (greeting · one live state sentence
+· *branch name* · employees · running · one **New Task** CTA) → **Needs
+attention** (one grouped `AttentionPanel`: late · pending review · sent back ·
+unassigned · swaps, most-urgent-first, cleared ones collapsed to a footer, each
+a branch-pinned drill) → **Today** → **On shift today** → **Recent activity**
+→ **Operations** · **Quick actions** · Recent messages. Desktop puts the
+operational story in a flexible main column beside a fixed 360px launch rail.
+
+Every count now derives from the one live `TaskCubit` stream via
+`task_metrics.dart`, so a figure and the list its tap opens cannot drift apart;
+`StatisticsCubit` is left only for roster context, which no drill-down lists.
+The hero sentence and the attention panel read the **same** total through
+`dashboardMood(...)`. `Late` is drawn exactly once. The task browser was not
+deleted — it lives where it belongs, Branch Operations and its All-tasks list,
+reachable from *Recent activity → See all* and the Branch tasks quick action.
+
+**The V2 command-center chrome is now shared, not admin-private.** It had been
+~600 lines of private classes inside `admin_dashboard_screen.dart`; with a
+second caller it moved to `core/widgets/`: `PrimaryCta` · `SyncButton` (+ pure
+`syncLabel`) · `HeroMood` · `AttentionPanel`/`AttentionSignal` · `DigestPanel`/
+`DigestEntry` · `CommandHint`, plus `live_status_border.dart` (already used by
+three features) and `dashboard_mood.dart` → `core/utils/`. Admin Home renders
+identically — it now composes the primitives instead of owning them. Two
+behaviour improvements fell out of the extraction: the all-clear panel's
+"0 late · 0 pending review · …" proof line is **derived from the signals** the
+board actually watches instead of hardcoded, and a `DigestEntry` may omit its
+value so a door with no honest figure renders label + chevron rather than a
+placeholder dash.
+
+Fixed alongside, all found on device:
+
+- **Branch Operations: the FAB covered a real control (bug).** The extended
+  `New Task` FAB parked on top of the shift toggle, so the **Night** lens was
+  unreachable on a phone. New Task is now the screen's single `PrimaryCta` in a
+  labelled action row under the branch hero, beside **All tasks** (promoted out
+  of an unlabelled app-bar glyph — which also gave the branch name room). No
+  FAB, no collision.
+- **Attendance: `Working anyway? Start an unscheduled shift` overflowed by
+  7.6px (bug).** A min-sized `Row` with an unbounded `Text`; the label is now
+  `Flexible` inside a padded, min-height button and wraps.
+- **Workload cards: four zeros per idle employee (polish).** A caught-up branch
+  rendered one bordered box of `0 0 0 0` per person — a component that reads as
+  failed, repeated down the page. The strip and its spacing are now gated on
+  `EmployeeWorkload.hasFigures`; idle people collapse to a slim identity row so
+  the ones carrying work stand out by height alone. A zero cell also steps down
+  the grey ramp.
+- **`RoleScaffold`: the role word truncated to "Mana…" (polish).** It was the
+  first thing the manager's crowded action cluster ate, and it is redundant now
+  that every home opens with a hero that greets by name and names its scope.
+  The mobile app bar leads with the DROP mark alone; `title` survives as the
+  bar's accessible label and the desktop page-header title.
+
+New `test/manager_home_test.dart` (7 tests) pins the ladder on **both** tiers,
+the hero↔panel agreement, the all-clear state, `Late` appearing once, the
+branch-pinned drill, and `loadBranch` (not `loadAll`) for swaps.
+
+`macos/Podfile.lock` picked up `connectivity_plus` — a genuine lockfile
+catch-up from the first macOS build since the offline-gating work landed.
+
+**Two ATLAS tooling bugs found and fixed while syncing the cards** (`.nav/gen_atlas.py`):
+
+- **`ROOT` was a hardcoded absolute path.** The repo is worked in through git
+  worktrees under `.claude/worktrees/`, so *any* run from a worktree silently
+  regenerated the **main** checkout's cards from the **main** checkout's code —
+  dirtying a tree nobody was editing while leaving the worktree's own cards
+  stale. It now resolves from the script's own location.
+- **It erased the hand-authored half of every card on every run**, despite each
+  card's own header promising *"Hand-authored intelligence lives BELOW the
+  marker. Do not delete that section."* It emitted the `_TODO:` placeholders
+  unconditionally. That is why every card's judgment section was a field of
+  TODOs — the protocol's own "read the card first" step had nothing to read.
+  Regeneration now keeps anything below the marker that isn't still the seed.
+
+`.nav/features/manager.md` is the first card with real hand-authored
+intelligence: purpose, the invariants above, extension points, and its
+relationship to `features/admin` and `features/operations`.
+
+### Second pass — clickability, density, and the task info page
+
+Owner review of the rebuilt Home: *"why everything in 1 page in manager UI
+mobile? quick actions and operations … make the On shift today and Today's
+tasks way more clear and clickable … is that really nice to see too much text?
+this application is for a high-end company so care for every small detail."*
+
+**Everything on Home is now a door.**
+
+- **Today** was a `StatStrip`: number-and-label text on one flat surface, with
+  nothing saying it could be opened — and one cell, `Due soon`, that genuinely
+  couldn't be (no `TaskFeedFilter` reproduces `schedulePhase`'s precedence). It
+  is four `MetricTile`s, 2×2 on a phone and one row on desktop, each with an
+  `arrow_outward` affordance. The deadline cell is now **`Due today`**, counted
+  by the very `applyFeed(…, FeedPreset.dueToday, …)` call its drill-down
+  renders — the figure and the list are one computation, not two kept in step.
+- **On shift today** was four cells (`Team · On today · Morning · Night`) —
+  eight strings for one fact, and **none of them clickable**, on the half of a
+  manager's job that is entirely roster. It is one card: the count on shift,
+  the team as its denominator, the morning/night split as two hairline pills,
+  and a chevron into the weekly schedule.
+- `MetricTile` + `MetricTileRow` are new `core/widgets/` primitives, extracted
+  from Branch Operations' private `_StatTile` — that header now composes them,
+  so the two surfaces cannot drift into two dialects of one metric cell.
+
+**Less text.** The hero was four stacked lines before any control (eyebrow with
+`· Synced just now`, a two-line greeting, the mood sentence, and a scope line).
+The branch moved into the eyebrow, the scope line is gone (the Sync control
+already carries freshness; `8 employees · 0 running` is what the Today row is
+for), and `HeroMood` now omits its scope line entirely when passed an empty
+string. Section headers lost their subtitles.
+
+**Fewer sections.** **Quick actions is deleted on both tiers** — Branch tasks
+and Weekly schedule are bottom-nav destinations (sidebar + ⌘K on desktop) and
+Broadcast is the app-bar megaphone, so it was three cards of duplicated
+navigation at the foot of a long page. **Recent messages is desktop-only**:
+Chat is the fourth bottom-nav tab, and five conversation previews under an
+operations board was the page trying to be every screen at once. The
+attention panel's cleared footer wraps to two lines instead of truncating
+mid-word.
+
+**Task details — the info page (feature + polish; MED risk).** Owner: *"the
+header or the description of the task not clear, and assignment — from who? all
+of this needs to be way more easy to read."* Three faults, all structural:
+
+- **The task title was not on the page.** It lived only in the app bar, at
+  app-bar size, above a full-bleed branch cover. The body opened on a status
+  pill and seven metadata chips — you could not read what the work *was*. The
+  title is now the header's headline (`h2`, wraps, never ellipsized).
+- **The description was a separate section further down**, separated from its
+  own title by the whole assignment block. It now sits directly under the
+  title, and the standalone section is gone.
+- **The meta row printed everything it had** — up to eleven equal-weight chips,
+  including the branch (already named by the banner directly above it), the raw
+  `type` string ("special"), a `Normal` priority that is the default on every
+  task, an `Active` phase that only restates that an unfinished task is
+  unfinished, and a `Starts` date already in the past. Each of those is now
+  conditional; in the owner's own screenshot the row drops from **seven chips to
+  two**.
+- **Assignment answered only half its own question.** A name and role, a
+  hairline divider, then an orphan grey caption `Assigned by  Admin` — two
+  facts stacked with nothing tying them together. It is one lockup now:
+  the assignee, then an indented handover line (`↳ Assigned by **Admin**`) with
+  the giver's name reading white. The section is renamed **Assignment**, since
+  "Assigned to" named only one side of it.
+
+The activity timeline — the part the owner said works — is untouched.
+
+Gates: analyze clean (1 pre-existing test-style info) · Dart **1482 pass / 0
+fail**; `manager_home_test.dart` grew to 10 (every Today tile is a door · the
+coverage card is one tap target · the hero carries one supporting line), and
+`task_start_gate_widget_test.dart` now expects the task title **twice** on
+Task Details (app bar + body headline). Re-verified on the iPhone 17 simulator.
+
+Gates: analyze clean (1 pre-existing test-style info) · Dart **1479 pass / 0
+fail**. Verified on the iPhone 17 simulator; the desktop tier is covered by the
+widget test rather than a screenshot.
 ## 2026-08-03 — Chat stability & UX audit (bug; HIGH risk)
 
 **Uncommitted.** Six reported defects, each traced to a root cause rather than

@@ -115,7 +115,7 @@
   "features": {
     "admin": {
       "path": "lib/features/admin/",
-      "file_count": 22,
+      "file_count": 21,
       "layers": {
         "data:datasource": [
           "lib/features/admin/data/datasources/user_admin_remote_datasource.dart"
@@ -135,7 +135,6 @@
           "lib/features/admin/presentation/cubit/admin_users_state.freezed.dart"
         ],
         "presentation:other": [
-          "lib/features/admin/presentation/dashboard_mood.dart",
           "lib/features/admin/presentation/employee_metrics.dart"
         ],
         "presentation:page": [
@@ -882,7 +881,8 @@
         "test/employee_card_test.dart",
         "test/employee_home_stat_strip_test.dart",
         "test/employee_metrics_test.dart",
-        "test/employee_week_stats_test.dart"
+        "test/employee_week_stats_test.dart",
+        "test/manager_home_test.dart"
       ],
       "design_specs": []
     },
@@ -903,7 +903,9 @@
       },
       "collections": [],
       "cloud_functions": [],
-      "tests": [],
+      "tests": [
+        "test/manager_home_test.dart"
+      ],
       "design_specs": []
     },
     "notifications": {
@@ -1349,7 +1351,7 @@
     },
     "task": {
       "path": "lib/features/task/",
-      "file_count": 101,
+      "file_count": 100,
       "layers": {
         "data:datasource": [
           "lib/features/task/data/datasources/task_remote_datasource.dart"
@@ -1443,7 +1445,6 @@
           "lib/features/task/presentation/widgets/attachment_picker.dart",
           "lib/features/task/presentation/widgets/attachment_viewer.dart",
           "lib/features/task/presentation/widgets/dynamic_work_form.dart",
-          "lib/features/task/presentation/widgets/live_status_border.dart",
           "lib/features/task/presentation/widgets/manager_task_card.dart",
           "lib/features/task/presentation/widgets/recent_activity_feed.dart",
           "lib/features/task/presentation/widgets/recurring_shift_task_sheets.dart",

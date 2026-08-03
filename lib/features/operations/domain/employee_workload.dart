@@ -44,6 +44,13 @@ class EmployeeWorkload {
   /// No open work and nothing in review — caught up.
   bool get isIdle => active == 0 && submitted == 0;
 
+  /// True when at least one figure on this card is non-zero — i.e. there is
+  /// something worth drawing a metric strip for. A card with four zeros says
+  /// nothing four times, so the strip collapses and the employee reads as one
+  /// slim identity row instead.
+  bool get hasFigures =>
+      active > 0 || overdue > 0 || submitted > 0 || completedToday > 0;
+
   /// Whether they're rostered at all today.
   bool get isScheduledToday => shiftsToday.isNotEmpty;
 }

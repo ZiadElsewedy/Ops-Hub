@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `task`
 
-> `lib/features/task/` · **101 files** · layer-complete clean-architecture slice
+> `lib/features/task/` · **100 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -34,7 +34,6 @@
 - `lib/features/task/presentation/widgets/attachment_picker.dart`
 - `lib/features/task/presentation/widgets/attachment_viewer.dart`
 - `lib/features/task/presentation/widgets/dynamic_work_form.dart`
-- `lib/features/task/presentation/widgets/live_status_border.dart`
 - `lib/features/task/presentation/widgets/manager_task_card.dart`
 - `lib/features/task/presentation/widgets/recent_activity_feed.dart`
 - `lib/features/task/presentation/widgets/recurring_shift_task_sheets.dart`
