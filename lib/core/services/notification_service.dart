@@ -66,6 +66,18 @@ class NotificationService {
         name: 'fcm',
       );
 
+      // iOS ONLY: without this, iOS shows nothing while the app is open — the
+      // system suppresses the banner and only `onMessage` fires. Android is
+      // unaffected (the OS posts to the `drop_default` channel itself), so this
+      // call is gated to Apple platforms and changes no Android behaviour.
+      if (requiresApnsToken) {
+        await _messaging.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
+
       // Foreground messages — suppressed if intended for a different account.
       FirebaseMessaging.onMessage.listen((message) {
         if (!_isForCurrentUser(message)) {
@@ -120,11 +132,11 @@ class NotificationService {
       // platform can't produce one (missing entitlement / simulator); the
       // `onTokenRefresh` listener re-registers when a token appears later.
       if (requiresApnsToken) {
-        final apns = await _messaging.getAPNSToken();
+        final apns = await _awaitApnsToken();
         if (apns == null) {
           AppLog.error('fcm',
-              'registerToken aborted — APNS token not available yet '
-              '(push entitlement missing, or registration still in flight)');
+              'registerToken aborted — APNS token not available after retrying '
+              '(push entitlement missing, or APNs registration failed)');
           return;
         }
       }
@@ -143,6 +155,39 @@ class NotificationService {
       developer.log('registerToken FAILED: $e', name: 'fcm');
       // Best-effort; push is non-critical to app function.
     }
+  }
+
+  /// Waits briefly for Apple to hand back the APNS token.
+  ///
+  /// **This is the iOS silent-failure guard.** `getAPNSToken()` returns null
+  /// while APNs registration is still in flight, and the auth listener calls
+  /// [registerToken] the instant sign-in completes — which is almost always
+  /// earlier. A single null check therefore aborted registration on a cold
+  /// start, and the old comment's claim that "`onTokenRefresh` re-registers when
+  /// a token appears later" does **not** hold: that stream only fires when the
+  /// **FCM** token *changes*. On a returning device the FCM token is already
+  /// minted and unchanged, so nothing ever re-fired, the token never reached
+  /// `users/{uid}.fcmTokens`, and every push to that device silently vanished.
+  ///
+  /// Polls up to ~5s, which comfortably covers normal APNs registration while
+  /// still giving up on a build that genuinely cannot register (no entitlement,
+  /// simulator). Returns `null` only after exhausting the budget.
+  Future<String?> _awaitApnsToken({
+    int attempts = 10,
+    Duration gap = const Duration(milliseconds: 500),
+  }) async {
+    for (var i = 0; i < attempts; i++) {
+      final token = await _messaging.getAPNSToken();
+      if (token != null) {
+        if (i > 0) {
+          developer.log('APNS token arrived after ${i + 1} attempt(s)',
+              name: 'fcm');
+        }
+        return token;
+      }
+      if (i < attempts - 1) await Future<void>.delayed(gap);
+    }
+    return null;
   }
 
   /// Remove this device's token (call on sign-out) so the signed-out account no

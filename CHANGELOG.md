@@ -47,6 +47,57 @@ ships with the app build.
 
 ---
 
+## 2026-08-03 — iOS push: the app was registering as the wrong Firebase app (bug; MED risk)
+
+APNs keys were uploaded, yet iOS still could not have received a push. The cause
+was not the credential — it was identity.
+
+**Xcode builds `com.ziad.drop`. Both `lib/firebase_options.dart` and
+`ios/Runner/GoogleService-Info.plist` described `com.example.fbro`** — a
+*different* Firebase iOS app (`…f1d3167839a737155a0bc0`). The project has three
+registered iOS apps, which is how this went unnoticed. Because `main.dart`
+initializes with `DefaultFirebaseOptions.currentPlatform`, the Dart values win
+over the plist, so **fixing only the plist would not have helped.** An APNs key
+is attached per iOS app, so tokens were minted against an app the sender never
+targets, and every push silently went nowhere. Android was unaffected — its own
+`google-services.json` was always correct — which is exactly why this looked like
+"Android works, iOS doesn't".
+
+Both now point at `1:450092605249:ios:c938624f6a08c77d5a0bc0` (`com.ziad.drop`),
+with the correct `iosClientId`. macOS shared the same wrong id and the same
+bundle id, so it was corrected too.
+
+- **iOS foreground notifications** now appear: `NotificationService.init` calls
+  `setForegroundNotificationPresentationOptions`, gated to Apple platforms. The
+  in-app snackbar is suppressed there so the OS banner cannot double-notify;
+  **Android keeps the snackbar exactly as before**, since a foreground push on
+  Android reaches `onMessage` only and the OS shows nothing.
+- **APNs token race fixed.** `registerToken` aborted whenever `getAPNSToken()`
+  returned null — routine on a cold start, since the auth listener fires the
+  moment sign-in completes. The old comment claimed `onTokenRefresh` would
+  re-register later, but that stream fires only when the **FCM** token *changes*;
+  on a returning device it never fires, so the token never reached
+  `users/{uid}.fcmTokens` and every push to that device vanished. Now polls up
+  to ~5s before giving up.
+
+Audited and deliberately left alone: `AppDelegate.swift` (firebase_messaging
+15.2.10 has swizzling enabled — it calls `registerForRemoteNotifications` and
+implements `didRegisterForRemoteNotificationsWithDeviceToken` itself, so adding
+them would duplicate or conflict), and `aps-environment=development` (Xcode
+rewrites it to `production` when exporting a distribution archive).
+
+Verified in the built artifact: the `.app` carries `CFBundleIdentifier`
+`com.ziad.drop`, a `GoogleService-Info.plist` whose `BUNDLE_ID` matches it,
+`UIBackgroundModes: [remote-notification]`, `MinimumOSVersion 13.0`.
+Gates: analyze clean · Dart 1441 pass / 2 pre-existing splash · functions 82 ·
+rules 61 · `flutter build ios --no-codesign` succeeds.
+
+⚠️ **Still unverified from here:** actual delivery needs a physical iPhone, and
+the APNs key must sit on the **`com.ziad.drop`** app in Firebase — not one of the
+other two iOS entries.
+
+---
+
 ## 2026-08-02 — Notification delivery guarantees (bug; MED risk)
 
 - **Scheduled broadcasts:** claim the queried due instant transactionally before dispatch and finalize only after it. A failed claimed dispatch is deliberately consumed and logged at error level; if finalization is uncertain, the durable claim prevents an org-wide duplicate.
