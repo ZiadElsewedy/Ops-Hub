@@ -17,6 +17,7 @@ import 'package:drop/features/chat/presentation/chat_conversation_presence.dart'
 import 'package:drop/features/chat/presentation/cubit/chat_conversation_cubit.dart';
 import 'package:drop/features/chat/presentation/cubit/chat_conversation_state.dart';
 import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:drop/features/chat/presentation/cubit/chat_list_state.dart';
 import 'package:drop/features/chat/presentation/pages/conversation_info_screen.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_conversation_view.dart';
 
@@ -47,6 +48,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
   late final ChatConversationCubit _cubit;
   late final ChatConversationPresence _presence;
   ChatThreadArgs? _resolvedArgs;
+  Future<Map<String, UserEntity>>? _directoryLoad;
 
   // ── In-conversation search ──
   bool _searching = false;
@@ -110,49 +112,35 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
     );
   }
 
-  Future<void> _resolveHeader() async {
+  void _resolveHeader() {
     final list = context.read<ChatListCubit>();
     final currentUser = context.currentUser;
-    var summary = list.conversationById(widget.conversationId);
+    final summary = list.conversationById(widget.conversationId);
     if (summary == null) {
-      await list.load();
-      summary = list.conversationById(widget.conversationId);
+      // The inbox may already be painting its durable cache. Do not wait for
+      // its network refresh: this screen listens for that cache-state emit and
+      // resolves immediately when the summary arrives.
+      unawaited(list.load());
+      return;
     }
-    if (summary == null) return;
-    final resolvedSummary = summary;
 
     void apply(Map<String, UserEntity> directory) {
-      final user = resolvedSummary.counterpartExternalId == null
-          ? null
-          : directory[resolvedSummary.counterpartExternalId];
-      final role = user == null ? null : chatRoleLabel(user.role);
-      final position = user?.position?.trim();
-      final roleLine = role == null
-          ? null
-          : position == null || position.isEmpty
-          ? role
-          : '$position · $role';
-      final args = ChatThreadArgs(
-        counterpartUserId: resolvedSummary.counterpartUserId,
-        counterpartExternalId: resolvedSummary.counterpartExternalId,
-        counterpartName: chatDisplayName(
-          user,
-          fallbackId: resolvedSummary.counterpartUserId,
-        ),
-        counterpartPhotoUrl: user?.photoUrl,
-        counterpartRoleLine: roleLine,
-      );
-      if (mounted) setState(() => _resolvedArgs = args);
+      final args = chatThreadArgsFromSummary(summary, directory);
+      if (mounted && _resolvedArgs != args) {
+        setState(() => _resolvedArgs = args);
+      }
     }
 
     final snapshot = AppDependencies.chatDirectorySnapshot;
-    if (snapshot.isNotEmpty) apply(snapshot);
-    try {
-      apply(await AppDependencies.loadChatDirectory(currentUser));
-    } catch (_) {
+    // Even an empty directory gives us the summary's safe `Teammate` fallback,
+    // so a known inbox row never regresses to the generic `Conversation`.
+    apply(snapshot);
+    (_directoryLoad ??= AppDependencies.loadChatDirectory(currentUser))
+        .then(apply)
+        .catchError((_) {
       // The summary remains a safe identity fallback; directory failures must
       // never block opening a thread.
-    }
+    });
   }
 
   String get _name {
@@ -304,48 +292,54 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<ChatConversationCubit>.value(
-      value: _cubit,
-      // Rebuild the AppBar's live match count as messages/search change.
-      child: BlocBuilder<ChatConversationCubit, ChatConversationState>(
-        builder: (context, _) {
-          final matches = _matches;
-          final activeId = _searching ? _activeMatchId(matches) : null;
-          return AdaptiveScaffold(
-            title: _name,
-            titleWidget: _searching
-                ? _SearchField(
-                    controller: _searchController,
-                    focusNode: _searchFocus,
-                    onChanged: _onSearchChanged,
-                    // Enter jumps to the next match (keyboard navigation).
-                    onSubmitted: () => _jump(1, matches.length),
-                  )
-                : _Header(
-                    name: _name,
-                    photoUrl: _headerArgs?.counterpartPhotoUrl,
-                    roleLine: _headerArgs?.counterpartRoleLine,
-                  ),
-            leading: _searching
-                ? IconButton(
-                    tooltip: 'Close search',
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    onPressed: _closeSearch,
-                  )
-                : null,
-            actions: _searching ? _searchActions(matches) : _menuActions(),
-            bottom: _searching && _searchQuery.isNotEmpty && matches.isEmpty
-                ? const _NoMatchesBar()
-                : null,
-            contentMaxWidth: 820,
-            body: ChatConversationView(
-              counterpartName: _headerArgs?.counterpartName,
-              attachmentSource: AppDependencies.chatAttachmentSource,
-              searchQuery: _searching ? _searchQuery : null,
-              activeMatchId: activeId,
-            ),
-          );
-        },
+    return BlocListener<ChatListCubit, ChatListState>(
+      // The inbox is the identity source. Re-resolving on every emit picks the
+      // summary up the moment it lands — the durable-cache paint, the network
+      // refresh, or a live update — instead of awaiting the whole load().
+      listener: (_, _) => _resolveHeader(),
+      child: BlocProvider<ChatConversationCubit>.value(
+        value: _cubit,
+        // Rebuild the AppBar's live match count as messages/search change.
+        child: BlocBuilder<ChatConversationCubit, ChatConversationState>(
+          builder: (context, _) {
+            final matches = _matches;
+            final activeId = _searching ? _activeMatchId(matches) : null;
+            return AdaptiveScaffold(
+              title: _name,
+              titleWidget: _searching
+                  ? _SearchField(
+                      controller: _searchController,
+                      focusNode: _searchFocus,
+                      onChanged: _onSearchChanged,
+                      // Enter jumps to the next match (keyboard navigation).
+                      onSubmitted: () => _jump(1, matches.length),
+                    )
+                  : _Header(
+                      name: _name,
+                      photoUrl: _headerArgs?.counterpartPhotoUrl,
+                      roleLine: _headerArgs?.counterpartRoleLine,
+                    ),
+              leading: _searching
+                  ? IconButton(
+                      tooltip: 'Close search',
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: _closeSearch,
+                    )
+                  : null,
+              actions: _searching ? _searchActions(matches) : _menuActions(),
+              bottom: _searching && _searchQuery.isNotEmpty && matches.isEmpty
+                  ? const _NoMatchesBar()
+                  : null,
+              contentMaxWidth: 820,
+              body: ChatConversationView(
+                counterpartName: _headerArgs?.counterpartName,
+                attachmentSource: AppDependencies.chatAttachmentSource,
+                searchQuery: _searching ? _searchQuery : null,
+                activeMatchId: activeId,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
