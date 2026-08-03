@@ -13,4 +13,11 @@ function isRetryableBroadcastPushError(err) {
   ]).has(String(err.code));
 }
 
-module.exports = { isRetryableBroadcastPushError };
+// New callers state their delivery choice explicitly. Older broadcast schedules
+// (and app builds in flight during rollout) have no field, so retain the historic
+// category-derived behavior for those documents only.
+function resolveSendsPush(sendsPush, categoryFallback) {
+  return typeof sendsPush === "boolean" ? sendsPush : categoryFallback;
+}
+
+module.exports = { isRetryableBroadcastPushError, resolveSendsPush };

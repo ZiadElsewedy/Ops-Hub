@@ -2,7 +2,14 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isRetryableBroadcastPushError } = require("../broadcast_delivery");
+const { isRetryableBroadcastPushError, resolveSendsPush } = require("../broadcast_delivery");
+
+test("explicit broadcast delivery wins, with category fallback for legacy schedules", () => {
+  assert.equal(resolveSendsPush(true, false), true);
+  assert.equal(resolveSendsPush(false, true), false);
+  assert.equal(resolveSendsPush(undefined, false), false);
+  assert.equal(resolveSendsPush(undefined, true), true);
+});
 
 test("broadcast push retries only transient FCM failures or thrown API calls", () => {
   for (const code of [

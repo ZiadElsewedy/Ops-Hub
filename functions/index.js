@@ -103,7 +103,7 @@ const {
   buildExecutionSnapshot,
 } = require("./automation_run");
 const { isReminderEligibleStatus } = require("./task_reminders");
-const { isRetryableBroadcastPushError } = require("./broadcast_delivery");
+const { isRetryableBroadcastPushError, resolveSendsPush } = require("./broadcast_delivery");
 const { canClaimScheduledBroadcast } = require("./broadcast_schedule");
 const {
   correctionTargetsOwnRecord,
@@ -153,9 +153,7 @@ function isDeadTokenError(code) {
 // the client — there is no separate priority/channel dial): announcement is a
 // quiet inbox-only message; reminder + emergency also push; emergency rides at
 // high FCM priority. Every category writes the in-app inbox.
-function categorySendsPush(category) {
-  return category !== "announcement";
-}
+function categorySendsPush(category) { return category !== "announcement"; }
 function categoryIsHigh(category) {
   return category === "emergency";
 }
@@ -174,6 +172,7 @@ async function dispatchBroadcast(params) {
   const title = String(params.title || "").trim();
   const body = String(params.body || params.message || "").trim();
   const category = String(params.category || "general").trim() || "general";
+  const sendsPush = resolveSendsPush(params.sendsPush, categorySendsPush(category));
   const audience = String(params.audience || "").trim();
   const senderId = String(params.senderId || "").trim();
   const senderRole = String(params.senderRole || "manager").trim() || "manager";
@@ -260,6 +259,7 @@ async function dispatchBroadcast(params) {
     title,
     message: body,
     category,
+    sendsPush,
     senderId,
     senderName,
     senderRole,
@@ -314,7 +314,7 @@ async function dispatchBroadcast(params) {
   // Diagnostics: how many times the SAME device token was found on two different
   // recipients in one send — an ownership-drift signal (defense-in-depth #3).
   let tokenDriftCount = 0;
-  if (categorySendsPush(category)) {
+  if (sendsPush) {
     // Gather FCM tokens (de-duplicated; remember each token's EXCLUSIVE owner).
     // If a token is already claimed by another recipient in this send, that's
     // drift: keep the first owner (no double-send) and log it. claimFcmToken is
@@ -477,6 +477,7 @@ exports.sendBroadcast = onCall(async (request) => {
   const branchId = String(payload.branchId || "").trim();
   const targetUserId = String(payload.targetUserId || "").trim();
   const roleFilter = String(payload.roleFilter || "").trim();
+  const sendsPush = typeof payload.sendsPush === "boolean" ? payload.sendsPush : undefined;
   const targetUserIds = Array.isArray(payload.targetUserIds)
     ? payload.targetUserIds.map((s) => String(s || "").trim()).filter(Boolean)
     : [];
@@ -548,6 +549,7 @@ exports.sendBroadcast = onCall(async (request) => {
     targetUserId,
     targetUserIds,
     roleFilter,
+    sendsPush,
   });
 
   return { success: true, ...result };
@@ -1385,6 +1387,7 @@ exports.runBroadcastSchedules = onSchedule("every 5 minutes", async () => {
         title: s.title,
         body: s.message,
         category: s.category,
+        sendsPush: s.sendsPush,
         audience: s.audience,
         branchId: s.branchId || "",
         targetUserId: "",

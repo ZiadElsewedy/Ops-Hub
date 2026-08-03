@@ -14,6 +14,22 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-03 — Explicit broadcast delivery and premium templates (feature + polish; MED risk)
+
+- The New Broadcast composer now defaults to the visible **Push + Inbox** delivery
+  choice, with **Inbox only** as the only alternative. `sendsPush` travels through
+  the callable and schedules; the Cloud Function retains category-based fallback
+  for legacy payloads. Emergency keeps its separate high-priority treatment.
+- The composer leads with title and message, puts delivery before the nested
+  routing configuration, and retains the sticky send action. Templates now have
+  a structured monochrome library summary without changing library/picker/editor
+  behavior.
+
+Risk: MED — delivery wiring spans client, schedules, and the server; the fallback
+keeps existing scheduled broadcasts compatible.
+
+---
+
 ## 2026-08-02 — Notification subjects and complete employee broadcasts (polish + bug; LOW risk)
 
 Because `title` is a pure `switch (type)` in every producer, `body` is the only
@@ -44,6 +60,14 @@ Gates: analyze clean (1 pre-existing info) · Dart 1441 pass / 2 pre-existing
 splash failures · functions 82 pass · rules 61 pass.
 ✅ The server-side body changes are **deployed 2026-08-02**; the tile change
 ships with the app build.
+
+---
+
+Gates: analyze clean (1 pre-existing info) · Dart **1442 pass / 2 pre-existing
+splash failures** · functions **83 pass** · rules **61 pass**.
+⚠️ The `sendsPush` field is honoured server-side — **needs a Cloud Functions
+deploy**. Deploy the server before shipping an app build that sends it;
+until then broadcasts fall back to the old category-derived delivery.
 
 ---
 
