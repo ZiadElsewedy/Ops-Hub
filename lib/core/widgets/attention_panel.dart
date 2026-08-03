@@ -59,7 +59,6 @@ class AttentionPanel extends StatelessWidget {
     super.key,
     required this.signals,
     this.clearTitle = 'All clear',
-    this.clearMessage = 'Nothing needs you right now — every queue is empty.',
   });
 
   /// Every signal this board watches, in urgency order (most urgent first).
@@ -67,9 +66,6 @@ class AttentionPanel extends StatelessWidget {
 
   /// Headline of the all-clear state.
   final String clearTitle;
-
-  /// Reassuring sentence under [clearTitle].
-  final String clearMessage;
 
   /// The sum of every signal — the same total a hero's [DashboardMood] should
   /// switch off, so the sentence and this panel can never disagree.
@@ -84,11 +80,7 @@ class AttentionPanel extends StatelessWidget {
     final Widget child = active.isEmpty
         ? KeyedSubtree(
             key: const ValueKey('attn-clear'),
-            child: _AllClearPanel(
-              title: clearTitle,
-              message: clearMessage,
-              facts: signals,
-            ),
+            child: _AllClearPanel(title: clearTitle, facts: signals),
           )
         : KeyedSubtree(
             key: const ValueKey('attn-active'),
@@ -312,70 +304,75 @@ class _Row extends StatelessWidget {
   }
 }
 
-/// The attention layer when **every** queue is empty — one reassuring summary
-/// instead of a grid of switched-off tiles. A large success check, a positive
-/// sentence, and a muted inline row of the zeroed facts, so a healthy board
-/// reads *under control* rather than like a failed load.
+/// The attention layer when **every** queue is empty — one quiet, **compact**
+/// row instead of a grid of switched-off tiles.
+///
+/// Slimmed 2026-08-03 (owner: *"all clear takes a big space of the screen …
+/// ana msh ba7b za7ma"*). It was a 52px check, an `h3` headline, a full
+/// sentence and a wrapped list of zeroes — roughly 150px, which made *nothing
+/// to do* the tallest thing on a calm board. The sentence is gone (the hero
+/// already says "All caught up" three lines above, and the title says it
+/// again), the check is 34px, and the zeroed facts are named the same way the
+/// active state's cleared footer names them. The state a manager sees most
+/// often is now the one that costs the least screen.
+///
+/// What survives is the point of it: a green check, so a healthy board reads
+/// *under control*, and the derived list of what was checked, so it can never
+/// be mistaken for a panel that failed to load.
 class _AllClearPanel extends StatelessWidget {
-  const _AllClearPanel({
-    required this.title,
-    required this.message,
-    required this.facts,
-  });
+  const _AllClearPanel({required this.title, required this.facts});
 
   final String title;
-  final String message;
   final List<AttentionSignal> facts;
 
   @override
   Widget build(BuildContext context) {
-    // Derived, never hardcoded: the zeroed facts are exactly the signals this
-    // board watches, so the proof line can't drift from the panel above it.
-    final zeroes = facts.map((s) => '0 ${s.label.toLowerCase()}').join(' · ');
+    // Derived, never hardcoded: these are exactly the signals this board
+    // watches, so the proof line can't drift from the panel above it. Phrased
+    // like the active state's footer ("late · pending review — all clear")
+    // rather than repeating "0" five times.
+    final names = facts.map((s) => s.label.toLowerCase()).join(' · ');
     return Semantics(
-      label: '$title. $message',
+      label: '$title. $names, all clear.',
       child: GlassContainer(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // A large, calm success check — the board's own state is "healthy",
-            // the one place a status colour earns its place on this screen.
             Container(
-              width: 52,
-              height: 52,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: AppColors.success.withAlpha(28),
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(11),
                 border: Border.all(color: AppColors.success.withAlpha(60)),
               ),
               child: const Icon(
                 Icons.check_rounded,
-                size: 28,
+                size: 19,
                 color: AppColors.success,
               ),
             ),
-            const SizedBox(width: AppSpacing.lg),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: AppTypography.h3),
-                  const SizedBox(height: 3),
-                  // Reassuring sentence → light grey, a clear step under the title.
                   Text(
-                    message,
-                    style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondary,
+                    title,
+                    style: AppTypography.label.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (zeroes.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    // The zeroed facts, quiet and inline (medium grey) — proof
-                    // the calm state is real, not a failed load.
+                  if (names.isNotEmpty) ...[
+                    const SizedBox(height: 1),
                     Text(
-                      zeroes,
+                      names,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTypography.caption.copyWith(
                         color: AppColors.textTertiary,
                       ),

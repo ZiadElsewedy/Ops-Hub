@@ -121,9 +121,14 @@ home should compose them and derive its own counts, never re-draw them.
   order; those with work render as triage rows (glyph · label + sublabel ·
   counting-up figure · chevron), the cleared ones collapse into a single quiet
   footer, and at zero the whole box becomes an all-clear summary whose proof
-  line (`0 late · 0 pending review · …`) is **derived from the signals given**,
+  line (`late · pending review · …`) is **derived from the signals given**,
   never hardcoded. A fresh signal slides in as a *row*; one unified
   `LiveStatusBorder` orbits the box, reading the most-urgent signal's tone.
+  ⚠️ **The all-clear state is the compact one** (2026-08-03): a 34px check, the
+  title, and that derived list — one row, no reassuring sentence. **The state a
+  board sits in most often must cost the least screen**; a tall "nothing to do"
+  made the empty case the biggest thing on the page and pushed the actual work
+  below the fold. Reward a healthy board with a glyph and proof, not height.
 - **`DigestPanel`** / **`DigestEntry`** — the quiet "everything else" layer: one
   grouped surface of module doors. Rows report a figure, they never count up,
   pulse, or wear a living border — anything needing a decision belongs in the

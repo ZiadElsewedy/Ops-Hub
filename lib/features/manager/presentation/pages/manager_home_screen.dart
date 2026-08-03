@@ -32,6 +32,7 @@ import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.da
 import 'package:drop/features/requests/presentation/cubit/requests_list_state.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
+import 'package:drop/features/schedule/presentation/widgets/today_roster_sheet.dart';
 import 'package:drop/features/schedule/presentation/widgets/swap_alert_card.dart'
     show showSwapQueueSheet;
 import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
@@ -312,8 +313,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                 rejected: rejected,
                 swaps: swaps,
               ),
-              clearMessage:
-                  'Nothing needs you right now — your branch is on top of it.',
             );
           },
         );
@@ -501,13 +500,19 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   }
 
   // ── On shift today (the manager's other half of the job) ─────────
-  /// One tappable coverage card into the weekly schedule.
+  /// One tappable coverage card that answers **who is in**.
   ///
   /// This was four `Team · On today · Morning · Night` cells — eight strings to
   /// say one thing, and **not one of them was clickable**, on the half of the
   /// job that is entirely about the roster. It is now a single card: the number
   /// on shift, how that reads against the team, the morning/night split as two
-  /// quiet pills, and a chevron into the schedule.
+  /// quiet pills.
+  ///
+  /// Tapping opens the **roster peek**, not the weekly grid. The grid is where
+  /// you *change* the roster; asked "who's on today", it costs a navigation, a
+  /// week header and a day/shift hunt before it answers. The sheet names the
+  /// people under each shift immediately, and offers the grid as its footer for
+  /// when editing is actually the intent.
   Widget _coverage() {
     return BlocBuilder<StatisticsCubit, StatisticsState>(
       builder: (context, state) {
@@ -517,7 +522,11 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
           team: s?.employeesInBranch ?? 0,
           morning: s?.morningShiftEmployees ?? 0,
           night: s?.nightShiftEmployees ?? 0,
-          onTap: () => context.push(RouteNames.managerSchedule),
+          onTap: () => showTodayRosterSheet(
+            context: context,
+            branchId: _branchId,
+            branchName: context.read<BranchCubit>().branchById(_branchId)?.name,
+          ),
         );
       },
     );

@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `schedule`
 
-> `lib/features/schedule/` · **55 files** · layer-complete clean-architecture slice
+> `lib/features/schedule/` · **57 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -50,6 +50,7 @@
 - `lib/features/schedule/presentation/widgets/shift_templates_sheet.dart`
 - `lib/features/schedule/presentation/widgets/swap_alert_card.dart`
 - `lib/features/schedule/presentation/widgets/swap_view.dart`
+- `lib/features/schedule/presentation/widgets/today_roster_sheet.dart`
 
 **presentation:other**
 - `lib/features/schedule/presentation/schedule_insights.dart`
@@ -75,6 +76,7 @@
 - `lib/features/schedule/domain/swap_eligibility.dart`
 - `lib/features/schedule/domain/swap_policy.dart`
 - `lib/features/schedule/domain/swap_validation.dart`
+- `lib/features/schedule/domain/today_roster.dart`
 
 **data:repository-impl**
 - `lib/features/schedule/data/repositories/schedule_repository_impl.dart`
