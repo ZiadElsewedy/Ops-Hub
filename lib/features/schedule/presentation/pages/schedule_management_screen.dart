@@ -247,6 +247,7 @@ class _CoverageRow extends StatelessWidget {
         roster: coverage.roster,
         // We ARE the schedule screen — switch tabs instead of pushing our own
         // route on top of ourselves.
+        onOpenSchedule: onEdit,
       ),
       highlight: warning,
       accent: AppColors.warning,
