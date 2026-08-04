@@ -5,6 +5,23 @@
 >
 > **Last verified against the code:** 2026-08-04.
 
+> **Schedule — mobile Final view, exports, caching, roster fix (2026-08-04):**
+> The Final view splits by width: **macOS keeps the landscape print sheet**
+> (`FinalScheduleSheet`, 1600px), a **phone shows `FinalScheduleMobileView`** — a
+> day-by-day card list (Morning/Night, people as chips, hours + leave + notes
+> inline), no zoom. The split is `context.isDesktop` (≥1024). The published sheet,
+> the mobile view and the PDF all list **only people actually scheduled that week**
+> via `scheduledRoster()` (≥1 shift, orphans dropped) — not the whole branch
+> directory; the editor still assigns from everyone. **Export is a chooser (PNG +
+> PDF):** PNG rasterises an off-screen `RepaintBoundary` of the landscape sheet,
+> PDF is the new vector `buildScheduleFinalPdf` (`pdf` pkg, landscape A4); both go
+> through the **ADR-019 write-beside + `open_filex`** delivery (iOS share/preview →
+> Save to Photos/Files/send), fixing the old iOS bug of a PNG written to the
+> nonexistent `getDownloadsDirectory()`. `ScheduleCubit.load` now has a **60s
+> freshness window** — a same-(branch, week) revisit within it is a no-op, not a
+> refetch; scope changes, Refresh, pull-to-refresh (`force`) and mutations still
+> refetch.
+>
 > **Task Management production polish (2026-08-04, presentation only):**
 > **Missed is a first-class `MetricTile`** on Task Management (Active · In review
 > · Late · Missed), hidden at zero, never summed with Cancelled, and drawn

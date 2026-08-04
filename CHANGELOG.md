@@ -14,6 +14,42 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Schedule: mobile Final view, exports, caching, roster fix (feature + fix; MED risk)
+
+Four things the owner flagged from an iPhone, one pass.
+
+- **Final view is now readable on a phone.** The published sheet
+  (`FinalScheduleSheet`) is a fixed **1600px landscape print document** — crisp
+  on a Mac, an illegible thumbnail shrunk to a phone. On mobile the screen now
+  shows a new **`FinalScheduleMobileView`**: one day per card, Morning then
+  Night, the people on each shift as chips, with hours, leave and day-notes
+  inline — top-to-bottom, no zoom, no horizontal scroll. **The macOS view is
+  untouched** (still the landscape sheet, scaled to fit); the split is on
+  `context.isDesktop` (≥1024).
+- **The sheet lists only the people actually on the schedule**, not every branch
+  member — the "why is everyone on it" complaint. New `scheduledRoster()` helper
+  (anyone with ≥1 shift that week, orphans dropped) drives the sheet, the mobile
+  view **and** the PDF, so they never disagree. The editor still assigns from the
+  whole team; only the *published* output is filtered.
+- **Save as image or PDF, from any platform.** Export is now a chooser (PNG /
+  PDF). PNG is captured from an off-screen `RepaintBoundary` of the landscape
+  sheet (so a phone can export the same document it isn't showing); PDF is a new
+  vector builder (`buildScheduleFinalPdf`, `pdf` package, landscape A4). Both are
+  written beside the other exports and handed to the OS via `open_filex` on
+  mobile — the **approved ADR-019 delivery** (share/preview → Save to Photos /
+  Files / send). No new dependencies. The old iOS bug — a PNG written to
+  `getDownloadsDirectory()`, which doesn't exist on iOS, landing unreachably in
+  the sandbox — is gone.
+- **The weekly editor stops refetching on every open.** `ScheduleCubit.load`
+  gained a 60s freshness window: re-opening the same (branch, week) within it is
+  a no-op instead of a fresh Firestore read on every tap. A real scope change
+  (branch/week), the Refresh button, pull-to-refresh (`force`) and every roster
+  mutation still refetch, so a stale window is at most 60s and only against edits
+  on another device.
+
+Tests: mobile-vs-desktop view swap, scheduled-only roster, no-overflow at
+iPhone width, export toolbar. `flutter analyze` clean; schedule suite green.
+
 ## 2026-08-04 — Task Management production polish (polish; MED risk)
 
 Second refinement pass. Presentation only.

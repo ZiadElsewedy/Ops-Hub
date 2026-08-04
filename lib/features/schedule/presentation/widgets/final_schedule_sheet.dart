@@ -60,10 +60,9 @@ class FinalScheduleSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gen = generatedAt ?? DateTime.now();
-    final roster = [...members]
-      ..sort((a, b) => userDisplayName(a)
-          .toLowerCase()
-          .compareTo(userDisplayName(b).toLowerCase()));
+    // Only the people actually on the schedule this week — the published sheet
+    // is a "who's working" roster, not the whole branch directory.
+    final roster = scheduledRoster(schedule, members);
     final hasNotes =
         ScheduleDay.values.any((d) => schedule.noteFor(d) != null);
 

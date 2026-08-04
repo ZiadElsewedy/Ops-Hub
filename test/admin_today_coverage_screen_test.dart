@@ -44,7 +44,7 @@ class _FakeScheduleCubit extends Cubit<ScheduleState> implements ScheduleCubit {
   /// coverage list had already derived.
   var loadCalls = 0;
 
-  @override Future<void> load({required String branchId, DateTime? weekStart}) async {
+  @override Future<void> load({required String branchId, DateTime? weekStart, bool force = false}) async {
     loadCalls++;
   }
   @override Future<void> refresh() async {}
