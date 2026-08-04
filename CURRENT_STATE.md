@@ -8,19 +8,33 @@
 > **Schedule — mobile Final view, exports, caching, roster fix (2026-08-04):**
 > The Final view splits by width: **macOS keeps the landscape print sheet**
 > (`FinalScheduleSheet`, 1600px), a **phone shows `FinalScheduleMobileView`** — a
-> day-by-day card list (Morning/Night, people as chips, hours + leave + notes
-> inline), no zoom. The split is `context.isDesktop` (≥1024). The published sheet,
+> day-by-day card list (Morning/Night, each person an **avatar · name · role**
+> row, hours + leave + notes inline; a "Final schedule" title in the bar), no
+> zoom. The split is `context.isDesktop` (≥1024). The published sheet,
 > the mobile view and the PDF all list **only people actually scheduled that week**
 > via `scheduledRoster()` (≥1 shift, orphans dropped) — not the whole branch
 > directory; the editor still assigns from everyone. **Export is a chooser (PNG +
 > PDF):** PNG rasterises an off-screen `RepaintBoundary` of the landscape sheet,
 > PDF is the new vector `buildScheduleFinalPdf` (`pdf` pkg, landscape A4); both go
 > through the **ADR-019 write-beside + `open_filex`** delivery (iOS share/preview →
-> Save to Photos/Files/send), fixing the old iOS bug of a PNG written to the
-> nonexistent `getDownloadsDirectory()`. `ScheduleCubit.load` now has a **60s
+> Save to Photos/Files/send). **On mobile `_writeExport` writes to the app
+> documents dir, never `getDownloadsDirectory()`** — on iOS that returns a
+> never-created sandbox `Downloads` path, so the write threw "Could not save" for
+> **both** exports; the identical bug in the **attendance** weekly export was fixed
+> the same way. `ScheduleCubit.load` now has a **60s
 > freshness window** — a same-(branch, week) revisit within it is a no-op, not a
 > refetch; scope changes, Refresh, pull-to-refresh (`force`) and mutations still
-> refetch.
+> refetch. **The mobile weekly editor is `ScheduleDayEditor`** (one day at a time:
+> day selector + roomy Morning/Night cards with add/move/remove + Notes & leave)
+> — it replaced the cramped horizontal grid on phones. Pure presentation: every
+> edit routes through the **same validated handlers as the desktop grid**
+> (`_moveChip`/`_removeChip`/`_openChipActions`/`cubit.assign` via
+> `_openAssignPicker` + `showEmployeePicker`). On a phone the controls block leads
+> the scroll (**scrolls up and away**, not pinned) so the editor gets the screen;
+> desktop keeps its toolbar pinned. On mobile the shift filter is gone (dead with
+> the day editor) and **Final view moved into the app bar** as an icon
+> (`ScheduleFinalViewAction`); both stay on desktop. **Desktop keeps the grid +
+> inspector.**
 >
 > **Task Management production polish (2026-08-04, presentation only):**
 > **Missed is a first-class `MetricTile`** on Task Management (Active · In review
@@ -619,10 +633,11 @@ the screen, because a PDF with its own information architecture is a second one
 to keep in sync. It renders **both** states in the header — coverage *and*
 review — never merged into one verdict.
 
-⚠️ **Opening matters more than saving on mobile.** `getDownloadsDirectory()` is
-desktop-only, so on a phone both exports land in the app sandbox where nobody
-would find them; mobile therefore opens the file through `open_filex` so it can
-actually be sent on. Desktop skips that — it already writes to Downloads.
+⚠️ **Opening matters more than saving on mobile.** On a phone `_writeExport`
+targets the **app documents dir** (never `getDownloadsDirectory()` — on iOS that
+returns a never-created sandbox `Downloads` path, which threw "Could not save"),
+so the file always writes, then `open_filex` hands it to the share/preview sheet
+to be sent on. Desktop uses Downloads and skips the opener.
 
 **Payroll is now fully removed from the UI**, not just the backend:
 `AttendanceExportKind.payrollCsv`, `AttendanceExportBlock.notLocked` /

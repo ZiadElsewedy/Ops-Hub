@@ -22,10 +22,13 @@ Four things the owner flagged from an iPhone, one pass.
   (`FinalScheduleSheet`) is a fixed **1600px landscape print document** — crisp
   on a Mac, an illegible thumbnail shrunk to a phone. On mobile the screen now
   shows a new **`FinalScheduleMobileView`**: one day per card, Morning then
-  Night, the people on each shift as chips, with hours, leave and day-notes
-  inline — top-to-bottom, no zoom, no horizontal scroll. **The macOS view is
-  untouched** (still the landscape sheet, scaled to fit); the split is on
-  `context.isDesktop` (≥1024).
+  Night, each person an **avatar · name · role** row (same `UserAvatar` as the
+  editor), with hours, leave and day-notes inline — top-to-bottom, no zoom, no
+  horizontal scroll. The toolbar gained a **"Final schedule" title** on mobile
+  (the Dashboard shortcut was dropped there), and the header meta labels the
+  manager with a colon (`Manager: Name`) instead of a mid-dot that blended into a
+  doubled-looking "Manager · Manager". **The macOS view is untouched** (still the
+  landscape sheet, scaled to fit); the split is on `context.isDesktop` (≥1024).
 - **The sheet lists only the people actually on the schedule**, not every branch
   member — the "why is everyone on it" complaint. New `scheduledRoster()` helper
   (anyone with ≥1 shift that week, orphans dropped) drives the sheet, the mobile
@@ -37,9 +40,15 @@ Four things the owner flagged from an iPhone, one pass.
   vector builder (`buildScheduleFinalPdf`, `pdf` package, landscape A4). Both are
   written beside the other exports and handed to the OS via `open_filex` on
   mobile — the **approved ADR-019 delivery** (share/preview → Save to Photos /
-  Files / send). No new dependencies. The old iOS bug — a PNG written to
-  `getDownloadsDirectory()`, which doesn't exist on iOS, landing unreachably in
-  the sandbox — is gone.
+  Files / send). No new dependencies.
+  - **iOS write-path fix (same day):** the first cut still failed on iOS with
+    "Could not save" — on iOS `getDownloadsDirectory()` neither throws nor
+    returns null, it hands back a sandbox `.../Downloads` path that was never
+    created, so `?? documents` never fired and the write threw. Both exports
+    share that step, so both failed. `_writeExport` now goes **straight to the
+    app documents dir on mobile** (Downloads is desktop-only) and
+    `create(recursive: true)`s it. The **same latent bug in the attendance
+    weekly export** was fixed identically.
 - **The weekly editor stops refetching on every open.** `ScheduleCubit.load`
   gained a 60s freshness window: re-opening the same (branch, week) within it is
   a no-op instead of a fresh Firestore read on every tap. A real scope change
@@ -47,8 +56,30 @@ Four things the owner flagged from an iPhone, one pass.
   mutation still refetch, so a stale window is at most 60s and only against edits
   on another device.
 
+- **Phone editor is no longer the cramped 7-day grid.** On mobile the weekly
+  editor is now **`ScheduleDayEditor`** — one day at a time: a day selector
+  (coverage dot per day), then roomy **Morning / Night** cards listing who's on
+  each shift (real `EmployeeRow` avatars), with a move-to-the-other-shift
+  control, a remove control, an **Add** button (opens the shared
+  `showEmployeePicker`), and a **Notes & leave** shortcut. It's pure
+  presentation: every edit routes back through the **same validated handlers**
+  the desktop grid uses (`_moveChip` / `_removeChip` / `_openChipActions` /
+  `cubit.assign`), so move confirms leave clashes, remove warns before leaving a
+  shift unstaffed, and undo still works. On a phone the controls block (branch
+  picker · week nav) **leads the scroll and moves up as you scroll** instead of
+  pinning to the top and eating the screen; desktop keeps its toolbar pinned. Two
+  mobile controls moved off that block: the **All/Morning/Night shift filter is
+  dropped** (it only narrowed the grid; the day editor always shows both shifts,
+  so it did nothing), and the **Final view moved into the app bar** as an eye icon
+  (`ScheduleFinalViewAction`, shown once a schedule is loaded — admin only on the
+  Week tab). Both remain on desktop. Pending swaps stay reachable; the
+  grid-only fact chips are dropped (coverage dots + "Open" tags carry the same
+  signal). **Desktop keeps the grid + inspector, untouched.** Shipped from an
+  owner-approved clickable prototype.
+
 Tests: mobile-vs-desktop view swap, scheduled-only roster, no-overflow at
-iPhone width, export toolbar. `flutter analyze` clean; schedule suite green.
+iPhone width, export toolbar, and the day editor (day switch + add/remove/move
+handlers fire with the right slot). `flutter analyze` clean; schedule suite green.
 
 ## 2026-08-04 — Task Management production polish (polish; MED risk)
 

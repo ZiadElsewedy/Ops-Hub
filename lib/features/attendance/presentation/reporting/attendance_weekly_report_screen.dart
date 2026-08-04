@@ -687,8 +687,16 @@ Future<File> _writeExport(
   String filename,
   Future<void> Function(File) write,
 ) async {
-  final directory =
-      await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+  // Mobile never uses getDownloadsDirectory(): on iOS it returns a sandbox
+  // `.../Downloads` path that was never created, so the `?? documents` fallback
+  // never fires and the write throws "cannot open file". Go straight to the
+  // always-present documents dir on a phone; create() guards the desktop path.
+  final isMobile = Platform.isAndroid || Platform.isIOS;
+  final directory = isMobile
+      ? await getApplicationDocumentsDirectory()
+      : (await getDownloadsDirectory() ??
+          await getApplicationDocumentsDirectory());
+  await directory.create(recursive: true);
   final file = File('${directory.path}${Platform.pathSeparator}$filename');
   await write(file);
   return file;

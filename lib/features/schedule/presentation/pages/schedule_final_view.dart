@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,8 +19,11 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
 import 'package:drop/features/schedule/domain/reporting/schedule_final_pdf.dart';
+import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:drop/features/schedule/presentation/cubit/schedule_state.dart';
 import 'package:drop/features/schedule/presentation/widgets/final_schedule_mobile_view.dart';
 import 'package:drop/features/schedule/presentation/widgets/final_schedule_sheet.dart';
 import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
@@ -52,6 +56,42 @@ Future<void> showScheduleFinalView({
       ),
     ),
   );
+}
+
+/// App-bar icon that opens the read-only Final view for whatever schedule is
+/// currently loaded in [ScheduleCubit]. On mobile the Final view button lives
+/// here (in the app bar) instead of on the controls block. It renders nothing
+/// until a real schedule is loaded — no branch picked, or an empty week, has
+/// nothing to preview.
+class ScheduleFinalViewAction extends StatelessWidget {
+  const ScheduleFinalViewAction({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ScheduleCubit, ScheduleState>(
+      builder: (context, state) => state.maybeWhen(
+        loaded: (branchId, weekStart, schedule, members, busy) {
+          if (branchId.isEmpty || schedule == null) {
+            return const SizedBox.shrink();
+          }
+          return IconButton(
+            icon: const Icon(Icons.visibility_outlined,
+                color: AppColors.textSecondary),
+            tooltip: 'Final view',
+            onPressed: () => showScheduleFinalView(
+              context: context,
+              schedule: schedule,
+              members: members,
+              branch: context.read<BranchCubit>().branchById(branchId),
+              previousSaturdayNight:
+                  context.read<ScheduleCubit>().previousSaturdayNight,
+            ),
+          );
+        },
+        orElse: () => const SizedBox.shrink(),
+      ),
+    );
+  }
 }
 
 /// A real export surface. On the Mac it shows the landscape print sheet directly
@@ -121,14 +161,28 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
       );
 
   /// Writes [write] to a file the user can find: the Downloads folder on
-  /// desktop, the app sandbox on mobile (where [_open] then hands it to the
-  /// system share/preview sheet — the same delivery the attendance PDF uses).
+  /// desktop, the app documents sandbox on mobile (where [_open] then hands it
+  /// to the system share/preview sheet — the same delivery the attendance PDF
+  /// uses).
+  ///
+  /// **Mobile never touches `getDownloadsDirectory()`.** On iOS it does not
+  /// throw and does not cleanly return null — it can hand back a `.../Downloads`
+  /// path inside the sandbox that has never been created, so the `?? documents`
+  /// fallback never fires and the subsequent write throws "cannot open file".
+  /// That was the "Could not save" failure, and it hit **both** exports because
+  /// they share this step. On a phone we go straight to the documents directory
+  /// (always present); `create(recursive: true)` is a belt-and-braces guard for
+  /// the desktop Downloads path too.
   Future<File> _writeExport(
     String filename,
     Future<void> Function(File) write,
   ) async {
-    final directory =
-        await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+    final isMobile = Platform.isAndroid || Platform.isIOS;
+    final directory = isMobile
+        ? await getApplicationDocumentsDirectory()
+        : (await getDownloadsDirectory() ??
+            await getApplicationDocumentsDirectory());
+    await directory.create(recursive: true);
     final file = File('${directory.path}${Platform.pathSeparator}$filename');
     await write(file);
     return file;
@@ -402,6 +456,54 @@ class _PreviewToolbar extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 560;
+            // Phone: a named bar — back · "Final schedule" · export. The
+            // Dashboard shortcut is dropped here (back + the bottom nav already
+            // cover leaving), which also makes room for the title.
+            if (compact) {
+              return Row(
+                children: [
+                  Tooltip(
+                    message: 'Back to schedule',
+                    child: OutlinedButton(
+                      onPressed: onBack,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        minimumSize: const Size(0, 40),
+                      ),
+                      child: const Icon(Icons.arrow_back_rounded, size: 18),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  const Expanded(
+                    child: Text(
+                      'Final schedule',
+                      style: AppTypography.h3,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Tooltip(
+                    message: saving ? 'Exporting' : 'Export as image or PDF',
+                    child: FilledButton(
+                      onPressed: saving ? null : onExport,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        minimumSize: const Size(0, 40),
+                      ),
+                      child: saving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.ios_share_rounded, size: 18),
+                    ),
+                  ),
+                ],
+              );
+            }
             return Row(
               children: [
                 Tooltip(

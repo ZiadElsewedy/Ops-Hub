@@ -8,6 +8,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
+import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
@@ -75,11 +76,14 @@ class FinalScheduleMobileView extends StatelessWidget {
   Widget _header(BuildContext context, int peopleCount) {
     final branchName = branch?.name ?? 'Branch';
     final gen = generatedAt ?? DateTime.now();
+    // A colon-labelled manager field ("Manager: Name") instead of a mid-dot,
+    // which blended with the mid-dot joiner and read as a doubled "Manager ·
+    // Manager".
     final meta = <String>[
       '$peopleCount ${peopleCount == 1 ? 'person' : 'people'} scheduled',
       'Generated ${AppDateFormatter.dayMonthYear(gen)}',
       if (managerName != null && managerName!.trim().isNotEmpty)
-        'Manager · ${managerName!.trim()}',
+        'Manager: ${managerName!.trim()}',
     ];
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -388,11 +392,13 @@ class _ShiftRow extends StatelessWidget {
                       ),
                     ),
                   )
-                : Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final uid in uids) _PersonChip(name: _name(uid)),
+                      for (var i = 0; i < uids.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 12),
+                        _PersonLine(user: userForUid(uids[i], members)!),
+                      ],
                     ],
                   ),
           ),
@@ -400,34 +406,48 @@ class _ShiftRow extends StatelessWidget {
       ),
     );
   }
-
-  String _name(String uid) {
-    final user = userForUid(uid, members);
-    return user == null ? 'Unknown' : userDisplayName(user);
-  }
 }
 
-class _PersonChip extends StatelessWidget {
-  const _PersonChip({required this.name});
+/// A person on a shift: avatar · name · role — the same avatar the editor uses,
+/// so the read-only sheet and the editor render people identically.
+class _PersonLine extends StatelessWidget {
+  const _PersonLine({required this.user});
 
-  final String name;
+  final UserEntity user;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurfaceElevated,
-        borderRadius: AppRadius.fullAll,
-        border: Border.all(color: AppColors.darkBorder),
-      ),
-      child: Text(
-        name,
-        style: AppTypography.labelSmall.copyWith(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
+    final position = user.position?.trim();
+    final role = (position != null && position.isNotEmpty)
+        ? position
+        : roleLabel(user.role);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        UserAvatar.fromUser(user, size: 30),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                userDisplayName(user),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.label
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                role,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption
+                    .copyWith(color: AppColors.textTertiary),
+              ),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

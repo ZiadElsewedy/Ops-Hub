@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/widgets/admin_section_header.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
@@ -18,6 +19,7 @@ import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/today_coverage_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/today_coverage_state.dart';
+import 'package:drop/features/schedule/presentation/pages/schedule_final_view.dart';
 import 'package:drop/features/schedule/presentation/widgets/manager_schedule_view.dart';
 import 'package:drop/features/schedule/presentation/widgets/today_roster_sheet.dart';
 
@@ -118,6 +120,9 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
         title: 'Branch Schedules',
         constrainContent: false,
         actions: [
+          // Final view in the app bar on mobile, and only on the Week tab where
+          // the weekly editor (and a loaded schedule) actually lives.
+          if (!context.isDesktop && _mode == 1) const ScheduleFinalViewAction(),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
             tooltip: 'Refresh',

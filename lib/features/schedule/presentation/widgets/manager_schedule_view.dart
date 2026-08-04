@@ -34,6 +34,8 @@ import 'package:drop/features/schedule/presentation/widgets/assignment_chip.dart
 import 'package:drop/features/schedule/presentation/widgets/broken_assignment_banner.dart';
 import 'package:drop/features/schedule/presentation/widgets/chip_action_sheet.dart';
 import 'package:drop/features/schedule/presentation/widgets/day_details_sheet.dart';
+import 'package:drop/features/schedule/presentation/widgets/employee_picker_sheet.dart';
+import 'package:drop/features/schedule/presentation/widgets/schedule_day_editor.dart';
 import 'package:drop/features/schedule/presentation/widgets/schedule_grid.dart';
 import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
 import 'package:drop/features/schedule/presentation/widgets/schedule_inspector_drawer.dart';
@@ -162,16 +164,23 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
     bool busy,
   ) {
     final cubit = context.read<ScheduleCubit>();
+    // On a phone the controls **scroll away** with the schedule — they lead the
+    // scroll view instead of pinning to the top and eating half the screen (the
+    // ask). Desktop keeps its toolbar pinned; the mobile empty / pick-branch
+    // states keep the controls pinned too (there's nothing to scroll there).
+    final controlsScroll =
+        !context.isDesktop && branchId.isNotEmpty && schedule != null;
     return Column(
       children: [
         if (busy) const LinearProgressIndicator(minHeight: 2),
-        _controls(branchId, weekStart, schedule, members, cubit),
+        if (!controlsScroll)
+          _controls(branchId, weekStart, schedule, members, cubit),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => cubit.refresh(),
             color: AppColors.primary,
             backgroundColor: AppColors.darkSurface,
-            child: _content(branchId, schedule, members),
+            child: _content(branchId, weekStart, schedule, members),
           ),
         ),
       ],
@@ -380,13 +389,9 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          _shiftFilter(),
-          const SizedBox(height: AppSpacing.md),
-          Align(
-            alignment: Alignment.centerRight,
-            child: _finalViewButton(branchId, schedule, members),
-          ),
+          // No shift filter on mobile (the day editor shows both shifts), and no
+          // Final view button here — it moved to the app bar as an icon
+          // (`ScheduleFinalViewAction`). Both remain on desktop.
         ],
       ),
     );
@@ -579,6 +584,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
   // ── Content ────────────────────────────────────────────────────
   Widget _content(
     String branchId,
+    DateTime weekStart,
     WeeklyScheduleEntity? schedule,
     List<UserEntity> members,
   ) {
@@ -651,32 +657,82 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
       ),
     );
 
-    // Touch widths keep the single stacked column — grid, then the week summary
-    // beneath it; detail opens as bottom sheets on tap.
-    final stacked = ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pagePadding,
-        AppSpacing.md,
-        AppSpacing.pagePadding,
-        AppSpacing.xl,
-      ),
-      children: [
-        _insightStrip(insights, activeInsight),
-        const SizedBox(height: AppSpacing.md),
-        if (orphanCount > 0) ...[
-          BrokenAssignmentBanner(
-            count: orphanCount,
-            onReview: () => showResolveBrokenSheet(context),
+    // Touch widths: the day-focused editor (roomy, one day at a time) replaces
+    // the cramped horizontal grid — the "too tight to edit on a phone" fix.
+    // Every edit still routes through the same validated handlers the desktop
+    // grid uses; detail opens as bottom sheets on tap.
+    if (!context.isDesktop) {
+      final cubit = context.read<ScheduleCubit>();
+      return ListView(
+        // Zero padding so the controls header is full-bleed (its own bottom
+        // border spans edge-to-edge); the schedule content below re-in's itself.
+        padding: EdgeInsets.zero,
+        children: [
+          // The controls LEAD the scroll — they move up and off as you scroll
+          // the schedule, instead of pinning to the top.
+          _mobileControls(branchId, weekStart, schedule, members, cubit),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding,
+              AppSpacing.md,
+              AppSpacing.pagePadding,
+              AppSpacing.xxxl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Pending swaps stay reachable; the fact chips are a grid
+                // affordance (they highlight slots) so they're dropped here —
+                // per-day coverage dots and per-shift "Open" tags carry the
+                // same signal.
+                BlocBuilder<ShiftSwapCubit, ShiftSwapState>(
+                  builder: (context, state) {
+                    final count = state.maybeWhen(
+                      loaded: (swaps, _) =>
+                          swaps.where((s) => !s.status.isResolved).length,
+                      orElse: () => 0,
+                    );
+                    if (count == 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: Align(
+                          alignment: Alignment.centerLeft, child: _swapChip()),
+                    );
+                  },
+                ),
+                if (orphanCount > 0) ...[
+                  BrokenAssignmentBanner(
+                    count: orphanCount,
+                    onReview: () => showResolveBrokenSheet(context),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                ScheduleDayEditor(
+                  schedule: schedule,
+                  members: members,
+                  canEdit: true,
+                  onAdd: (day, shift) =>
+                      _openAssignPicker(schedule, members, day, shift),
+                  onRemove: (day, shift, uid) =>
+                      _removeChip(schedule, members, day, shift, uid),
+                  onMove: (day, shift, uid) => _moveChip(
+                    schedule,
+                    members,
+                    ChipDragData(uid: uid, day: day, shift: shift),
+                    day,
+                    shift.opposite,
+                  ),
+                  onPersonTap: (day, shift, uid) =>
+                      _openChipActions(schedule, members, day, shift, uid),
+                  onDayDetails: (day) => showDayDetailsSheet(
+                      context: context, day: day, canEdit: true),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
         ],
-        // The grid scrolls horizontally inside its own viewport.
-        SizedBox(height: grid.height, child: grid),
-        const SizedBox(height: AppSpacing.sm),
-        _weekSummary(insights),
-      ],
-    );
-    if (!context.isDesktop) return stacked;
+      );
+    }
 
     // Mac / iPad-landscape (≥1024): the grid is the hero. The insight strip
     // above it carries the only facts worth flagging, and the team inspector is
@@ -951,6 +1007,36 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
         'Removed $name from ${day.label} ${shift.label.toLowerCase()}',
       );
     }
+  }
+
+  /// Assign-to-shift picker for the mobile day editor — the same employee
+  /// picker (and the same leave caution) the shift-details sheet uses, so the
+  /// two assign flows never drift.
+  void _openAssignPicker(
+    WeeklyScheduleEntity schedule,
+    List<UserEntity> members,
+    ScheduleDay day,
+    ScheduleShift shift,
+  ) {
+    final cubit = context.read<ScheduleCubit>();
+    showEmployeePicker(
+      context: context,
+      title: '${day.label} · ${shift.label}',
+      subtitle: 'Tap an employee to assign',
+      employees: members.where((u) => u.role.isEmployee).toList(),
+      isAssigned: (u) => schedule.isAssigned(u.uid, day, shift),
+      // Leave is a caution, not a wall — the row says it, the manager decides.
+      subtitleFor: (u) {
+        final type = schedule.leaveTypeOf(u.uid, day);
+        return type == null ? null : 'On leave · ${type.label}';
+      },
+      onPick: (u) {
+        if (!schedule.isAssigned(u.uid, day, shift)) {
+          cubit.assign(day, shift, u.uid);
+        }
+        Navigator.of(context).pop();
+      },
+    );
   }
 
   void _openChipActions(
