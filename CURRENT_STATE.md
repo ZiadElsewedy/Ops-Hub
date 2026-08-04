@@ -849,6 +849,31 @@ firebase deploy --only functions,firestore:rules,firestore:indexes,storage
 
 Requires the **Blaze** plan.
 
+### Firebase Hosting — the App Store privacy policy only
+
+Hosting serves **one static page**: the public Privacy Policy that App Store
+Connect requires. It does **not** serve the Flutter web build, and it must never
+be pointed at `web/` or `build/web`.
+
+| | |
+| --- | --- |
+| **Source** | `hosting/index.html` — self-contained, no build step, no assets |
+| **`firebase.json`** | `hosting.public: "hosting"`, catch-all rewrite to `/index.html`, `no-cache` on HTML |
+| **Project** | `bazic-d9ad7` (default) |
+
+```bash
+firebase deploy --only hosting
+```
+
+⚠️ `y/` (the `firebase init` default page, committed in `044ea2e`) is now dead —
+Hosting no longer reads it. `.firebase/hosting.*.cache` is a deploy artifact that
+was committed by mistake and should be untracked + gitignored.
+
+⚠️ `web/index.html` was overwritten with a privacy policy in `044ea2e`, which
+removes the Flutter bootstrap. **Flutter web will not build from it** until it is
+restored from `flutter create` or git history. Hosting does not depend on it
+either way.
+
 ### Then
 
 1. **On-device attendance QA** — GPS clock in/out on real hardware, both platforms.

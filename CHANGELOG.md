@@ -14,6 +14,29 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Firebase Hosting serves the App Store privacy policy (polish; LOW risk)
+
+Hosting exists for exactly one reason: App Store Connect requires a public
+Privacy Policy URL. It now serves that page and nothing else.
+
+- New `hosting/index.html` — a single self-contained page (inline CSS, no assets,
+  no build step): DROP wordmark, light/dark via `prefers-color-scheme`, responsive
+  down to 375px, print styles, and the eight sections App review looks for
+  (Introduction · Information We Collect · How We Use Information · Data Storage &
+  Security · Third-Party Services · User Rights · Contact · Last Updated). The
+  collection list is written from the actual data model — profile fields,
+  clock-in-time-only location, proof media, FCM token — not from a template.
+- `firebase.json` `hosting.public` moved `y` → `hosting`, plus a catch-all rewrite
+  to `/index.html`, `cleanUrls`, and `no-cache`/`nosniff` headers on HTML.
+- No Flutter, Firestore, Functions, or Storage config was touched. `web/` was left
+  alone deliberately — see the warning in
+  [CURRENT_STATE.md](CURRENT_STATE.md#pending-work) about `044ea2e` having
+  replaced the Flutter web bootstrap.
+
+Deploy: `firebase deploy --only hosting`.
+
+---
+
 ## 2026-08-03 — Chat production-polish follow-up (bug + polish; HIGH risk)
 
 Fixed three remaining chat-thread defects without changing the UI or backend.
