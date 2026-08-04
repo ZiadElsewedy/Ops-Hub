@@ -1,6 +1,7 @@
 {
   "projects": {
-    "production": "bazic-d9ad7"
+    "production": "bazic-d9ad7",
+    "default": "bazic-d9ad7"
   },
   "targets": {},
   "etags": {}
