@@ -49,10 +49,24 @@ import 'package:drop/features/schedule/presentation/widgets/swap_alert_card.dart
 /// what's broken, what needs approval" in seconds. Hosted in a Scaffold by the
 /// page.
 class ManagerScheduleView extends StatefulWidget {
-  const ManagerScheduleView({super.key, required this.isAdmin});
+  const ManagerScheduleView({
+    super.key,
+    required this.isAdmin,
+    this.initialBranchId,
+  });
 
   /// Admin = pick any branch (branch selector shown). Manager = own branch fixed.
   final bool isAdmin;
+
+  /// The branch to open on, for an admin arriving from a specific row (the
+  /// Today coverage list's **Edit**). Null = the usual default selection.
+  ///
+  /// This exists so that entry is deterministic. Selecting the branch from the
+  /// *outside* after switching tabs cannot work: this view mounts only once the
+  /// tab animation settles, and its own [_init] then loads the default branch —
+  /// so any selection made earlier is overwritten. Ignored when [isAdmin] is
+  /// false, where the branch is always the manager's own.
+  final String? initialBranchId;
 
   @override
   State<ManagerScheduleView> createState() => _ManagerScheduleViewState();
@@ -110,7 +124,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
     _user = context.currentUser;
     if (widget.isAdmin) {
       context.read<BranchCubit>().load();
-      context.read<ScheduleCubit>().load(branchId: '');
+      context.read<ScheduleCubit>().load(branchId: widget.initialBranchId ?? '');
     } else {
       // Branch directory for the header logo (§8b) — the manager's own branch.
       context.read<BranchCubit>().loadIfNeeded();

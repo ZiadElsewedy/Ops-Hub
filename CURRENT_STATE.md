@@ -16,13 +16,21 @@
 > the operational triple plus one completion statement. Missed and Cancelled stay
 > hidden at zero; Cancelled is neutral and excluded from completion.
 
+> **Admin schedule Today coverage + Final View phone overflow fix (2026-08-04):**
+> Admin Schedule now lands on a current-day, problems-first branch coverage list;
+> each row is derived independently from the current-week cache-first schedule
+> read plus branch members, and opens the existing roster peek. Week remains the
+> existing editor behind an explicit segment/Edit action. The Final View export
+> toolbar reduces its actions to labelled icons below 560pt, keeping all export
+> controls reachable on phone widths.
+
 ## At a glance
 
 | | |
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-04** after the admin mobile hierarchy pass |
-| **Tests** | **1508 pass · 0 fail** across 208 files (~31s) — **green**, re-run and verified **2026-08-04** after the admin mobile hierarchy pass. Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1513 pass · 0 fail** across 211 files (~37s) — **green**, re-run and verified **2026-08-04** after the admin schedule Today-coverage pass. Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

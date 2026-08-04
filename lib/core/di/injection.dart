@@ -58,6 +58,7 @@ import 'package:drop/features/schedule/data/repositories/shift_template_reposito
 import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
 import 'package:drop/features/schedule/domain/repositories/shift_template_repository.dart';
 import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:drop/features/schedule/presentation/cubit/today_coverage_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_template_cubit.dart';
 import 'package:drop/features/operations/presentation/cubit/branch_operations_cubit.dart';
@@ -348,6 +349,7 @@ class AppDependencies {
 
   // ─── Weekly schedule + shift swaps (Phase 7) ────────────────
   static late final ScheduleCubit scheduleCubit;
+  static late final TodayCoverageCubit todayCoverageCubit;
 
   /// Shift templates (Schedule V2 · Pillar 5). The repository is shared; the
   /// manager cubit is created on demand by the template sheet.
@@ -823,6 +825,10 @@ class AppDependencies {
       scheduleRepository,
       GetUsersByBranch(authRepository),
       shiftTemplateRepository,
+    );
+    todayCoverageCubit = TodayCoverageCubit(
+      scheduleRepository,
+      GetUsersByBranch(authRepository),
     );
     shiftSwapCubit = ShiftSwapCubit(
       scheduleRepository,

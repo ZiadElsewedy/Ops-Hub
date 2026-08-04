@@ -14,6 +14,25 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Admin schedule Today coverage and Final View phone toolbar (feature + bug; MED risk)
+
+- Admin Schedule now opens on Today: a problems-first branch list that shows
+  identity, optional location, Morning/Night headcounts, an explicit amber
+  uncovered-shift sentence, and a distinct no-schedule-for-this-week state.
+  Tapping a row reuses the existing roster peek; Edit opens the unchanged Week
+  editor with that branch selected.
+- Coverage uses a dedicated `TodayCoverageCubit`, capped at three concurrent
+  per-branch cache-first schedule/member reads. It never reads or mutates the
+  app-wide `ScheduleCubit` during loading, preserving the editor's selection.
+- `ManagerScheduleView` gained one additive optional `initialBranchId`; the grid
+  itself is untouched. Edit **must** pass the branch in at construction: the
+  editor mounts only after the tab animation settles and its own init then loads
+  the default branch, so selecting from the outside beforehand is silently
+  overwritten and Edit lands on the wrong branch. Pinned by a widget test.
+- The Final View toolbar now uses icon-only button variants below 560pt (with
+  tooltips) so Back, Dashboard, and Save PNG remain reachable without the
+  reported phone-width overflow. The export canvas is unchanged.
+
 ## 2026-08-04 — Admin mobile hierarchy and Task Management polish (polish; MED risk)
 
 - Admin Home now carries company scope in the eyebrow, uses four drillable Today
