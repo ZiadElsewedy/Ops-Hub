@@ -14,6 +14,15 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Dashboard "All clear" empty state centred (fix; LOW risk)
+
+The Recent activity **"All clear"** empty state (`_AllClear` in
+`recent_activity_feed.dart`) sat pinned to the left of the feed column: its
+`Column` shrink-wrapped to its content and the parent's `CrossAxisAlignment.start`
+left-aligned the whole block. Wrapped it in a full-width `SizedBox` so the
+already-centred content actually centres in the middle of the feed area (admin +
+manager dashboards, desktop and mobile). Presentation only.
+
 ## 2026-08-04 — Schedule: mobile Final view, exports, caching, roster fix (feature + fix; MED risk)
 
 Four things the owner flagged from an iPhone, one pass.

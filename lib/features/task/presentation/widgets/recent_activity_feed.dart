@@ -167,32 +167,43 @@ class _AllClearState extends State<_AllClear>
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: Column(
-        children: [
-          if (_animating)
-            RepaintBoundary(
-              child: AnimatedBuilder(
-                animation: _c,
-                builder: (context, _) =>
-                    _badge(Curves.easeInOut.transform(_c.value)),
+    // Full width so the centred column actually sits in the MIDDLE of the feed
+    // area. Without this the Column shrink-wraps to its content and the parent
+    // (CrossAxisAlignment.start) pins the whole block to the left.
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_animating)
+              RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _c,
+                  builder: (context, _) =>
+                      _badge(Curves.easeInOut.transform(_c.value)),
+                ),
+              )
+            else
+              _badge(0),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'All clear',
+              style: AppTypography.label.copyWith(
+                color: AppColors.textSecondary,
               ),
-            )
-          else
-            _badge(0),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'All clear',
-            style: AppTypography.label.copyWith(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'Every task is handled — nothing needs you right now.',
-            textAlign: TextAlign.center,
-            style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
-          ),
-        ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'Every task is handled — nothing needs you right now.',
+              textAlign: TextAlign.center,
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
