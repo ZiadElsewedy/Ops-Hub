@@ -3,6 +3,7 @@ import 'package:drop/core/enums/attendance_location_policy.dart';
 import 'package:drop/core/enums/attendance_status.dart';
 import 'package:drop/core/enums/leave_type.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
+import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/features/attendance/domain/attendance_break.dart';
 import 'package:drop/features/attendance/domain/attendance_config.dart';
 import 'package:drop/features/attendance/domain/attendance_gps.dart';
@@ -11,6 +12,8 @@ import 'package:drop/features/attendance/domain/attendance_location_service.dart
 import 'package:drop/features/attendance/domain/attendance_service.dart';
 import 'package:drop/features/attendance/domain/attendance_validation.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 
 void main() {
   const enabled = AttendanceConfig(enabled: true);
@@ -57,7 +60,7 @@ void main() {
         );
 
     test('blocked when the module is disabled', () {
-      expect(check(config: AttendanceConfig.defaults).reason,
+      expect(check(config: const AttendanceConfig(enabled: false)).reason,
           AttendanceBlock.notEnabled);
     });
 
@@ -271,10 +274,56 @@ void main() {
     });
   });
 
+  group('AttendanceService manager branch policy', () {
+    const service = AttendanceService();
+    const manager = UserEntity(
+      uid: 'manager',
+      email: 'manager@drop.test',
+      authProvider: 'password',
+      role: UserRole.manager,
+    );
+    const employee = UserEntity(
+      uid: 'employee',
+      email: 'employee@drop.test',
+      authProvider: 'password',
+      role: UserRole.employee,
+    );
+    const clockDisabled =
+        BranchEntity(id: 'b1', name: 'Branch 1', managersCanClock: false);
+    const clockEnabled = BranchEntity(id: 'b2', name: 'Branch 2');
+
+    test('manager follows a disabled branch flag', () {
+      expect(service.configFor(manager, branch: clockDisabled).enabled, isFalse);
+    });
+
+    test('manager remains enabled when the branch flag is on', () {
+      expect(service.configFor(manager, branch: clockEnabled).enabled, isTrue);
+    });
+
+    test('manager fails open while the branch is unavailable', () {
+      expect(service.configFor(manager).enabled, isTrue);
+    });
+
+    test('employee ignores the manager branch flag', () {
+      expect(service.configFor(employee, branch: clockDisabled).enabled, isTrue);
+    });
+  });
+
   group('checkClockOut', () {
-    AttendanceCheck check(AttendanceEntity? existing) =>
+    AttendanceCheck check(AttendanceEntity? existing,
+            {AttendanceConfig config = enabled}) =>
         AttendanceValidation.checkClockOut(
-            existing: existing, now: DateTime(2026, 7, 11, 16, 30), config: enabled);
+            existing: existing, now: DateTime(2026, 7, 11, 16, 30), config: config);
+
+    const disabled = AttendanceConfig(enabled: false);
+
+    test('allows an open session to close when the module is disabled', () {
+      expect(check(record(clockIn: start), config: disabled).allowed, isTrue);
+    });
+
+    test('blocks a clock-out with no session when the module is disabled', () {
+      expect(check(null, config: disabled).reason, AttendanceBlock.notEnabled);
+    });
 
     test('blocked when not clocked in', () {
       expect(check(null).reason, AttendanceBlock.notClockedIn);

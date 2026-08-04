@@ -14,6 +14,34 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Branch-level manager clock policy (feature; MED risk)
+
+- Admins can choose whether managers at each branch may clock in/out. The new
+  `managersCanClock` branch field defaults to true when absent, so legacy branches
+  retain their current behaviour; employees and admins remain enabled.
+- The attendance policy resolves this flag from the cubit's one branch-directory
+  lookup. Disabling it blocks new manager clock-ins, including unscheduled ones,
+  but deliberately permits clock-out for an already-open session.
+
+Two traps worth keeping, both load-bearing:
+
+- **`checkClockOut` gated on `config.enabled` too.** Resolving the flag into
+  `enabled` alone would have left a manager who clocked in before the switch
+  unable to clock out — their session hanging until `autoCloseAttendance` swept
+  it to `pendingReview`. That guard now stands down when a session is already
+  open: a disabled module must still let you finish what you started.
+- **`clockInUnscheduled` never calls `checkClockIn`.** It runs only the GPS
+  check, so it was a second, ungated way in; it now checks `enabled` itself.
+  Any future clock entry point must gate itself — the validation engine does not
+  cover this path.
+
+Enforcement is client-side by design: `branches/{id}` is already admin-only to
+write, and a manager writing their own attendance record is legitimate, so this
+is a policy preference rather than a privilege boundary. No `firestore.rules`
+change, and none needed.
+
+---
+
 ## 2026-08-03 — Chat production-polish follow-up (bug + polish; HIGH risk)
 
 Fixed three remaining chat-thread defects without changing the UI or backend.

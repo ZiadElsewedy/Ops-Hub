@@ -190,7 +190,9 @@ class AttendanceValidation {
     required DateTime now,
     AttendanceConfig config = AttendanceConfig.defaults,
   }) {
-    if (!config.enabled) {
+    // A disabled module must still let an open session close, or a live shift
+    // is stranded until an automated sweep intervenes.
+    if (!config.enabled && (existing == null || !existing.isOpen)) {
       return const AttendanceCheck(
           AttendanceBlock.notEnabled, 'Attendance isn\'t enabled here.');
     }

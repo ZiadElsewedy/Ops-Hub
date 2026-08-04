@@ -777,9 +777,10 @@ handled as a separate backend/security task before the rules deploy.
   never refuses, `soft` captures and never refuses, `strict` runs the full gate
   unchanged. A branch with **no geofence resolves to `none`** instead of being
   locked out of attendance entirely. Default flipped `none` → `strict` so the
-  config describes what ships. **Still open:** `AttendanceService.configFor`
-  returns one constant for everyone, so `soft` is reachable but unselectable —
-  per-branch `branches/{id}/attendanceConfig` is the follow-up.
+  config describes what ships. **Manager clock access is now branch-configurable:**
+  `branches/{id}.managersCanClock` defaults true for legacy docs, applies only to
+  managers, and fails open while branch data is unavailable. A disabled branch
+  still permits an already-open session to clock out so no shift is stranded.
 - **A non-geofenced branch clocks in unverified.** The deliberate trade in
   ADR-020. Closed by an admin drawing the fence in Branches → geofence editor;
   nothing changes at a branch that already has one.
