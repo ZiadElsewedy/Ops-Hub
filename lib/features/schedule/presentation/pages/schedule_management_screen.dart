@@ -57,7 +57,20 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
   void _onTabChanged() {
     if (!_tabs.indexIsChanging && _mode != _tabs.index) {
       setState(() => _mode = _tabs.index);
+      // Coming BACK to Today: re-derive it. The editor is where coverage gets
+      // fixed, so the most likely reason to return is having just assigned
+      // somebody — and a Today list still reporting "Nobody is on night" for a
+      // shift you just filled is worse than no list at all. Cheap: the reads
+      // are cache-first and capped.
+      if (_mode == 0) _reloadCoverage();
     }
+  }
+
+  void _reloadCoverage() {
+    context.read<BranchCubit>().state.maybeWhen(
+      loaded: (branches, _) => _loadCoverage(branches),
+      orElse: () {},
+    );
   }
 
   void _load() {
@@ -228,6 +241,13 @@ class _CoverageRow extends StatelessWidget {
         context: context,
         branchId: coverage.branch.id,
         branchName: coverage.branch.name,
+        // Hand over the roster this row is already drawn from: no second read
+        // of what we just loaded, no displacement of the editor's selection,
+        // and the sheet can't contradict the row that opened it.
+        roster: coverage.roster,
+        // We ARE the schedule screen — switch tabs instead of pushing our own
+        // route on top of ourselves.
+        onOpenSchedule: onEdit,
       ),
       highlight: warning,
       accent: AppColors.warning,

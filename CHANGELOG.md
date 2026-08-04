@@ -32,6 +32,16 @@ released — DROP ships from branches and has no version tags.
 - The Final View toolbar now uses icon-only button variants below 560pt (with
   tooltips) so Back, Dashboard, and Save PNG remain reachable without the
   reported phone-width overflow. The export canvas is unchanged.
+- **Roster sheet fixes found on device.** Its footer hard-coded
+  `router.push(adminSchedule)`, which was right from Manager Home but a no-op
+  from the Today list — that screen *is* `/admin/schedule`, so it stacked a
+  second identical copy and read as a dead button. `showTodayRosterSheet` gained
+  `onOpenSchedule` (switch tabs in place) and `roster` (render a roster the
+  caller already derived instead of re-reading the same week through the shared
+  `ScheduleCubit`, which also removes a needless displacement of the editor's
+  selection). Manager Home's call is unchanged and still pushes the route.
+- Returning to the **Today** tab re-derives coverage, so a shift you just filled
+  in the editor no longer still reads "Nobody is on night".
 
 ## 2026-08-04 — Admin mobile hierarchy and Task Management polish (polish; MED risk)
 

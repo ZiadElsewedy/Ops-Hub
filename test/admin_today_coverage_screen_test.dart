@@ -39,7 +39,14 @@ class _FakeBranchCubit extends Cubit<BranchState> implements BranchCubit {
 }
 class _FakeScheduleCubit extends Cubit<ScheduleState> implements ScheduleCubit {
   _FakeScheduleCubit() : super(ScheduleState.loaded(branchId: _branch.id, weekStart: DateTime.now(), schedule: null));
-  @override Future<void> load({required String branchId, DateTime? weekStart}) async {}
+
+  /// Counts reads, so a test can assert the sheet did NOT re-fetch a roster the
+  /// coverage list had already derived.
+  var loadCalls = 0;
+
+  @override Future<void> load({required String branchId, DateTime? weekStart}) async {
+    loadCalls++;
+  }
   @override Future<void> refresh() async {}
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -134,4 +141,75 @@ void main() {
     expect(editor.initialBranchId, _branch.id);
     while (tester.takeException() != null) {}
   });
+
+  testWidgets(
+    'the roster sheet reuses the row\'s roster and its footer switches to Week '
+    'instead of pushing the route it is already on',
+    (tester) async {
+      final member = const UserEntity(
+        uid: 'u1',
+        email: 'u1@drop.test',
+        authProvider: 'password',
+        role: UserRole.employee,
+        branchId: 'arkan',
+      );
+      final schedule = WeeklyScheduleEntity(
+        id: 'arkan_week',
+        branchId: 'arkan',
+        weekStart: DateTime.now(),
+        assignments: {
+          ScheduleDay.today(): {
+            ScheduleShift.morning: ['u1'],
+          },
+        },
+      );
+      final row = TodayCoverage(
+        branch: _branch,
+        schedule: schedule,
+        roster: todayRoster(schedule: schedule, members: [member]),
+      );
+      final scheduleCubit = _FakeScheduleCubit();
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<AuthCubit>(create: (_) => _FakeAuthCubit()),
+            BlocProvider<BranchCubit>(create: (_) => _FakeBranchCubit()),
+            BlocProvider<ScheduleCubit>.value(value: scheduleCubit),
+            BlocProvider<ShiftSwapCubit>(create: (_) => _FakeSwaps()),
+            BlocProvider<TodayCoverageCubit>(create: (_) => _FakeCoverage(row)),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark,
+            home: const ScheduleManagementScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Arkan'));
+      await tester.pumpAndSettle();
+      expect(find.text('On shift today'), findsOneWidget);
+      // The row already derived this roster. Re-reading it would be a second
+      // fetch of data in memory AND would move the editor's shared selection.
+      expect(scheduleCubit.loadCalls, 0);
+
+      final reportError = FlutterError.onError;
+      FlutterError.onError = (_) {};
+      addTearDown(() => FlutterError.onError = reportError);
+
+      await tester.tap(find.text('Open weekly schedule'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // The regression: this screen IS /admin/schedule, so the footer's default
+      // `router.push(adminSchedule)` stacked a second identical copy — the
+      // button read as dead. It must switch tabs in place instead.
+      expect(find.byType(ScheduleManagementScreen), findsOneWidget);
+      final editor = tester.widget<ManagerScheduleView>(
+        find.byType(ManagerScheduleView),
+      );
+      expect(editor.initialBranchId, _branch.id);
+      while (tester.takeException() != null) {}
+    },
+  );
 }
