@@ -5,6 +5,50 @@
 >
 > **Last verified against the code:** 2026-08-04.
 
+> **Task Management production polish (2026-08-04, presentation only):**
+> **Missed is a first-class `MetricTile`** on Task Management (Active · In review
+> · Late · Missed), hidden at zero, never summed with Cancelled, and drawn
+> exactly once — the record door under the reliability panel is gone. Every task
+> list in the app now renders through the shared **`TaskSectionList`**, including
+> `FilteredTasksScreen`, which had been stacking `TaskActivityCard`s (that card
+> survives on the dashboard's Recent Activity feed only); `showDeadline` is
+> deleted. Rows lost the per-row chevron, suppress the divider on a section's
+> last row, and **date a record by when it closed**. `MetricTileRow` stretches an
+> odd last tile instead of leaving a hole; a branch with nothing open says
+> *Nothing open* rather than printing three zeros.
+>
+> **Task Management UX refinement (2026-08-04, presentation only):**
+> The task row is now **two lines** — title alone on the first (truncating only
+> against the date), everything supporting on one meta line that ellipsizes as a
+> single string — replacing a single line where a branch chip, an avatar and a
+> date could all take width from the title. The branch chip, the assignee avatar
+> and the 2px checklist track are gone (checklist reads `3/5 steps`); a deadline
+> today renders as a time. `TaskBrowser` gained match-count search feedback with
+> a Clear action, wrapped lens chips carrying counts **derived from the same
+> filter that builds the list**, four distinct empty states, and a loading
+> skeleton. Closed work is sectioned by **when it closed** (Closed today ·
+> Yesterday · Earlier this week · Last week · Older) via the new pure
+> `task_browser_groups.dart` — open work still delegates to `task_feed`'s own
+> buckets, which are unchanged. This fixed a real defect: the engine's
+> forward-looking grouping labelled every finished task *Done today*, whatever
+> its age. Branch Operations shares one `AdminSectionHeader` and one spacing
+> rhythm across Tasks · Automation · Team, previews the **active window** rather
+> than the archive, and uses the shared `AppEmptyState` / `AppErrorState`.
+>
+> **Task operations mobile redesign (2026-08-04):**
+> Admin Task Management leads with a tappable reliability record panel
+> (Approved ÷ (Approved + Missed)) at headline scale, replacing the 11px caption
+> strip that printed the company's only failure figure smaller than the zeros
+> above it; Missed stays the sole error signal and Cancelled remains
+> neutral/excluded/hidden at zero. Branch and employee task lists now share one
+> `TaskBrowser` — live search over title, description, branch and assignee,
+> status lenses, and due-date groups from the existing `task_feed` engine, all
+> in memory over the live `TaskCubit` stream (**zero new reads**). Its closed
+> lens is named **Closed**, not "Done": it spans approved, missed and cancelled
+> work, and a missed task is not a completed one. Branch Operations previews six
+> branch tasks; employee workload rows dropped ~160pt → ~64–78pt and build their
+> metric line from non-zero figures only.
+
 > **Admin mobile hierarchy pass (2026-08-04):**
 > Admin Home now matches Manager Home's ranked command-center language: its
 > eyebrow carries date + loaded company scope, Today is four drillable
@@ -29,8 +73,8 @@
 | | |
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
-| **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-04** after the admin mobile hierarchy pass |
-| **Tests** | **1514 pass · 0 fail** across 211 files (~42s) — **green**, re-run and verified **2026-08-04** after the admin schedule Today-coverage pass. Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-04** after the Task Management production polish pass |
+| **Tests** | **1574 pass · 0 fail** (~33s) — **green**, re-run and verified **2026-08-04** after the Task Management production polish pass (+19: `task_browser_groups_test.dart` is new; `task_feed_row_test.dart` and `task_browser_test.dart` gained the two-line row, search-state, lens-count and narrow-width cases). Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

@@ -6,22 +6,18 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/responsive_card_grid.dart';
-import 'package:drop/core/widgets/list_skeleton.dart';
+import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_feed.dart';
+import 'package:drop/features/task/domain/task_outcomes.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/widgets/manager_task_card.dart';
-import 'package:drop/features/task/presentation/widgets/task_empty_state.dart';
+import 'package:drop/features/task/presentation/widgets/task_browser.dart';
 
-/// The third level of the operations hierarchy (Branch operations → here → Task
-/// details). **Task-centric** by design — one employee's tasks grouped by
-/// status. Reads the already-loaded [TaskCubit] stream (loaded by the cockpit)
-/// and filters to this employee, so it stays live; tapping a card opens the full
-/// [TaskDetailsScreen] (via [ManagerTaskCard]), where review/assign/edit live.
+/// Employee operations drill-down: records stay compact and searchable rather
+/// than repeating manager-sized action cards for closed work.
 class EmployeeDetailScreen extends StatelessWidget {
   const EmployeeDetailScreen({
     super.key,
@@ -29,122 +25,81 @@ class EmployeeDetailScreen extends StatelessWidget {
     required this.isAdmin,
     required this.defaultBranchId,
   });
-
   final UserEntity employee;
   final bool isAdmin;
   final String defaultBranchId;
 
   @override
   Widget build(BuildContext context) {
-    final name = (employee.displayName != null && employee.displayName!.isNotEmpty)
+    final name = employee.displayName?.isNotEmpty == true
         ? employee.displayName!
         : employee.email;
-    final isDesktop = context.isDesktop;
     return AdaptiveScaffold(
       title: name,
       titleWidget: Row(
         children: [
-          UserAvatar.fromUser(employee, size: isDesktop ? 46 : 34),
+          UserAvatar.fromUser(employee, size: context.isDesktop ? 46 : 34),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(name,
-                    style: isDesktop ? AppTypography.h1 : AppTypography.h3,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                Text(_capitalize(employee.role.value),
-                    style: AppTypography.caption),
+                Text(
+                  name,
+                  style: context.isDesktop
+                      ? AppTypography.h1
+                      : AppTypography.h3,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _capitalize(employee.role.value),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
-      body: BlocBuilder<TaskCubit, TaskState>(
-        builder: (context, state) => state.maybeWhen(
-          loading: () => const ListSkeleton(),
-          loaded: (tasks, busy, directory, _, _) =>
-              _body(context, tasks, busy, directory),
-          orElse: () => const SizedBox.shrink(),
+      body: Padding(
+        // No bottom padding: the browser's own list already tails off with
+        // `AppSpacing.xxxl`, and stacking the two left a dead band under every
+        // scroll.
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding,
+          AppSpacing.lg,
+          AppSpacing.pagePadding,
+          0,
         ),
-      ),
-    );
-  }
-
-  Widget _body(
-    BuildContext context,
-    List<TaskEntity> all,
-    bool busy,
-    Map<String, UserEntity> directory,
-  ) {
-    final mine =
-        all.where((t) => t.assigneeIds.contains(employee.uid)).toList();
-
-    if (mine.isEmpty) {
-      return const TaskEmptyState(
-        message: 'No tasks assigned to this employee yet.',
-      );
-    }
-
-    // Status groups in triage order: act-now → in-flight → backlog → waiting → done.
-    final groups = <_Group>[
-      _Group('Rework requested',
-          mine.where((t) => t.status == TaskStatus.rejected).toList()),
-      _Group('In progress',
-          mine.where((t) => t.status == TaskStatus.started).toList()),
-      _Group('Pending',
-          mine.where((t) => t.status == TaskStatus.pending).toList()),
-      _Group(
-          'Submitted',
-          mine
-              .where((t) =>
-                  t.status == TaskStatus.completed ||
-                  t.status == TaskStatus.waitingReview)
-              .toList()),
-      _Group('Completed',
-          mine.where((t) => t.status == TaskStatus.approved).toList()),
-    ];
-
-    var index = 0;
-    final children = <Widget>[];
-    for (final g in groups) {
-      if (g.tasks.isEmpty) continue;
-      children.add(_SectionHeader(label: g.label, count: g.tasks.length));
-      children.add(ResponsiveCardGrid(
-        runSpacing: 0, // ManagerTaskCard (via TaskCard) carries its own margin
-        maxItemWidth: 480,
-        children: [
-          for (final t in g.tasks)
-            EntranceFade(
-              delay: staggerDelay(index++),
-              child: ManagerTaskCard(
-                task: t,
-                directory: directory,
-                isAdmin: isAdmin,
-                defaultBranchId: defaultBranchId,
+        child: Column(
+          children: [
+            BlocBuilder<TaskCubit, TaskState>(
+              builder: (context, state) => state.maybeWhen(
+                loaded: (tasks, _, _, _, _) => _Summary(
+                  tasks
+                      .where((t) => t.assigneeIds.contains(employee.uid))
+                      .toList(),
+                ),
+                orElse: () => const SizedBox.shrink(),
               ),
             ),
-        ],
-      ));
-    }
-
-    return Column(
-      children: [
-        if (busy) const LinearProgressIndicator(minHeight: 2),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.pagePadding,
-              AppSpacing.lg,
-              AppSpacing.pagePadding,
-              AppSpacing.xxxl * 2,
+            const SizedBox(height: AppSpacing.lg),
+            Expanded(
+              child: TaskBrowser(
+                initialFilter: TaskFeedFilter(
+                  assigneeUid: employee.uid,
+                  activeWindowOnly: false,
+                ),
+                emptyTitle: 'No tasks for $name',
+                emptyMessage: 'This employee has no tasks matching this view.',
+              ),
             ),
-            children: children,
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -152,32 +107,91 @@ class EmployeeDetailScreen extends StatelessWidget {
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 }
 
-class _Group {
-  _Group(this.label, this.tasks);
-  final String label;
+class _Summary extends StatelessWidget {
+  const _Summary(this.tasks);
   final List<TaskEntity> tasks;
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.label, required this.count});
-  final String label;
-  final int count;
-
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.md),
-      child: Row(
+    final now = DateTime.now();
+    final outcomes = taskOutcomes(tasks);
+    final active = tasks.where((t) => t.status.isActive).length;
+    final review = tasks
+        .where((t) => t.status == TaskStatus.waitingReview)
+        .length;
+    final late = tasks.where((t) => isTaskOverdue(t, now)).length;
+    final done = outcomes.approved;
+    final rate = outcomes.completionRatePct;
+    return GlassContainer(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(),
-              style: AppTypography.caption.copyWith(
-                  color: AppColors.textSecondary, letterSpacing: 0.6)),
-          const SizedBox(width: AppSpacing.sm),
-          Text('$count',
-              style: AppTypography.caption
-                  .copyWith(color: AppColors.textTertiary)),
+          // Four cells, not five: a fifth `Expanded` cell on a 390pt phone left
+          // ~70pt per column, which ellipsised the reliability basis into
+          // nonsense. The rate gets its own full-width line where its basis can
+          // actually be read — the figure is meaningless without it.
+          Row(
+            children: [
+              _fact('$active', 'Active'),
+              _fact('$late', 'Late', alert: late > 0),
+              _fact('$review', 'In review'),
+              _fact('$done', 'Done'),
+            ],
+          ),
+          if (rate != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            const Divider(height: 1, thickness: 1, color: AppColors.darkBorder),
+            const SizedBox(height: AppSpacing.md),
+            // The figure leads and the basis supports it, on one baseline —
+            // a bare percentage is not interpretable, and the basis printed at
+            // the same weight as the number made neither readable.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '$rate%',
+                  style: AppTypography.h3.copyWith(fontSize: 20),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'reliability · approved ÷ (approved + missed)',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
+
+  /// One figure cell. The number is the thing being read, so it carries the
+  /// weight; the word under it is support, not a peer.
+  Widget _fact(String value, String label, {bool alert = false}) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: AppTypography.h3.copyWith(
+            fontSize: 24,
+            height: 1.1,
+            color: alert ? AppColors.error : AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: AppTypography.caption,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    ),
+  );
 }

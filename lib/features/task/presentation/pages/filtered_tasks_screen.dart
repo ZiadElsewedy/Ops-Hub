@@ -9,13 +9,14 @@ import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_feed.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/widgets/task_activity_card.dart';
+import 'package:drop/features/task/presentation/widgets/task_section_list.dart';
 
 /// A reusable **filtered task list** the dashboard's Needs-Attention tiles push
-/// into (Overdue · Unassigned · Rejected · …). It renders the live task stream
-/// through a [TaskFeedFilter] as clean [TaskActivityCard]s — the same preview →
-/// full-details flow as the dashboard — pushed on the caller's navigator so
-/// **Back returns to the dashboard exactly where it was** (scroll + state kept).
+/// into (Overdue · Unassigned · Rejected · Missed · …). It renders the live task
+/// stream through a [TaskFeedFilter] as the shared [TaskSectionList] — the same
+/// rows, date sections and preview → full-details flow as every other task list
+/// — pushed on the caller's navigator so **Back returns to the dashboard exactly
+/// where it was** (scroll + state kept).
 ///
 /// One small screen instead of a bespoke page per signal: pass a [title] and the
 /// [filter] (a preset, or a status/branch/assignee narrowing) and it derives the
@@ -27,7 +28,6 @@ class FilteredTasksScreen extends StatelessWidget {
     required this.filter,
     this.emptyMessage = 'Nothing needs attention here right now.',
     this.emptyTitle = 'All clear',
-    this.showDeadline = false,
     this.description,
   });
 
@@ -48,10 +48,6 @@ class FilteredTasksScreen extends StatelessWidget {
   /// titled "All clear" reads as if nothing was ever missed, which is a
   /// different (and false) claim.
   final String emptyTitle;
-
-  /// Surfaces each task's deadline in the meta line — see
-  /// [TaskActivityCard.showDeadline].
-  final bool showDeadline;
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +92,10 @@ class FilteredTasksScreen extends StatelessWidget {
                   ],
                 );
               }
+              // The shared section list — the same rows, sections and rhythm as
+              // every other task list in the app. This screen used to stack
+              // full-width activity cards, so a drill-down from a metric looked
+              // like a different product from the list it drilled out of.
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -115,23 +115,17 @@ class FilteredTasksScreen extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: ListView.builder(
+                    child: TaskSectionList(
+                      tasks: list,
+                      directory: directory,
+                      branchNames: branchNames,
+                      showBranch: filter.branchId == null,
+                      showAssignee: filter.assigneeUid == null,
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.pagePadding,
-                        AppSpacing.sm,
+                        0,
                         AppSpacing.pagePadding,
                         AppSpacing.xxxl,
-                      ),
-                      itemCount: list.length,
-                      itemBuilder: (context, i) => Padding(
-                        key: ValueKey('filtered:${list[i].id}'),
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: TaskActivityCard(
-                          task: list[i],
-                          directory: directory,
-                          branchName: branchNames[list[i].branchId],
-                          showDeadline: showDeadline,
-                        ),
                       ),
                     ),
                   ),

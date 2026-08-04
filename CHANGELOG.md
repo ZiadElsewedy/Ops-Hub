@@ -14,6 +14,90 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Task Management production polish (polish; MED risk)
+
+Second refinement pass. Presentation only.
+
+- **Missed is a `MetricTile` door** on Task Management, beside Active · In
+  review · Late — it was an 11px record line under the reliability panel, which
+  is the wrong weight for the company's only failure figure and two tiers below
+  the `Late` it gets confused with. Its own glyph (`timer_off`, "time ran out")
+  vs Late's `event_busy`. Still hidden at zero, still never summed with
+  Cancelled, and now **drawn exactly once** (the record door is gone).
+- **One list, everywhere**: new `TaskSectionList` (sections + rows) is now used
+  by the browser *and* by `FilteredTasksScreen`, which had been stacking
+  `TaskActivityCard`s — a metric drill-down looked like a different product from
+  the list it drilled out of. `showDeadline` is gone (the row always carries a
+  date). `TaskActivityCard` stays on the dashboard's Recent Activity feed.
+- **Rows**: no per-row chevron (thirty glyphs restating the tappable row); the
+  divider is suppressed on the last row of a section, so it no longer doubles up
+  with the next section's rule; a **record is dated by when it closed**, not by
+  its deadline — a "Closed today" section was showing `4:30 PM` next to `5 Aug`.
+- `MetricTileRow`: an odd last tile spans the full width instead of sitting
+  beside a `Spacer` — the hole read as a tile that had failed to load.
+- A branch card with nothing open shows **"Nothing open"** instead of three
+  zeros (the ruling the employee workload row already follows).
+- Lens chips hide a zero count; record doors give the figure the weight and the
+  word the support; a lens change cross-fades instead of snapping; the branch
+  task list's mobile title is a two-line lockup, so "All tasks" can never
+  truncate away; the list clears the FAB.
+
+---
+
+## 2026-08-04 — Task Management UX refinement pass (polish; MED risk)
+
+Presentation only — no repository, Firestore, rules, function, cubit or
+`task_feed` change, and no new reads.
+
+- **The task row is two lines.** The title owns the first line (truncating only
+  against the date); status, branch, assignee and checklist progress drop to one
+  meta line that ellipsizes as a single string. Removed: the bordered branch
+  chip, the assignee avatar disc and the 2px checklist track (now `3/5 steps` in
+  the meta line). A deadline landing today renders as a **time**, not as today's
+  date. Applies to the dashboard feed as well — one row spec, one place.
+- **Search is a workflow**: match count + a Clear affordance while a query is
+  live, and a dedicated "Nothing matches …" state that offers the way out
+  instead of claiming the branch is empty.
+- **Lenses wrap and carry counts** (`Late 3`), derived from the same filter that
+  builds the list, so a chip and its list cannot disagree. An empty lens now
+  explains itself and offers "Show all tasks".
+- **Closed work is sectioned by when it closed** — *Closed today · Yesterday ·
+  Earlier this week · Last week · Older*, newest first — in the new pure
+  `task_browser_groups.dart`. Open work still delegates to the feed engine's own
+  buckets. **Fixes a real defect**: the engine's forward-looking `dueTime`
+  grouping put every finished task in one bucket labelled *Done today*, so an
+  approved task from three weeks ago was announced as closing today.
+- Branch Operations: one `AdminSectionHeader` and one spacing rhythm across
+  Tasks · Automation · Team; the Tasks preview shows the **active window**, not
+  the archive; Automation lost its nested bordered box; empty/error states now
+  use the shared `AppEmptyState` / `AppErrorState`.
+- `AppSearchField` now tracks its controller, so an external clear updates the
+  field's own clear glyph (previously stale until the next keypress).
+
+---
+
+## 2026-08-04 — Task operations phone hierarchy (polish; MED risk)
+
+- Added the shared in-memory task browser for admin/manager operations: live
+  search (title · description · branch · assignee), status lenses, due-date
+  groups, compact rows and the existing task preview/action path. It reuses the
+  `task_feed` engine over the live `TaskCubit` stream, so it adds **no new
+  Firestore reads**. Branch Operations now previews branch tasks, employee
+  workload cards are compressed, and employee detail no longer repeats full
+  manager cards for approved records.
+- The browser's closed lens is named **Closed**, not "Done" — it spans approved,
+  missed and cancelled work, and the spec forbids presenting Missed or Cancelled
+  as Done. Nothing is summed: each row keeps its own status badge.
+- Admin Task Management’s record strip became a tappable reliability panel.
+  Reliability remains Approved ÷ (Approved + Missed); Cancelled is neutral,
+  hidden at zero, and excluded from the rate.
+- The employee workload row builds its metric line from non-zero figures only,
+  and now includes Done — gating on `hasFigures` (which counts `completedToday`)
+  while omitting Done rendered "0 active · 0 late · 0 in review" for someone who
+  had only finished work that day.
+
+---
+
 ## 2026-08-04 — Manager records carry no schedule at all (feature; MED risk)
 
 - A manager's attendance record is now created with **no `scheduledStart` /

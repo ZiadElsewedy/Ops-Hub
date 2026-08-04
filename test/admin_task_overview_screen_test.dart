@@ -91,12 +91,13 @@ void main() {
       await tester.pump(); // branches() future resolves
       await tester.pump(const Duration(milliseconds: 400));
 
-      // Rendered because outcomes.missed > 0 — hidden entirely at zero. The
-      // record door carries its own count ("1 Missed"), so match the label the
-      // widget actually draws rather than the bare word.
-      expect(find.text('1 Missed'), findsOneWidget);
+      // Missed is a full `MetricTile` door beside Active / In review / Late,
+      // not an 11px record line under the reliability panel — it is the
+      // company's only failure figure. Still hidden entirely at zero, and it is
+      // drawn exactly once, so the count below the panel is gone.
+      expect(find.text('Missed'), findsOneWidget);
 
-      await tester.tap(find.text('1 Missed'));
+      await tester.tap(find.text('Missed'));
       // `pumpAndSettle` is safe on THIS screen (unlike the role homes, which run
       // a periodic `SyncButton` timer that never settles) and is what lets the
       // pushed route finish its transition before we assert on it.

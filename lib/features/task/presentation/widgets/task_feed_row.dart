@@ -3,23 +3,35 @@ import 'package:drop/core/enums/task_assignment_type.dart';
 import 'package:drop/core/enums/task_priority.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/status_badge.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_feed.dart';
+import 'package:drop/features/task/presentation/widgets/task_browser_groups.dart';
 
-/// The dense, scannable feed row (Home Dashboard redesign, P2) — a task rendered
-/// as a **single line** for monitoring, not a card for reading:
+/// The scannable task row — **two lines, one job each**:
 ///
-///   ● In progress   Open the shop        [Arkan] ⚑ ZE Ziad   Due 28 Jun ›
-///   status dot+label   title (flex)        branch  hi  assignee  due   chevron
+/// ```
+///   Open the shop                                   6:00 PM
+///   ● In progress · Arkan · Ziad Elsewedy · 3/5 steps      ›
+/// ```
 ///
-/// A 2px checklist track underlines the row when the task has a checklist.
+/// The redesign (2026-08-04) replaced a single line that gave the title, a
+/// status label, a bordered branch chip, an avatar and a date roughly equal
+/// weight, all competing for the same 390pt. Every element there could steal
+/// width from the title, so the one thing a reader is actually looking for —
+/// *what is this task* — was the first thing to ellipsize.
+///
+/// Now the title owns the full first line and truncates only against the date,
+/// and everything secondary drops to one quiet meta line that ellipsizes from
+/// the end as a single string, so it can never fragment into three half-words.
+///
 /// Colour comes from the canonical [taskStatusColor] (no third status→colour
-/// map). Priority shows **only when High**. Tapping expands/opens the task.
+/// map) and is spent only on the status dot + word and on a genuinely late date.
+/// Priority shows **only when High**.
 class TaskFeedRow extends StatelessWidget {
   const TaskFeedRow({
     super.key,
@@ -28,6 +40,9 @@ class TaskFeedRow extends StatelessWidget {
     this.branchName,
     this.onTap,
     this.selected = false,
+    this.showBranch = true,
+    this.showAssignee = true,
+    this.showDivider = true,
   });
 
   final TaskEntity task;
@@ -35,129 +50,184 @@ class TaskFeedRow extends StatelessWidget {
   final String? branchName;
   final VoidCallback? onTap;
 
+  /// Name the branch on the meta line. Pass false when the surrounding list is
+  /// **already branch-scoped** — every row would repeat the same word.
+  final bool showBranch;
+
+  /// Name the assignee on the meta line. Pass false when the surrounding list is
+  /// **already scoped to one person** (their detail screen), where repeating
+  /// their name on every row is pure noise.
+  final bool showAssignee;
+
   /// When true the row is the currently-expanded one (subtle highlight).
   final bool selected;
+
+  /// Draw the hairline under the row. False for the last row of a section,
+  /// where the next section header brings its own rule.
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
     final color = taskStatusColor(task.status);
     final overdue = isTaskOverdue(task, DateTime.now());
-    final hasChecklist = task.hasChecklist;
+    final meta = _meta();
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: selected ? AppColors.darkSurfaceElevated : null,
-          border: const Border(
-            bottom: BorderSide(color: AppColors.darkBorder, width: 0.6),
+    return Semantics(
+      button: onTap != null,
+      label: '${taskRowStatusLabel(task.status)} task: ${task.title}',
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: AppColors.darkSurfaceElevated,
+        child: Container(
+          decoration: BoxDecoration(
+            color: selected ? AppColors.darkSurfaceElevated : null,
+            border: Border(
+              bottom: BorderSide(
+                color: showDivider
+                    ? AppColors.darkBorder
+                    : AppColors.transparent,
+              ),
+            ),
           ),
-        ),
-        padding: const EdgeInsets.fromLTRB(6, 11, 6, 11),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // ── status dot + short label ──
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 78,
-                  child: Text(
-                    _statusLabel(task.status),
-                    style: AppTypography.caption.copyWith(color: color),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // ── title ──
-                // Flexible (not Expanded) so it shares the row's free space with
-                // the branch chip and both ellipsize under pressure — a fixed
-                // Expanded title starved by fixed-width meta was overflowing the
-                // row on a phone.
-                Flexible(
-                  flex: 3,
-                  child: Text(
-                    task.title,
-                    style: AppTypography.label.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xs,
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── line 1 · the title, and only the date beside it ──
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            task.title,
+                            style: AppTypography.label.copyWith(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              height: 1.25,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        _DueLabel(task: task, overdue: overdue),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 10),
+                    const SizedBox(height: 5),
 
-                // ── trailing meta (branch · High · assignee · due) ──
-                if ((branchName ?? '').isNotEmpty) ...[
-                  Flexible(
-                    flex: 2,
-                    child: _Chip(
-                      icon: Icons.store_mall_directory_outlined,
-                      label: branchName!,
+                    // ── line 2 · state first, then everything supporting ──
+                    Row(
+                      children: [
+                        if (task.priority == TaskPriority.high) ...[
+                          const Icon(
+                            Icons.flag_rounded,
+                            size: 12,
+                            color: AppColors.error,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          taskRowStatusLabel(task.status),
+                          style: AppTypography.caption.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (meta.isNotEmpty) ...[
+                          const _MetaDot(),
+                          // One string, one ellipsis: the meta line shortens
+                          // from its tail instead of every part shrinking into
+                          // a row of unreadable stubs.
+                          Expanded(
+                            child: Text(
+                              meta,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                if (task.priority == TaskPriority.high) ...[
-                  const Icon(
-                    Icons.flag_rounded,
-                    size: 14,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                _AssigneeMini(task: task, directory: directory),
-                const SizedBox(width: 10),
-                _DueLabel(task: task, overdue: overdue),
-                const SizedBox(width: 4),
-                Icon(
-                  selected
-                      ? Icons.expand_less_rounded
-                      : Icons.chevron_right_rounded,
-                  size: 18,
+                  ],
+                ),
+              ),
+              // No per-row chevron. Thirty rows meant thirty identical glyphs
+              // saying the same thing the whole tappable row already says, and
+              // each one took width from the title. The collapse affordance is
+              // drawn only where it carries information: on the expanded row of
+              // the desktop accordion.
+              if (selected) ...[
+                const SizedBox(width: AppSpacing.sm),
+                const Icon(
+                  Icons.expand_less_rounded,
+                  size: 16,
                   color: AppColors.textTertiary,
                 ),
               ],
-            ),
-
-            // ── checklist underline (progress without a fat bar) ──
-            if (hasChecklist) ...[
-              const SizedBox(height: 9),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(99),
-                child: LinearProgressIndicator(
-                  value: task.checklistProgress,
-                  minHeight: 2,
-                  backgroundColor: AppColors.darkSurfaceElevated,
-                  valueColor: AlwaysStoppedAnimation(
-                    task.checklistDone == task.checklistTotal
-                        ? AppColors.success
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
+
+  /// The supporting facts, in decreasing usefulness, joined into one line.
+  /// Anything that would repeat the surrounding list's own scope is omitted by
+  /// the caller rather than drawn and then ignored.
+  String _meta() {
+    final assignee = showAssignee ? _assignee() : null;
+    return [
+      if (showBranch && (branchName ?? '').isNotEmpty) branchName!,
+      ?assignee,
+      if (task.hasChecklist)
+        '${task.checklistDone}/${task.checklistTotal} steps',
+    ].join(' · ');
+  }
+
+  String? _assignee() {
+    if (task.assignmentType == TaskAssignmentType.shift) {
+      final shift = task.shift;
+      return shift == null ? 'Shift task' : '${shift.label} shift';
+    }
+    if (task.assigneeIds.isEmpty) return 'Unassigned';
+    final resolved = [for (final uid in task.assigneeIds) ?directory[uid]];
+    if (resolved.isEmpty) return '${task.assigneeIds.length} assigned';
+    if (resolved.length == 1) {
+      final user = resolved.first;
+      return (user.displayName?.isNotEmpty ?? false)
+          ? user.displayName!
+          : user.email;
+    }
+    return '${resolved.length} people';
+  }
 }
 
-/// The card's friendly label, kept local (like `TaskCard`) so the row doesn't
-/// fork a third status→colour map — only the label/short form is row-local.
-String _statusLabel(TaskStatus s) => switch (s) {
+/// The row's friendly status label, kept local (like `TaskCard`) so the row
+/// doesn't fork a third status→colour map — only the short label is row-local.
+/// Public so the browser's lens rail names a status exactly the way the rows
+/// under it do.
+String taskRowStatusLabel(TaskStatus s) => switch (s) {
   TaskStatus.pending => 'To do',
   TaskStatus.started => 'In progress',
   TaskStatus.completed => 'Completed',
@@ -168,84 +238,29 @@ String _statusLabel(TaskStatus s) => switch (s) {
   TaskStatus.cancelled => 'Cancelled',
 };
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
+/// The separator between meta facts — dim enough that the eye reads the facts,
+/// not the punctuation.
+class _MetaDot extends StatelessWidget {
+  const _MetaDot();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurfaceElevated,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: AppColors.textSecondary),
-          const SizedBox(width: 5),
-          // Flexible so a long branch name ellipsizes to whatever width the
-          // parent Flexible grants, instead of forcing the row wider.
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One avatar for a single assignee (with name), a stack for many, a schedule
-/// glyph for a shift task, or a dashed placeholder when unassigned.
-class _AssigneeMini extends StatelessWidget {
-  const _AssigneeMini({required this.task, required this.directory});
-  final TaskEntity task;
-  final Map<String, UserEntity> directory;
-
-  @override
-  Widget build(BuildContext context) {
-    if (task.assignmentType == TaskAssignmentType.shift) {
-      return _glyph(Icons.schedule_rounded);
-    }
-    final resolved = [
-      for (final uid in task.assigneeIds)
-        if (directory[uid] != null) directory[uid]!,
-    ];
-    if (task.assigneeIds.isEmpty) {
-      return _glyph(Icons.person_add_alt_1_outlined);
-    }
-    if (resolved.length == 1) {
-      // Avatar only — the name text was a fixed-width space hog that starved
-      // the title/branch on a phone and caused the row to overflow. The avatar
-      // identifies the assignee here; the full name shows in the task detail.
-      return UserAvatar.fromUser(resolved.first, size: 22);
-    }
-    if (resolved.isNotEmpty) return AvatarStack(users: resolved, size: 22);
-    return _glyph(Icons.groups_outlined);
-  }
-
-  Widget _glyph(IconData icon) => Container(
-    width: 22,
-    height: 22,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: AppColors.darkSurfaceElevated,
-      border: Border.all(color: AppColors.darkBorder),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    child: Text(
+      '·',
+      style: AppTypography.caption.copyWith(color: AppColors.textQuaternary),
     ),
-    child: Icon(icon, size: 12, color: AppColors.textTertiary),
   );
 }
 
+/// The one date on the row — and it answers the question the row's *section* is
+/// asking. Open work is stamped with its deadline; a **record** is stamped with
+/// when it actually closed.
+///
+/// Before this, a list section headed "Closed today" showed each row's deadline,
+/// so one row read `4:30 PM` (its deadline happened to be today) and the row
+/// under it read `5 Aug` — two different clocks in one section, neither of them
+/// the date the section had just promised.
 class _DueLabel extends StatelessWidget {
   const _DueLabel({required this.task, required this.overdue});
   final TaskEntity task;
@@ -253,19 +268,28 @@ class _DueLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final d = task.deadline;
+    final record = isTaskRecord(task);
+    final d = record ? taskRecordDate(task) : task.deadline;
     if (d == null) {
       return Text(
         '—',
-        style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
+        style: AppTypography.caption.copyWith(color: AppColors.textQuaternary),
       );
     }
-    final label = AppDateFormatter.dayMonth(d);
+    // A date landing today is a time, not a date: "6:00 PM" is the fact a shift
+    // manager needs, and "5 Aug" on the 5th of August tells them nothing.
+    final now = DateTime.now();
+    final isToday =
+        d.year == now.year && d.month == now.month && d.day == now.day;
+    final label = isToday
+        ? AppDateFormatter.time(d)
+        : AppDateFormatter.dayMonth(d);
     return Text(
       overdue ? '$label · late' : label,
       textAlign: TextAlign.right,
       style: AppTypography.caption.copyWith(
-        color: overdue ? AppColors.error : AppColors.textSecondary,
+        color: overdue ? AppColors.error : AppColors.textTertiary,
+        fontWeight: overdue ? FontWeight.w600 : FontWeight.w400,
       ),
     );
   }
