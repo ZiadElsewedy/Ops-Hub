@@ -235,18 +235,30 @@ class _PreviewToolbar extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: LayoutBuilder(
-          builder: (context, constraints) => Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                label: const Text('Back to schedule'),
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 560;
+            return Row(
+              children: [
+              Tooltip(
+                message: 'Back to schedule',
+                child: OutlinedButton.icon(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                  label: compact
+                      ? const SizedBox.shrink()
+                      : const Text('Back to schedule'),
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              TextButton.icon(
-                onPressed: onDashboard,
-                icon: const Icon(Icons.dashboard_outlined, size: 18),
-                label: const Text('Dashboard'),
+              Tooltip(
+                message: 'Dashboard',
+                child: TextButton.icon(
+                  onPressed: onDashboard,
+                  icon: const Icon(Icons.dashboard_outlined, size: 18),
+                  label: compact
+                      ? const SizedBox.shrink()
+                      : const Text('Dashboard'),
+                ),
               ),
               if (constraints.maxWidth >= 980) ...[
                 const SizedBox(width: AppSpacing.md),
@@ -256,19 +268,25 @@ class _PreviewToolbar extends StatelessWidget {
                 ),
               ],
               const Spacer(),
-              FilledButton.icon(
-                onPressed: saving ? null : onSave,
-                icon: saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.download_rounded, size: 18),
-                label: Text(saving ? 'Saving…' : 'Save PNG'),
+              Tooltip(
+                message: saving ? 'Saving PNG' : 'Save PNG',
+                child: FilledButton.icon(
+                  onPressed: saving ? null : onSave,
+                  icon: saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_rounded, size: 18),
+                  label: compact
+                      ? const SizedBox.shrink()
+                      : Text(saving ? 'Saving…' : 'Save PNG'),
+                ),
               ),
             ],
-          ),
+            );
+          },
         ),
       ),
     );

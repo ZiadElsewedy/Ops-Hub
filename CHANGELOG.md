@@ -80,6 +80,76 @@ Enforcement is client-side by design: `branches/{id}` is already admin-only to
 write, and a manager writing their own attendance record is legitimate, so this
 is a policy preference rather than a privilege boundary. No `firestore.rules`
 change, and none needed.
+## 2026-08-04 — Admin schedule Today coverage and Final View phone toolbar (feature + bug; MED risk)
+
+- Admin Schedule now opens on Today: a problems-first branch list that shows
+  identity, optional location, Morning/Night headcounts, an explicit amber
+  uncovered-shift sentence, and a distinct no-schedule-for-this-week state.
+  Tapping a row reuses the existing roster peek; Edit opens the unchanged Week
+  editor with that branch selected.
+- Coverage uses a dedicated `TodayCoverageCubit`, capped at three concurrent
+  per-branch cache-first schedule/member reads. It never reads or mutates the
+  app-wide `ScheduleCubit` during loading, preserving the editor's selection.
+- `ManagerScheduleView` gained one additive optional `initialBranchId`; the grid
+  itself is untouched. Edit **must** pass the branch in at construction: the
+  editor mounts only after the tab animation settles and its own init then loads
+  the default branch, so selecting from the outside beforehand is silently
+  overwritten and Edit lands on the wrong branch. Pinned by a widget test.
+- The Final View toolbar now uses icon-only button variants below 560pt (with
+  tooltips) so Back, Dashboard, and Save PNG remain reachable without the
+  reported phone-width overflow. The export canvas is unchanged.
+- **Roster sheet fixes found on device.** Its footer hard-coded
+  `router.push(adminSchedule)`, which was right from Manager Home but a no-op
+  from the Today list — that screen *is* `/admin/schedule`, so it stacked a
+  second identical copy and read as a dead button. `showTodayRosterSheet` gained
+  `onOpenSchedule` (switch tabs in place) and `roster` (render a roster the
+  caller already derived instead of re-reading the same week through the shared
+  `ScheduleCubit`, which also removes a needless displacement of the editor's
+  selection). Manager Home's call is unchanged and still pushes the route.
+- Returning to the **Today** tab re-derives coverage, so a shift you just filled
+  in the editor no longer still reads "Nobody is on night".
+
+## 2026-08-04 — Admin mobile hierarchy and Task Management polish (polish; MED risk)
+
+- Admin Home now carries company scope in the eyebrow, uses four drillable Today
+  `MetricTile`s (Open · Running now · Due today · Done today), and removes repeated
+  Late/Due soon noise. The former mobile Quick actions + Manage grids are one
+  compact Manage directory for the five destinations otherwise absent from mobile
+  navigation; desktop's rail is Operations only because the sidebar already owns
+  that navigation.
+- Admin Task Management now ranks Active · In review · Late above a compact
+  record strip (Branches · Complete plus drillable Done/Missed/Cancelled), names
+  the branch section, and gives cover-photo cards a compact strongly-scrimmed
+  identity band. Cards retain their operational triple and the single completion
+  statement, without a redundant progress bar. The app-bar refresh glyph was
+  removed; pull-to-refresh remains.
+- Missed/Cancelled zero hiding, neutral Cancelled treatment, task-stream counts,
+  matching filter drills, branch ordering, and completion-rate semantics are
+  unchanged. Gates green: `flutter analyze lib test` at its 1 pre-existing info,
+  `flutter test` **1508 pass · 0 fail**.
+
+---
+
+## 2026-08-04 — Firebase Hosting serves the App Store privacy policy (polish; LOW risk)
+
+Hosting exists for exactly one reason: App Store Connect requires a public
+Privacy Policy URL. It now serves that page and nothing else.
+
+- New `hosting/index.html` — a single self-contained page (inline CSS, no assets,
+  no build step): DROP wordmark, light/dark via `prefers-color-scheme`, responsive
+  down to 375px, print styles, and the eight sections App review looks for
+  (Introduction · Information We Collect · How We Use Information · Data Storage &
+  Security · Third-Party Services · User Rights · Contact · Last Updated). The
+  collection list is written from the actual data model — profile fields,
+  clock-in-time-only location, proof media, FCM token — not from a template.
+- `firebase.json` `hosting.public` moved `y` → `hosting`, plus a catch-all rewrite
+  to `/index.html`, `cleanUrls`, and `no-cache`/`nosniff` headers on HTML.
+- No Flutter, Firestore, Functions, or Storage config was touched. `web/` was left
+  alone deliberately — see the warning in
+  [CURRENT_STATE.md](CURRENT_STATE.md#pending-work) about `044ea2e` having
+  replaced the Flutter web bootstrap.
+
+Deploy: `firebase deploy --only hosting`.
 
 ---
 

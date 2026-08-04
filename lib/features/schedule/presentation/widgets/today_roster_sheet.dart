@@ -31,10 +31,23 @@ import 'package:drop/features/schedule/presentation/cubit/schedule_state.dart';
 /// Reads through the app-wide [ScheduleCubit] for the current week — the same
 /// one-shot load the Schedule tab uses, so opening this warms that tab rather
 /// than adding a source. Both manager and admin use it; the branch is passed in.
+/// [roster] lets a caller that has ALREADY derived today's roster hand it
+/// straight over. Without it the sheet re-reads the same (branch, week) through
+/// the shared cubit that the caller just read — a second fetch for data already
+/// in memory, and a displacement of a view-wide selection it then has to put
+/// back. Passing it also guarantees the sheet and the surface that opened it
+/// cannot show different numbers.
+///
+/// [onOpenSchedule] replaces the footer's default "push the schedule route".
+/// A caller that is ITSELF the schedule screen must pass this: pushing the
+/// route it is already on stacks an identical copy of the screen, which reads
+/// as "the button did nothing" and leaves a duplicate on the back stack.
 Future<void> showTodayRosterSheet({
   required BuildContext context,
   required String branchId,
   String? branchName,
+  TodayRoster? roster,
+  VoidCallback? onOpenSchedule,
 }) {
   // Desktop gets a centred dialog; a phone gets the bottom sheet it expects.
   if (context.isDesktop) {
@@ -45,7 +58,12 @@ Future<void> showTodayRosterSheet({
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.cardAll),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460, maxHeight: 620),
-          child: _TodayRosterView(branchId: branchId, branchName: branchName),
+          child: _TodayRosterView(
+            branchId: branchId,
+            branchName: branchName,
+            roster: roster,
+            onOpenSchedule: onOpenSchedule,
+          ),
         ),
       ),
     );
@@ -61,16 +79,31 @@ Future<void> showTodayRosterSheet({
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.75,
       ),
-      child: _TodayRosterView(branchId: branchId, branchName: branchName),
+      child: _TodayRosterView(
+        branchId: branchId,
+        branchName: branchName,
+        roster: roster,
+        onOpenSchedule: onOpenSchedule,
+      ),
     ),
   );
 }
 
 class _TodayRosterView extends StatefulWidget {
-  const _TodayRosterView({required this.branchId, this.branchName});
+  const _TodayRosterView({
+    required this.branchId,
+    this.branchName,
+    this.roster,
+    this.onOpenSchedule,
+  });
 
   final String branchId;
   final String? branchName;
+
+  /// Already derived by the caller — when set, the sheet reads nothing.
+  final TodayRoster? roster;
+
+  final VoidCallback? onOpenSchedule;
 
   @override
   State<_TodayRosterView> createState() => _TodayRosterViewState();
@@ -86,6 +119,9 @@ class _TodayRosterViewState extends State<_TodayRosterView> {
   @override
   void initState() {
     super.initState();
+    // Handed a roster: nothing to fetch, and — just as important — nothing to
+    // displace. The shared-cubit dance below exists only for the read path.
+    if (widget.roster != null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final cubit = context.read<ScheduleCubit>();
@@ -121,6 +157,15 @@ class _TodayRosterViewState extends State<_TodayRosterView> {
   }
 
   void _openSchedule() {
+    final handled = widget.onOpenSchedule;
+    // A caller that is already the schedule screen handles this itself —
+    // pushing the route it is standing on stacks an identical copy, which looks
+    // like a dead button and leaves a duplicate on the back stack.
+    if (handled != null) {
+      Navigator.of(context).pop();
+      handled();
+      return;
+    }
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
     router.push(
@@ -147,19 +192,23 @@ class _TodayRosterViewState extends State<_TodayRosterView> {
             child: _Header(branchName: widget.branchName),
           ),
           Flexible(
-            child: BlocBuilder<ScheduleCubit, ScheduleState>(
-              builder: (context, state) => state.maybeWhen(
-                loaded: (branchId, weekStart, schedule, members, busy) {
-                  // Guard against the cubit still showing another branch/week
-                  // from a screen behind this sheet.
-                  if (branchId != widget.branchId) return const _Loading();
-                  return _Roster(
-                    roster: todayRoster(schedule: schedule, members: members),
-                  );
-                },
-                orElse: () => const _Loading(),
+            child: switch (widget.roster) {
+              // Precomputed by the caller — render it, read nothing.
+              final TodayRoster given => _Roster(roster: given),
+              _ => BlocBuilder<ScheduleCubit, ScheduleState>(
+                builder: (context, state) => state.maybeWhen(
+                  loaded: (branchId, weekStart, schedule, members, busy) {
+                    // Guard against the cubit still showing another branch/week
+                    // from a screen behind this sheet.
+                    if (branchId != widget.branchId) return const _Loading();
+                    return _Roster(
+                      roster: todayRoster(schedule: schedule, members: members),
+                    );
+                  },
+                  orElse: () => const _Loading(),
+                ),
               ),
-            ),
+            },
           ),
           const Divider(height: 1, color: AppColors.darkBorder),
           Padding(

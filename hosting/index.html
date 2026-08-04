@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Privacy Policy — Drop Operations</title>
+  <meta name="description" content="Privacy Policy for Drop Operations, the role-based branch and shift operations management app." />
+  <meta name="robots" content="index, follow" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Privacy Policy — Drop Operations" />
+  <meta property="og:description" content="How Drop Operations collects, uses, stores, and protects your information." />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111'/%3E%3Ctext x='16' y='22' font-family='-apple-system,Helvetica,Arial' font-size='16' font-weight='700' fill='%23fff' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E" />
+
+  <style>
+    :root {
+      --bg:            #ffffff;
+      --bg-elevated:   #fbfbfd;
+      --ink:           #1d1d1f;
+      --ink-secondary: #4b4b50;
+      --ink-tertiary:  #86868b;
+      --hairline:      rgba(0, 0, 0, 0.10);
+      --hairline-soft: rgba(0, 0, 0, 0.06);
+      --accent:        #1d1d1f;
+      --chip-bg:       rgba(0, 0, 0, 0.045);
+      --nav-bg:        rgba(255, 255, 255, 0.72);
+      --shadow:        0 1px 2px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.05);
+      --radius:        18px;
+      --measure:       46rem;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:            #000000;
+        --bg-elevated:   #0e0e10;
+        --ink:           #f5f5f7;
+        --ink-secondary: #c3c3c7;
+        --ink-tertiary:  #86868b;
+        --hairline:      rgba(255, 255, 255, 0.14);
+        --hairline-soft: rgba(255, 255, 255, 0.08);
+        --accent:        #f5f5f7;
+        --chip-bg:       rgba(255, 255, 255, 0.07);
+        --nav-bg:        rgba(0, 0, 0, 0.66);
+        --shadow:        0 1px 2px rgba(0,0,0,0.5), 0 8px 32px rgba(0,0,0,0.45);
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+      scroll-behavior: smooth;
+      scroll-padding-top: 5.5rem;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+                   "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 17px;
+      line-height: 1.6;
+      letter-spacing: -0.011em;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* ---------- Nav ---------- */
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--nav-bg);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--hairline-soft);
+    }
+
+    .nav__inner {
+      max-width: var(--measure);
+      margin: 0 auto;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      min-height: 3rem;
+    }
+
+    .mark {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: var(--ink);
+      color: var(--bg);
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      flex: none;
+    }
+
+    .wordmark {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+    }
+
+    .wordmark span {
+      color: var(--ink-tertiary);
+      font-weight: 400;
+    }
+
+    /* ---------- Layout ---------- */
+
+    .wrap {
+      max-width: var(--measure);
+      margin: 0 auto;
+      padding: 0 1.5rem 6rem;
+    }
+
+    /* ---------- Hero ---------- */
+
+    .hero {
+      padding: 4.5rem 0 2.5rem;
+      border-bottom: 1px solid var(--hairline-soft);
+    }
+
+    .eyebrow {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-tertiary);
+      margin: 0 0 0.75rem;
+    }
+
+    h1 {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+      font-size: clamp(2.25rem, 6vw, 3.25rem);
+      line-height: 1.06;
+      letter-spacing: -0.028em;
+      font-weight: 700;
+      margin: 0 0 1rem;
+    }
+
+    .lede {
+      font-size: clamp(1.0625rem, 2.2vw, 1.25rem);
+      line-height: 1.5;
+      color: var(--ink-secondary);
+      margin: 0 0 1.75rem;
+      max-width: 34rem;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: var(--chip-bg);
+      border-radius: 999px;
+      padding: 0.4rem 0.85rem;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-secondary);
+    }
+
+    .chip__dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ink-tertiary);
+      flex: none;
+    }
+
+    /* ---------- Table of contents ---------- */
+
+    .toc {
+      margin: 2.5rem 0 0;
+      padding: 1.25rem 1.5rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--hairline-soft);
+      border-radius: var(--radius);
+    }
+
+    .toc__title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-tertiary);
+      margin: 0 0 0.75rem;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem 1.5rem;
+      counter-reset: toc;
+    }
+
+    .toc li { counter-increment: toc; }
+
+    .toc a {
+      display: block;
+      color: var(--ink-secondary);
+      text-decoration: none;
+      font-size: 15px;
+      padding: 0.15rem 0;
+      transition: color 0.15s ease;
+    }
+
+    .toc a::before {
+      content: counter(toc) ".";
+      color: var(--ink-tertiary);
+      display: inline-block;
+      min-width: 1.4em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .toc a:hover { color: var(--ink); }
+
+    /* ---------- Sections ---------- */
+
+    section {
+      padding-top: 3rem;
+    }
+
+    h2 {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+      font-size: clamp(1.4rem, 3.4vw, 1.75rem);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      font-weight: 650;
+      margin: 0 0 0.85rem;
+      scroll-margin-top: 5.5rem;
+    }
+
+    h3 {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      letter-spacing: -0.012em;
+      margin: 1.75rem 0 0.5rem;
+    }
+
+    p {
+      margin: 0 0 1rem;
+      color: var(--ink-secondary);
+    }
+
+    p.tight { margin-bottom: 0.5rem; }
+
+    ul {
+      margin: 0 0 1rem;
+      padding-left: 1.15rem;
+      color: var(--ink-secondary);
+    }
+
+    li { margin-bottom: 0.45rem; }
+
+    li strong,
+    p strong { color: var(--ink); font-weight: 600; }
+
+    a { color: var(--ink); text-decoration-color: var(--hairline); text-underline-offset: 3px; }
+    a:hover { text-decoration-color: currentColor; }
+
+    /* ---------- Cards ---------- */
+
+    .card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--hairline-soft);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin: 1.25rem 0;
+    }
+
+    .card > :last-child { margin-bottom: 0; }
+
+    .note {
+      border-left: 3px solid var(--hairline);
+      padding: 0.15rem 0 0.15rem 1rem;
+      margin: 1.25rem 0;
+      color: var(--ink-secondary);
+      font-size: 16px;
+    }
+
+    .note > :last-child { margin-bottom: 0; }
+
+    /* ---------- Definition rows ---------- */
+
+    .rows {
+      margin: 1.25rem 0;
+      border-top: 1px solid var(--hairline-soft);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 12rem minmax(0, 1fr);
+      gap: 0 1.5rem;
+      padding: 0.9rem 0;
+      border-bottom: 1px solid var(--hairline-soft);
+    }
+
+    .row dt {
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--ink);
+      letter-spacing: -0.008em;
+    }
+
+    .row dd {
+      margin: 0;
+      color: var(--ink-secondary);
+      font-size: 16px;
+    }
+
+    /* ---------- Contact ---------- */
+
+    .contact-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--hairline-soft);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      box-shadow: var(--shadow);
+      margin-top: 1.25rem;
+    }
+
+    .contact-card p { margin-bottom: 0.35rem; }
+
+    .contact-email {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--ink);
+      text-decoration: none;
+      letter-spacing: -0.015em;
+      word-break: break-word;
+    }
+
+    .contact-email:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+    /* ---------- Footer ---------- */
+
+    footer {
+      margin-top: 4rem;
+      padding-top: 1.75rem;
+      border-top: 1px solid var(--hairline-soft);
+      color: var(--ink-tertiary);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    footer p { color: inherit; margin-bottom: 0.35rem; }
+
+    /* ---------- Responsive ---------- */
+
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      .wrap { padding: 0 1.25rem 4rem; }
+      .nav__inner { padding: 0.65rem 1.25rem; }
+      .hero { padding: 3rem 0 2rem; }
+      .toc ol { grid-template-columns: minmax(0, 1fr); }
+      .row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.25rem;
+      }
+      .card, .contact-card { padding: 1.25rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { transition: none !important; }
+    }
+
+    @media print {
+      .nav, .toc { display: none; }
+      body { font-size: 11pt; color: #000; background: #fff; }
+      .card, .contact-card { border: 1px solid #ccc; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav__inner">
+      <div class="mark" aria-hidden="true">D</div>
+      <div class="wordmark">Drop <span>Operations</span></div>
+    </div>
+  </nav>
+
+  <main class="wrap">
+
+    <header class="hero">
+      <p class="eyebrow">Legal</p>
+      <h1>Privacy Policy</h1>
+      <p class="lede">
+        Drop Operations is a workforce operations app for staff and managers. This policy
+        explains what we collect, why we collect it, and the control you have over it.
+      </p>
+      <span class="chip"><span class="chip__dot" aria-hidden="true"></span> Last updated: 4 August 2026</span>
+    </header>
+
+    <nav class="toc" aria-label="Contents">
+      <p class="toc__title">Contents</p>
+      <ol>
+        <li><a href="#introduction">Introduction</a></li>
+        <li><a href="#information-we-collect">Information We Collect</a></li>
+        <li><a href="#how-we-use-information">How We Use Information</a></li>
+        <li><a href="#data-storage-security">Data Storage &amp; Security</a></li>
+        <li><a href="#third-party-services">Third-Party Services</a></li>
+        <li><a href="#user-rights">User Rights</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="#last-updated">Last Updated</a></li>
+      </ol>
+    </nav>
+
+    <section id="introduction">
+      <h2>1. Introduction</h2>
+      <p>
+        Drop Operations (&ldquo;the app&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) is a private,
+        role-based operations management tool used by an organisation to run its branches and
+        shifts — scheduling, task assignment, attendance, internal requests, and staff messaging.
+      </p>
+      <p>
+        Accounts are created for, and approved by, the organisation. The app is not a consumer
+        social product and is not intended for use by anyone under 16.
+      </p>
+      <p>
+        By using Drop Operations you agree to the practices described here. If you do not agree,
+        please stop using the app and contact your administrator.
+      </p>
+    </section>
+
+    <section id="information-we-collect">
+      <h2>2. Information We Collect</h2>
+      <p>We collect only what the app needs in order to work. That falls into the following categories.</p>
+
+      <dl class="rows">
+        <div class="row">
+          <dt>Account information</dt>
+          <dd>Your name, email address, and the role and branch assigned to you by your administrator.</dd>
+        </div>
+        <div class="row">
+          <dt>Profile details</dt>
+          <dd>Optional phone number, address, and emergency contact, where you or your administrator provide them.</dd>
+        </div>
+        <div class="row">
+          <dt>Work activity</dt>
+          <dd>Tasks assigned to and completed by you, shift schedules, swap and leave requests, and the timestamps of those actions.</dd>
+        </div>
+        <div class="row">
+          <dt>Attendance &amp; location</dt>
+          <dd>Clock-in and clock-out times. If your organisation has enabled branch geofencing, an approximate location reading is taken <strong>at the moment you clock in or out</strong> to confirm you are at your branch. We do not track location in the background or when the app is closed.</dd>
+        </div>
+        <div class="row">
+          <dt>Photos &amp; attachments</dt>
+          <dd>Images or files you upload as proof of completed work, or attach to a request or conversation.</dd>
+        </div>
+        <div class="row">
+          <dt>Messages</dt>
+          <dd>Content of staff conversations and case discussions you take part in inside the app.</dd>
+        </div>
+        <div class="row">
+          <dt>Device &amp; technical data</dt>
+          <dd>A push notification token for your device, app version, platform, and diagnostic or crash information.</dd>
+        </div>
+      </dl>
+
+      <div class="note">
+        <p>
+          <strong>We do not collect</strong> payment card details, government identification documents,
+          contacts, biometrics, browsing history, or advertising identifiers. We do not sell your
+          data, and we do not use it for advertising or profiling.
+        </p>
+      </div>
+    </section>
+
+    <section id="how-we-use-information">
+      <h2>3. How We Use Information</h2>
+      <p>Your information is used strictly to operate the service for your organisation:</p>
+      <ul>
+        <li><strong>Authentication and access</strong> — signing you in and showing you only what your role permits.</li>
+        <li><strong>Scheduling and tasks</strong> — publishing your shifts, assigning work, and recording completion.</li>
+        <li><strong>Attendance records</strong> — producing accurate clock-in/out and attendance reports for your branch.</li>
+        <li><strong>Location verification</strong> — confirming a clock-in happened at the correct branch, when geofencing is enabled.</li>
+        <li><strong>Notifications</strong> — alerting you to assignments, approvals, messages, and reminders.</li>
+        <li><strong>Communication</strong> — delivering the internal messages and case discussions you participate in.</li>
+        <li><strong>Reliability and security</strong> — diagnosing crashes, preventing abuse, and keeping accounts secure.</li>
+      </ul>
+      <p>
+        We do not use your information for any purpose beyond running the app for your organisation,
+        and we do not share it with third parties except the infrastructure providers listed in
+        section&nbsp;5, or where the law requires it.
+      </p>
+    </section>
+
+    <section id="data-storage-security">
+      <h2>4. Data Storage &amp; Security</h2>
+
+      <h3>Where data lives</h3>
+      <p>
+        Data is stored in Google Cloud infrastructure operated through Firebase. Data in transit is
+        encrypted with TLS, and data at rest is encrypted by the platform.
+      </p>
+
+      <h3>Who can see it</h3>
+      <p>
+        Access is enforced server-side by security rules, not just by what the app chooses to display.
+        Employees see their own records and their own branch's schedule; managers see their branch;
+        administrators see the organisation. Conversations marked confidential are limited to their
+        participants.
+      </p>
+
+      <h3>On your device</h3>
+      <p>
+        The app caches some data locally so it remains usable offline. That local cache is removed
+        when you sign out or uninstall the app.
+      </p>
+
+      <h3>Retention</h3>
+      <p>
+        Operational records — attendance, tasks, schedules, and requests — are retained for as long
+        as your organisation needs them for business and record-keeping purposes. When your account
+        is deleted, your profile and credentials are removed; historical operational records may be
+        retained in a form tied to your organisation's records.
+      </p>
+
+      <div class="note">
+        <p>
+          No system is perfectly secure. We apply industry-standard safeguards, but we cannot
+          guarantee absolute security. Please keep your password confidential and report any
+          suspected compromise immediately.
+        </p>
+      </div>
+    </section>
+
+    <section id="third-party-services">
+      <h2>5. Third-Party Services</h2>
+      <p>
+        Drop Operations is built on <strong>Google Firebase</strong>. These services process data on
+        our behalf, under Google's terms and privacy commitments:
+      </p>
+
+      <div class="card">
+        <dl class="rows" style="margin:0; border-top:0;">
+          <div class="row" style="padding-top:0;">
+            <dt>Firebase Authentication</dt>
+            <dd>Manages sign-in and account credentials.</dd>
+          </div>
+          <div class="row">
+            <dt>Cloud Firestore</dt>
+            <dd>Stores tasks, schedules, attendance, requests, and messages.</dd>
+          </div>
+          <div class="row">
+            <dt>Firebase Storage</dt>
+            <dd>Stores photos and file attachments you upload.</dd>
+          </div>
+          <div class="row">
+            <dt>Cloud Functions</dt>
+            <dd>Runs server-side logic such as approvals, reminders, and notification delivery.</dd>
+          </div>
+          <div class="row">
+            <dt>Firebase Cloud Messaging</dt>
+            <dd>Delivers push notifications, via Apple Push Notification service on iOS.</dd>
+          </div>
+          <div class="row" style="border-bottom:0; padding-bottom:0;">
+            <dt>Firebase Hosting</dt>
+            <dd>Serves this Privacy Policy page.</dd>
+          </div>
+        </dl>
+      </div>
+
+      <p>
+        Google's handling of this data is governed by the
+        <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">Firebase Privacy and Security</a>
+        documentation and the
+        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>.
+      </p>
+      <p>
+        We do not integrate advertising networks, analytics brokers, or data resellers of any kind.
+      </p>
+    </section>
+
+    <section id="user-rights">
+      <h2>6. User Rights</h2>
+      <p>You have the right to:</p>
+      <ul>
+        <li><strong>Access</strong> — request a copy of the personal information we hold about you.</li>
+        <li><strong>Correct</strong> — update your profile details in the app, or ask an administrator to correct them.</li>
+        <li><strong>Delete</strong> — delete your account from the app's settings, or request deletion by contacting us.</li>
+        <li><strong>Withdraw permissions</strong> — revoke location, camera, photo, or notification access at any time in your device settings. Some features, such as geofenced clock-in, will stop working without them.</li>
+        <li><strong>Object or restrict</strong> — ask us to limit how your information is processed, where the law provides that right.</li>
+        <li><strong>Complain</strong> — raise a concern with your local data protection authority.</li>
+      </ul>
+      <p>
+        Because Drop Operations is an internal tool, some records are held by your organisation as
+        the data controller. Requests about employment records may be directed to your administrator.
+        We respond to requests sent to the address below within 30 days.
+      </p>
+    </section>
+
+    <section id="contact">
+      <h2>7. Contact</h2>
+      <p>Questions about this policy, or about the data we hold, can be sent to:</p>
+      <div class="contact-card">
+        <p class="tight"><strong>Drop Operations — Privacy</strong></p>
+        <a class="contact-email" href="mailto:ziadtawfiikk@gmail.com">ziadtawfiikk@gmail.com</a>
+        <p style="margin-top:0.75rem; font-size:15px;">
+          Please include your name and the branch you belong to so we can locate your records.
+        </p>
+      </div>
+    </section>
+
+    <section id="last-updated">
+      <h2>8. Last Updated</h2>
+      <p>
+        This policy was last updated on <strong>4 August 2026</strong>.
+      </p>
+      <p>
+        If we make material changes, we will update the date above and, where appropriate, notify you
+        inside the app. Continuing to use Drop Operations after a change means you accept the revised
+        policy.
+      </p>
+    </section>
+
+    <footer>
+      <p>&copy; 2026 Drop Operations. All rights reserved.</p>
+      <p>This page is published solely to provide the privacy policy for the Drop Operations mobile app.</p>
+    </footer>
+
+  </main>
+
+</body>
+</html>

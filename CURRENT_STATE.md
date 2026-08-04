@@ -3,15 +3,34 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-03.
+> **Last verified against the code:** 2026-08-04.
+
+> **Admin mobile hierarchy pass (2026-08-04):**
+> Admin Home now matches Manager Home's ranked command-center language: its
+> eyebrow carries date + loaded company scope, Today is four drillable
+> `MetricTile`s (Open · Running now · Due today · Done today), and a mobile-only
+> compact Manage directory preserves Branches, Managers, Employees, Analytics and
+> New account outside the bottom nav. Desktop keeps only Operations in its rail.
+> Admin Task Management now leads with three actionable metric doors and a quiet
+> record strip, then a named branch grid; branch covers are compact and cards show
+> the operational triple plus one completion statement. Missed and Cancelled stay
+> hidden at zero; Cancelled is neutral and excluded from completion.
+
+> **Admin schedule Today coverage + Final View phone overflow fix (2026-08-04):**
+> Admin Schedule now lands on a current-day, problems-first branch coverage list;
+> each row is derived independently from the current-week cache-first schedule
+> read plus branch members, and opens the existing roster peek. Week remains the
+> existing editor behind an explicit segment/Edit action. The Final View export
+> toolbar reduces its actions to labelled icons below 560pt, keeping all export
+> controls reachable on phone widths.
 
 ## At a glance
 
 | | |
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
-| **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings |
-| **Tests** | **1501 pass · 0 fail** across 206 files (~34s) — **green**, re-run and verified **2026-08-03** after the chat polish pass. Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-04** after the admin mobile hierarchy pass |
+| **Tests** | **1514 pass · 0 fail** across 211 files (~42s) — **green**, re-run and verified **2026-08-04** after the admin schedule Today-coverage pass. Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -867,6 +886,31 @@ firebase deploy --only functions,firestore:rules,firestore:indexes,storage
 ```
 
 Requires the **Blaze** plan.
+
+### Firebase Hosting — the App Store privacy policy only
+
+Hosting serves **one static page**: the public Privacy Policy that App Store
+Connect requires. It does **not** serve the Flutter web build, and it must never
+be pointed at `web/` or `build/web`.
+
+| | |
+| --- | --- |
+| **Source** | `hosting/index.html` — self-contained, no build step, no assets |
+| **`firebase.json`** | `hosting.public: "hosting"`, catch-all rewrite to `/index.html`, `no-cache` on HTML |
+| **Project** | `bazic-d9ad7` (default) |
+
+```bash
+firebase deploy --only hosting
+```
+
+⚠️ `y/` (the `firebase init` default page, committed in `044ea2e`) is now dead —
+Hosting no longer reads it. `.firebase/hosting.*.cache` is a deploy artifact that
+was committed by mistake and should be untracked + gitignored.
+
+⚠️ `web/index.html` was overwritten with a privacy policy in `044ea2e`, which
+removes the Flutter bootstrap. **Flutter web will not build from it** until it is
+restored from `flutter create` or git history. Hosting does not depend on it
+either way.
 
 ### Then
 
