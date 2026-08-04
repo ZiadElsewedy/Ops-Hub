@@ -40,6 +40,7 @@ class TaskBrowser extends StatefulWidget {
     this.emptyTitle = 'No matching tasks',
     this.emptyMessage = 'Try another search or status.',
     this.bottomInset = AppSpacing.xxxl,
+    this.horizontalPadding = AppSpacing.pagePadding,
   });
 
   final TaskFeedFilter initialFilter;
@@ -51,6 +52,12 @@ class TaskBrowser extends StatefulWidget {
   /// Tail padding under the last row. A host page with a floating action button
   /// passes more, so the FAB never comes to rest on top of a real task.
   final double bottomInset;
+
+  /// The browser owns its own horizontal rhythm — **host pages must not wrap it
+  /// in page padding.** The controls sit at this margin; the rows are pulled
+  /// [kTaskRowInset] wider so their rounded touch surface breathes past the text
+  /// on both sides while every title still lines up with the search field above.
+  final double horizontalPadding;
 
   @override
   State<TaskBrowser> createState() => _TaskBrowserState();
@@ -127,26 +134,32 @@ class _TaskBrowserState extends State<TaskBrowser> {
           mainAxisSize: widget.compact ? MainAxisSize.min : MainAxisSize.max,
           children: [
             if (!widget.compact) ...[
-              AppSearchField(
-                controller: _search,
-                hint: 'Search tasks, branches or people',
-                onChanged: _onQuery,
+              _pad(
+                AppSearchField(
+                  controller: _search,
+                  hint: 'Search tasks, branches or people',
+                  onChanged: _onQuery,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
-              _LensRail(
-                selected: _selected,
-                counts: {
-                  for (final entry in byLens.entries)
-                    entry.key: entry.value.length,
-                },
-                onSelect: _select,
+              _pad(
+                _LensRail(
+                  selected: _selected,
+                  counts: {
+                    for (final entry in byLens.entries)
+                      entry.key: entry.value.length,
+                  },
+                  onSelect: _select,
+                ),
               ),
               if (query.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
-                _SearchFeedback(
-                  count: filtered.length,
-                  query: query,
-                  onClear: _clearSearch,
+                _pad(
+                  _SearchFeedback(
+                    count: filtered.length,
+                    query: query,
+                    onClear: _clearSearch,
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),
@@ -155,11 +168,14 @@ class _TaskBrowserState extends State<TaskBrowser> {
               _empty(query)
             else if (widget.compact)
               for (final (i, task) in visible.indexed)
-                _row(
-                  task,
-                  directory,
-                  names,
-                  divider: i < visible.length - 1,
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: _rowMargin),
+                  child: _row(
+                    task,
+                    directory,
+                    names,
+                    divider: i < visible.length - 1,
+                  ),
                 )
             else
               Expanded(
@@ -177,7 +193,12 @@ class _TaskBrowserState extends State<TaskBrowser> {
                     branchNames: names,
                     showBranch: widget.initialFilter.branchId == null,
                     showAssignee: widget.initialFilter.assigneeUid == null,
-                    padding: EdgeInsets.only(bottom: widget.bottomInset),
+                    padding: EdgeInsets.fromLTRB(
+                      _rowMargin,
+                      0,
+                      _rowMargin,
+                      widget.bottomInset,
+                    ),
                   ),
                 ),
               ),
@@ -186,6 +207,19 @@ class _TaskBrowserState extends State<TaskBrowser> {
       },
       orElse: () => const SizedBox.shrink(),
     ),
+  );
+
+  /// The margin the *rows* hang off. Pulled back by [kTaskRowInset] from the
+  /// controls' margin so a title lines up with the search field while its
+  /// rounded highlight extends past it — clamped, so a browser that is already
+  /// flush (inside a card) never asks for a negative padding.
+  double get _rowMargin =>
+      (widget.horizontalPadding - kTaskRowInset).clamp(0, double.infinity);
+
+  /// Page-margin padding for the controls above the list.
+  Widget _pad(Widget child) => Padding(
+    padding: EdgeInsets.symmetric(horizontal: widget.horizontalPadding),
+    child: child,
   );
 
   /// The compact preview's row. The full list goes through [TaskSectionList],
@@ -218,15 +252,17 @@ class _TaskBrowserState extends State<TaskBrowser> {
       ],
     );
     if (widget.compact) return rows;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Skeleton(width: double.infinity, height: 52),
-        const SizedBox(height: AppSpacing.md),
-        const Skeleton(width: 240, height: 32),
-        const SizedBox(height: AppSpacing.lg),
-        Expanded(child: SingleChildScrollView(child: rows)),
-      ],
+    return _pad(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Skeleton(width: double.infinity, height: 52),
+          const SizedBox(height: AppSpacing.md),
+          const Skeleton(width: 240, height: 32),
+          const SizedBox(height: AppSpacing.lg),
+          Expanded(child: SingleChildScrollView(child: rows)),
+        ],
+      ),
     );
   }
 
@@ -235,7 +271,10 @@ class _TaskBrowserState extends State<TaskBrowser> {
   Widget _empty(String query) {
     if (widget.compact) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.horizontalPadding,
+          vertical: AppSpacing.lg,
+        ),
         child: Row(
           children: [
             const Icon(

@@ -97,7 +97,10 @@ void main() {
       _task(
         id: 't2',
         title: 'Open the shop',
-        deadline: now.add(const Duration(hours: 3)),
+        // The last moment of *today*, not `now + 3h`: run after 21:00 and a
+        // three-hour offset lands tomorrow, which quietly moved this task into
+        // the "This week" bucket and failed the assertion below on time of day.
+        deadline: DateTime(now.year, now.month, now.day, 23, 59, 59),
       ),
       _task(id: 't3', title: 'Undated audit'),
     ]);

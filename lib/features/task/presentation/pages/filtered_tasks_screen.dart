@@ -9,6 +9,7 @@ import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_feed.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
+import 'package:drop/features/task/presentation/widgets/task_feed_row.dart';
 import 'package:drop/features/task/presentation/widgets/task_section_list.dart';
 
 /// A reusable **filtered task list** the dashboard's Needs-Attention tiles push
@@ -121,10 +122,13 @@ class FilteredTasksScreen extends StatelessWidget {
                       branchNames: branchNames,
                       showBranch: filter.branchId == null,
                       showAssignee: filter.assigneeUid == null,
+                      // Pulled back by the row's own inset, so a task title
+                      // lines up with the count line above it while its rounded
+                      // touch surface extends past the page margin.
                       padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.pagePadding,
+                        AppSpacing.pagePadding - kTaskRowInset,
                         0,
-                        AppSpacing.pagePadding,
+                        AppSpacing.pagePadding - kTaskRowInset,
                         AppSpacing.xxxl,
                       ),
                     ),

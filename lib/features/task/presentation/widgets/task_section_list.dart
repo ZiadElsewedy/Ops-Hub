@@ -91,9 +91,13 @@ class TaskSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
+    // Indented by the same [kTaskRowInset] as the titles beneath it, so the
+    // header, every task title and every separator hang off one line.
     padding: EdgeInsets.only(
       top: first ? AppSpacing.sm : AppSpacing.xl,
       bottom: AppSpacing.sm,
+      left: kTaskRowInset,
+      right: kTaskRowInset,
     ),
     child: Row(
       children: [

@@ -38,6 +38,7 @@ import 'package:drop/features/task/presentation/pages/branch_task_list_screen.da
 import 'package:drop/features/task/presentation/widgets/recurring_shift_task_sheets.dart';
 import 'package:drop/features/task/presentation/widgets/task_template_sheets.dart';
 import 'package:drop/features/task/presentation/widgets/task_browser.dart';
+import 'package:drop/features/task/presentation/widgets/task_feed_row.dart';
 
 /// The Branch Operations cockpit — the heart of the task→operations redesign.
 /// One scannable surface that answers a manager/admin's real questions about a
@@ -314,15 +315,25 @@ class _BranchTasksPreview extends StatelessWidget {
         actionLabel: 'View all',
         onAction: onViewAll,
       ),
+      // Held in the page's own card surface, so the preview has a visible
+      // beginning and end. Bare rows on the page background let a row's touch
+      // highlight run edge to edge as a hard-cornered grey band — the one thing
+      // on this screen that looked unfinished.
+      //
       // The **active window**, not the whole archive. Browsing closed records
       // is what "View all" is for; a cockpit whose Tasks section filled up with
       // six approved tasks from a fortnight ago was answering a question nobody
       // standing in the branch was asking.
-      TaskBrowser(
-        compact: true,
-        maxItems: 6,
-        initialFilter: TaskFeedFilter(branchId: branchId),
-        emptyMessage: 'Nothing open in this branch right now.',
+      GlassContainer(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: TaskBrowser(
+          compact: true,
+          maxItems: 6,
+          // Flush to the card: the row's own inset becomes the cell padding.
+          horizontalPadding: kTaskRowInset,
+          initialFilter: TaskFeedFilter(branchId: branchId),
+          emptyMessage: 'Nothing open in this branch right now.',
+        ),
       ),
     ],
   );

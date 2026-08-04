@@ -3,6 +3,7 @@ import 'package:drop/core/enums/task_assignment_type.dart';
 import 'package:drop/core/enums/task_priority.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
@@ -32,6 +33,16 @@ import 'package:drop/features/task/presentation/widgets/task_browser_groups.dart
 /// Colour comes from the canonical [taskStatusColor] (no third status→colour
 /// map) and is spent only on the status dot + word and on a genuinely late date.
 /// Priority shows **only when High**.
+///
+/// The row is one soft, rounded touch surface with the separator underneath it,
+/// inset to the same [kTaskRowInset] — never a square-cornered band bleeding to
+/// both edges of the screen.
+/// How far the row's content sits inside its own touch surface. Shared with the
+/// section header and the separator so the label, every title and the rule all
+/// hang off **one** vertical line — while the rounded highlight breathes past
+/// it on both sides.
+const double kTaskRowInset = AppSpacing.md;
+
 class TaskFeedRow extends StatelessWidget {
   const TaskFeedRow({
     super.key,
@@ -75,27 +86,32 @@ class TaskFeedRow extends StatelessWidget {
     return Semantics(
       button: onTap != null,
       label: '${taskRowStatusLabel(task.status)} task: ${task.title}',
-      child: InkWell(
-        onTap: onTap,
-        hoverColor: AppColors.darkSurfaceElevated,
-        child: Container(
-          decoration: BoxDecoration(
-            color: selected ? AppColors.darkSurfaceElevated : null,
-            border: Border(
-              bottom: BorderSide(
-                color: showDivider
-                    ? AppColors.darkBorder
-                    : AppColors.transparent,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The press / hover surface is a **rounded, inset** rectangle, not a
+          // square-cornered band running the full width of the screen. A sharp
+          // full-bleed slab is the single cheapest-looking thing a dark list can
+          // do; a soft contained highlight is what makes a row feel like an
+          // object you are touching.
+          InkWell(
+            onTap: onTap,
+            borderRadius: AppRadius.mdAll,
+            // A translucent lift, not a fixed grey: the row sits on the page
+            // background in one place and on a card's own elevated surface in
+            // another, and an opaque hover colour is invisible against the
+            // second.
+            hoverColor: AppColors.white.withAlpha(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: selected ? AppColors.darkSurfaceElevated : null,
+                borderRadius: AppRadius.mdAll,
               ),
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xs,
-            AppSpacing.md,
-            AppSpacing.xs,
-            AppSpacing.md,
-          ),
-          child: Row(
+              padding: const EdgeInsets.symmetric(
+                horizontal: kTaskRowInset,
+                vertical: AppSpacing.md,
+              ),
+              child: Row(
             children: [
               Expanded(
                 child: Column(
@@ -177,17 +193,30 @@ class TaskFeedRow extends StatelessWidget {
               // each one took width from the title. The collapse affordance is
               // drawn only where it carries information: on the expanded row of
               // the desktop accordion.
-              if (selected) ...[
-                const SizedBox(width: AppSpacing.sm),
-                const Icon(
-                  Icons.expand_less_rounded,
-                  size: 16,
-                  color: AppColors.textTertiary,
-                ),
-              ],
-            ],
+                  if (selected) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    const Icon(
+                      Icons.expand_less_rounded,
+                      size: 16,
+                      color: AppColors.textTertiary,
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
+          // The rule sits **under** the highlight and stops short of the row's
+          // ends, so it separates two rows instead of drawing a hard line right
+          // through the soft rectangle above it.
+          if (showDivider)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: kTaskRowInset),
+              child: SizedBox(
+                height: 1,
+                child: ColoredBox(color: AppColors.darkBorder),
+              ),
+            ),
+        ],
       ),
     );
   }

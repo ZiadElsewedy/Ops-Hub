@@ -86,15 +86,10 @@ class BranchTaskListScreen extends StatelessWidget {
                 style: AppTypography.label.copyWith(color: AppColors.onAccent),
               ),
             ),
+      // Vertical only: the browser owns the horizontal rhythm, so its rows can
+      // extend past the page margin while their titles stay on it.
       body: Padding(
-        // No bottom padding — the browser's list tails off with its own
-        // `AppSpacing.xxxl`, which also clears the FAB.
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding,
-          AppSpacing.lg,
-          AppSpacing.pagePadding,
-          0,
-        ),
+        padding: const EdgeInsets.only(top: AppSpacing.lg),
         child: TaskBrowser(
           // Clears the extended FAB — 48pt of tail left it resting on the last
           // task in the list.

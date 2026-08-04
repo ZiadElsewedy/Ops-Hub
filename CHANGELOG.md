@@ -41,6 +41,14 @@ Second refinement pass. Presentation only.
   word the support; a lens change cross-fades instead of snapping; the branch
   task list's mobile title is a two-line lockup, so "All tasks" can never
   truncate away; the list clears the FAB.
+- **The row's touch surface is rounded and inset**, not a square-cornered band
+  bleeding to both screen edges, and the separator sits under it at the same
+  inset. `TaskBrowser` now owns its horizontal rhythm (`horizontalPadding`) so
+  the rows can extend past the page margin while every title stays on it — host
+  pages no longer wrap it in page padding. The branch cockpit's Tasks preview is
+  held in a `GlassContainer`, so the section has a visible beginning and end.
+  Row hover is a translucent white lift, which reads on the page background and
+  on a card alike.
 
 ---
 

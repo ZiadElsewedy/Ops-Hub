@@ -64,26 +64,25 @@ class EmployeeDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+      // Vertical only: the browser owns the horizontal rhythm below, so only the
+      // summary card carries the page margin itself.
       body: Padding(
-        // No bottom padding: the browser's own list already tails off with
-        // `AppSpacing.xxxl`, and stacking the two left a dead band under every
-        // scroll.
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding,
-          AppSpacing.lg,
-          AppSpacing.pagePadding,
-          0,
-        ),
+        padding: const EdgeInsets.only(top: AppSpacing.lg),
         child: Column(
           children: [
-            BlocBuilder<TaskCubit, TaskState>(
-              builder: (context, state) => state.maybeWhen(
-                loaded: (tasks, _, _, _, _) => _Summary(
-                  tasks
-                      .where((t) => t.assigneeIds.contains(employee.uid))
-                      .toList(),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.pagePadding,
+              ),
+              child: BlocBuilder<TaskCubit, TaskState>(
+                builder: (context, state) => state.maybeWhen(
+                  loaded: (tasks, _, _, _, _) => _Summary(
+                    tasks
+                        .where((t) => t.assigneeIds.contains(employee.uid))
+                        .toList(),
+                  ),
+                  orElse: () => const SizedBox.shrink(),
                 ),
-                orElse: () => const SizedBox.shrink(),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),

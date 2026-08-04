@@ -15,7 +15,11 @@
 > deleted. Rows lost the per-row chevron, suppress the divider on a section's
 > last row, and **date a record by when it closed**. `MetricTileRow` stretches an
 > odd last tile instead of leaving a hole; a branch with nothing open says
-> *Nothing open* rather than printing three zeros.
+> *Nothing open* rather than printing three zeros. The row's touch surface is a
+> **rounded, inset** rectangle with the separator under it (never a sharp
+> full-bleed band), and `TaskBrowser` owns its horizontal rhythm via
+> `horizontalPadding` — **host pages must not wrap it in page padding**. The
+> branch cockpit's Tasks preview lives in a `GlassContainer`.
 >
 > **Task Management UX refinement (2026-08-04, presentation only):**
 > The task row is now **two lines** — title alone on the first (truncating only
