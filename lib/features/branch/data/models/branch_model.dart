@@ -15,6 +15,7 @@ class BranchModel {
   final DateTime? updatedAt;
   final DateTime? deletedAt;
   final SwapPolicy? swapPolicy;
+  final bool managersCanClock;
   final BranchGeofence? geofence;
 
   const BranchModel({
@@ -28,6 +29,7 @@ class BranchModel {
     this.updatedAt,
     this.deletedAt,
     this.swapPolicy,
+    this.managersCanClock = true,
     this.geofence,
   });
 
@@ -46,6 +48,7 @@ class BranchModel {
             ? null
             : SwapPolicy.fromMap(
                 (map['swapPolicy'] as Map).cast<String, dynamic>()),
+        managersCanClock: map['managersCanClock'] as bool? ?? true,
         geofence: map['geofence'] == null
             ? null
             : BranchGeofence.fromMap(
@@ -63,6 +66,7 @@ class BranchModel {
         updatedAt: e.updatedAt,
         deletedAt: e.deletedAt,
         swapPolicy: e.swapPolicy,
+        managersCanClock: e.managersCanClock,
         geofence: e.geofence,
       );
 
@@ -71,8 +75,10 @@ class BranchModel {
   /// written by the dedicated upload path (`setBranchImage`), not `toMap`, so an
   /// edit-form save never clobbers an existing logo/cover. [swapPolicy] **is**
   /// included — it is edited inside the same branch form, which always carries the
-  /// loaded policy, so a save can't clobber it; null = permissive. [geofence] is
-  /// **omitted** here so a general branch-form save never clobbers it — the
+  /// loaded policy, so a save can't clobber it; null = permissive.
+  /// [managersCanClock] is also included because the same form always carries
+  /// its loaded value. [geofence] is **omitted** here so a general branch-form
+  /// save never clobbers it — the
   /// attendance geofence is written by its own dedicated editor path
   /// (`BranchRepository.setGeofence`).
   Map<String, dynamic> toMap() => {
@@ -81,6 +87,7 @@ class BranchModel {
         'location': location,
         'isActive': isActive,
         'swapPolicy': swapPolicy?.toMap(),
+        'managersCanClock': managersCanClock,
       };
 
   BranchModel copyWithId(String id) => BranchModel(
@@ -94,6 +101,7 @@ class BranchModel {
         updatedAt: updatedAt,
         deletedAt: deletedAt,
         swapPolicy: swapPolicy,
+        managersCanClock: managersCanClock,
         geofence: geofence,
       );
 
@@ -108,6 +116,7 @@ class BranchModel {
         updatedAt: updatedAt,
         deletedAt: deletedAt,
         swapPolicy: swapPolicy,
+        managersCanClock: managersCanClock,
         geofence: geofence,
       );
 }

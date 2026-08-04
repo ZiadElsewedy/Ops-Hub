@@ -140,6 +140,16 @@ class AttendanceReportSummary {
 
       if (isUnscheduled) continue;
 
+      // Presence-style rows (managers) are real work with no roster behind
+      // them. They contribute their hours but must stay out of every
+      // roster-adherence figure: counting them as `present` without a matching
+      // `expected` would push the show-up rate above 100%, and counting them as
+      // `expected` would invent a shift nobody scheduled.
+      if (row.scheduledStart == null) {
+        workedMinutes += row.totals.workedMinutes;
+        continue;
+      }
+
       if (row.outcome.countsAsExpectedWork) {
         expected++;
       }

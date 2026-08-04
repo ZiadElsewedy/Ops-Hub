@@ -33,9 +33,23 @@ mixin _$AttendanceEntity {
 
   /// The scheduled start / end **instants**, snapshotted at clock-in from the
   /// resolved `ShiftHours` so history stays stable even if the roster is later
-  /// edited. Null for an unscheduled clock-in.
+  /// edited. Null for an unscheduled clock-in, and always null when
+  /// [presenceOnly].
   DateTime? get scheduledStart => throw _privateConstructorUsedError;
   DateTime? get scheduledEnd => throw _privateConstructorUsedError;
+
+  /// **Presence tracking, by policy** — this record is not measured against a
+  /// roster at all. Set for managers, whose attendance answers "were they
+  /// here" rather than "did they work their shift": worked minutes run
+  /// clock-in → clock-out, and late / early-leave / overtime are meaningless
+  /// and stay 0.
+  ///
+  /// This exists because a missing [scheduledStart] alone is ambiguous. It
+  /// otherwise reads as `unscheduledWork` — an **exception**, meaning someone
+  /// worked a shift nobody rostered — which reporting excludes from
+  /// present/absent counts. Without this flag every manager day would be
+  /// filed as an anomaly and managers would vanish from attendance stats.
+  bool get presenceOnly => throw _privateConstructorUsedError;
   DateTime? get clockIn => throw _privateConstructorUsedError;
   DateTime? get clockOut => throw _privateConstructorUsedError;
 
@@ -109,6 +123,7 @@ abstract class $AttendanceEntityCopyWith<$Res> {
     DateTime date,
     DateTime? scheduledStart,
     DateTime? scheduledEnd,
+    bool presenceOnly,
     DateTime? clockIn,
     DateTime? clockOut,
     List<AttendanceBreak> breaks,
@@ -157,6 +172,7 @@ class _$AttendanceEntityCopyWithImpl<$Res, $Val extends AttendanceEntity>
     Object? date = null,
     Object? scheduledStart = freezed,
     Object? scheduledEnd = freezed,
+    Object? presenceOnly = null,
     Object? clockIn = freezed,
     Object? clockOut = freezed,
     Object? breaks = null,
@@ -214,6 +230,10 @@ class _$AttendanceEntityCopyWithImpl<$Res, $Val extends AttendanceEntity>
                 ? _value.scheduledEnd
                 : scheduledEnd // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            presenceOnly: null == presenceOnly
+                ? _value.presenceOnly
+                : presenceOnly // ignore: cast_nullable_to_non_nullable
+                      as bool,
             clockIn: freezed == clockIn
                 ? _value.clockIn
                 : clockIn // ignore: cast_nullable_to_non_nullable
@@ -326,6 +346,7 @@ abstract class _$$AttendanceEntityImplCopyWith<$Res>
     DateTime date,
     DateTime? scheduledStart,
     DateTime? scheduledEnd,
+    bool presenceOnly,
     DateTime? clockIn,
     DateTime? clockOut,
     List<AttendanceBreak> breaks,
@@ -373,6 +394,7 @@ class __$$AttendanceEntityImplCopyWithImpl<$Res>
     Object? date = null,
     Object? scheduledStart = freezed,
     Object? scheduledEnd = freezed,
+    Object? presenceOnly = null,
     Object? clockIn = freezed,
     Object? clockOut = freezed,
     Object? breaks = null,
@@ -430,6 +452,10 @@ class __$$AttendanceEntityImplCopyWithImpl<$Res>
             ? _value.scheduledEnd
             : scheduledEnd // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        presenceOnly: null == presenceOnly
+            ? _value.presenceOnly
+            : presenceOnly // ignore: cast_nullable_to_non_nullable
+                  as bool,
         clockIn: freezed == clockIn
             ? _value.clockIn
             : clockIn // ignore: cast_nullable_to_non_nullable
@@ -535,6 +561,7 @@ class _$AttendanceEntityImpl extends _AttendanceEntity {
     required this.date,
     this.scheduledStart,
     this.scheduledEnd,
+    this.presenceOnly = false,
     this.clockIn,
     this.clockOut,
     final List<AttendanceBreak> breaks = const <AttendanceBreak>[],
@@ -582,11 +609,27 @@ class _$AttendanceEntityImpl extends _AttendanceEntity {
 
   /// The scheduled start / end **instants**, snapshotted at clock-in from the
   /// resolved `ShiftHours` so history stays stable even if the roster is later
-  /// edited. Null for an unscheduled clock-in.
+  /// edited. Null for an unscheduled clock-in, and always null when
+  /// [presenceOnly].
   @override
   final DateTime? scheduledStart;
   @override
   final DateTime? scheduledEnd;
+
+  /// **Presence tracking, by policy** — this record is not measured against a
+  /// roster at all. Set for managers, whose attendance answers "were they
+  /// here" rather than "did they work their shift": worked minutes run
+  /// clock-in → clock-out, and late / early-leave / overtime are meaningless
+  /// and stay 0.
+  ///
+  /// This exists because a missing [scheduledStart] alone is ambiguous. It
+  /// otherwise reads as `unscheduledWork` — an **exception**, meaning someone
+  /// worked a shift nobody rostered — which reporting excludes from
+  /// present/absent counts. Without this flag every manager day would be
+  /// filed as an anomaly and managers would vanish from attendance stats.
+  @override
+  @JsonKey()
+  final bool presenceOnly;
   @override
   final DateTime? clockIn;
   @override
@@ -679,7 +722,7 @@ class _$AttendanceEntityImpl extends _AttendanceEntity {
 
   @override
   String toString() {
-    return 'AttendanceEntity(id: $id, userId: $userId, userName: $userName, branchId: $branchId, shift: $shift, date: $date, scheduledStart: $scheduledStart, scheduledEnd: $scheduledEnd, clockIn: $clockIn, clockOut: $clockOut, breaks: $breaks, status: $status, workedMinutes: $workedMinutes, lateMinutes: $lateMinutes, earlyLeaveMinutes: $earlyLeaveMinutes, overtimeMinutes: $overtimeMinutes, breakMinutes: $breakMinutes, clockInVerification: $clockInVerification, clockOutVerification: $clockOutVerification, photoUrl: $photoUrl, deviceId: $deviceId, notes: $notes, source: $source, resolvedBy: $resolvedBy, resolvedByName: $resolvedByName, resolvedAt: $resolvedAt, schemaVersion: $schemaVersion, createdAt: $createdAt, updatedAt: $updatedAt, deletedAt: $deletedAt)';
+    return 'AttendanceEntity(id: $id, userId: $userId, userName: $userName, branchId: $branchId, shift: $shift, date: $date, scheduledStart: $scheduledStart, scheduledEnd: $scheduledEnd, presenceOnly: $presenceOnly, clockIn: $clockIn, clockOut: $clockOut, breaks: $breaks, status: $status, workedMinutes: $workedMinutes, lateMinutes: $lateMinutes, earlyLeaveMinutes: $earlyLeaveMinutes, overtimeMinutes: $overtimeMinutes, breakMinutes: $breakMinutes, clockInVerification: $clockInVerification, clockOutVerification: $clockOutVerification, photoUrl: $photoUrl, deviceId: $deviceId, notes: $notes, source: $source, resolvedBy: $resolvedBy, resolvedByName: $resolvedByName, resolvedAt: $resolvedAt, schemaVersion: $schemaVersion, createdAt: $createdAt, updatedAt: $updatedAt, deletedAt: $deletedAt)';
   }
 
   @override
@@ -699,6 +742,8 @@ class _$AttendanceEntityImpl extends _AttendanceEntity {
                 other.scheduledStart == scheduledStart) &&
             (identical(other.scheduledEnd, scheduledEnd) ||
                 other.scheduledEnd == scheduledEnd) &&
+            (identical(other.presenceOnly, presenceOnly) ||
+                other.presenceOnly == presenceOnly) &&
             (identical(other.clockIn, clockIn) || other.clockIn == clockIn) &&
             (identical(other.clockOut, clockOut) ||
                 other.clockOut == clockOut) &&
@@ -751,6 +796,7 @@ class _$AttendanceEntityImpl extends _AttendanceEntity {
     date,
     scheduledStart,
     scheduledEnd,
+    presenceOnly,
     clockIn,
     clockOut,
     const DeepCollectionEquality().hash(_breaks),
@@ -797,6 +843,7 @@ abstract class _AttendanceEntity extends AttendanceEntity {
     required final DateTime date,
     final DateTime? scheduledStart,
     final DateTime? scheduledEnd,
+    final bool presenceOnly,
     final DateTime? clockIn,
     final DateTime? clockOut,
     final List<AttendanceBreak> breaks,
@@ -844,11 +891,26 @@ abstract class _AttendanceEntity extends AttendanceEntity {
 
   /// The scheduled start / end **instants**, snapshotted at clock-in from the
   /// resolved `ShiftHours` so history stays stable even if the roster is later
-  /// edited. Null for an unscheduled clock-in.
+  /// edited. Null for an unscheduled clock-in, and always null when
+  /// [presenceOnly].
   @override
   DateTime? get scheduledStart;
   @override
   DateTime? get scheduledEnd;
+
+  /// **Presence tracking, by policy** — this record is not measured against a
+  /// roster at all. Set for managers, whose attendance answers "were they
+  /// here" rather than "did they work their shift": worked minutes run
+  /// clock-in → clock-out, and late / early-leave / overtime are meaningless
+  /// and stay 0.
+  ///
+  /// This exists because a missing [scheduledStart] alone is ambiguous. It
+  /// otherwise reads as `unscheduledWork` — an **exception**, meaning someone
+  /// worked a shift nobody rostered — which reporting excludes from
+  /// present/absent counts. Without this flag every manager day would be
+  /// filed as an anomaly and managers would vanish from attendance stats.
+  @override
+  bool get presenceOnly;
   @override
   DateTime? get clockIn;
   @override

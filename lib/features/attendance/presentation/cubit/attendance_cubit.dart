@@ -24,6 +24,7 @@ import 'package:drop/features/attendance/domain/usecases/clock_out.dart';
 import 'package:drop/features/attendance/domain/usecases/request_correction.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/branch/domain/branch_geofence.dart';
+import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
 import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
 import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
@@ -61,6 +62,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   final DateTime Function() _now;
 
   UserEntity? _user;
+  BranchEntity? _branch;
   _TodayContext? _ctx;
   AttendanceConfig _config = const AttendanceConfig(enabled: true);
   List<AttendanceEntity> _history = const [];
@@ -158,12 +160,13 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     if (!forceRefresh && !inError && _sub != null && sameScope) return;
 
     _user = user;
-    _config = _resolveConfig(user);
 
     final hasData = state.maybeMap(loaded: (_) => true, orElse: () => false);
     if (!hasData) emit(const AttendanceState.loading());
 
-    await _resolveContext(user);
+    _branch = await _resolveBranch(user.branchId);
+    _config = _resolveConfig(user, branch: _branch);
+    await _resolveContext(user, branch: _branch);
     // The geofence is only known after the context resolves, and it decides
     // whether a location policy can mean anything at all. Collapsing it into
     // `_config` here means every downstream reader — the validation gate, the
@@ -216,13 +219,14 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     }
   }
 
-  /// Config seam — delegated to [AttendanceService], the single place that later
-  /// reads a per-branch `branches/{id}/attendanceConfig`. No call-site changes.
-  AttendanceConfig _resolveConfig(UserEntity user) => _service.configFor(user);
+  /// Config seam — delegated to [AttendanceService], with the one resolved
+  /// branch supplied by this cubit rather than triggering another branch read.
+  AttendanceConfig _resolveConfig(UserEntity user, {BranchEntity? branch}) =>
+      _service.configFor(user, branch: branch);
 
   /// Resolve today's rostered shift + scheduled window from the schedule (one
   /// cached read). Degrades gracefully to "no shift" when nothing is rostered.
-  Future<void> _resolveContext(UserEntity user) async {
+  Future<void> _resolveContext(UserEntity user, {BranchEntity? branch}) async {
     final now = _now();
     final todayDate = DateTime(now.year, now.month, now.day);
     final day = ScheduleDay.fromDate(now);
@@ -235,7 +239,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       // Resolved before the schedule lookup on purpose: an unscheduled clock-in
       // still runs the full GPS gate (ADR-018), and an unpublished week must not
       // block it for the wrong reason.
-      final geofence = await _resolveGeofence(branchId);
+      final geofence = branch?.geofence;
       final weekStart = ScheduleWeek.startOf(now);
       final schedule = await _scheduleRepository.getSchedule(branchId, weekStart);
       if (schedule == null) {
@@ -267,16 +271,17 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     }
   }
 
-  /// The branch's attendance geofence (from the cached branch list — cheap). Null
-  /// when the branch has none configured, or on a lookup failure.
-  Future<BranchGeofence?> _resolveGeofence(String branchId) async {
+  /// Resolves the branch once from the cached directory so its geofence and
+  /// manager clock policy are always based on the same branch snapshot.
+  Future<BranchEntity?> _resolveBranch(String? branchId) async {
+    if (branchId == null || branchId.isEmpty) return null;
     try {
       final branches = await _branchRepository.getBranches();
       for (final b in branches) {
-        if (b.id == branchId) return b.geofence;
+        if (b.id == branchId) return b;
       }
     } catch (e, st) {
-      AppLog.error('attendance', 'geofence resolve failed', e, st);
+      AppLog.error('attendance', 'branch resolve failed', e, st);
     }
     return null;
   }
@@ -399,6 +404,11 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
     _setBusy(true);
     try {
+      // Presence-style roles (managers) never carry a scheduled window, even
+      // when they happen to be on the roster — their attendance answers "were
+      // they here", so a schedule would only re-introduce the early/late
+      // semantics the flexible mode exists to remove.
+      final presenceOnly = !_config.enforceSchedule;
       final record = AttendanceEntity(
         id: id,
         userId: user.uid,
@@ -406,8 +416,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         branchId: user.branchId,
         shift: shift,
         date: ctx.todayDate,
-        scheduledStart: ctx.scheduledStart,
-        scheduledEnd: ctx.scheduledEnd,
+        scheduledStart: presenceOnly ? null : ctx.scheduledStart,
+        scheduledEnd: presenceOnly ? null : ctx.scheduledEnd,
+        presenceOnly: presenceOnly,
         // A placeholder — the datasource overrides it with a server timestamp.
         clockIn: _now(),
         clockInVerification: gps.verification,
@@ -444,6 +455,10 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   Future<bool> clockInUnscheduled({required String reason}) async {
     final user = _user, ctx = _ctx;
     if (user == null || ctx == null || _busy || _verifying) return false;
+    if (!_config.enabled) {
+      _surface('Attendance isn\'t enabled here.');
+      return false;
+    }
     if (!_config.allowUnscheduledClockIn) {
       _surface('Unscheduled shifts are switched off for this branch.');
       return false;
@@ -497,9 +512,11 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         shift: shift,
         date: ctx.todayDate,
         // No scheduled window — this is what marks the shift unscheduled
-        // everywhere downstream.
+        // everywhere downstream. For a presence-style role it is not an
+        // anomaly at all, so the flag rides along to say so.
         scheduledStart: null,
         scheduledEnd: null,
+        presenceOnly: !_config.enforceSchedule,
         clockIn: now, // placeholder; the datasource writes a server timestamp
         clockInVerification: gps.verification,
         notes: trimmed,

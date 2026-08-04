@@ -64,7 +64,10 @@ class AttendanceValidation {
   /// fix, checked first so the app never asks for location when the person can't
   /// clock in anyway. Order: module enabled → user active → not on leave → has a
   /// shift → not already in/out for this shift → **inside the clock-in window**.
-  /// The GPS gate ([checkGpsFix]) runs after this passes.
+  /// The GPS gate ([checkGpsFix]) runs after this passes. When
+  /// [AttendanceConfig.enforceSchedule] is false, the shift requirement and
+  /// early-clock-in window are skipped because the clock is tracking presence,
+  /// not roster adherence.
   ///
   /// The window (spec R1): a rostered clock-in is refused before
   /// `scheduledStart − config.clockInLeadMinutes` — [now] and [scheduledStart]
@@ -92,7 +95,9 @@ class AttendanceValidation {
       return AttendanceCheck(
           AttendanceBlock.onLeave, 'You\'re on ${leave.label.toLowerCase()} today.');
     }
-    if (todaysShift == null && !config.allowUnscheduledClockIn) {
+    if (config.enforceSchedule &&
+        todaysShift == null &&
+        !config.allowUnscheduledClockIn) {
       return const AttendanceCheck(
           AttendanceBlock.noActiveShift, 'You have no shift scheduled today.');
     }
@@ -104,7 +109,7 @@ class AttendanceValidation {
       return const AttendanceCheck(AttendanceBlock.alreadyClockedOut,
           'You\'ve already completed this shift.');
     }
-    if (now != null && scheduledStart != null) {
+    if (config.enforceSchedule && now != null && scheduledStart != null) {
       final opens =
           scheduledStart.subtract(Duration(minutes: config.clockInLeadMinutes));
       if (now.isBefore(opens)) {
@@ -190,7 +195,9 @@ class AttendanceValidation {
     required DateTime now,
     AttendanceConfig config = AttendanceConfig.defaults,
   }) {
-    if (!config.enabled) {
+    // A disabled module must still let an open session close, or a live shift
+    // is stranded until an automated sweep intervenes.
+    if (!config.enabled && (existing == null || !existing.isOpen)) {
       return const AttendanceCheck(
           AttendanceBlock.notEnabled, 'Attendance isn\'t enabled here.');
     }

@@ -14,6 +14,72 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Manager records carry no schedule at all (feature; MED risk)
+
+- A manager's attendance record is now created with **no `scheduledStart` /
+  `scheduledEnd`**, even when they are on the roster. Worked hours run clock-in →
+  clock-out and late / early-leave / overtime stay 0. `AttendanceCalculator`
+  needed no change: it already measures from `clockIn` when there is no
+  scheduled window, which is exactly presence tracking.
+- New `AttendanceEntity.presenceOnly` (default false, absent = false for every
+  existing record). **A missing `scheduledStart` alone was not enough**: it reads
+  as `unscheduledWork` — an *exception* meaning "worked a shift nobody rostered"
+  — and reporting drops unscheduled rows from present/absent counts. Without the
+  flag every manager day would have been filed as an anomaly and managers would
+  have vanished from attendance stats.
+- Reporting now treats presence rows as real work that is **not roster
+  adherence**: they keep their row and contribute worked minutes, but sit out of
+  both sides of the show-up rate. Counting them present without a matching
+  expectation would push that rate above 100%; counting them expected would
+  invent a shift nobody scheduled.
+- The roster-length implausibility check ("long shift, almost no work") is
+  skipped for presence records — the question has no meaning without a roster.
+
+⚠️ **The ledger has a server half.** `functions/attendance_expectation.js`
+mirrors the same classification, and both sides now check `presenceOnly`. They
+must stay in agreement or the persisted ledger and the in-app report describe
+the same day differently. **Not deployed** — `firebase deploy --only functions`
+is still pending for this change.
+
+---
+
+## 2026-08-04 — Manager attendance is presence tracking (feature; LOW risk)
+
+- Managers may clock in at any time, with or without a rostered shift. The policy
+  is resolved solely through `AttendanceService.configFor` as
+  `AttendanceConfig.enforceSchedule: false`; employees keep the default schedule
+  requirement and early clock-in window unchanged.
+- All non-schedule gates remain shared: branch manager-clock toggle, active account,
+  leave, duplicate-punch protections, and GPS/geofence validation. Clock-out and
+  worked-minute calculation are unchanged.
+
+---
+
+## 2026-08-04 — Branch-level manager clock policy (feature; MED risk)
+
+- Admins can choose whether managers at each branch may clock in/out. The new
+  `managersCanClock` branch field defaults to true when absent, so legacy branches
+  retain their current behaviour; employees and admins remain enabled.
+- The attendance policy resolves this flag from the cubit's one branch-directory
+  lookup. Disabling it blocks new manager clock-ins, including unscheduled ones,
+  but deliberately permits clock-out for an already-open session.
+
+Two traps worth keeping, both load-bearing:
+
+- **`checkClockOut` gated on `config.enabled` too.** Resolving the flag into
+  `enabled` alone would have left a manager who clocked in before the switch
+  unable to clock out — their session hanging until `autoCloseAttendance` swept
+  it to `pendingReview`. That guard now stands down when a session is already
+  open: a disabled module must still let you finish what you started.
+- **`clockInUnscheduled` never calls `checkClockIn`.** It runs only the GPS
+  check, so it was a second, ungated way in; it now checks `enabled` itself.
+  Any future clock entry point must gate itself — the validation engine does not
+  cover this path.
+
+Enforcement is client-side by design: `branches/{id}` is already admin-only to
+write, and a manager writing their own attendance record is legitimate, so this
+is a policy preference rather than a privilege boundary. No `firestore.rules`
+change, and none needed.
 ## 2026-08-04 — Admin schedule Today coverage and Final View phone toolbar (feature + bug; MED risk)
 
 - Admin Schedule now opens on Today: a problems-first branch list that shows

@@ -41,6 +41,11 @@ mixin _$BranchEntity {
   /// as a nested map under `swapPolicy`.
   SwapPolicy? get swapPolicy => throw _privateConstructorUsedError;
 
+  /// Whether this branch's **managers** may clock in / out. Employees always
+  /// can. Defaults to true so branches created before this field existed keep
+  /// the clock behaviour they already had.
+  bool get managersCanClock => throw _privateConstructorUsedError;
+
   /// Optional attendance **geofence** (lat/lng · allowed radius · min GPS
   /// accuracy). Null = GPS attendance not configured here yet. Stored as a
   /// nested map under `geofence`.
@@ -71,6 +76,7 @@ abstract class $BranchEntityCopyWith<$Res> {
     DateTime? updatedAt,
     DateTime? deletedAt,
     SwapPolicy? swapPolicy,
+    bool managersCanClock,
     BranchGeofence? geofence,
   });
 }
@@ -100,6 +106,7 @@ class _$BranchEntityCopyWithImpl<$Res, $Val extends BranchEntity>
     Object? updatedAt = freezed,
     Object? deletedAt = freezed,
     Object? swapPolicy = freezed,
+    Object? managersCanClock = null,
     Object? geofence = freezed,
   }) {
     return _then(
@@ -144,6 +151,10 @@ class _$BranchEntityCopyWithImpl<$Res, $Val extends BranchEntity>
                 ? _value.swapPolicy
                 : swapPolicy // ignore: cast_nullable_to_non_nullable
                       as SwapPolicy?,
+            managersCanClock: null == managersCanClock
+                ? _value.managersCanClock
+                : managersCanClock // ignore: cast_nullable_to_non_nullable
+                      as bool,
             geofence: freezed == geofence
                 ? _value.geofence
                 : geofence // ignore: cast_nullable_to_non_nullable
@@ -174,6 +185,7 @@ abstract class _$$BranchEntityImplCopyWith<$Res>
     DateTime? updatedAt,
     DateTime? deletedAt,
     SwapPolicy? swapPolicy,
+    bool managersCanClock,
     BranchGeofence? geofence,
   });
 }
@@ -202,6 +214,7 @@ class __$$BranchEntityImplCopyWithImpl<$Res>
     Object? updatedAt = freezed,
     Object? deletedAt = freezed,
     Object? swapPolicy = freezed,
+    Object? managersCanClock = null,
     Object? geofence = freezed,
   }) {
     return _then(
@@ -246,6 +259,10 @@ class __$$BranchEntityImplCopyWithImpl<$Res>
             ? _value.swapPolicy
             : swapPolicy // ignore: cast_nullable_to_non_nullable
                   as SwapPolicy?,
+        managersCanClock: null == managersCanClock
+            ? _value.managersCanClock
+            : managersCanClock // ignore: cast_nullable_to_non_nullable
+                  as bool,
         geofence: freezed == geofence
             ? _value.geofence
             : geofence // ignore: cast_nullable_to_non_nullable
@@ -269,6 +286,7 @@ class _$BranchEntityImpl extends _BranchEntity {
     this.updatedAt,
     this.deletedAt,
     this.swapPolicy,
+    this.managersCanClock = true,
     this.geofence,
   }) : super._();
 
@@ -307,6 +325,13 @@ class _$BranchEntityImpl extends _BranchEntity {
   @override
   final SwapPolicy? swapPolicy;
 
+  /// Whether this branch's **managers** may clock in / out. Employees always
+  /// can. Defaults to true so branches created before this field existed keep
+  /// the clock behaviour they already had.
+  @override
+  @JsonKey()
+  final bool managersCanClock;
+
   /// Optional attendance **geofence** (lat/lng · allowed radius · min GPS
   /// accuracy). Null = GPS attendance not configured here yet. Stored as a
   /// nested map under `geofence`.
@@ -315,7 +340,7 @@ class _$BranchEntityImpl extends _BranchEntity {
 
   @override
   String toString() {
-    return 'BranchEntity(id: $id, name: $name, location: $location, isActive: $isActive, logoUrl: $logoUrl, coverUrl: $coverUrl, createdAt: $createdAt, updatedAt: $updatedAt, deletedAt: $deletedAt, swapPolicy: $swapPolicy, geofence: $geofence)';
+    return 'BranchEntity(id: $id, name: $name, location: $location, isActive: $isActive, logoUrl: $logoUrl, coverUrl: $coverUrl, createdAt: $createdAt, updatedAt: $updatedAt, deletedAt: $deletedAt, swapPolicy: $swapPolicy, managersCanClock: $managersCanClock, geofence: $geofence)';
   }
 
   @override
@@ -340,6 +365,8 @@ class _$BranchEntityImpl extends _BranchEntity {
                 other.deletedAt == deletedAt) &&
             (identical(other.swapPolicy, swapPolicy) ||
                 other.swapPolicy == swapPolicy) &&
+            (identical(other.managersCanClock, managersCanClock) ||
+                other.managersCanClock == managersCanClock) &&
             (identical(other.geofence, geofence) ||
                 other.geofence == geofence));
   }
@@ -357,6 +384,7 @@ class _$BranchEntityImpl extends _BranchEntity {
     updatedAt,
     deletedAt,
     swapPolicy,
+    managersCanClock,
     geofence,
   );
 
@@ -381,6 +409,7 @@ abstract class _BranchEntity extends BranchEntity {
     final DateTime? updatedAt,
     final DateTime? deletedAt,
     final SwapPolicy? swapPolicy,
+    final bool managersCanClock,
     final BranchGeofence? geofence,
   }) = _$BranchEntityImpl;
   const _BranchEntity._() : super._();
@@ -418,6 +447,12 @@ abstract class _BranchEntity extends BranchEntity {
   /// as a nested map under `swapPolicy`.
   @override
   SwapPolicy? get swapPolicy;
+
+  /// Whether this branch's **managers** may clock in / out. Employees always
+  /// can. Defaults to true so branches created before this field existed keep
+  /// the clock behaviour they already had.
+  @override
+  bool get managersCanClock;
 
   /// Optional attendance **geofence** (lat/lng · allowed radius · min GPS
   /// accuracy). Null = GPS attendance not configured here yet. Stored as a

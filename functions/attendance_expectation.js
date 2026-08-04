@@ -214,7 +214,15 @@ function isImplausibleClockedOutRecord({
   workedFloor = IMPLAUSIBLE_WORKED_MINUTES_FLOOR,
   scheduledFloor = IMPLAUSIBLE_SCHEDULED_MINUTES_FLOOR,
 }) {
-  if (!hasClockedOut(record) || scheduledStartAtMs == null || scheduledEndAtMs == null) {
+  // Mirrors `_isImplausibleClockedOutRecord` in `attendance_exception.dart`: a
+  // presence-only record is never measured against a roster, so "long shift,
+  // almost no work" is not a question that applies to it.
+  if (
+    (record && record.presenceOnly === true) ||
+    !hasClockedOut(record) ||
+    scheduledStartAtMs == null ||
+    scheduledEndAtMs == null
+  ) {
     return false;
   }
   const scheduledMinutes = Math.trunc((scheduledEndAtMs - scheduledStartAtMs) / MINUTE_MS);
@@ -244,7 +252,13 @@ function classifyExceptions({
     ) {
       codes.push(EXCEPTION_CODES.missingPunch);
     }
-    if (scheduledStartAtMs == null) codes.push(EXCEPTION_CODES.unscheduledWork);
+    // A presence-only record (manager) has no schedule *by policy*, so it is
+    // not unscheduled work. Mirrors `classifyExceptions` in
+    // `attendance_exception.dart` — the two must agree or the persisted ledger
+    // and the in-app report disagree about the same day.
+    if (scheduledStartAtMs == null && record.presenceOnly !== true) {
+      codes.push(EXCEPTION_CODES.unscheduledWork);
+    }
     if (isImplausibleClockedOutRecord({
       record,
       totals,

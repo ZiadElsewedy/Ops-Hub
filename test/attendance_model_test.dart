@@ -96,6 +96,23 @@ void main() {
     expect(back.clockInVerification!.verified, isTrue);
   });
 
+  test('presenceOnly survives serialization and defaults false when absent', () {
+    final presence = AttendanceModel.fromEntity(entity.copyWith(
+      presenceOnly: true,
+      scheduledStart: null,
+      scheduledEnd: null,
+    ));
+    final map = presence.toCreateMap();
+    expect(map['presenceOnly'], isTrue);
+    expect(AttendanceModel.fromMap(map).toEntity().presenceOnly, isTrue);
+
+    // Every record written before this field existed must read as a normal,
+    // schedule-measured record.
+    final legacy = Map<String, dynamic>.from(presence.toCreateMap())
+      ..remove('presenceOnly');
+    expect(AttendanceModel.fromMap(legacy).toEntity().presenceOnly, isFalse);
+  });
+
   test('dayKey is written to the create payload (for the branch/day query)', () {
     expect(AttendanceModel.fromEntity(entity).toCreateMap()['dayKey'], '20260711');
   });

@@ -56,7 +56,11 @@ List<AttendanceExceptionCode> classifyExceptions({
     if (record.needsReview || _openPastScheduledEnd(record, totals, scheduledEnd)) {
       codes.add(AttendanceExceptionCode.missingPunch);
     }
-    if (scheduledStart == null) {
+    // A presence-only record (manager) has no schedule *by policy*. Flagging it
+    // as unscheduled work would file every manager day as an anomaly — and
+    // reporting drops unscheduled rows from present/absent counts, so managers
+    // would disappear from attendance stats entirely.
+    if (scheduledStart == null && !record.presenceOnly) {
       codes.add(AttendanceExceptionCode.unscheduledWork);
     }
     if (_isImplausibleClockedOutRecord(
@@ -101,7 +105,14 @@ bool _isImplausibleClockedOutRecord({
   required int workedFloor,
   required int scheduledFloor,
 }) {
-  if (!record.hasClockedOut || scheduledStart == null || scheduledEnd == null) {
+  // The check asks "did a long rostered shift produce almost no work?" — a
+  // question with no meaning for a presence-only record, which is never
+  // measured against a roster. Judging one against the slot it happens to sit
+  // in would flag every short manager visit as implausible.
+  if (record.presenceOnly ||
+      !record.hasClockedOut ||
+      scheduledStart == null ||
+      scheduledEnd == null) {
     return false;
   }
   final scheduledMinutes = scheduledEnd.difference(scheduledStart).inMinutes;

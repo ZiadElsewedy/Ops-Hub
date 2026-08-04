@@ -165,7 +165,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `notifications` | Notification inbox + deep-link resolver | [NOTIFICATIONS](docs/design/NOTIFICATIONS.md) |
 | `operations` | Branch Operations cockpit: workload, KPI drills | [TASKS](docs/design/TASKS.md) |
 | `admin` | User administration, Admin Home command center | [DESIGN_SYSTEM](docs/design/DESIGN_SYSTEM.md) |
-| `branch` | Branch CRUD, geofences, swap policy | [ATTENDANCE](docs/design/ATTENDANCE.md) |
+| `branch` | Branch CRUD, geofences, swap policy, manager clock policy | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `statistics` | Role-scoped counts powering all three dashboards | — |
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |

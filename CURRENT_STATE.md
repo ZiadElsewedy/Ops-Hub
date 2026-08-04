@@ -646,6 +646,24 @@ pass an unscheduled punch existed in Firestore and was invisible on every manage
 surface. Geofence resolution moved ahead of the schedule lookup so an unpublished
 week does not block the GPS gate for the wrong reason.
 
+**Manager records carry no schedule (2026-08-04).** A manager's record is written with
+`scheduledStart`/`scheduledEnd` **null** even when they are rostered, plus
+`presenceOnly: true`. Worked hours are clock-in → clock-out; late/early/overtime stay 0
+(`AttendanceCalculator` was already correct for a null window — it needed no change).
+⚠️ **`presenceOnly` is load-bearing, not decorative:** a null `scheduledStart` alone reads
+as `unscheduledWork`, an *exception*, and reporting excludes unscheduled rows from
+present/absent — so without the flag every manager day is an anomaly and managers vanish
+from the stats. Presence rows contribute worked minutes but stay out of both sides of the
+show-up rate (counting them present-without-expected pushes it over 100%). ⚠️ **The ledger
+has a server half** — `functions/attendance_expectation.js` mirrors the same rule and the
+two must agree; **not yet deployed**.
+
+**Manager attendance is presence-style (2026-08-04).** `AttendanceService` resolves
+`enforceSchedule: false` for managers, so roster presence and early clock-in timing
+do not refuse their punches. The branch `managersCanClock` toggle, active-account,
+leave, duplicate-punch, and GPS/geofence gates still apply. Employees retain the
+default schedule enforcement; `AttendanceCalculator` remains unchanged.
+
 ### Removed — do not re-add
 
 | Feature | Removed | Why |
@@ -796,9 +814,10 @@ handled as a separate backend/security task before the rules deploy.
   never refuses, `soft` captures and never refuses, `strict` runs the full gate
   unchanged. A branch with **no geofence resolves to `none`** instead of being
   locked out of attendance entirely. Default flipped `none` → `strict` so the
-  config describes what ships. **Still open:** `AttendanceService.configFor`
-  returns one constant for everyone, so `soft` is reachable but unselectable —
-  per-branch `branches/{id}/attendanceConfig` is the follow-up.
+  config describes what ships. **Manager clock access is now branch-configurable:**
+  `branches/{id}.managersCanClock` defaults true for legacy docs, applies only to
+  managers, and fails open while branch data is unavailable. A disabled branch
+  still permits an already-open session to clock out so no shift is stranded.
 - **A non-geofenced branch clocks in unverified.** The deliberate trade in
   ADR-020. Closed by an admin drawing the fence in Branches → geofence editor;
   nothing changes at a branch that already has one.

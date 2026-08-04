@@ -41,7 +41,7 @@ anywhere.
 | `attendance_validation.dart` | `checkClockIn` (eligibility) · `checkClockOut` · `checkCorrection` |
 | `attendance_gps.dart` | `gpsDistanceMeters` (Haversine) + `AttendanceVerification` |
 | `attendance_board.dart` | `computeAttendanceBoard(roster, records, now, config)` — the admin board |
-| `attendance_config.dart` | Grace / geofence / photo policy + the **module dark-switch** |
+| `attendance_config.dart` | Grace / geofence / photo policy + the **module dark-switch** + role-resolved schedule enforcement |
 | `attendance_feed.dart` | `AttendanceFeed` — records + offline/pending-write metadata |
 | `attendance_id.dart` | The deterministic id |
 | `attendance_resolution.dart` · `attendance_location.dart` · `attendance_break.dart` | Value objects |
@@ -52,6 +52,12 @@ anywhere.
 place and persisted as a **snapshot only at clock-out or correction-approve** —
 never recomputed on read, so a config change cannot retroactively alter a closed
 shift's pay. If you need minute math, call the calculator. Do not inline it.
+
+Managers use the same attendance, account, leave, duplicate-punch, and GPS gates
+as employees, but `AttendanceService.configFor` resolves
+`enforceSchedule: false` for them. Their punch is presence tracking: it can happen
+at any time, with or without a rostered shift. Employees retain schedule-required
+and early-window validation. This does not alter worked-minute calculation.
 
 ## Verification
 
@@ -68,8 +74,8 @@ principle as [ADR-006](../decisions/ADR-006-schedule-shift-plan-snapshots.md).
   edited via `BranchRepository.setGeofence`.
 - Clock **times are server timestamps**. `effectiveClockIn` covers the live timer
   until the server value syncs back, so the UI never shows a client clock.
-- `checkGpsFix` is the gate: it rejects no-shift · service-off · permission-denied ·
-  low-accuracy · outside-radius.
+- `checkGpsFix` is the gate: it rejects service-off · permission-denied ·
+  no-geofence · low-accuracy · outside-radius.
 
 > **Clock-out is never GPS-blocked.** It records verification and lets you leave.
 > Trapping someone at work because their GPS drifted is not a feature.

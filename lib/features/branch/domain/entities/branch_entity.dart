@@ -32,6 +32,11 @@ class BranchEntity with _$BranchEntity {
     /// as a nested map under `swapPolicy`.
     SwapPolicy? swapPolicy,
 
+    /// Whether this branch's **managers** may clock in / out. Employees always
+    /// can. Defaults to true so branches created before this field existed keep
+    /// the clock behaviour they already had.
+    @Default(true) bool managersCanClock,
+
     /// Optional attendance **geofence** (lat/lng · allowed radius · min GPS
     /// accuracy). Null = GPS attendance not configured here yet. Stored as a
     /// nested map under `geofence`.
