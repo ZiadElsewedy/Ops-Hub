@@ -22,7 +22,7 @@ import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/pages/filtered_tasks_screen.dart';
 
-/// The delta-2 "Today" strip: every cell now derives from the same task
+/// The Today metric doors: every figure derives from the same task
 /// stream `applyFeed` reads, so a tap's count and its drill-down list agree by
 /// construction. This locks the case that motivated the whole change — an
 /// `Open` stat that actually counts a pending (not-yet-started) task, and a
@@ -160,7 +160,7 @@ void main() {
   );
 
   testWidgets(
-    'tapping Completed today lists only work approved today, not the lifetime total',
+    'tapping Done today lists only work approved today, not the lifetime total',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -186,12 +186,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      // The strip sits below the hero + Needs-attention panel, whose height
+      // The tile sits below the hero + Needs-attention panel, whose height
       // varies with copy — scroll the cell into view so this test asserts the
       // count↔list agreement, not a pixel position.
-      await tester.ensureVisible(find.text('Completed today'));
+      await tester.ensureVisible(find.text('Done today'));
       await tester.pump();
-      await tester.tap(find.text('Completed today'));
+      await tester.tap(find.text('Done today'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -211,26 +211,37 @@ void main() {
     },
   );
 
-  testWidgets('the Due soon stat is not a tap target', (tester) async {
+  testWidgets('the Due today tile opens its matching filtered list', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final taskCubit = _FakeTaskCubit(const []);
+    final dueToday = TaskEntity(
+      id: 't-due-today',
+      title: 'Count the till',
+      status: TaskStatus.pending,
+      deadline: DateTime.now(),
+    );
+    final taskCubit = _FakeTaskCubit([dueToday]);
     addTearDown(taskCubit.close);
 
     await tester.pumpWidget(_host(taskCubit));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Due soon'), findsOneWidget);
-    await tester.tap(find.text('Due soon'));
+    expect(find.text('Due today'), findsOneWidget);
+    await tester.ensureVisible(find.text('Due today'));
+    await tester.tap(find.text('Due today'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    // No new screen was pushed — still on the dashboard.
-    expect(find.byType(FilteredTasksScreen), findsNothing);
-    expect(find.byType(AdminDashboardScreen), findsOneWidget);
+    expect(find.byType(FilteredTasksScreen), findsOneWidget);
+    expect(find.text('Count the till'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 400));
   });
 }

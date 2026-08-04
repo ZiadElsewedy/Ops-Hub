@@ -3,15 +3,26 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-03.
+> **Last verified against the code:** 2026-08-04.
+
+> **Admin mobile hierarchy pass (2026-08-04):**
+> Admin Home now matches Manager Home's ranked command-center language: its
+> eyebrow carries date + loaded company scope, Today is four drillable
+> `MetricTile`s (Open · Running now · Due today · Done today), and a mobile-only
+> compact Manage directory preserves Branches, Managers, Employees, Analytics and
+> New account outside the bottom nav. Desktop keeps only Operations in its rail.
+> Admin Task Management now leads with three actionable metric doors and a quiet
+> record strip, then a named branch grid; branch covers are compact and cards show
+> the operational triple plus one completion statement. Missed and Cancelled stay
+> hidden at zero; Cancelled is neutral and excluded from completion.
 
 ## At a glance
 
 | | |
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
-| **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings |
-| **Tests** | **1501 pass · 0 fail** across 206 files (~34s) — **green**, re-run and verified **2026-08-03** after the chat polish pass. Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-04** after the admin mobile hierarchy pass |
+| **Tests** | **1508 pass · 0 fail** across 208 files (~31s) — **green**, re-run and verified **2026-08-04** after the admin mobile hierarchy pass. Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

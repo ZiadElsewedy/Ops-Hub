@@ -10,9 +10,11 @@ import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/responsive_card_grid.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
+import 'package:drop/core/widgets/admin_section_header.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
+import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/core/widgets/stat_strip.dart';
+import 'package:drop/core/widgets/metric_tile.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/operations/presentation/pages/branch_operations_screen.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
@@ -27,11 +29,18 @@ import 'package:drop/features/task/presentation/widgets/task_template_sheets.dar
 /// Admin task home — a **branch-based overview** instead of a single flat list
 /// of every task across the company (which doesn't scale past a few branches).
 ///
-/// One scroll: a tappable stat row (tap any figure to see exactly those tasks),
-/// then the branch grid with the operational vitals the admin needs to triage
-/// at a glance — Active, Pending Review, Late, Completion — sorted so the
-/// branches that need attention surface first. Tapping a branch drills into
-/// that branch's task list (full create / assign / edit / review / delete).
+/// One scroll, ranked for the phone: three actionable `MetricTile` doors lead;
+/// quiet record figures follow without competing; then a named branch grid,
+/// sorted attention-first. This replaced an eight-cell `StatStrip` that filled
+/// the first iPhone fold, treated inert context like urgent work, and made
+/// tappable and inert cells look identical.
+///
+/// Branch cards keep their operational triple (Active · Pending review · Late)
+/// and the app's single reliability figure — Approved ÷ (Approved + Missed).
+/// Their cover is now a compact, strongly-scrimmed identity band rather than a
+/// banner, so a real photo supports the branch name instead of overwhelming it.
+/// Missed and Cancelled remain hidden at zero; Cancelled is neutral and never
+/// joins Missed in a count or completion calculation.
 class AdminTaskOverviewScreen extends StatefulWidget {
   const AdminTaskOverviewScreen({super.key});
 
@@ -112,14 +121,6 @@ class _AdminTaskOverviewScreenState extends State<AdminTaskOverviewScreen> {
           tooltip: 'Templates',
           onPressed: _manageTemplates,
         ),
-        IconButton(
-          icon: const Icon(
-            Icons.refresh_rounded,
-            color: AppColors.textSecondary,
-          ),
-          tooltip: 'Refresh',
-          onPressed: _load,
-        ),
       ],
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
@@ -159,7 +160,8 @@ class _AdminTaskOverviewScreenState extends State<AdminTaskOverviewScreen> {
                 onRefresh: () async => _load(),
                 child: rows.isEmpty
                     ? const TaskEmptyState(
-                        message: 'No branches yet.\nCreate a branch, then add tasks.',
+                        message:
+                            'No branches yet.\nCreate a branch, then add tasks.',
                       )
                     : ListView(
                         padding: const EdgeInsets.fromLTRB(
@@ -175,6 +177,8 @@ class _AdminTaskOverviewScreenState extends State<AdminTaskOverviewScreen> {
                             onOpen: _openFiltered,
                           ),
                           const SizedBox(height: AppSpacing.lg),
+                          const AdminSectionHeader(title: 'Branches'),
+                          const SizedBox(height: AppSpacing.sm),
                           ResponsiveCardGrid(
                             maxItemWidth: 520,
                             children: [
@@ -391,10 +395,8 @@ class _BranchMetrics {
   }
 }
 
-/// The company-wide stat row at the top of the overview. One calm surface —
-/// every task-typed figure is a real tap target that drills into exactly those
-/// tasks (Active, In review, Late, Missed, Cancelled, Done); Branches and
-/// Complete are context, not lists, so they stay inert.
+/// The company header has two explicit tiers: the work to act on is a row of
+/// doors; historical/context figures are compact, quiet records underneath.
 class _TaskStatRow extends StatelessWidget {
   const _TaskStatRow({
     required this.metrics,
@@ -417,127 +419,232 @@ class _TaskStatRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = metrics.completionRate;
     final outcomes = metrics.outcomes;
-    return StatStrip(
-      stats: [
-        Stat(label: 'Branches', value: '$branches'),
-        Stat(
-          label: 'Active',
-          count: metrics.active,
-          onTap: () => onOpen(
-            title: 'Active',
-            filter: const TaskFeedFilter(
-              statuses: {
-                TaskStatus.pending,
-                TaskStatus.started,
-                TaskStatus.completed,
-                TaskStatus.rejected,
-              },
-            ),
-            description:
-                'Open work — not started, in progress, marked done, or sent '
-                'back for rework.',
-            emptyMessage:
-                'No active tasks — everything is either done or waiting on review.',
-          ),
-        ),
-        Stat(
-          label: 'In review',
-          count: metrics.pendingReview,
-          onTap: () => onOpen(
-            title: 'In review',
-            filter: const TaskFeedFilter(status: TaskStatus.waitingReview),
-            description:
-                'Submitted by an employee, waiting for a manager or admin to '
-                'approve or reject it.',
-            emptyMessage: 'Nothing is waiting on a decision right now.',
-          ),
-        ),
-        Stat(
-          label: 'Late',
-          count: metrics.overdue,
-          tone: metrics.overdue > 0 ? AppColors.error : null,
-          onTap: () => onOpen(
-            title: 'Late',
-            filter: const TaskFeedFilter(preset: FeedPreset.overdue),
-            // The question the owner actually asked ("how does it count —
-            // today's tasks? the last days?"). Verified against the code, not
-            // assumed: active work only (pending/started/rejected), no time
-            // window at all — a task 3 weeks overdue still counts, every day,
-            // until it's closed. Once finished it drops out of Late and
-            // becomes "finished late" on the task itself (see the task card).
-            description:
-                'Active work past its deadline — counted every day until '
-                "it's closed, however old. Work that finished late shows on "
-                'the task itself, not here.',
-            emptyMessage: 'Nothing is running past its deadline.',
-          ),
-        ),
-        // Hidden at zero so a clean estate stays calm — same rule the old
-        // outcome-breakdown panel followed for Missed, now honoured here.
-        if (outcomes.missed > 0)
-          Stat(
-            label: 'Missed',
-            count: outcomes.missed,
-            tone: AppColors.error,
-            onTap: () => onOpen(
-              title: 'Missed',
-              filter: const TaskFeedFilter(
-                status: TaskStatus.missed,
-                activeWindowOnly: false,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MetricTileRow(
+          tiles: [
+            MetricTile(
+              label: 'Active',
+              value: metrics.active,
+              icon: Icons.inbox_rounded,
+              onTap: () => onOpen(
+                title: 'Active',
+                filter: const TaskFeedFilter(
+                  statuses: {
+                    TaskStatus.pending,
+                    TaskStatus.started,
+                    TaskStatus.completed,
+                    TaskStatus.rejected,
+                  },
+                ),
+                description:
+                    'Open work — not started, in progress, marked done, or sent '
+                    'back for rework.',
+                emptyMessage:
+                    'No active tasks — everything is either done or waiting on review.',
               ),
-              description:
-                  "Closed automatically when a shift's deadline passed with "
-                  "the work unfinished. Nobody decided this — it's a record "
-                  "of work that didn't happen.",
-              emptyTitle: 'No missed tasks',
-              emptyMessage: 'Nothing has run past its deadline unclosed.',
             ),
-          ),
-        if (outcomes.cancelled > 0)
-          Stat(
-            label: 'Cancelled',
-            count: outcomes.cancelled,
-            // No `tone` — stays the default monochrome white. Cancelled must
-            // never wear Missed's error-red and the two must never be summed
-            // anywhere (Automated Tasks spec §8, owner-signed hard invariant).
-            onTap: () => onOpen(
-              title: 'Cancelled',
-              filter: const TaskFeedFilter(
-                status: TaskStatus.cancelled,
-                activeWindowOnly: false,
+            MetricTile(
+              label: 'In review',
+              value: metrics.pendingReview,
+              icon: Icons.rate_review_outlined,
+              onTap: () => onOpen(
+                title: 'In review',
+                filter: const TaskFeedFilter(status: TaskStatus.waitingReview),
+                description:
+                    'Submitted by an employee, waiting for a manager or admin to '
+                    'approve or reject it.',
+                emptyMessage: 'Nothing is waiting on a decision right now.',
               ),
-              description:
-                  'Work a manager or admin decided would not be done — a '
-                  'decision, not a failure. Never counted as Missed.',
-              emptyMessage: 'Nothing has been cancelled.',
             ),
-          ),
-        Stat(
-          label: 'Done',
-          count: metrics.approved,
-          onTap: () => onOpen(
-            title: 'Done',
-            filter: const TaskFeedFilter(
-              status: TaskStatus.approved,
-              activeWindowOnly: false,
+            MetricTile(
+              label: 'Late',
+              value: metrics.overdue,
+              icon: Icons.event_busy_outlined,
+              alert: metrics.overdue > 0,
+              onTap: () => onOpen(
+                title: 'Late',
+                filter: const TaskFeedFilter(preset: FeedPreset.overdue),
+                // The question the owner actually asked ("how does it count —
+                // today's tasks? the last days?"). Verified against the code, not
+                // assumed: active work only (pending/started/rejected), no time
+                // window at all — a task 3 weeks overdue still counts, every day,
+                // until it's closed. Once finished it drops out of Late and
+                // becomes "finished late" on the task itself (see the task card).
+                description:
+                    'Active work past its deadline — counted every day until '
+                    "it's closed, however old. Work that finished late shows on "
+                    'the task itself, not here.',
+                emptyMessage: 'Nothing is running past its deadline.',
+              ),
             ),
-            description:
-                'Approved and closed. Includes work that finished after its '
-                'deadline — see each task for lateness.',
-            emptyMessage: 'Nothing approved yet.',
-          ),
+          ],
         ),
-        Stat(
-          label: 'Complete',
-          value: pct == null ? '—' : '${(pct * 100).round()}%',
+        const SizedBox(height: AppSpacing.sm),
+        _TaskRecordSummary(
+          branches: branches,
+          completion: pct,
+          missed: outcomes.missed,
+          cancelled: outcomes.cancelled,
+          done: metrics.approved,
+          onOpen: onOpen,
         ),
       ],
     );
   }
 }
 
-/// A single branch card in the admin overview — the metric row + caption carry
-/// open/overdue work and the headline completion rate.
+class _TaskRecordSummary extends StatelessWidget {
+  const _TaskRecordSummary({
+    required this.branches,
+    required this.completion,
+    required this.missed,
+    required this.cancelled,
+    required this.done,
+    required this.onOpen,
+  });
+
+  final int branches;
+  final double? completion;
+  final int missed;
+  final int cancelled;
+  final int done;
+  final void Function({
+    required String title,
+    required TaskFeedFilter filter,
+    required String emptyMessage,
+    required String description,
+    String? emptyTitle,
+  })
+  onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassContainer(
+      borderRadius: AppRadius.lgAll,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Wrap(
+        spacing: AppSpacing.md,
+        runSpacing: AppSpacing.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _RecordCaption(
+            label: '$branches ${branches == 1 ? 'branch' : 'branches'}',
+          ),
+          _RecordCaption(
+            label:
+                'Complete ${completion == null ? '—' : '${(completion! * 100).round()}%'}',
+          ),
+          if (missed > 0)
+            _RecordDoor(
+              label: '$missed Missed',
+              alert: true,
+              onTap: () => onOpen(
+                title: 'Missed',
+                filter: const TaskFeedFilter(
+                  status: TaskStatus.missed,
+                  activeWindowOnly: false,
+                ),
+                description:
+                    "Closed automatically when a shift's deadline passed with the work unfinished. Nobody decided this — it's a record of work that didn't happen.",
+                emptyTitle: 'No missed tasks',
+                emptyMessage: 'Nothing has run past its deadline unclosed.',
+              ),
+            ),
+          if (cancelled > 0)
+            _RecordDoor(
+              label: '$cancelled Cancelled',
+              onTap: () => onOpen(
+                title: 'Cancelled',
+                filter: const TaskFeedFilter(
+                  status: TaskStatus.cancelled,
+                  activeWindowOnly: false,
+                ),
+                description:
+                    'Work a manager or admin decided would not be done — a decision, not a failure. Never counted as Missed.',
+                emptyMessage: 'Nothing has been cancelled.',
+              ),
+            ),
+          _RecordDoor(
+            label: '$done Done',
+            onTap: () => onOpen(
+              title: 'Done',
+              filter: const TaskFeedFilter(
+                status: TaskStatus.approved,
+                activeWindowOnly: false,
+              ),
+              description:
+                  'Approved and closed. Includes work that finished after its '
+                  'deadline — see each task for lateness.',
+              emptyMessage: 'Nothing approved yet.',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecordCaption extends StatelessWidget {
+  const _RecordCaption({required this.label});
+  final String label;
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
+  );
+}
+
+class _RecordDoor extends StatelessWidget {
+  const _RecordDoor({
+    required this.label,
+    required this.onTap,
+    this.alert = false,
+  });
+  final String label;
+  final VoidCallback onTap;
+  final bool alert;
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: label,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.smAll,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: AppTypography.caption.copyWith(
+                color: alert ? AppColors.error : AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.arrow_outward_rounded,
+              size: 13,
+              color: alert ? AppColors.error : AppColors.textTertiary,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// A branch card: compact identity, operational triple, and one reliability
+/// statement. It intentionally does not repeat completion as a progress bar.
 class _BranchOverviewCard extends StatelessWidget {
   const _BranchOverviewCard({required this.row, required this.onTap});
   final _BranchRow row;
@@ -593,27 +700,13 @@ class _BranchOverviewCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
                     _caption(m, pct),
                     style: AppTypography.caption.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  if (pct != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: pct,
-                        minHeight: 5,
-                        backgroundColor: AppColors.darkSurfaceElevated,
-                        valueColor: const AlwaysStoppedAnimation(
-                          AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -687,8 +780,8 @@ class _CoverHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = row.metrics;
-    return AspectRatio(
-      aspectRatio: 16 / 7,
+    return SizedBox(
+      height: 116,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -699,13 +792,18 @@ class _CoverHeader extends StatelessWidget {
             errorBuilder: (_, _, _) =>
                 const ColoredBox(color: AppColors.darkSurfaceElevated),
           ),
-          // Dark scrim, stronger at the bottom where the label sits.
+          // Strong scrim keeps the compact identity band legible over any photo
+          // — heavier than the old banner's, because the band is now half the
+          // height and the name sits closer to the artwork. It must stay
+          // **translucent**: an opaque gradient here would cover the cover
+          // photo completely and quietly delete the branch identity the card
+          // exists to carry (§8b).
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0x33000000), Color(0xE6000000)],
+                colors: [Color(0x59000000), Color(0xF2000000)],
               ),
             ),
           ),

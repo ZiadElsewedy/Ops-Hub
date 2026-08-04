@@ -8,17 +8,15 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/action_card.dart';
 import 'package:drop/core/widgets/admin_section_header.dart';
 import 'package:drop/core/widgets/attention_panel.dart';
 import 'package:drop/core/widgets/command_hint.dart';
 import 'package:drop/core/widgets/digest_panel.dart';
 import 'package:drop/core/widgets/hero_mood.dart';
 import 'package:drop/core/widgets/primary_cta.dart';
-import 'package:drop/core/widgets/responsive_card_grid.dart';
 import 'package:drop/core/widgets/app_motion.dart';
+import 'package:drop/core/widgets/metric_tile.dart';
 import 'package:drop/core/widgets/page_hero.dart';
-import 'package:drop/core/widgets/stat_strip.dart';
 import 'package:drop/core/widgets/sync_button.dart';
 import 'package:drop/core/utils/dashboard_mood.dart';
 import 'package:drop/features/cases/presentation/cubit/case_list_cubit.dart';
@@ -35,7 +33,6 @@ import 'package:drop/features/statistics/presentation/cubit/statistics_state.dar
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_feed.dart';
 import 'package:drop/features/task/domain/task_metrics.dart';
-import 'package:drop/features/task/domain/task_schedule.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/pages/filtered_tasks_screen.dart';
@@ -47,21 +44,25 @@ import 'package:drop/features/task/presentation/widgets/task_template_sheets.dar
 /// attention right now*, then today's health, then recent activity — never "here
 /// is every row in the database".
 ///
-/// Hierarchy: **Hero** (greeting · one live state sentence · scope · one Create
-/// Task CTA) → **Needs attention** (the dominant layer: ONE grouped box — a calm
+/// Hierarchy: **Hero** (date · company scope · greeting · one live state
+/// sentence · one Create Task CTA) → **Needs attention** (the dominant layer: ONE grouped box — a calm
 /// "all clear" summary when every queue is empty, otherwise the triage rows
 /// overdue · pending review · sent back · unassigned · swaps, most-urgent-first,
 /// each a filtered drill, wrapped in a single living border) → **Today** (light
-/// count-up metrics) → **Recent activity** (clean vertical feed, no filters) →
-/// right rail: **Operations** (requests · cases · schedule) · Quick actions ·
-/// Manage.
+/// four `MetricTile` doors) → **Recent activity** (clean vertical feed, no
+/// filters) → **Operations**. On a phone, a final compact **Manage** directory
+/// keeps the destinations absent from bottom navigation reachable; desktop has
+/// them in its persistent sidebar, so its right rail stays Operations only.
 ///
-/// Every visual is a reusable V2 primitive (`PageHero`, `GlassContainer`,
-/// `StatStrip`, `ActivityCard`, `LiveStatusBorder`) — this screen only arranges
-/// them and derives the data, so the same language carries to every future
-/// module. It stays **live**: each section is a scoped `BlocSelector` over the
-/// streams, so counters update without a manual refresh, and a task emit rebuilds
-/// only the section it moves.
+/// This is the Admin counterpart of the signed-off Manager Home redesign
+/// (2026-08-04). The prior mobile page placed two chunky navigation grids and a
+/// five-cell `StatStrip` after its operational story: too much equal-weight
+/// content, and one Due soon cell could not honestly open a matching list. Each
+/// Today number is now a real door, derived from the same live task computation
+/// as its drill. `Late` appears only in Needs attention directly above, rather
+/// than being repeated as noise. It stays **live**: each section is a scoped
+/// `BlocSelector` over the streams, so counters update without a manual refresh,
+/// and a task emit rebuilds only the section it moves.
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -161,15 +162,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return 'Good evening';
   }
 
-  String _scopeLine(StatisticsEntity? s, int running) {
-    if (s == null) {
-      return running > 0 ? '$running running now' : 'Operations overview';
-    }
+  String _scope(StatisticsEntity? s) {
+    if (s == null) return '';
     final b =
         '${s.totalBranches} ${s.totalBranches == 1 ? 'branch' : 'branches'}';
     final e =
         '${s.totalEmployees} ${s.totalEmployees == 1 ? 'employee' : 'employees'}';
-    return '$b · $e · $running running';
+    return '$b · $e';
   }
 
   void _createTask() => startNewTaskFlow(
@@ -179,14 +178,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     defaultBranchId: '',
   );
 
-  /// The eyebrow kicker: today's date, and — once we've pulled at least once —
-  /// how fresh the numbers are, per the spec ("date · Synced 3m ago").
-  String _eyebrow() {
+  /// The eyebrow carries company scope, removing the hero's former second
+  /// supporting line. Freshness belongs to the adjacent Sync control.
+  String _eyebrow(StatisticsEntity? statistics) {
     final date = AppDateFormatter.weekdayDayMonth(DateTime.now());
-    final synced = _syncing
-        ? 'Syncing…'
-        : (_lastSynced == null ? null : syncLabel(_lastSynced));
-    return synced == null ? date : '$date · $synced';
+    final scope = _scope(statistics);
+    return scope.isEmpty ? date : '$date · $scope';
   }
 
   Widget _hero() {
@@ -194,7 +191,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final first = (name != null && name.trim().isNotEmpty)
         ? name.trim().split(' ').first
         : 'Admin';
-    final eyebrow = _eyebrow();
     return BlocBuilder<StatisticsCubit, StatisticsState>(
       builder: (context, statsState) {
         final s = statsState.maybeWhen(loaded: (s) => s, orElse: () => null);
@@ -209,7 +205,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             orElse: () => 0,
           ),
           builder: (context, swaps) {
-            return BlocSelector<TaskCubit, TaskState, (int, int, int, int, int)>(
+            return BlocSelector<
+              TaskCubit,
+              TaskState,
+              (int, int, int, int, int)
+            >(
               selector: (state) {
                 final tasks = state.maybeWhen(
                   loaded: (t, _, _, _, _) => t,
@@ -225,17 +225,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 );
               },
               builder: (context, c) {
-                final (running, reviews, overdue, unassigned, rejected) = c;
+                final (_, reviews, overdue, unassigned, rejected) = c;
                 final needsAttention =
                     reviews + overdue + unassigned + rejected + swaps;
                 final mood = dashboardMood(needsAttention: needsAttention);
                 return PageHero(
-                  eyebrow: eyebrow,
+                  eyebrow: _eyebrow(s),
                   title: '$_salutation, $first',
-                  subtitleWidget: HeroMood(
-                    mood: mood,
-                    scope: _scopeLine(s, running),
-                  ),
+                  subtitleWidget: HeroMood(mood: mood, scope: ''),
                   primaryAction: PrimaryCta(
                     icon: Icons.add_rounded,
                     label: 'Create Task',
@@ -396,7 +393,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     ];
   }
 
-  // ── Today (light metrics) ────────────────────────────────────────
+  // ── Today (four doors, not printed numbers) ──────────────────────
   /// **No `StatisticsCubit` dependency** (removed 2026-08-01 with `Approval
   /// rate`, whose `Approved ÷ (Approved + Rejected)` was a second, disagreeing
   /// completion formula next to Task Management's §10.1 figure — deleting it
@@ -404,7 +401,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   /// here now derives from the same task stream `applyFeed` reads for the
   /// matching drill-down, so a cell's count and its list can never disagree.
   Widget _today() {
-    return BlocSelector<TaskCubit, TaskState, (int, int, int, int, int)>(
+    final dueTodayFilter = const TaskFeedFilter(preset: FeedPreset.dueToday);
+    return BlocSelector<TaskCubit, TaskState, (int, int, int, int)>(
       selector: (state) {
         final tasks = state.maybeWhen(
           loaded: (t, _, _, _, _) => t,
@@ -414,21 +412,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return (
           openCount(tasks),
           runningNowCount(tasks),
-          dueSoonCount(tasks, now),
-          overdueCount(tasks, now),
+          applyFeed(tasks, dueTodayFilter, now).length,
           completedTodayCount(tasks, now),
         );
       },
       builder: (context, c) {
-        final (open, running, dueSoon, late, completedToday) = c;
-        return StatStrip(
-          stats: [
+        final (open, running, dueToday, completedToday) = c;
+        return MetricTileRow(
+          tiles: [
             // "How much is on the table" — the number the owner was reading
             // Running now as (Running now = started only; a fresh, un-started
             // task is still Open, not Running).
-            Stat(
+            MetricTile(
               label: 'Open',
-              count: open,
+              value: open,
+              icon: Icons.inbox_rounded,
               onTap: () => _openFiltered(
                 'Open',
                 const TaskFeedFilter(
@@ -442,13 +440,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 description:
                     'Open work — not started, in progress, marked done, or '
                     'sent back for rework.',
-                empty: 'No open work — everything is either done or waiting '
+                empty:
+                    'No open work — everything is either done or waiting '
                     'on review.',
               ),
             ),
-            Stat(
+            MetricTile(
               label: 'Running now',
-              count: running,
+              value: running,
+              icon: Icons.bolt_rounded,
               onTap: () => _openFiltered(
                 'Running now',
                 const TaskFeedFilter(status: TaskStatus.started),
@@ -456,36 +456,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 empty: 'Nothing is running right now.',
               ),
             ),
-            // Not tappable — see the delta-2 report. No `TaskFeedFilter` can
-            // reproduce `schedulePhase`'s dueSoon precedence (it excludes
-            // completed/waitingReview even though the active window includes
-            // them) without either an over-counting filter or a reverse
-            // dependency from `task_feed.dart` into `task_schedule.dart`. A
-            // cell that doesn't open beats one whose count and list disagree.
-            Stat(
-              label: 'Due soon',
-              count: dueSoon,
-              tone: dueSoon > 0 ? AppColors.warning : null,
-            ),
-            Stat(
-              label: 'Late',
-              count: late,
-              tone: late > 0 ? AppColors.error : null,
+            MetricTile(
+              label: 'Due today',
+              value: dueToday,
+              icon: Icons.today_rounded,
               onTap: () => _openFiltered(
-                'Late',
-                const TaskFeedFilter(preset: FeedPreset.overdue),
-                description:
-                    'Active work past its deadline — counted every day '
-                    "until it's closed, however old. Work that finished "
-                    'late shows on the task itself, not here.',
-                empty: 'Nothing is running past its deadline.',
+                'Due today',
+                dueTodayFilter,
+                description: 'Active work whose deadline lands today.',
+                empty: 'Nothing else falls due today.',
               ),
             ),
-            Stat(
-              label: 'Completed today',
-              count: completedToday,
+            MetricTile(
+              label: 'Done today',
+              value: completedToday,
+              icon: Icons.check_circle_outline_rounded,
               onTap: () => _openFiltered(
-                'Completed today',
+                'Done today',
                 const TaskFeedFilter(status: TaskStatus.approved),
                 description:
                     'Approved today only — not the running lifetime total.',
@@ -550,63 +537,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // ── Quick actions ────────────────────────────────────────────────
-  Widget _quickActions({bool compact = false}) {
-    return _grid(maxItemWidth: compact ? 180 : 300, [
-      ActionCard(
-        icon: Icons.assignment_add,
-        title: 'New Task',
-        onTap: _createTask,
-      ),
-      ActionCard(
-        icon: Icons.add_business_outlined,
-        title: 'Add Branch',
+  /// Mobile-only doors for destinations absent from the bottom navigation.
+  Widget _manage() => DigestPanel(
+    entries: [
+      DigestEntry(
+        icon: Icons.storefront_outlined,
+        label: 'Branches',
         onTap: () => context.push(RouteNames.adminBranches),
       ),
-      ActionCard(
-        icon: Icons.person_add_alt_1_outlined,
-        title: 'New Account',
-        onTap: () => context.push(RouteNames.adminCreateAccount),
-      ),
-      ActionCard(
+      DigestEntry(
         icon: Icons.supervisor_account_outlined,
-        title: 'Add Manager',
+        label: 'Managers',
         onTap: () => context.push(RouteNames.adminManagers),
       ),
-    ]);
-  }
-
-  // ── Manage (module directory) ────────────────────────────────────
-  /// A short, quiet directory to the two full-list surfaces. Everything else
-  /// (Employees, Analytics, Branches, Managers) lives in the persistent sidebar,
-  /// so this stays a two-row shortcut rather than a second nav.
-  Widget _manage({bool compact = false}) {
-    return _grid(maxItemWidth: compact ? 400 : 300, [
-      ActionCard(
-        icon: Icons.fact_check_outlined,
-        title: 'Tasks',
-        subtitle: 'All branches',
-        secondary: true,
-        onTap: () => context.push(RouteNames.adminTasks),
+      DigestEntry(
+        icon: Icons.groups_outlined,
+        label: 'Employees',
+        onTap: () => context.push(RouteNames.adminEmployees),
       ),
-      ActionCard(
-        icon: Icons.calendar_view_week_outlined,
-        title: 'Schedules',
-        subtitle: 'Any branch',
-        secondary: true,
-        onTap: () => context.push(RouteNames.adminSchedule),
+      DigestEntry(
+        icon: Icons.analytics_outlined,
+        label: 'Analytics',
+        onTap: () => context.push(RouteNames.adminAnalytics),
       ),
-    ]);
-  }
-
-  Widget _grid(List<Widget> cards, {double maxItemWidth = 300}) {
-    return ResponsiveCardGrid(maxItemWidth: maxItemWidth, children: cards);
-  }
+      DigestEntry(
+        icon: Icons.person_add_alt_1_outlined,
+        label: 'New account',
+        onTap: () => context.push(RouteNames.adminCreateAccount),
+      ),
+    ],
+  );
 
   // ── Layouts ──────────────────────────────────────────────────────
   Widget _activityHeader() => AdminSectionHeader(
     title: 'Recent activity',
-    subtitle: 'Every branch, live',
     actionLabel: 'See all',
     onAction: () => context.push(RouteNames.adminTasks),
   );
@@ -625,13 +589,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       children: [
         sec('hero', _hero()),
         const SizedBox(height: AppSpacing.xl),
-        sec(
-          'attn-h',
-          const AdminSectionHeader(
-            title: 'Needs attention',
-            subtitle: 'Act on these first',
-          ),
-        ),
+        sec('attn-h', const AdminSectionHeader(title: 'Needs attention')),
         sec('attn', _needsAttention()),
         const SizedBox(height: AppSpacing.xl),
         sec('today-h', const AdminSectionHeader(title: 'Today')),
@@ -643,9 +601,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         sec('digest-h', const AdminSectionHeader(title: 'Operations')),
         sec('digest', _digest()),
         const SizedBox(height: AppSpacing.xl),
-        sec('qa-h', const AdminSectionHeader(title: 'Quick actions')),
-        sec('qa', _quickActions()),
-        const SizedBox(height: AppSpacing.xl),
         sec('manage-h', const AdminSectionHeader(title: 'Manage')),
         sec('manage', _manage()),
       ],
@@ -654,7 +609,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   /// Executive desktop arrangement: the operational story (Needs attention →
   /// today → recent activity) reads down the wide main column; the launch
-  /// surfaces (operations digest · quick actions · manage) sit in a fixed right
+  /// surface (operations digest) sits in a fixed right
   /// rail, always in view. Centred in a ~1260 max-width column so it reads like a
   /// desktop document rather than a stretched phone screen.
   Widget _desktop(BuildContext context) {
@@ -683,14 +638,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         children: [
                           sec(
                             'attn-h',
-                            const AdminSectionHeader(
-                              title: 'Needs attention',
-                              subtitle: 'Act on these first',
-                            ),
+                            const AdminSectionHeader(title: 'Needs attention'),
                           ),
                           sec('attn', _needsAttention()),
                           const SizedBox(height: AppSpacing.xl),
-                          sec('today-h', const AdminSectionHeader(title: 'Today')),
+                          sec(
+                            'today-h',
+                            const AdminSectionHeader(title: 'Today'),
+                          ),
                           sec('today', _today()),
                           const SizedBox(height: AppSpacing.xl),
                           sec('activity-h', _activityHeader()),
@@ -710,18 +665,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             const AdminSectionHeader(title: 'Operations'),
                           ),
                           sec('digest', _digest()),
-                          const SizedBox(height: AppSpacing.xl),
-                          sec(
-                            'qa-h',
-                            const AdminSectionHeader(title: 'Quick actions'),
-                          ),
-                          sec('qa', _quickActions(compact: true)),
-                          const SizedBox(height: AppSpacing.xl),
-                          sec(
-                            'manage-h',
-                            const AdminSectionHeader(title: 'Manage'),
-                          ),
-                          sec('manage', _manage(compact: true)),
                         ],
                       ),
                     ),

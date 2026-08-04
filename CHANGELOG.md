@@ -14,6 +14,27 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Admin mobile hierarchy and Task Management polish (polish; MED risk)
+
+- Admin Home now carries company scope in the eyebrow, uses four drillable Today
+  `MetricTile`s (Open · Running now · Due today · Done today), and removes repeated
+  Late/Due soon noise. The former mobile Quick actions + Manage grids are one
+  compact Manage directory for the five destinations otherwise absent from mobile
+  navigation; desktop's rail is Operations only because the sidebar already owns
+  that navigation.
+- Admin Task Management now ranks Active · In review · Late above a compact
+  record strip (Branches · Complete plus drillable Done/Missed/Cancelled), names
+  the branch section, and gives cover-photo cards a compact strongly-scrimmed
+  identity band. Cards retain their operational triple and the single completion
+  statement, without a redundant progress bar. The app-bar refresh glyph was
+  removed; pull-to-refresh remains.
+- Missed/Cancelled zero hiding, neutral Cancelled treatment, task-stream counts,
+  matching filter drills, branch ordering, and completion-rate semantics are
+  unchanged. Gates green: `flutter analyze lib test` at its 1 pre-existing info,
+  `flutter test` **1508 pass · 0 fail**.
+
+---
+
 ## 2026-08-04 — Firebase Hosting serves the App Store privacy policy (polish; LOW risk)
 
 Hosting exists for exactly one reason: App Store Connect requires a public

@@ -41,7 +41,9 @@ class _FakeTaskCubit extends Cubit<TaskState> implements TaskCubit {
   final List<BranchEntity> _branches;
 
   @override
-  Map<String, String> get branchNames => {for (final b in _branches) b.id: b.name};
+  Map<String, String> get branchNames => {
+    for (final b in _branches) b.id: b.name,
+  };
 
   @override
   Future<void> load(UserEntity user, {bool forceRefresh = false}) async {}
@@ -87,12 +89,17 @@ void main() {
       await tester.pumpWidget(_host(taskCubit));
       await tester.pump(); // postFrameCallback → _load()
       await tester.pump(); // branches() future resolves
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
 
-      // Rendered because outcomes.missed > 0 — hidden entirely at zero.
-      expect(find.text('Missed'), findsOneWidget);
+      // Rendered because outcomes.missed > 0 — hidden entirely at zero. The
+      // record door carries its own count ("1 Missed"), so match the label the
+      // widget actually draws rather than the bare word.
+      expect(find.text('1 Missed'), findsOneWidget);
 
-      await tester.tap(find.text('Missed'));
+      await tester.tap(find.text('1 Missed'));
+      // `pumpAndSettle` is safe on THIS screen (unlike the role homes, which run
+      // a periodic `SyncButton` timer that never settles) and is what lets the
+      // pushed route finish its transition before we assert on it.
       await tester.pumpAndSettle();
 
       expect(find.byType(FilteredTasksScreen), findsOneWidget);
@@ -102,7 +109,7 @@ void main() {
       expect(find.text('All clear'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
     },
   );
 
@@ -110,18 +117,25 @@ void main() {
     tester,
   ) async {
     const branch = BranchEntity(id: 'b1', name: 'Arkan');
-    final open = TaskEntity(id: 't-open', title: 'Open the shop', branchId: 'b1');
+    final open = TaskEntity(
+      id: 't-open',
+      title: 'Open the shop',
+      branchId: 'b1',
+    );
     final taskCubit = _FakeTaskCubit([open], const [branch]);
     addTearDown(taskCubit.close);
 
     await tester.pumpWidget(_host(taskCubit));
     await tester.pump();
     await tester.pump();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Missed'), findsNothing);
+    // `textContaining`, not `find.text('Missed')`: the door is labelled with its
+    // count, so an exact-match finder would pass here even if the door were
+    // rendered — which is the very regression this test exists to catch.
+    expect(find.textContaining('Missed'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
   });
 }
