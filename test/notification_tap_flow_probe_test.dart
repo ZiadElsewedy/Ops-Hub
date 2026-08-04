@@ -37,6 +37,7 @@ import 'package:drop/features/notifications/domain/repositories/notification_rep
 import 'package:drop/features/notifications/domain/usecases/mark_notification_read.dart';
 import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
 import 'package:drop/features/notifications/presentation/pages/notifications_screen.dart';
+import 'package:drop/features/notifications/presentation/widgets/notification_tile.dart';
 
 // ─── Fakes ───────────────────────────────────────────────────────────
 
@@ -144,13 +145,15 @@ UserEntity userWith(UserRole role) => UserEntity(
       hasCompletedOnboarding: true,
     );
 
-NotificationEntity broadcastNotification() => NotificationEntity(
+NotificationEntity broadcastNotification({
+  String body = 'All hands at 5 PM',
+}) => NotificationEntity(
       id: 'n-broadcast',
       recipientUid: 'u1',
       senderUid: 'admin1',
       type: NotificationType.broadcastReminder,
       title: 'Team Meeting',
-      body: 'All hands at 5 PM',
+      body: body,
       createdAt: DateTime.now(),
       payload: const {
         'broadcastId': 'bc1',
@@ -161,7 +164,9 @@ NotificationEntity broadcastNotification() => NotificationEntity(
     );
 
 Future<(AuthCubit, NotificationCubit, BroadcastCubit)> buildCubits(
-    UserRole role) async {
+    UserRole role, {
+  String notificationBody = 'All hands at 5 PM',
+}) async {
   final authRepo = FakeAuthRepository(userWith(role));
   final auth = AuthCubit(
     repository: authRepo,
@@ -173,7 +178,8 @@ Future<(AuthCubit, NotificationCubit, BroadcastCubit)> buildCubits(
   );
   await auth.restoreSession();
 
-  final notifRepo = FakeNotificationRepository([broadcastNotification()]);
+  final notifRepo =
+      FakeNotificationRepository([broadcastNotification(body: notificationBody)]);
   final notifications = NotificationCubit(
     repository: notifRepo,
     markRead: MarkNotificationRead(notifRepo),
@@ -184,7 +190,7 @@ Future<(AuthCubit, NotificationCubit, BroadcastCubit)> buildCubits(
     BroadcastEntity(
       id: 'bc1',
       title: 'Team Meeting',
-      message: 'All hands at 5 PM',
+      message: notificationBody,
       category: 'reminder',
       senderId: 'admin1',
       senderName: 'Admin',
@@ -226,13 +232,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(NotificationsScreen), findsOneWidget);
-    expect(find.text('Team Meeting'), findsOneWidget);
+    // The row is subject-led: the notification's `body` is the headline and its
+    // `title` is the uppercase event kicker above it (2026-08-01 redesign).
+    expect(find.text('All hands at 5 PM'), findsOneWidget);
+    expect(find.text('TEAM MEETING'), findsOneWidget);
 
     // Employee taps the broadcast tile — deep link is a guarded no-op.
-    await tester.tap(find.text('Team Meeting'));
+    await tester.tap(find.byType(NotificationTile));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(NotificationsScreen), findsOneWidget);
+  });
+
+  testWidgets('A2: employee broadcast body is never truncated', (tester) async {
+    const longBody =
+        'Emergency: the branch will close at 3 PM today because of a water outage. '
+        'Please stop taking new customer orders, secure the cash drawer, and wait '
+        'for your manager to confirm the reopening plan.';
+    final (auth, notifications, broadcasts) = await buildCubits(
+      UserRole.employee,
+      notificationBody: longBody,
+    );
+    final router = createRouter(auth, initialLocation: '/notifications');
+    await tester.pumpWidget(appWith(auth, notifications, broadcasts, router));
+    await tester.pumpAndSettle();
+
+    final tile = find.byType(NotificationTile);
+    final body = find.descendant(of: tile, matching: find.text(longBody));
+    expect(body, findsOneWidget);
+    expect(tester.widget<Text>(body).maxLines, isNull);
+    expect(tester.widget<Text>(body).overflow, isNull);
   });
 
   testWidgets('B: admin — inbox broadcast tile → /communications/:id',
@@ -245,7 +274,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Team Meeting'));
+    final tile = find.byType(NotificationTile);
+    final subject = find.descendant(
+      of: tile,
+      matching: find.text('All hands at 5 PM'),
+    );
+    expect(tester.widget<Text>(subject).maxLines, 1);
+    expect(tester.widget<Text>(subject).overflow, TextOverflow.ellipsis);
+
+    await tester.tap(tile);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     // B3 fix: the detail screen self-resolves the broadcast by id (one-shot

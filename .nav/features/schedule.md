@@ -2,12 +2,13 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `schedule`
 
-> `lib/features/schedule/` · **55 files** · layer-complete clean-architecture slice
+> `lib/features/schedule/` · **57 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
 |---|---|---|
 | `RouteNames.adminSchedule` | `/admin/schedule` |  |
+| `RouteNames.attendanceWeeklyPattern` | `/attendance/reports/weekly/:periodId` |  |
 | `RouteNames.communicationsSchedules` | `/communications/schedules` |  |
 | `RouteNames.managerSchedule` | `/manager/schedule` |  |
 | `RouteNames.mySchedule` | `/my-schedule` |  |
@@ -49,6 +50,7 @@
 - `lib/features/schedule/presentation/widgets/shift_templates_sheet.dart`
 - `lib/features/schedule/presentation/widgets/swap_alert_card.dart`
 - `lib/features/schedule/presentation/widgets/swap_view.dart`
+- `lib/features/schedule/presentation/widgets/today_roster_sheet.dart`
 
 **presentation:other**
 - `lib/features/schedule/presentation/schedule_insights.dart`
@@ -74,6 +76,7 @@
 - `lib/features/schedule/domain/swap_eligibility.dart`
 - `lib/features/schedule/domain/swap_policy.dart`
 - `lib/features/schedule/domain/swap_validation.dart`
+- `lib/features/schedule/domain/today_roster.dart`
 
 **data:repository-impl**
 - `lib/features/schedule/data/repositories/schedule_repository_impl.dart`
@@ -95,6 +98,9 @@
 - **Design spec(s):** `docs/design/AUTO_SCHEDULE.md`, `docs/design/SCHEDULE.md`
 
 ## Tests
+- `test/attendance_weekly_pdf_test.dart`
+- `test/attendance_weekly_report_screen_test.dart`
+- `test/attendance_weekly_report_test.dart`
 - `test/broadcast_schedule_model_test.dart`
 - `test/my_schedule_tab_test.dart`
 - `test/recurring_shift_task_test.dart`
@@ -119,6 +125,7 @@
 - `test/task_model_schedule_test.dart`
 - `test/task_model_shift_test.dart`
 - `test/task_schedule_test.dart`
+- `test/task_shift_stream_binding_test.dart`
 - `test/weekly_schedule_model_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/branch/data/datasources/branch_remote_datasource.dart';
 import 'package:drop/features/branch/data/models/branch_model.dart';
 import 'package:drop/features/branch/domain/branch_geofence.dart';
@@ -60,6 +61,7 @@ class BranchRepositoryImpl implements BranchRepository {
 
   @override
   Future<BranchEntity> createBranch(BranchEntity branch) async {
+    NetworkGuard.ensureWritable();
     try {
       final created = await _remote.createBranch(BranchModel.fromEntity(branch));
       _invalidateBranches();
@@ -71,6 +73,7 @@ class BranchRepositoryImpl implements BranchRepository {
 
   @override
   Future<void> updateBranch(BranchEntity branch) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.updateBranch(BranchModel.fromEntity(branch));
       _invalidateBranches();
@@ -81,6 +84,7 @@ class BranchRepositoryImpl implements BranchRepository {
 
   @override
   Future<void> setBranchActive(String branchId, bool isActive) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setBranchActive(branchId, isActive);
       _invalidateBranches();
@@ -91,6 +95,7 @@ class BranchRepositoryImpl implements BranchRepository {
 
   @override
   Future<void> setGeofence(String branchId, BranchGeofence geofence) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setGeofence(branchId, geofence);
       _invalidateBranches();
@@ -101,6 +106,7 @@ class BranchRepositoryImpl implements BranchRepository {
 
   @override
   Future<void> deleteBranch(String branchId) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.softDeleteBranch(branchId);
       _invalidateBranches();

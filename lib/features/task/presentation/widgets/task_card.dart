@@ -15,13 +15,13 @@ import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_outcomes.dart';
 import 'package:drop/features/task/presentation/activity_format.dart';
-import 'package:drop/features/task/presentation/widgets/live_status_border.dart';
+import 'package:drop/core/widgets/live_status_border.dart';
 import 'package:drop/features/task/presentation/widgets/task_badge.dart';
 import 'package:drop/features/task/presentation/widgets/task_surface.dart';
 
 /// The premium DROP task card — built for **scanning**, not for reading a record.
-/// Metadata reads as glanceable *signals* (status pill · priority · branch · due
-/// · attachments) rather than a label→value table.
+/// Metadata reads as glanceable *signals* (status pill · priority · branch ·
+/// starts/due) rather than a label→value table.
 ///
 /// Premium ≠ flashy: this is the **de-flashed** card (2026-06-25 design ruling) —
 /// a flat solid surface with a hairline border and a *very subtle* depth shadow
@@ -34,12 +34,19 @@ import 'package:drop/features/task/presentation/widgets/task_surface.dart';
 ///
 /// Layout:
 ///
-///   [status pill] ····················· [High]
+///   [status pill] ⏱ 45m late ·········· [High]
 ///   Title
 ///   Description (one line)
-///   [branch] [due · overdue] [N refs]          ← signal chips
+///   [branch] [starts/due · overdue]            ← signal chips
 ///   ───────────────────── 3 of 5 · 60%         ← checklist bar (if any)
-///   avatar · name · by Creator                 ← minimal one-line footer
+///   avatar · name · Approved by Ziad           ← minimal one-line footer
+///
+/// The status row carries the **outcome**, not just the status word — a
+/// finished-late task's timeliness note sits right next to the pill, at the
+/// same glance the state is read at (promoted up from the chip row 2026-08-01;
+/// see `_LatenessNote`). The footer names **who decided** once a task has been
+/// decided (approved/rejected/cancelled), not who created it — see
+/// `_footerFact`.
 class TaskCard extends StatelessWidget {
   const TaskCard({
     super.key,
@@ -71,11 +78,14 @@ class TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final description = task.description ?? '';
-    final assignedBy = _assignedBy(directory, task);
+    final footerFact = _footerFact(directory, task);
     final overdue = _isOverdue(task);
     final lateness = taskLateness(task);
-    final refs = task.referenceAttachments.length;
 
+    // Reference-attachment count was cut (2026-08-01) — it told you material
+    // existed but gave you nothing to act on from the card itself (viewing it
+    // means opening full details regardless), so it was pure noise on a
+    // surface that's supposed to be scanned, not read.
     final chips = <Widget>[
       if ((branchName ?? '').isNotEmpty)
         _BranchChip(name: branchName!, logoUrl: branchLogoUrl),
@@ -93,15 +103,6 @@ class TaskCard extends StatelessWidget {
               ? 'Due ${AppDateFormatter.dayMonth(task.deadline!)} · Late'
               : 'Due ${AppDateFormatter.dayMonth(task.deadline!)}',
           tone: overdue ? AppColors.error : null,
-        ),
-      // A finished task that missed its deadline — a timeliness signal, never
-      // pass/fail, so it stays the chip's neutral secondary grey (ADR-013).
-      if (lateness != null)
-        _MetaChip(icon: Icons.timer_outlined, label: formatLateness(lateness)),
-      if (task.hasReferences)
-        _MetaChip(
-          icon: Icons.attachment_rounded,
-          label: '$refs ref${refs == 1 ? '' : 's'}',
         ),
     ];
 
@@ -128,10 +129,18 @@ class TaskCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
               ],
 
-              // ── Status + priority (High only) ───────────────────────
+              // ── Status + outcome + priority (High only) ─────────────
+              // Lateness sits right beside the pill — the same glance the
+              // state is read at — instead of a chip several rows down,
+              // which is how "approved, but 3 days late" used to hide in
+              // plain sight next to a clean "Approved".
               Row(
                 children: [
                   _StatusPill(task.status),
+                  if (lateness != null) ...[
+                    const SizedBox(width: 8),
+                    _LatenessNote(lateness: lateness),
+                  ],
                   if (task.priority == TaskPriority.high) ...[
                     const Spacer(),
                     const _HighPriorityFlag(),
@@ -162,7 +171,7 @@ class TaskCard extends StatelessWidget {
                 ),
               ],
 
-              // ── Signal chips (branch · due · attachments) ───────────
+              // ── Signal chips (branch · starts/due) ───────────────────
               if (chips.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
                 Wrap(spacing: 6, runSpacing: 6, children: chips),
@@ -174,14 +183,14 @@ class TaskCard extends StatelessWidget {
                 _ChecklistBar(task: task),
               ],
 
-              // ── Minimal one-line footer (assignee · by creator) ─────
+              // ── Minimal one-line footer (assignee · decider/creator) ─
               const SizedBox(height: AppSpacing.md),
               const Divider(height: 1, color: AppColors.darkBorder),
               const SizedBox(height: AppSpacing.md),
               _AssigneeFooter(
                 task: task,
                 directory: directory,
-                assignedBy: assignedBy,
+                fact: footerFact,
                 onTap: onAssigneesTap,
               ),
 
@@ -213,6 +222,44 @@ String? _assignedBy(Map<String, UserEntity> directory, TaskEntity task) {
   if (u != null) return '${_bestName(u)} · ${_roleLabel(u.role)}';
   return 'Admin';
 }
+
+/// The footer's trailing fact. Once a task has been **decided**
+/// (approved/rejected/cancelled) this names the **decider**, not the creator —
+/// on an Approved card "by Admin" used to mean "created by Admin", which reads
+/// as "Admin approved this" and is simply the wrong person answering a
+/// question nobody asked. [TaskStatus.missed] has no decider at all: it was
+/// closed by the automated deadline sweep, so naming anyone here would be a
+/// fabricated attribution — the exact bug this function exists to fix.
+/// Undecided statuses are unchanged: there is no decider yet, so the creator
+/// remains the useful fact.
+String? _footerFact(Map<String, UserEntity> directory, TaskEntity task) {
+  switch (task.status) {
+    case TaskStatus.approved:
+      return _decidedBy('Approved by', task.approvedBy, directory);
+    case TaskStatus.rejected:
+      return _decidedBy('Rejected by', task.rejectedBy, directory);
+    case TaskStatus.cancelled:
+      return _decidedBy('Cancelled by', task.cancelledBy, directory);
+    case TaskStatus.missed:
+      return 'Missed — closed automatically';
+    case TaskStatus.pending:
+    case TaskStatus.started:
+    case TaskStatus.completed:
+    case TaskStatus.waitingReview:
+      final by = _assignedBy(directory, task);
+      return by == null ? null : 'by $by';
+  }
+}
+
+/// Resolves [uid] through [directory] for a decided-state footer fact. Reuses
+/// the single canonical decider-name resolver ([resolveDeciderName]) so this
+/// footer fact and the preview sheet's situation sentence can never drift on
+/// how they name (or fail to find) a decider.
+String _decidedBy(
+  String verb,
+  String? uid,
+  Map<String, UserEntity> directory,
+) => '$verb ${resolveDeciderName(uid, directory)}';
 
 String _roleLabel(UserRole r) => switch (r) {
   UserRole.admin => 'Admin',
@@ -381,6 +428,40 @@ class _HighPriorityFlag extends StatelessWidget {
   }
 }
 
+/// The **outcome** signal beside the status pill — a finished-late task's
+/// timeliness note, promoted out of the chip row (2026-08-01) so it reads at
+/// the same glance as the status itself. Neutral grey, never red or any other
+/// hue: Late is timeliness on completed work, never pass/fail and never an
+/// outcome in its own right (Automated Tasks spec §10.4) — it must not look
+/// like a failure marker sitting next to a (still green) Approved pill.
+class _LatenessNote extends StatelessWidget {
+  const _LatenessNote({required this.lateness});
+  final Duration lateness;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.timer_outlined,
+          size: 13,
+          color: AppColors.textTertiary,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            formatLateness(lateness),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// A glanceable `[icon] label` signal chip on the elevated surface.
 class _MetaChip extends StatelessWidget {
   const _MetaChip({required this.icon, required this.label, this.tone});
@@ -527,20 +608,22 @@ class _ChecklistBar extends StatelessWidget {
 // ─── Assignee footer ────────────────────────────────────────────────
 
 /// The card's **single-line** footer: assignee identity (one avatar + name, a
-/// stack + count for many, or an "Unassigned" affordance) with the creator
-/// folded inline as a quiet "· by Creator" suffix — kept to one row so the
-/// card stays compact. Taps open the assignee sheet when [onTap] is provided.
+/// stack + count for many, or an "Unassigned" affordance) with a quiet
+/// trailing [fact] — the creator while a task is undecided, or **who decided
+/// it** once it's approved/rejected/cancelled (see `_footerFact`) — kept to
+/// one row so the card stays compact. Taps open the assignee sheet when
+/// [onTap] is provided.
 class _AssigneeFooter extends StatelessWidget {
   const _AssigneeFooter({
     required this.task,
     required this.directory,
-    required this.assignedBy,
+    required this.fact,
     this.onTap,
   });
 
   final TaskEntity task;
   final Map<String, UserEntity> directory;
-  final String? assignedBy;
+  final String? fact;
   final VoidCallback? onTap;
 
   @override
@@ -625,9 +708,9 @@ class _AssigneeFooter extends StatelessWidget {
                 style: AppTypography.label,
                 children: [
                   TextSpan(text: primary),
-                  if (assignedBy != null)
+                  if (fact != null)
                     TextSpan(
-                      text: '  ·  by $assignedBy',
+                      text: '  ·  $fact',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.textTertiary,
                       ),

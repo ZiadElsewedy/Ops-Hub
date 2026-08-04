@@ -19,6 +19,7 @@ import 'package:drop/features/communications/domain/entities/broadcast_template_
 import 'package:drop/features/communications/presentation/cubit/broadcast_template_cubit.dart';
 import 'package:drop/features/communications/presentation/cubit/broadcast_template_state.dart';
 import 'package:drop/features/communications/presentation/widgets/template_card.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 
 /// The broadcast Template Library (Communications Center — Phase 2 Commit 2).
 /// Grid/list toggle, search, category filter, favorites + recents, and a
@@ -44,8 +45,9 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => context.read<BroadcastTemplateCubit>().load());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.read<BroadcastTemplateCubit>().load(),
+    );
   }
 
   List<BroadcastTemplateEntity> _visible(List<BroadcastTemplateEntity> all) {
@@ -68,7 +70,9 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
   }
 
   Future<void> _onAction(
-      BroadcastTemplateEntity t, TemplateCardAction action) async {
+    BroadcastTemplateEntity t,
+    TemplateCardAction action,
+  ) async {
     final cubit = context.read<BroadcastTemplateCubit>();
     switch (action) {
       case TemplateCardAction.use:
@@ -97,13 +101,13 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
 
   /// A template → a composer prefill (audience/recipient are chosen in compose).
   BroadcastEntity _asPrefill(BroadcastTemplateEntity t) => BroadcastEntity(
-        id: '',
-        title: t.title,
-        message: t.message,
-        senderId: '',
-        senderName: '',
-        category: t.category.value,
-      );
+    id: '',
+    title: t.title,
+    message: t.message,
+    senderId: '',
+    senderName: '',
+    category: t.category.value,
+  );
 
   Future<void> _openEditor({BroadcastTemplateEntity? existing}) =>
       showTemplateEditor(context, existing: existing);
@@ -117,8 +121,10 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
         IconButton(
           tooltip: _grid ? 'List view' : 'Grid view',
           onPressed: () => setState(() => _grid = !_grid),
-          icon: Icon(_grid ? Icons.view_agenda_outlined : Icons.grid_view_rounded,
-              color: AppColors.textSecondary),
+          icon: Icon(
+            _grid ? Icons.view_agenda_outlined : Icons.grid_view_rounded,
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
       floatingActionButton: widget.pickMode
@@ -128,18 +134,21 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
               icon: const Icon(Icons.add_rounded),
-              label: Text('New template',
-                  style:
-                      AppTypography.label.copyWith(color: AppColors.onPrimary)),
+              label: Text(
+                'New template',
+                style: AppTypography.label.copyWith(color: AppColors.onPrimary),
+              ),
             ),
       body: BlocBuilder<BroadcastTemplateCubit, BroadcastTemplateState>(
         builder: (context, state) => state.maybeWhen(
           loading: () => const ListSkeleton(),
           loaded: (templates, _) => _content(templates),
-          error: (m) => AppEmptyState(
-              icon: Icons.wifi_off_rounded,
-              title: 'Could not load templates',
-              message: m),
+          error: (m) => AppErrorState(
+            icon: Icons.wifi_off_rounded,
+            title: 'Could not load templates',
+            message: m,
+            onRetry: () => context.read<BroadcastTemplateCubit>().load(),
+          ),
           orElse: () => const SizedBox.shrink(),
         ),
       ),
@@ -149,17 +158,17 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
   Widget _content(List<BroadcastTemplateEntity> all) {
     final visible = _visible(all);
     final favorites = visible.where((t) => t.isFavorite).toList();
-    final recents = ([...visible]
-          ..sort((a, b) {
-            final au = a.updatedAt ?? a.createdAt;
-            final bu = b.updatedAt ?? b.createdAt;
-            if (au == null && bu == null) return 0;
-            if (au == null) return 1;
-            if (bu == null) return -1;
-            return bu.compareTo(au);
-          }))
-        .take(3)
-        .toList();
+    final recents =
+        ([...visible]..sort((a, b) {
+              final au = a.updatedAt ?? a.createdAt;
+              final bu = b.updatedAt ?? b.createdAt;
+              if (au == null && bu == null) return 0;
+              if (au == null) return 1;
+              if (bu == null) return -1;
+              return bu.compareTo(au);
+            }))
+            .take(3)
+            .toList();
 
     return Column(
       children: [
@@ -168,9 +177,19 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
           child: visible.isEmpty
               ? _empty()
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
-                      AppSpacing.sm, AppSpacing.pagePadding, AppSpacing.xxxl),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.pagePadding,
+                    AppSpacing.sm,
+                    AppSpacing.pagePadding,
+                    AppSpacing.xxxl,
+                  ),
                   children: [
+                    _LibraryHero(
+                      total: all.length,
+                      favorites: favorites.length,
+                      pickMode: widget.pickMode,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
                     if (favorites.isNotEmpty && _query.isEmpty) ...[
                       _sectionLabel('Favorites'),
                       ..._render(favorites),
@@ -222,73 +241,177 @@ class _BroadcastTemplatesScreenState extends State<BroadcastTemplatesScreen> {
   }
 
   Widget _toolbar() => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
-                AppSpacing.sm, AppSpacing.pagePadding, AppSpacing.sm),
-            child: AppSearchField(
-              hint: 'Search templates',
-              onChanged: (v) => setState(() => _query = v),
-            ),
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding,
+          AppSpacing.sm,
+          AppSpacing.pagePadding,
+          AppSpacing.sm,
+        ),
+        child: AppSearchField(
+          hint: 'Search templates',
+          onChanged: (v) => setState(() => _query = v),
+        ),
+      ),
+      SizedBox(
+        height: 38,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.pagePadding,
           ),
-          SizedBox(
-            height: 38,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-              children: [
-                _filterChip('All', _category == null,
-                    () => setState(() => _category = null)),
-                for (final c in BroadcastCategory.values)
-                  _filterChip(c.label, _category == c,
-                      () => setState(() => _category = c)),
-              ],
+          children: [
+            _filterChip(
+              'All',
+              _category == null,
+              () => setState(() => _category = null),
             ),
-          ),
-        ],
-      );
+            for (final c in BroadcastCategory.values)
+              _filterChip(
+                c.label,
+                _category == c,
+                () => setState(() => _category = c),
+              ),
+          ],
+        ),
+      ),
+    ],
+  );
 
-  Widget _filterChip(String label, bool selected, VoidCallback onTap) => Padding(
+  Widget _filterChip(String label, bool selected, VoidCallback onTap) =>
+      Padding(
         padding: const EdgeInsets.only(right: AppSpacing.sm),
         child: GestureDetector(
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 140),
-            padding:
-                const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 7),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: 7,
+            ),
             decoration: BoxDecoration(
               color: selected ? AppColors.primary : AppColors.darkSurface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: selected ? AppColors.primary : AppColors.darkBorder),
+                color: selected ? AppColors.primary : AppColors.darkBorder,
+              ),
             ),
-            child: Text(label,
-                style: AppTypography.caption.copyWith(
-                  color: selected ? AppColors.onPrimary : AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                )),
+            child: Text(
+              label,
+              style: AppTypography.caption.copyWith(
+                color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
       );
 
   Widget _sectionLabel(String t) => Padding(
-        padding: const EdgeInsets.fromLTRB(2, AppSpacing.md, 0, AppSpacing.sm),
-        child: Text(t.toUpperCase(),
-            style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary, letterSpacing: 0.6)),
-      );
+    padding: const EdgeInsets.fromLTRB(2, AppSpacing.md, 0, AppSpacing.sm),
+    child: Text(
+      t.toUpperCase(),
+      style: AppTypography.caption.copyWith(
+        color: AppColors.textTertiary,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
 
   Widget _empty() => AppEmptyState(
-        icon: Icons.dashboard_customize_outlined,
-        title: _query.isNotEmpty || _category != null
-            ? 'No matching templates'
-            : 'No templates yet',
-        message: _query.isNotEmpty || _category != null
-            ? 'Try a different search or category.'
-            : 'Save a reusable broadcast as a template to send it again in '
-                'seconds.',
-      );
+    icon: Icons.dashboard_customize_outlined,
+    title: _query.isNotEmpty || _category != null
+        ? 'No matching templates'
+        : 'No templates yet',
+    message: _query.isNotEmpty || _category != null
+        ? 'Try a different search or category.'
+        : 'Save a reusable broadcast as a template to send it again in '
+              'seconds.',
+  );
+}
+
+/// A compact, monochrome inventory summary makes the library feel intentional
+/// without competing with its cards or picker behavior.
+class _LibraryHero extends StatelessWidget {
+  const _LibraryHero({
+    required this.total,
+    required this.favorites,
+    required this.pickMode,
+  });
+
+  final int total;
+  final int favorites;
+  final bool pickMode;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    decoration: BoxDecoration(
+      color: AppColors.darkSurfaceElevated,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.darkBorder),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.darkSurface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.darkBorder),
+          ),
+          child: const Icon(
+            Icons.auto_awesome_outlined,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                pickMode
+                    ? 'Start with a proven message'
+                    : 'Your message library',
+                style: AppTypography.label.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                pickMode
+                    ? 'Choose a template to fill your draft instantly.'
+                    : 'Reusable messages, ready when the moment matters.',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '$total',
+              style: AppTypography.h3.copyWith(color: AppColors.textPrimary),
+            ),
+            Text(
+              favorites == 1 ? 'favorite' : '$favorites favorites',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 /// The placeholder keys offered as quick-insert chips in the editor.
@@ -314,8 +437,12 @@ Future<void> showTemplateEditor(
     isScrollControlled: true,
     backgroundColor: AppColors.darkSurface,
     shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-    builder: (_) => _TemplateEditor(existing: existing ?? prefill, isEdit: existing != null),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => _TemplateEditor(
+      existing: existing ?? prefill,
+      isEdit: existing != null,
+    ),
   );
 }
 
@@ -353,7 +480,9 @@ class _TemplateEditorState extends State<_TemplateEditor> {
   }
 
   bool get _canSave =>
-      _title.text.trim().isNotEmpty && _message.text.trim().isNotEmpty && !_saving;
+      _title.text.trim().isNotEmpty &&
+      _message.text.trim().isNotEmpty &&
+      !_saving;
 
   void _insertPlaceholder(String key) {
     final token = '{{$key}}';
@@ -409,79 +538,95 @@ class _TemplateEditorState extends State<_TemplateEditor> {
           behavior: HitTestBehavior.opaque,
           onTap: () => FocusScope.of(context).unfocus(),
           child: ListView(
-          controller: controller,
-          // Dragging the sheet content also lowers the keyboard.
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
-              AppSpacing.md, AppSpacing.pagePadding, AppSpacing.xl),
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-                decoration: BoxDecoration(
+            controller: controller,
+            // Dragging the sheet content also lowers the keyboard.
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding,
+              AppSpacing.md,
+              AppSpacing.pagePadding,
+              AppSpacing.xl,
+            ),
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                  decoration: BoxDecoration(
                     color: AppColors.darkBorder,
-                    borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(widget.isEdit ? 'Edit template' : 'New template',
-                      style: AppTypography.h3),
-                ),
-                // Always-available exit: drops the keyboard, then closes the sheet.
-                IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: AppColors.textSecondary),
-                  tooltip: 'Close',
-                  onPressed: () {
-                    FocusScope.of(context).unfocus();
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _label('Title'),
-            AppTextField(controller: _title, label: 'Template title'),
-            const SizedBox(height: AppSpacing.lg),
-            _label('Category'),
-            _chips<BroadcastCategory>(BroadcastCategory.values, _category,
-                (c) => c.label, (c) => setState(() => _category = c)),
-            const SizedBox(height: AppSpacing.lg),
-            _label('Message'),
-            AppTextField(
-              controller: _message,
-              label: 'Write the template — use placeholders below',
-              minLines: 4,
-              maxLines: 8,
-              keyboardType: TextInputType.multiline,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                for (final p in kBroadcastPlaceholders)
-                  ActionChip(
-                    label: Text('{{$p}}',
-                        style: AppTypography.caption
-                            .copyWith(color: AppColors.textSecondary)),
-                    backgroundColor: AppColors.darkSurfaceElevated,
-                    side: const BorderSide(color: AppColors.darkBorder),
-                    onPressed: () => _insertPlaceholder(p),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            AppButton(
-              label: widget.isEdit ? 'Save changes' : 'Save template',
-              isLoading: _saving,
-              onPressed: _canSave ? _save : null,
-            ),
-          ],
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.isEdit ? 'Edit template' : 'New template',
+                      style: AppTypography.h3,
+                    ),
+                  ),
+                  // Always-available exit: drops the keyboard, then closes the sheet.
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textSecondary,
+                    ),
+                    tooltip: 'Close',
+                    onPressed: () {
+                      FocusScope.of(context).unfocus();
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _label('Title'),
+              AppTextField(controller: _title, label: 'Template title'),
+              const SizedBox(height: AppSpacing.lg),
+              _label('Category'),
+              _chips<BroadcastCategory>(
+                BroadcastCategory.values,
+                _category,
+                (c) => c.label,
+                (c) => setState(() => _category = c),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _label('Message'),
+              AppTextField(
+                controller: _message,
+                label: 'Write the template — use placeholders below',
+                minLines: 4,
+                maxLines: 8,
+                keyboardType: TextInputType.multiline,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  for (final p in kBroadcastPlaceholders)
+                    ActionChip(
+                      label: Text(
+                        '{{$p}}',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      backgroundColor: AppColors.darkSurfaceElevated,
+                      side: const BorderSide(color: AppColors.darkBorder),
+                      onPressed: () => _insertPlaceholder(p),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              AppButton(
+                label: widget.isEdit ? 'Save changes' : 'Save template',
+                isLoading: _saving,
+                onPressed: _canSave ? _save : null,
+              ),
+            ],
           ),
         ),
       ),
@@ -489,44 +634,54 @@ class _TemplateEditorState extends State<_TemplateEditor> {
   }
 
   Widget _label(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Text(t.toUpperCase(),
-            style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary, letterSpacing: 0.6)),
-      );
+    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+    child: Text(
+      t.toUpperCase(),
+      style: AppTypography.caption.copyWith(
+        color: AppColors.textTertiary,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
 
-  Widget _chips<T>(List<T> values, T selected, String Function(T) label,
-          ValueChanged<T> onTap) =>
-      Wrap(
-        spacing: AppSpacing.sm,
-        runSpacing: AppSpacing.sm,
-        children: [
-          for (final v in values)
-            GestureDetector(
-              onTap: () => onTap(v),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: v == selected
-                      ? AppColors.primary
-                      : AppColors.darkSurfaceElevated,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: v == selected
-                          ? AppColors.primary
-                          : AppColors.darkBorder),
-                ),
-                child: Text(label(v),
-                    style: AppTypography.label.copyWith(
-                      color: v == selected
-                          ? AppColors.onPrimary
-                          : AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    )),
+  Widget _chips<T>(
+    List<T> values,
+    T selected,
+    String Function(T) label,
+    ValueChanged<T> onTap,
+  ) => Wrap(
+    spacing: AppSpacing.sm,
+    runSpacing: AppSpacing.sm,
+    children: [
+      for (final v in values)
+        GestureDetector(
+          onTap: () => onTap(v),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: v == selected
+                  ? AppColors.primary
+                  : AppColors.darkSurfaceElevated,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: v == selected ? AppColors.primary : AppColors.darkBorder,
               ),
             ),
-        ],
-      );
+            child: Text(
+              label(v),
+              style: AppTypography.label.copyWith(
+                color: v == selected
+                    ? AppColors.onPrimary
+                    : AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+    ],
+  );
 }

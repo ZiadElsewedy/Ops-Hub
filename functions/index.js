@@ -102,6 +102,14 @@ const {
   correlationId,
   buildExecutionSnapshot,
 } = require("./automation_run");
+const { isReminderEligibleStatus } = require("./task_reminders");
+const { isRetryableBroadcastPushError, resolveSendsPush } = require("./broadcast_delivery");
+const { canClaimScheduledBroadcast } = require("./broadcast_schedule");
+const {
+  correctionTargetsOwnRecord,
+  correctionMatchesExistingRecordOwner,
+} = require("./attendance_correction_target");
+const { attendanceNotificationSubject } = require("./attendance_notification_subject");
 
 // `branchId` marker for a direct message — never a real branch id and never ''
 // (mirrors BroadcastModel.directBranchMarker), so a DM never appears in a
@@ -145,9 +153,7 @@ function isDeadTokenError(code) {
 // the client — there is no separate priority/channel dial): announcement is a
 // quiet inbox-only message; reminder + emergency also push; emergency rides at
 // high FCM priority. Every category writes the in-app inbox.
-function categorySendsPush(category) {
-  return category !== "announcement";
-}
+function categorySendsPush(category) { return category !== "announcement"; }
 function categoryIsHigh(category) {
   return category === "emergency";
 }
@@ -166,6 +172,7 @@ async function dispatchBroadcast(params) {
   const title = String(params.title || "").trim();
   const body = String(params.body || params.message || "").trim();
   const category = String(params.category || "general").trim() || "general";
+  const sendsPush = resolveSendsPush(params.sendsPush, categorySendsPush(category));
   const audience = String(params.audience || "").trim();
   const senderId = String(params.senderId || "").trim();
   const senderRole = String(params.senderRole || "manager").trim() || "manager";
@@ -252,6 +259,7 @@ async function dispatchBroadcast(params) {
     title,
     message: body,
     category,
+    sendsPush,
     senderId,
     senderName,
     senderRole,
@@ -302,10 +310,11 @@ async function dispatchBroadcast(params) {
 
   // ── Push the notification (chunked; prune dead tokens) — push channels only ──
   let deliveredCount = 0;
+  let pushFailureCount = 0;
   // Diagnostics: how many times the SAME device token was found on two different
   // recipients in one send — an ownership-drift signal (defense-in-depth #3).
   let tokenDriftCount = 0;
-  if (categorySendsPush(category)) {
+  if (sendsPush) {
     // Gather FCM tokens (de-duplicated; remember each token's EXCLUSIVE owner).
     // If a token is already claimed by another recipient in this send, that's
     // drift: keep the first owner (no double-send) and log it. claimFcmToken is
@@ -377,8 +386,21 @@ async function dispatchBroadcast(params) {
         apns: { headers: { "apns-priority": apnsPriority } },
         data: { ...baseData, recipientUid: tokenOwner.get(token) || "" },
       }));
-      const response = await messaging.sendEach(messages);
+      let response;
+      try {
+        response = await messaging.sendEach(messages);
+      } catch (err) {
+        if (!isRetryableBroadcastPushError(err)) throw err;
+        logger.warn("broadcast push failed; retrying once", {
+          broadcastId: broadcastRef.id,
+          tokenCount: batch.length,
+          code: err && err.code,
+          error: String(err),
+        });
+        response = await messaging.sendEach(messages);
+      }
       deliveredCount += response.successCount;
+      pushFailureCount += response.failureCount;
 
       // Remove tokens FCM reports as permanently invalid, per owner.
       const removals = new Map(); // uid -> [badToken]
@@ -419,6 +441,7 @@ async function dispatchBroadcast(params) {
         broadcastId: broadcastRef.id,
         tokenCount: tokens.length,
         deliveredCount,
+        failureCount: pushFailureCount,
         error: String(err),
       });
     }
@@ -433,6 +456,7 @@ async function dispatchBroadcast(params) {
     audience,
     recipientCount,
     deliveredCount,
+    failureCount: pushFailureCount,
     tokenDriftCount,
   });
 
@@ -453,6 +477,7 @@ exports.sendBroadcast = onCall(async (request) => {
   const branchId = String(payload.branchId || "").trim();
   const targetUserId = String(payload.targetUserId || "").trim();
   const roleFilter = String(payload.roleFilter || "").trim();
+  const sendsPush = typeof payload.sendsPush === "boolean" ? payload.sendsPush : undefined;
   const targetUserIds = Array.isArray(payload.targetUserIds)
     ? payload.targetUserIds.map((s) => String(s || "").trim()).filter(Boolean)
     : [];
@@ -524,6 +549,7 @@ exports.sendBroadcast = onCall(async (request) => {
     targetUserId,
     targetUserIds,
     roleFilter,
+    sendsPush,
   });
 
   return { success: true, ...result };
@@ -940,6 +966,46 @@ exports.approveSwap = onCall(async (request) => {
     });
   });
 
+  // The roster exchange is authoritative on the server, so its approval notice
+  // is too. Delivery remains best-effort: an inbox write failure cannot undo a
+  // committed exchange or turn this callable into a false failure.
+  try {
+    // Mirrors ScheduleDay.fromString(raw).label: unknown/missing values fall
+    // back to Sunday rather than inventing a different inbox label.
+    const dayLabels = {
+      sunday: "Sunday",
+      monday: "Monday",
+      tuesday: "Tuesday",
+      wednesday: "Wednesday",
+      thursday: "Thursday",
+      friday: "Friday",
+      saturday: "Saturday",
+    };
+    const dayLabel = dayLabels[day] || "Sunday";
+    const batch = db.batch();
+    for (const recipientUid of new Set([requesterId, targetId])) {
+      if (!recipientUid) continue;
+      const ref = db.collection(NOTIFICATIONS).doc();
+      batch.set(ref, {
+        id: ref.id,
+        recipientUid,
+        senderUid: auth.uid,
+        type: "swapApproved",
+        title: "Swap Approved",
+        body: `Your ${dayLabel} shift swap was approved — the schedule is updated.`,
+        readAt: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        payload: { swapId, route: "schedule" },
+      });
+    }
+    await batch.commit();
+  } catch (err) {
+    logger.error("failed to write swap approval notifications", {
+      swapId,
+      error: String(err),
+    });
+  }
+
   return { success: true };
 });
 
@@ -1158,7 +1224,8 @@ exports.onNotificationCreated = onDocumentCreated(
     // feeds them to the shared deep-link resolver. EVERY target id the resolver
     // reads must be forwarded here or the deep link is lost on a background /
     // cold-start tap: taskId · caseId · requestId · broadcastId · swapId
-    // (schedule route). `route` selects which id the resolver uses.
+    // (schedule route) · recordId (attendance route). `route` selects which id
+    // the resolver uses.
     const message = {
       notification: { title, body },
       data: {
@@ -1171,6 +1238,10 @@ exports.onNotificationCreated = onDocumentCreated(
         requestId: String(payload.requestId || ""),
         broadcastId: String(payload.broadcastId || ""),
         swapId: String(payload.swapId || ""),
+        // Attendance corrections / auto-closed sessions. Without recordId a
+        // background tap can only reach the ledger, not the exact record.
+        recordId: String(payload.recordId || ""),
+        correctionId: String(payload.correctionId || ""),
         category: String(payload.category || ""),
         revisionNumber:
           payload.revisionNumber == null ? "" : String(payload.revisionNumber),
@@ -1276,6 +1347,28 @@ exports.runBroadcastSchedules = onSchedule("every 5 minutes", async () => {
     const s = doc.data() || {};
     if (s.enabled === false) continue; // paused
 
+    const expectedNextRunAt = s.nextRunAt;
+    const expectedNextRunAtMs =
+      expectedNextRunAt && typeof expectedNextRunAt.toMillis === "function"
+        ? expectedNextRunAt.toMillis()
+        : null;
+    if (expectedNextRunAtMs == null) continue;
+
+    // Claim before dispatch. A claim deliberately remains if finalization later
+    // fails: at this scale, avoiding a duplicate org-wide broadcast wins over
+    // retrying an uncertain send.
+    const claimed = await db.runTransaction(async (tx) => {
+      const current = await tx.get(doc.ref);
+      const currentData = current.exists ? current.data() || {} : null;
+      if (!canClaimScheduledBroadcast(currentData, expectedNextRunAtMs)) return false;
+      tx.update(doc.ref, {
+        dispatchClaimedFor: expectedNextRunAt,
+        dispatchClaimedAt: now,
+      });
+      return true;
+    });
+    if (!claimed) continue;
+
     // The sender's current branch (for a manager's custom-recipient filter).
     let senderBranch = "";
     try {
@@ -1294,6 +1387,7 @@ exports.runBroadcastSchedules = onSchedule("every 5 minutes", async () => {
         title: s.title,
         body: s.message,
         category: s.category,
+        sendsPush: s.sendsPush,
         audience: s.audience,
         branchId: s.branchId || "",
         targetUserId: "",
@@ -1302,7 +1396,10 @@ exports.runBroadcastSchedules = onSchedule("every 5 minutes", async () => {
       });
       fired += 1;
     } catch (err) {
-      logger.warn("schedule dispatch failed", { id: doc.id, error: String(err) });
+      logger.error("schedule dispatch failed after claim; run consumed", {
+        id: doc.id,
+        error: String(err),
+      });
     }
 
     const nextRunAt = computeScheduleNextRun(s, now.toDate());
@@ -1312,6 +1409,8 @@ exports.runBroadcastSchedules = onSchedule("every 5 minutes", async () => {
         runCount: (Number(s.runCount) || 0) + 1,
         nextRunAt: nextRunAt, // null disables a completed schedule
         enabled: nextRunAt !== null,
+        dispatchClaimedFor: admin.firestore.FieldValue.delete(),
+        dispatchClaimedAt: admin.firestore.FieldValue.delete(),
       })
       .catch((err) =>
         logger.warn("schedule advance failed", { id: doc.id, error: String(err) }),
@@ -1391,6 +1490,10 @@ function reminderDueKind(deadline, now, lastKind, count, cfg) {
  * (`taskReminders/{taskId}`) + quiet hours + a max-reminders cap to avoid spam.
  * Config lives in `reminderConfig/global` (defaults applied when absent). Quiet
  * hours are evaluated in UTC (the function's timezone).
+ *
+ * Which statuses still get reminded lives in `task_reminders.js` — read the
+ * comment there before changing it; the set deliberately differs from the
+ * canonical `isTerminalTaskStatus`.
  */
 exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstances: 1, retryCount: 0, timeoutSeconds: 300 }, async () => {
   const now = new Date();
@@ -1420,11 +1523,10 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
   const soon = admin.firestore.Timestamp.fromMillis(now.getTime() + 24 * 60 * 60 * 1000);
   const snap = await db.collection(TASKS).where("deadline", "<=", soon).get();
 
-  const TERMINAL = new Set(["approved", "rejected"]);
   let sent = 0;
   for (const doc of snap.docs) {
     const t = doc.data() || {};
-    if (TERMINAL.has(t.status || "pending")) continue;
+    if (!isReminderEligibleStatus(t.status)) continue;
     const deadline = t.deadline && t.deadline.toDate ? t.deadline.toDate() : null;
     if (!deadline) continue;
     const assignees = Array.isArray(t.assigneeIds) ? t.assigneeIds.filter(Boolean) : [];
@@ -2982,7 +3084,10 @@ exports.onCaseUpdated = onDocumentUpdated(`${CASES}/{caseId}`, async (event) => 
   const reporterUid = await caseReporterUid(caseId);
   const reopened = beforeStatus === "closed" && afterStatus !== "closed";
   if (reopened) {
-    const recipients = await resolveCaseRecipients(after, reporterUid);
+    const actorUid = String(after.statusChangedBy || "");
+    const recipients = (await resolveCaseRecipients(after, reporterUid)).filter(
+      (uid) => uid !== actorUid,
+    );
     await writeCaseNotifications(recipients, {
       type: "caseUpdated",
       title: "Case Reopened",
@@ -2996,10 +3101,13 @@ exports.onCaseUpdated = onDocumentUpdated(`${CASES}/{caseId}`, async (event) => 
       waitingResponse: "A response is needed on your case",
       closed: "Your case was closed",
     };
+    const subject = String(after.subject || "Case").trim();
     await writeCaseNotifications([reporterUid], {
       type: closed ? "caseClosed" : "caseUpdated",
       title: closed ? "Case Closed" : "Case Update",
-      body: bodyByStatus[afterStatus] || String(after.subject || "Case updated"),
+      body: bodyByStatus[afterStatus]
+        ? `${subject} • ${bodyByStatus[afterStatus]}`
+        : subject,
       caseId,
     });
   }
@@ -3075,6 +3183,31 @@ function requestEventPreview(text, attachments) {
   if (t) return t.slice(0, 140);
   if (Array.isArray(attachments) && attachments.length > 0) return "📎 Attachment";
   return "";
+}
+
+// Requests have no dedicated subject field, so the inbox subject is the
+// requester's own free-text reason — `details.message` (see RequestModel: "the
+// free-text reason lives in `details`").
+//
+// It is deliberately NOT `lastEventPreview`: that field is a ROLLING preview of
+// the most recent timeline event, so by the time a request is approved it may
+// hold the latest comment rather than what the request is about — producing a
+// row like "sounds fine to me • Approved". `details.message` is written once and
+// stays the same string the opening notification used, so every row for one
+// request names the same thing.
+//
+// `lastEventPreview` remains the first fallback (it equals the reason at
+// creation time, which covers docs written before this field was relied on), and
+// the durable REQ-###### code is the last resort that still identifies which
+// request this is.
+function requestNotificationSubject(requestData) {
+  const details = (requestData && requestData.details) || {};
+  const message = String(details.message || "").trim();
+  if (message) return message.slice(0, 140);
+  const preview = String(requestData.lastEventPreview || "").trim();
+  if (preview) return preview.slice(0, 140);
+  const refCode = String(requestData.refCode || "").trim();
+  return refCode || "Request";
 }
 
 // The routed approvers for a request — the request's own-branch managers and all
@@ -3265,13 +3398,14 @@ exports.onRequestUpdated = onDocumentUpdated(`${REQUESTS}/{requestId}`, async (e
   );
 
   const requesterUid = String(after.requesterId || "");
+  const subject = requestNotificationSubject(after);
   if (afterStatus === "pending") {
     // Reopened → it needs a decision again: tell the branch approvers (minus
     // the admin who reopened) and the requester.
     const approvers = await resolveRequestApprovers(after, actorUid);
     const body = reopenerName
-      ? `${reopenerName} reopened this request — it needs a decision again`
-      : "This request was reopened and needs a decision again";
+      ? `${subject} • ${reopenerName} reopened it — it needs a decision again`
+      : `${subject} • Reopened and needs a decision again`;
     await writeRequestNotifications(approvers, {
       type: "requestSubmitted",
       title: "Request reopened",
@@ -3283,7 +3417,7 @@ exports.onRequestUpdated = onDocumentUpdated(`${REQUESTS}/{requestId}`, async (e
       await writeRequestNotifications([requesterUid], {
         type: "requestSubmitted",
         title: "Request reopened",
-        body: "Your request is being reviewed again",
+        body: `${subject} • Your request is being reviewed again`,
         requestId,
         senderUid: actorUid,
       });
@@ -3294,8 +3428,8 @@ exports.onRequestUpdated = onDocumentUpdated(`${REQUESTS}/{requestId}`, async (e
   // Notify the requester of the decision.
   if (requesterUid) {
     const byStatus = {
-      approved: { type: "requestApproved", title: "Request Approved", body: "Your request was approved" },
-      rejected: { type: "requestRejected", title: "Request Rejected", body: "Your request was rejected" },
+      approved: { type: "requestApproved", title: "Request Approved", body: `${subject} • Approved` },
+      rejected: { type: "requestRejected", title: "Request Rejected", body: `${subject} • Rejected` },
     }[afterStatus];
     await writeRequestNotifications([requesterUid], {
       ...byStatus,
@@ -3330,6 +3464,7 @@ exports.onRequestEventCreated = onDocumentCreated(
 
     const reqSnap = await db.collection(REQUESTS).doc(requestId).get();
     const data = reqSnap.exists ? (reqSnap.data() || {}) : {};
+    const subject = requestNotificationSubject(data);
     const requesterUid = String(data.requesterId || "");
     const authorId = String(ev.authorId || "");
     const byRequester = authorId !== "" && authorId === requesterUid;
@@ -3338,7 +3473,7 @@ exports.onRequestEventCreated = onDocumentCreated(
       await writeRequestNotifications(approvers, {
         type: "requestCommented",
         title: "New Request Comment",
-        body: preview || "New comment on a request",
+        body: `${subject} • ${preview || "New comment on a request"}`,
         requestId,
         senderUid: authorId,
       });
@@ -3346,7 +3481,7 @@ exports.onRequestEventCreated = onDocumentCreated(
       await writeRequestNotifications([requesterUid], {
         type: "requestCommented",
         title: "New Request Comment",
-        body: preview || "New comment on your request",
+        body: `${subject} • ${preview || "New comment on your request"}`,
         requestId,
         senderUid: authorId,
       });
@@ -3513,7 +3648,7 @@ exports.onAttendanceWritten = onDocumentWritten(`${ATTENDANCE}/{recordId}`, asyn
 // The dayKey is lifted from the deterministic id (`{uid}_{yyyyMMdd}_{shift}`) so it
 // matches the client's calendar day without a timezone round-trip.
 async function applyCorrectionResolution(recordId, after) {
-  if (!recordId) return;
+  if (!recordId) return false;
   const res = (after.resolution && typeof after.resolution === "object") ? after.resolution : {};
   const fields = {
     clockIn: res.clockIn || null,
@@ -3534,9 +3669,26 @@ async function applyCorrectionResolution(recordId, after) {
   const snap = await ref.get();
   if (snap.exists) {
     // Guard a concurrent soft-delete — never resurrect a deleted record.
-    if ((snap.data() || {}).deletedAt) return;
+    const record = snap.data() || {};
+    if (record.deletedAt) return false;
+    if (!correctionMatchesExistingRecordOwner(record, after.userId)) {
+      logger.error("refusing attendance correction for another employee's record", {
+        recordId,
+        recordUserId: record.userId,
+        correctionUserId: String(after.userId || ""),
+      });
+      return false;
+    }
     await ref.update(fields);
-    return;
+    return true;
+  }
+  if (!correctionTargetsOwnRecord(recordId, after.userId)) {
+    logger.error("refusing attendance correction for another employee's record", {
+      recordId,
+      recordUserId: String(recordId || "").split("_")[0] || "",
+      correctionUserId: String(after.userId || ""),
+    });
+    return false;
   }
   // Materialize a missing record from the correction's identity + schedule.
   const dayKey = String(recordId).split("_").find((p) => /^\d{8}$/.test(p)) || "";
@@ -3552,6 +3704,7 @@ async function applyCorrectionResolution(recordId, after) {
     scheduledEnd: after.scheduledEnd || null,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+  return true;
 }
 
 // Any write to a correction → own its lifecycle events + notifications, and (on
@@ -3570,6 +3723,7 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
     const recordId = String(after.attendanceId || "");
     const employeeUid = String(after.userId || "");
     const data = { correctionKind: String(after.kind || "other") };
+    const subject = attendanceNotificationSubject(after);
 
     // 1) Newly created correction.
     if (!before) {
@@ -3579,7 +3733,7 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
       // Apply immediately (materializing a missing record), audit, and notify the
       // employee. No reviewer step, so no reviewer notification.
       if (createStatus === "approved") {
-        await applyCorrectionResolution(recordId, after);
+        const applied = await applyCorrectionResolution(recordId, after);
         await appendAttendanceEvent(recordId, {
           kind: "correctionApproved",
           actorId: String(after.decidedBy || ""),
@@ -3587,14 +3741,14 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
           note: after.decisionNote != null ? String(after.decisionNote) : (after.reason != null ? String(after.reason) : null),
           data,
         });
-        if (employeeUid) {
+        if (applied && employeeUid) {
           const deciderName = String(after.decidedByName || "").trim();
           await writeAttendanceNotifications([employeeUid], {
             type: "attendanceCorrectionApproved",
             title: "Attendance updated",
             body: deciderName
-              ? `${deciderName} updated your attendance for this shift`
-              : "Your attendance for this shift was updated",
+              ? `${subject} • Updated by ${deciderName}`
+              : `${subject} • Attendance updated`,
             recordId,
             correctionId,
             senderUid: String(after.decidedBy || ""),
@@ -3615,7 +3769,7 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
       await writeAttendanceNotifications(reviewers, {
         type: "attendanceCorrectionFiled",
         title: "Attendance correction",
-        body: `${String(after.userName || "An employee")} filed a ${attendanceCorrectionKindLabel(after.kind)} correction`,
+        body: `${subject} • ${String(after.userName || "An employee")} filed a ${attendanceCorrectionKindLabel(after.kind)} correction`,
         recordId,
         correctionId,
         senderUid: String(after.requestedBy || ""),
@@ -3637,8 +3791,9 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
       // AttendanceCalculator) onto the parent record — server-authoritative,
       // upserting a missing record (a missed-punch materializes on approval).
       if (recordId) {
+        let applied = false;
         try {
-          await applyCorrectionResolution(recordId, after);
+          applied = await applyCorrectionResolution(recordId, after);
         } catch (e) {
           logger.warn("failed to apply approved correction", { recordId, error: String(e) });
         }
@@ -3649,18 +3804,18 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
           note: after.decisionNote != null ? String(after.decisionNote) : null,
           data,
         });
-      }
-      if (employeeUid) {
-        await writeAttendanceNotifications([employeeUid], {
-          type: "attendanceCorrectionApproved",
-          title: "Correction approved",
-          body: deciderName
-            ? `${deciderName} approved your attendance correction`
-            : "Your attendance correction was approved",
-          recordId,
-          correctionId,
-          senderUid: decidedBy,
-        });
+        if (applied && employeeUid) {
+          await writeAttendanceNotifications([employeeUid], {
+            type: "attendanceCorrectionApproved",
+            title: "Correction approved",
+            body: deciderName
+              ? `${subject} • Approved by ${deciderName}`
+              : `${subject} • Approved`,
+            recordId,
+            correctionId,
+            senderUid: decidedBy,
+          });
+        }
       }
       return;
     }
@@ -3678,8 +3833,8 @@ exports.onAttendanceCorrectionWritten = onDocumentWritten(
         type: "attendanceCorrectionRejected",
         title: "Correction rejected",
         body: deciderName
-          ? `${deciderName} rejected your attendance correction`
-          : "Your attendance correction was rejected",
+          ? `${subject} • Rejected by ${deciderName}`
+          : `${subject} • Rejected`,
         recordId,
         correctionId,
         senderUid: decidedBy,
@@ -4008,7 +4163,7 @@ exports.autoCloseAttendance = onSchedule("every 30 minutes", async () => {
         await writeAttendanceNotifications([uid], {
           type: "attendanceAutoClosed",
           title: "Shift needs review",
-          body: "You didn't clock out — file a correction with your real clock-out time.",
+          body: `${attendanceNotificationSubject(d)} • You didn't clock out — file a correction with your real clock-out time.`,
           recordId: doc.id,
           senderUid: "",
         });

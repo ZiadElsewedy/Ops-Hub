@@ -70,6 +70,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _previewRepaint?.cancel();
     _searchController.dispose();
     _mobileSearchFocus.dispose();
     super.dispose();
@@ -140,12 +141,24 @@ class _ChatScreenState extends State<ChatScreen> {
     return uid == null ? null : _directory[uid];
   }
 
-  /// Resolved last-message previews keyed by conversation id — fetched once per
-  /// row (thread cache → one-item history) so the inbox shows the real last
-  /// message instead of a placeholder. The live socket preview (counterpart
-  /// activity) always wins over this when present.
-  final Map<String, ChatPreview> _previews = {};
+  /// In-flight preview lookups, so a rebuild mid-flight doesn't re-issue one.
+  /// The *results* live on `ChatListCubit` — see the note there on why they
+  /// must outlive this State.
   final Set<String> _previewFetching = {};
+
+  /// Coalesces preview repaints. Each lookup used to `setState` on its own, so
+  /// opening an inbox with ten rows repainted the whole screen ten times in
+  /// under a second — the visible "everything keeps changing" churn. Results
+  /// are written to the cubit's cache as they land and one repaint is scheduled
+  /// for the batch.
+  Timer? _previewRepaint;
+
+  void _schedulePreviewRepaint() {
+    _previewRepaint ??= Timer(const Duration(milliseconds: 60), () {
+      _previewRepaint = null;
+      if (mounted) setState(() {});
+    });
+  }
 
   /// The conversations to actually show: WhatsApp/Telegram behavior — an
   /// **empty** conversation (created but never messaged) stays hidden until it
@@ -173,7 +186,7 @@ class _ChatScreenState extends State<ChatScreen> {
   ) {
     final socket = socketPreviews[c.id];
     if (socket != null && socket.isNotEmpty) return socket;
-    return _previews[c.id]?.line;
+    return context.read<ChatListCubit>().resolvedPreview(c.id)?.line;
   }
 
   /// Fetches the real last message for any visible row that lacks a socket
@@ -184,9 +197,36 @@ class _ChatScreenState extends State<ChatScreen> {
     List<ChatConversationSummary> visible,
     Map<String, String> socketPreviews,
   ) {
+    final cubit = context.read<ChatListCubit>();
     for (final c in visible) {
       if (socketPreviews[c.id]?.isNotEmpty ?? false) continue;
-      if (_previews.containsKey(c.id) || _previewFetching.contains(c.id)) {
+      // The server now serves the preview with the row (FR-021), so the common
+      // path costs no request at all. The fallback below stays for a deployed
+      // server that predates the field — dropping it would blank every row
+      // until the backend ships.
+      final served = c.lastMessage;
+      if (served != null) {
+        if (!cubit.isPreviewResolved(c.id)) {
+          final myId = c.participantIds.firstWhere(
+            (p) => p != c.counterpartUserId,
+            orElse: () => '',
+          );
+          cubit.cacheResolvedPreview(
+            c.id,
+            ChatPreview(
+              chatLastMessagePreviewText(served),
+              mine: myId.isNotEmpty && served.senderId == myId,
+            ),
+          );
+          _schedulePreviewRepaint();
+        }
+        continue;
+      }
+      // `isPreviewResolved` covers the empty result too. Checking only for a
+      // stored preview treated "resolved to nothing" as "not tried yet", so
+      // those rows re-queued a lookup on every rebuild — and since each landing
+      // lookup triggered a rebuild, the two fed each other.
+      if (cubit.isPreviewResolved(c.id) || _previewFetching.contains(c.id)) {
         continue;
       }
       _previewFetching.add(c.id);
@@ -199,13 +239,18 @@ class _ChatScreenState extends State<ChatScreen> {
       AppDependencies.latestChatMessage(c.id).then((message) {
         if (!mounted) return;
         _previewFetching.remove(c.id);
-        if (message == null) return;
-        setState(
-          () => _previews[c.id] = ChatPreview(
-            chatMessagePreviewText(message),
-            mine: myId.isNotEmpty && message.senderId == myId,
-          ),
+        // A null result is recorded as "resolved, nothing there" rather than
+        // dropped — that is what stops the retry loop.
+        cubit.cacheResolvedPreview(
+          c.id,
+          message == null
+              ? null
+              : ChatPreview(
+                  chatMessagePreviewText(message),
+                  mine: myId.isNotEmpty && message.senderId == myId,
+                ),
         );
+        _schedulePreviewRepaint();
       });
     }
   }
@@ -231,7 +276,7 @@ class _ChatScreenState extends State<ChatScreen> {
         )
         .then((_) {
           if (!mounted) return;
-          _previews.remove(c.id);
+          listCubit.invalidateResolvedPreview(c.id);
           listCubit.refresh();
         });
   }

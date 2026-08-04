@@ -401,7 +401,7 @@ class FinalScheduleSheet extends StatelessWidget {
       child: Text(
         token.label,
         style: TextStyle(
-          fontFamily: 'SF Pro Display',
+          fontFamily: AppTypography.fontFamily,
           color: color,
           fontWeight: weight,
           fontSize: size,
@@ -489,7 +489,7 @@ class _LegendItem extends StatelessWidget {
             token.label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: 'SF Pro Display',
+              fontFamily: AppTypography.fontFamily,
               color: isShift ? AppColors.textPrimary : AppColors.textSecondary,
               fontWeight: FontWeight.w700,
               fontSize: isShift ? 13 : 10,

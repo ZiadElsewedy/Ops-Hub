@@ -58,24 +58,37 @@ class DefaultFirebaseOptions {
     storageBucket: 'bazic-d9ad7.firebasestorage.app',
   );
 
+  // ⚠️ These MUST describe the Firebase iOS app whose BUNDLE_ID equals the bundle
+  // id Xcode actually builds (`com.ziad.drop`, see ios/…/project.pbxproj and
+  // macos/Runner/Configs/AppInfo.xcconfig).
+  //
+  // They previously pointed at `com.example.fbro`
+  // (appId …f1d3167839a737155a0bc0) — a DIFFERENT Firebase iOS app. Because
+  // `main.dart` initializes with `DefaultFirebaseOptions.currentPlatform`, these
+  // values win over `GoogleService-Info.plist`, so the app registered itself as
+  // the wrong Firebase app and **APNs push could never be delivered**: the APNs
+  // key is attached per iOS app, and tokens were minted against an app the
+  // sender never targets. Android was unaffected, which is why this stayed
+  // invisible. If you re-run `flutterfire configure`, make sure you pick the
+  // `com.ziad.drop` app or this regresses.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyACEG2B-VTP88FtAloV56cVMElUakrGF0c',
-    appId: '1:450092605249:ios:f1d3167839a737155a0bc0',
+    appId: '1:450092605249:ios:c938624f6a08c77d5a0bc0',
     messagingSenderId: '450092605249',
     projectId: 'bazic-d9ad7',
     storageBucket: 'bazic-d9ad7.firebasestorage.app',
-    iosClientId: '450092605249-o0nlpkiot7t8mlpatiauss38rrnad780.apps.googleusercontent.com',
-    iosBundleId: 'com.example.fbro',
+    iosClientId: '450092605249-09d0ii8o4tpjb8h0s5f5c1ofi4uepe7v.apps.googleusercontent.com',
+    iosBundleId: 'com.ziad.drop',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyACEG2B-VTP88FtAloV56cVMElUakrGF0c',
-    appId: '1:450092605249:ios:f1d3167839a737155a0bc0',
+    appId: '1:450092605249:ios:c938624f6a08c77d5a0bc0',
     messagingSenderId: '450092605249',
     projectId: 'bazic-d9ad7',
     storageBucket: 'bazic-d9ad7.firebasestorage.app',
-    iosClientId: '450092605249-o0nlpkiot7t8mlpatiauss38rrnad780.apps.googleusercontent.com',
-    iosBundleId: 'com.example.fbro',
+    iosClientId: '450092605249-09d0ii8o4tpjb8h0s5f5c1ofi4uepe7v.apps.googleusercontent.com',
+    iosBundleId: 'com.ziad.drop',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

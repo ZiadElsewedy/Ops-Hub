@@ -4,6 +4,7 @@ import 'package:drop/core/enums/attendance_status.dart';
 import 'package:drop/core/enums/request_status.dart';
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/attendance/data/datasources/attendance_remote_datasource.dart';
 import 'package:drop/features/attendance/data/models/attendance_correction_model.dart';
 import 'package:drop/features/attendance/data/models/attendance_model.dart';
@@ -144,6 +145,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
   @override
   Future<void> requestCorrection(AttendanceCorrectionEntity correction) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote
           .requestCorrection(AttendanceCorrectionModel.fromEntity(correction));
@@ -155,6 +157,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   @override
   Future<void> createResolvedCorrection(
       AttendanceCorrectionEntity correction) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.createResolvedCorrection(
           AttendanceCorrectionModel.fromEntity(correction));
@@ -172,6 +175,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     String? decisionNote,
     AttendanceResolution? resolution,
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.decideCorrection(
         id,

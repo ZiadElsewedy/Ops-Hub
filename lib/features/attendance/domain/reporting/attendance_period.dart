@@ -20,31 +20,10 @@ enum AttendancePeriodType {
 /// The lifecycle of a reporting period. These values are pure-domain
 /// classifications for the future reporting ledger; this task does not persist
 /// them.
-enum AttendancePeriodStatus {
-  open,
-  ready,
-  locked,
-  exported,
-  restated;
-
-  String get label => switch (this) {
-        AttendancePeriodStatus.open => 'Open',
-        AttendancePeriodStatus.ready => 'Ready',
-        AttendancePeriodStatus.locked => 'Locked',
-        AttendancePeriodStatus.exported => 'Exported',
-        AttendancePeriodStatus.restated => 'Restated',
-      };
-
-  bool get isMutable =>
-      this == AttendancePeriodStatus.open ||
-      this == AttendancePeriodStatus.ready;
-
-  bool get isFinal =>
-      this == AttendancePeriodStatus.locked ||
-      this == AttendancePeriodStatus.exported;
-
-  bool get allowsExport => isFinal;
-}
+// `AttendancePeriodStatus` (open → ready → locked → exported → restated) lived
+// here for ADR-017's period lifecycle. It never had a reader in `lib/`, and
+// ADR-019 dropped period locking outright — a week is now *reviewed*, which is
+// an assertion rather than an enforced state. Removed rather than left dead.
 
 /// Inclusive business-date window for attendance reports.
 ///

@@ -31,7 +31,7 @@ _No direct routes — reached via shared widgets or another feature._
 - **Firestore collections:** `audit_logs`
 - **Cloud Functions:** —
 - **Security rules:** `firestore.rules` (search the collection names above) · `storage.rules` if it uploads media
-- **Design spec(s):** `docs/design/AUDIT_LOG.md`
+- **Design spec(s):** `docs/design/ATTENDANCE_AUDIT_2026-07-30.md`, `docs/design/AUDIT_LOG.md`
 
 ## Tests
 - `test/audit_event_type_test.dart`

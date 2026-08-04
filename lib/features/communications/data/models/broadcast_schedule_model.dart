@@ -15,6 +15,7 @@ class BroadcastScheduleModel {
   final String title;
   final String message;
   final BroadcastCategory category;
+  final bool sendsPush;
   final BroadcastAudience audience;
   final String branchId; // '' for all-branches / non-branch
   final String roleFilter;
@@ -37,6 +38,7 @@ class BroadcastScheduleModel {
     required this.title,
     required this.message,
     this.category = BroadcastCategory.announcement,
+    this.sendsPush = true,
     this.audience = BroadcastAudience.allBranches,
     this.branchId = '',
     this.roleFilter = 'all',
@@ -55,129 +57,137 @@ class BroadcastScheduleModel {
     this.createdAt,
   });
 
-  factory BroadcastScheduleModel.fromMap(Map<String, dynamic> map, {String? id}) =>
-      BroadcastScheduleModel(
-        id: id ?? map['id'] as String? ?? '',
-        title: map['title'] as String? ?? '',
-        message: map['message'] as String? ?? '',
-        category: BroadcastCategory.fromString(map['category'] as String?),
-        audience: BroadcastAudience.fromString(map['audience'] as String?),
-        branchId: map['branchId'] as String? ?? '',
-        roleFilter: map['roleFilter'] as String? ?? 'all',
-        targetUserIds: (map['targetUserIds'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            const [],
-        senderId: map['senderId'] as String? ?? '',
-        senderName: map['senderName'] as String? ?? '',
-        senderRole: UserRole.fromString(map['senderRole'] as String?),
-        recurrenceType:
-            BroadcastRecurrence.fromString(map['recurrenceType'] as String?),
-        interval: (map['interval'] as num?)?.toInt() ?? 1,
-        startDate: map.date('startDate'),
-        endDate: map.date('endDate'),
-        nextRunAt: map.date('nextRunAt'),
-        enabled: map['enabled'] as bool? ?? true,
-        lastRunAt: map.date('lastRunAt'),
-        runCount: (map['runCount'] as num?)?.toInt() ?? 0,
-        createdAt: map.date('createdAt'),
-      );
+  factory BroadcastScheduleModel.fromMap(
+    Map<String, dynamic> map, {
+    String? id,
+  }) => BroadcastScheduleModel(
+    id: id ?? map['id'] as String? ?? '',
+    title: map['title'] as String? ?? '',
+    message: map['message'] as String? ?? '',
+    category: BroadcastCategory.fromString(map['category'] as String?),
+    sendsPush:
+        map['sendsPush'] as bool? ??
+        ((map['category'] as String?) != 'announcement'),
+    audience: BroadcastAudience.fromString(map['audience'] as String?),
+    branchId: map['branchId'] as String? ?? '',
+    roleFilter: map['roleFilter'] as String? ?? 'all',
+    targetUserIds:
+        (map['targetUserIds'] as List?)?.map((e) => e.toString()).toList() ??
+        const [],
+    senderId: map['senderId'] as String? ?? '',
+    senderName: map['senderName'] as String? ?? '',
+    senderRole: UserRole.fromString(map['senderRole'] as String?),
+    recurrenceType: BroadcastRecurrence.fromString(
+      map['recurrenceType'] as String?,
+    ),
+    interval: (map['interval'] as num?)?.toInt() ?? 1,
+    startDate: map.date('startDate'),
+    endDate: map.date('endDate'),
+    nextRunAt: map.date('nextRunAt'),
+    enabled: map['enabled'] as bool? ?? true,
+    lastRunAt: map.date('lastRunAt'),
+    runCount: (map['runCount'] as num?)?.toInt() ?? 0,
+    createdAt: map.date('createdAt'),
+  );
 
   factory BroadcastScheduleModel.fromEntity(
     BroadcastScheduleEntity e, {
     List<String> targetUserIds = const [],
-  }) =>
-      BroadcastScheduleModel(
-        id: e.id,
-        title: e.title,
-        message: e.message,
-        category: e.category,
-        audience: e.audience,
-        branchId: e.branchId ?? '',
-        roleFilter: e.roleFilter,
-        targetUserIds: targetUserIds,
-        senderId: e.senderId,
-        senderName: e.senderName,
-        senderRole: e.senderRole,
-        recurrenceType: e.recurrenceType,
-        interval: e.interval,
-        startDate: e.startDate,
-        endDate: e.endDate,
-        nextRunAt: e.nextRunAt,
-        enabled: e.enabled,
-        lastRunAt: e.lastRunAt,
-        runCount: e.runCount,
-        createdAt: e.createdAt,
-      );
+  }) => BroadcastScheduleModel(
+    id: e.id,
+    title: e.title,
+    message: e.message,
+    category: e.category,
+    sendsPush: e.sendsPush,
+    audience: e.audience,
+    branchId: e.branchId ?? '',
+    roleFilter: e.roleFilter,
+    targetUserIds: targetUserIds,
+    senderId: e.senderId,
+    senderName: e.senderName,
+    senderRole: e.senderRole,
+    recurrenceType: e.recurrenceType,
+    interval: e.interval,
+    startDate: e.startDate,
+    endDate: e.endDate,
+    nextRunAt: e.nextRunAt,
+    enabled: e.enabled,
+    lastRunAt: e.lastRunAt,
+    runCount: e.runCount,
+    createdAt: e.createdAt,
+  );
 
   Timestamp? _ts(DateTime? d) => d == null ? null : Timestamp.fromDate(d);
 
   /// Writable fields (`createdAt`/`runCount`/`lastRunAt` are managed
   /// server-side once running; written here on create with safe initial values).
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'title': title,
-        'message': message,
-        'category': category.value,
-        'audience': audience.value,
-        'branchId': branchId,
-        'roleFilter': roleFilter,
-        'targetUserIds': targetUserIds,
-        'senderId': senderId,
-        'senderName': senderName,
-        'senderRole': senderRole.value,
-        'recurrenceType': recurrenceType.value,
-        'interval': interval,
-        'startDate': _ts(startDate),
-        'endDate': _ts(endDate),
-        'nextRunAt': _ts(nextRunAt),
-        'enabled': enabled,
-        'lastRunAt': _ts(lastRunAt),
-        'runCount': runCount,
-      };
+    'id': id,
+    'title': title,
+    'message': message,
+    'category': category.value,
+    'sendsPush': sendsPush,
+    'audience': audience.value,
+    'branchId': branchId,
+    'roleFilter': roleFilter,
+    'targetUserIds': targetUserIds,
+    'senderId': senderId,
+    'senderName': senderName,
+    'senderRole': senderRole.value,
+    'recurrenceType': recurrenceType.value,
+    'interval': interval,
+    'startDate': _ts(startDate),
+    'endDate': _ts(endDate),
+    'nextRunAt': _ts(nextRunAt),
+    'enabled': enabled,
+    'lastRunAt': _ts(lastRunAt),
+    'runCount': runCount,
+  };
 
   BroadcastScheduleModel copyWithId(String newId) => BroadcastScheduleModel(
-        id: newId,
-        title: title,
-        message: message,
-        category: category,
-        audience: audience,
-        branchId: branchId,
-        roleFilter: roleFilter,
-        targetUserIds: targetUserIds,
-        senderId: senderId,
-        senderName: senderName,
-        senderRole: senderRole,
-        recurrenceType: recurrenceType,
-        interval: interval,
-        startDate: startDate,
-        endDate: endDate,
-        nextRunAt: nextRunAt,
-        enabled: enabled,
-        lastRunAt: lastRunAt,
-        runCount: runCount,
-        createdAt: createdAt,
-      );
+    id: newId,
+    title: title,
+    message: message,
+    category: category,
+    sendsPush: sendsPush,
+    audience: audience,
+    branchId: branchId,
+    roleFilter: roleFilter,
+    targetUserIds: targetUserIds,
+    senderId: senderId,
+    senderName: senderName,
+    senderRole: senderRole,
+    recurrenceType: recurrenceType,
+    interval: interval,
+    startDate: startDate,
+    endDate: endDate,
+    nextRunAt: nextRunAt,
+    enabled: enabled,
+    lastRunAt: lastRunAt,
+    runCount: runCount,
+    createdAt: createdAt,
+  );
 
   BroadcastScheduleEntity toEntity() => BroadcastScheduleEntity(
-        id: id,
-        title: title,
-        message: message,
-        category: category,
-        audience: audience,
-        branchId: branchId.isEmpty ? null : branchId,
-        roleFilter: roleFilter,
-        senderId: senderId,
-        senderName: senderName,
-        senderRole: senderRole,
-        recurrenceType: recurrenceType,
-        interval: interval,
-        startDate: startDate,
-        endDate: endDate,
-        nextRunAt: nextRunAt,
-        enabled: enabled,
-        lastRunAt: lastRunAt,
-        runCount: runCount,
-        createdAt: createdAt,
-      );
+    id: id,
+    title: title,
+    message: message,
+    category: category,
+    sendsPush: sendsPush,
+    audience: audience,
+    branchId: branchId.isEmpty ? null : branchId,
+    roleFilter: roleFilter,
+    senderId: senderId,
+    senderName: senderName,
+    senderRole: senderRole,
+    recurrenceType: recurrenceType,
+    interval: interval,
+    startDate: startDate,
+    endDate: endDate,
+    nextRunAt: nextRunAt,
+    enabled: enabled,
+    lastRunAt: lastRunAt,
+    runCount: runCount,
+    createdAt: createdAt,
+  );
 }

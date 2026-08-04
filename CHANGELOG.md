@@ -14,6 +14,1732 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Firebase Hosting serves the App Store privacy policy (polish; LOW risk)
+
+Hosting exists for exactly one reason: App Store Connect requires a public
+Privacy Policy URL. It now serves that page and nothing else.
+
+- New `hosting/index.html` — a single self-contained page (inline CSS, no assets,
+  no build step): DROP wordmark, light/dark via `prefers-color-scheme`, responsive
+  down to 375px, print styles, and the eight sections App review looks for
+  (Introduction · Information We Collect · How We Use Information · Data Storage &
+  Security · Third-Party Services · User Rights · Contact · Last Updated). The
+  collection list is written from the actual data model — profile fields,
+  clock-in-time-only location, proof media, FCM token — not from a template.
+- `firebase.json` `hosting.public` moved `y` → `hosting`, plus a catch-all rewrite
+  to `/index.html`, `cleanUrls`, and `no-cache`/`nosniff` headers on HTML.
+- No Flutter, Firestore, Functions, or Storage config was touched. `web/` was left
+  alone deliberately — see the warning in
+  [CURRENT_STATE.md](CURRENT_STATE.md#pending-work) about `044ea2e` having
+  replaced the Flutter web bootstrap.
+
+Deploy: `firebase deploy --only hosting`.
+
+---
+
+## 2026-08-03 — Chat production-polish follow-up (bug + polish; HIGH risk)
+
+Fixed three remaining chat-thread defects without changing the UI or backend.
+
+- The thread header no longer awaits `ChatListCubit.load()`'s server round trip.
+  It listens to inbox state and resolves immediately from the cache-painted/live
+  summary plus the session directory; it still starts a load when no summary is
+  present. Route arguments remain an instant first-frame optimization.
+- `ChatThreadArgs` is now a value object, so the warm directory snapshot and its
+  cached async re-resolution do not cause a duplicate `setState`/header rebuild.
+- Chat push/banner taps now deliberately establish `Home → Chat → Conversation`
+  using the restored user's `homeForRole`, matching ordinary navigation. The
+  current-thread guard remains idempotent. Other notification routes and the
+  pure resolver are unchanged.
+
+- **The idempotency guard had never worked (bug, found by the new test).** The
+  guard read `router.routeInformationProvider.value.uri.path`, but an imperative
+  `push` is **delegate-level and never writes back to the route-information
+  provider** — so that value still reported whatever the last `go` set, and the
+  comparison was against a stale location. In practice a re-tap on the thread
+  already open would have stacked a duplicate. It now reads `router.state.uri`,
+  the delegate's real current location. The stack-parity test caught this: it
+  failed with `Expected '/chat/c-1', Actual '/'`, which is exactly the symptom.
+  The guard has been wrong since it was introduced two passes ago; no test had
+  pinned it until now.
+
+Added focused coverage for cache-backed identity resolution, `ChatThreadArgs`
+equality, stack parity (asserted through a `NavigatorObserver` on the real route
+stack, not just the final page), and re-tap idempotence. The established
+notification resolver suite continues to cover task, broadcast, schedule, case,
+request, and attendance unchanged.
+
+Gates: analyze 1 pre-existing info · **1501 pass / 0 fail**.
+
+> ⚠️ **Still not device-verified.** The stack-parity test runs against a plain
+> router, not the app's real `ShellRoute`, so it proves the call sequence rather
+> than the in-shell result. **Verify by hand:** kill the app, tap a chat
+> notification, then press Back twice — expect Chat list, then Home.
+
+## 2026-08-03 — Manager Home rebuilt as a branch command center (feature + polish + bug; MED risk)
+
+Owner review of the manager role on device: *"it looks trash and not premium…
+the UI didn't give the answer of their questions."* Two concrete faults sat
+behind that, and both were structural rather than cosmetic:
+
+- **Nothing was ranked.** Home drew ten equal-weight `StatGrid` cards —
+  `Employees 8` had the same visual authority as `Waiting reviews 0` — then an
+  embedded `TaskFeedSection` (its own search · filter chips · sort · grouped
+  list) below them. The screen answered *how many rows exist*, never *what
+  needs you first*.
+- **The numbers disagreed on screen.** A `Active tasks 4` hero card sat above a
+  feed strip reading `Late 1 · Pending review 0 · Unassigned 0`, from a
+  different source.
+
+**Manager Home is now the same ranked ladder the Admin command center was
+signed off on**, scoped to one branch: hero (greeting · one live state sentence
+· *branch name* · employees · running · one **New Task** CTA) → **Needs
+attention** (one grouped `AttentionPanel`: late · pending review · sent back ·
+unassigned · swaps, most-urgent-first, cleared ones collapsed to a footer, each
+a branch-pinned drill) → **Today** → **On shift today** → **Recent activity**
+→ **Operations** · **Quick actions** · Recent messages. Desktop puts the
+operational story in a flexible main column beside a fixed 360px launch rail.
+
+Every count now derives from the one live `TaskCubit` stream via
+`task_metrics.dart`, so a figure and the list its tap opens cannot drift apart;
+`StatisticsCubit` is left only for roster context, which no drill-down lists.
+The hero sentence and the attention panel read the **same** total through
+`dashboardMood(...)`. `Late` is drawn exactly once. The task browser was not
+deleted — it lives where it belongs, Branch Operations and its All-tasks list,
+reachable from *Recent activity → See all* and the Branch tasks quick action.
+
+**The V2 command-center chrome is now shared, not admin-private.** It had been
+~600 lines of private classes inside `admin_dashboard_screen.dart`; with a
+second caller it moved to `core/widgets/`: `PrimaryCta` · `SyncButton` (+ pure
+`syncLabel`) · `HeroMood` · `AttentionPanel`/`AttentionSignal` · `DigestPanel`/
+`DigestEntry` · `CommandHint`, plus `live_status_border.dart` (already used by
+three features) and `dashboard_mood.dart` → `core/utils/`. Admin Home renders
+identically — it now composes the primitives instead of owning them. Two
+behaviour improvements fell out of the extraction: the all-clear panel's
+"0 late · 0 pending review · …" proof line is **derived from the signals** the
+board actually watches instead of hardcoded, and a `DigestEntry` may omit its
+value so a door with no honest figure renders label + chevron rather than a
+placeholder dash.
+
+Fixed alongside, all found on device:
+
+- **Branch Operations: the FAB covered a real control (bug).** The extended
+  `New Task` FAB parked on top of the shift toggle, so the **Night** lens was
+  unreachable on a phone. New Task is now the screen's single `PrimaryCta` in a
+  labelled action row under the branch hero, beside **All tasks** (promoted out
+  of an unlabelled app-bar glyph — which also gave the branch name room). No
+  FAB, no collision.
+- **Attendance: `Working anyway? Start an unscheduled shift` overflowed by
+  7.6px (bug).** A min-sized `Row` with an unbounded `Text`; the label is now
+  `Flexible` inside a padded, min-height button and wraps.
+- **Workload cards: four zeros per idle employee (polish).** A caught-up branch
+  rendered one bordered box of `0 0 0 0` per person — a component that reads as
+  failed, repeated down the page. The strip and its spacing are now gated on
+  `EmployeeWorkload.hasFigures`; idle people collapse to a slim identity row so
+  the ones carrying work stand out by height alone. A zero cell also steps down
+  the grey ramp.
+- **`RoleScaffold`: the role word truncated to "Mana…" (polish).** It was the
+  first thing the manager's crowded action cluster ate, and it is redundant now
+  that every home opens with a hero that greets by name and names its scope.
+  The mobile app bar leads with the DROP mark alone; `title` survives as the
+  bar's accessible label and the desktop page-header title.
+
+New `test/manager_home_test.dart` (7 tests) pins the ladder on **both** tiers,
+the hero↔panel agreement, the all-clear state, `Late` appearing once, the
+branch-pinned drill, and `loadBranch` (not `loadAll`) for swaps.
+
+`macos/Podfile.lock` picked up `connectivity_plus` — a genuine lockfile
+catch-up from the first macOS build since the offline-gating work landed.
+
+**Two ATLAS tooling bugs found and fixed while syncing the cards** (`.nav/gen_atlas.py`):
+
+- **`ROOT` was a hardcoded absolute path.** The repo is worked in through git
+  worktrees under `.claude/worktrees/`, so *any* run from a worktree silently
+  regenerated the **main** checkout's cards from the **main** checkout's code —
+  dirtying a tree nobody was editing while leaving the worktree's own cards
+  stale. It now resolves from the script's own location.
+- **It erased the hand-authored half of every card on every run**, despite each
+  card's own header promising *"Hand-authored intelligence lives BELOW the
+  marker. Do not delete that section."* It emitted the `_TODO:` placeholders
+  unconditionally. That is why every card's judgment section was a field of
+  TODOs — the protocol's own "read the card first" step had nothing to read.
+  Regeneration now keeps anything below the marker that isn't still the seed.
+
+`.nav/features/manager.md` is the first card with real hand-authored
+intelligence: purpose, the invariants above, extension points, and its
+relationship to `features/admin` and `features/operations`.
+
+### Second pass — clickability, density, and the task info page
+
+Owner review of the rebuilt Home: *"why everything in 1 page in manager UI
+mobile? quick actions and operations … make the On shift today and Today's
+tasks way more clear and clickable … is that really nice to see too much text?
+this application is for a high-end company so care for every small detail."*
+
+**Everything on Home is now a door.**
+
+- **Today** was a `StatStrip`: number-and-label text on one flat surface, with
+  nothing saying it could be opened — and one cell, `Due soon`, that genuinely
+  couldn't be (no `TaskFeedFilter` reproduces `schedulePhase`'s precedence). It
+  is four `MetricTile`s, 2×2 on a phone and one row on desktop, each with an
+  `arrow_outward` affordance. The deadline cell is now **`Due today`**, counted
+  by the very `applyFeed(…, FeedPreset.dueToday, …)` call its drill-down
+  renders — the figure and the list are one computation, not two kept in step.
+- **On shift today** was four cells (`Team · On today · Morning · Night`) —
+  eight strings for one fact, and **none of them clickable**, on the half of a
+  manager's job that is entirely roster. It is one card: the count on shift,
+  the team as its denominator, the morning/night split as two hairline pills,
+  and a chevron into the weekly schedule.
+- `MetricTile` + `MetricTileRow` are new `core/widgets/` primitives, extracted
+  from Branch Operations' private `_StatTile` — that header now composes them,
+  so the two surfaces cannot drift into two dialects of one metric cell.
+
+**Less text.** The hero was four stacked lines before any control (eyebrow with
+`· Synced just now`, a two-line greeting, the mood sentence, and a scope line).
+The branch moved into the eyebrow, the scope line is gone (the Sync control
+already carries freshness; `8 employees · 0 running` is what the Today row is
+for), and `HeroMood` now omits its scope line entirely when passed an empty
+string. Section headers lost their subtitles.
+
+**Fewer sections.** **Quick actions is deleted on both tiers** — Branch tasks
+and Weekly schedule are bottom-nav destinations (sidebar + ⌘K on desktop) and
+Broadcast is the app-bar megaphone, so it was three cards of duplicated
+navigation at the foot of a long page. **Recent messages is desktop-only**:
+Chat is the fourth bottom-nav tab, and five conversation previews under an
+operations board was the page trying to be every screen at once. The
+attention panel's cleared footer wraps to two lines instead of truncating
+mid-word.
+
+**Task details — the info page (feature + polish; MED risk).** Owner: *"the
+header or the description of the task not clear, and assignment — from who? all
+of this needs to be way more easy to read."* Three faults, all structural:
+
+- **The task title was not on the page.** It lived only in the app bar, at
+  app-bar size, above a full-bleed branch cover. The body opened on a status
+  pill and seven metadata chips — you could not read what the work *was*. The
+  title is now the header's headline (`h2`, wraps, never ellipsized).
+- **The description was a separate section further down**, separated from its
+  own title by the whole assignment block. It now sits directly under the
+  title, and the standalone section is gone.
+- **The meta row printed everything it had** — up to eleven equal-weight chips,
+  including the branch (already named by the banner directly above it), the raw
+  `type` string ("special"), a `Normal` priority that is the default on every
+  task, an `Active` phase that only restates that an unfinished task is
+  unfinished, and a `Starts` date already in the past. Each of those is now
+  conditional; in the owner's own screenshot the row drops from **seven chips to
+  two**.
+- **Assignment answered only half its own question.** A name and role, a
+  hairline divider, then an orphan grey caption `Assigned by  Admin` — two
+  facts stacked with nothing tying them together. It is one lockup now:
+  the assignee, then an indented handover line (`↳ Assigned by **Admin**`) with
+  the giver's name reading white. The section is renamed **Assignment**, since
+  "Assigned to" named only one side of it.
+
+The activity timeline — the part the owner said works — is untouched.
+
+### Third pass — "on shift today" answers *who*, not *where to edit*
+
+Owner: *"when I click on 2 of 8 on shift today I want to click on it to see
+who's morning and who's night, not open the schedule and edit it — make it
+easy to see the schedule fast, for both manager and admin."*
+
+The coverage card pushed the weekly grid, which answers a different question:
+the grid is where you *change* a roster, and asked "who's in today" it costs a
+navigation, a week header, a day/shift hunt and a mental filter first. It now
+opens a **roster peek** — `showTodayRosterSheet` (bottom sheet on mobile,
+centred dialog on desktop): each shift with its hours and headcount, the people
+under it with avatar · name · role, and **Open weekly schedule** as the footer
+for when editing really is the intent. An empty shift is called out in the
+warning tone rather than left blank — "nobody is on nights" is the most
+operationally important thing this view can say.
+
+- The join is pure and unit-tested: `schedule/domain/today_roster.dart`
+  (`todayRoster(schedule:, members:, day:)` → per-shift rosters + hours,
+  sorted by display name), 7 tests in `today_roster_test.dart` covering the
+  both-shifts case, empty shifts, an unpublished week, per-slot hour overrides,
+  and a rostered uid that no longer resolves to a branch member.
+- That last one is **surfaced, not swallowed** — it is the only reason the
+  sheet's headcount could disagree with a count derived from the raw
+  assignment list, so the sheet says so in a footer line.
+- **The peek does not move a shared view.** `ScheduleCubit` is app-wide, so
+  loading from here would silently reset the Schedule tab to this week; if the
+  manager had paged forward, they'd come back to a different one. The sheet
+  reads in place when the cubit already holds (this branch, this week), and
+  otherwise remembers what it displaced and restores it on close.
+- Branch is a parameter, so admin gets the same sheet for any branch.
+
+Also shortened the calm hero headline from *"All caught up — nothing needs you
+right now"* to **"All caught up"**: the long form truncated to "…nothing needs
+you rig…" in the single-line hero on a phone, and its second clause only
+repeated the all-clear panel directly beneath it.
+
+**The all-clear panel was slimmed in the same pass** (owner: *"all clear takes a
+big space of the screen … ana msh ba7b za7ma"*). A 52px check, an `h3`
+headline, a full reassuring sentence and a wrapped `0 late · 0 pending review ·
+…` list came to roughly 230px — which made *nothing to do* the tallest thing on
+a calm board, and pushed Today below the fold. It is now one compact row: a
+34px check, the title, and the signal names phrased the way the active state's
+cleared footer already phrases them. The sentence is deleted (the hero says
+"All caught up" three lines above and the title says it again), so
+`AttentionPanel.clearMessage` is gone as a parameter. What it exists for
+survives: the green check, and the derived list of what was checked, so it can
+never read as a panel that failed to load. Applies to Admin Home too — it is
+the same shared primitive.
+
+Gates after this pass: analyze clean (1 pre-existing test-style info) · Dart
+**1504 pass / 0 fail**. Verified on the iPhone 17 simulator.
+
+Gates: analyze clean (1 pre-existing test-style info) · Dart **1482 pass / 0
+fail**; `manager_home_test.dart` grew to 10 (every Today tile is a door · the
+coverage card is one tap target · the hero carries one supporting line), and
+`task_start_gate_widget_test.dart` now expects the task title **twice** on
+Task Details (app bar + body headline). Re-verified on the iPhone 17 simulator.
+
+Gates: analyze clean (1 pre-existing test-style info) · Dart **1479 pass / 0
+fail**. Verified on the iPhone 17 simulator; the desktop tier is covered by the
+widget test rather than a screenshot.
+## 2026-08-03 — Chat stability & UX audit (bug; HIGH risk)
+
+**Uncommitted.** Six reported defects, each traced to a root cause rather than
+patched. The through-line: chat had grown two of everything — two delivery paths
+(socket + FCM), two identity sources (route args + directory), two notions of
+"the user is here" — and each pair had drifted.
+
+- **Header said "Conversation" (bug).** The FCM tap navigated with no `extra`,
+  so `ChatThreadArgs` was null and the title fell through to a hardcoded string.
+  Route args are now a **first-paint optimization, not the source of truth**: the
+  thread resolves its own name/avatar/role from the inbox summary + session
+  directory, so *every* entry point renders a real identity — including ones
+  that never carried args. Presence/online is still deliberately absent; the
+  backend has none and DROP does not fabricate it.
+- **Deep link re-initialized repeatedly (bug).** Two causes. The tap always
+  `push`ed, so tapping a notification for the thread already on screen stacked a
+  second screen **and a second cubit**, doubling loads, subscriptions and
+  rebuilds. And `load()` could emit a full-screen `loading` **over already-painted
+  cached content** — the "messages appear, disappear, appear" flicker. Chat deep
+  links are now idempotent, and a skeleton may never replace painted content.
+- **Back was trapped (bug).** `push` appended the thread to whatever stack
+  existed — on a cold start, nothing. Chat taps now build `thread ← inbox ← home`.
+  The other five routes keep their existing behaviour.
+- **Scroll jumped (bug).** Not ordering, keys or diffing — those were already
+  correct. `_ImagePlaceholder` reserved a hard **240×150** while the decoded image
+  sized to its own aspect ratio capped at 280, so a portrait photo **grew the row
+  ~130px the instant it decoded** and shoved every row below it. Image bubbles now
+  occupy one fixed viewport in every state. Size chosen as **240×280 — the
+  footprint a portrait photo already had** — because the stability comes from the
+  box being *fixed*, not from it being *small*; an earlier 240×150 draft would have
+  silently shrunk every photo to a cropped landscape thumbnail. The full-screen
+  viewer remains the uncropped path.
+- **No push while backgrounded (bug — a regression from the push feature above).**
+  Nothing in the app observed `AppLifecycleState`, so a backgrounded app kept its
+  socket in `conversation:{id}` and the server's "they're reading it" suppression
+  correctly skipped the push. The suppression was right; **the client was lying to
+  it.** New `ChatConversationPresence` makes presence honest — resume joins,
+  inactive/hidden/paused/detached leave — using the `conversation:leave` event
+  **both sides already implemented**, so no protocol or backend change. The cubit
+  takes `manageRealtimeRoom: false` so presence is the single owner of the room.
+- **Refetching (bug).** `getAttachmentDownloadUrl` was a bare network
+  pass-through, while the entity it returns already modelled `expiresAt`/
+  `isExpired` — built to be cached, never cached. So every scroll-back minted a
+  *new signed URL*, which meant Flutter's URL-keyed `ImageCache` missed and
+  re-downloaded the whole image. The repository now caches until expiry and
+  coalesces concurrent requests; a stable URL lets the framework's own cache work.
+  **No new dependency** — `cached_network_image` was rejected because a plugin
+  means `pod install` and risk to the iOS build under active device testing. The
+  cache is dropped on sign-out beside the other chat wipes: brokered URLs are
+  short-lived **credentials**, and a shared device must not carry them over.
+
+Audited and found **already correct** (left alone, which is the point): message
+ordering/dedup/optimistic slots, row `ValueKey`s, the lazy `ListView.builder`, the
+session-cached chat directory, and the Drift contract (metadata only, never image
+bytes).
+
+Gates: analyze 1 pre-existing info · **1487 pass / 0 fail**.
+
+> ⚠️ **Not device-verified.** The back-stack behaviour is the weakest claim: `go`
+> then `push` across a shell route has no test coverage and behaves differently at
+> runtime, especially on a cold start where an auth redirect can land between the
+> two calls. **Verify by hand:** kill the app, open a chat from a notification,
+> then press Back twice.
+
+## 2026-08-03 — Chat push notifications (feature; MED risk)
+
+**Uncommitted, and gated on a Railway deploy of `drop-api`.** Chat notifications
+did not exist. The only surface was `ChatNotificationListener`, a socket-driven
+in-app SnackBar that needs the app foregrounded and connected — background or
+kill the app and a chat message reached the user **nowhere**. Three independent
+confirmations: no chat push code in `functions/index.js`, no messaging code at
+all in the chat backend, and `NotificationRoute` had no chat value, so even a
+correctly-formed chat push would resolve to `null` and open the inbox.
+
+- **Backend (`drop-api`, uncommitted).** `ChatPushSubscriber` listens to the
+  same `MessageSentEvent` as `ChatRealtimeSubscriber` — the sibling seam both
+  that class's doc and `RealtimeModule`'s doc already named. New
+  `PushNotificationPort` + `FirebasePushAdapter` keep `firebase-admin` confined
+  to `src/platform/firebase/` (a documented rule), so the subscriber talks to a
+  port and never to the SDK. Device tokens are read from the Flutter project's
+  `users/{uid}.fcmTokens` with the service account the backend already holds;
+  dead tokens are pruned on `registration-token-not-registered` /
+  `invalid-registration-token`. Delivery is best-effort like its realtime
+  sibling — a push failure can never fail or block a committed send.
+- **Presence, the WhatsApp rule.** The push is suppressed only when the
+  recipient actually has *that conversation* on screen (new
+  `ChatGateway.isUserInRoom`, additive — `broadcast()` untouched). A recipient
+  who is connected but elsewhere in the app **still gets the push**; that
+  distinction is the difference between correct and annoying.
+- **The push says who it is from.** Title resolves
+  `displayName → fullName → email → 'New message'` from the same `users/{uid}`
+  document the adapter already reads for tokens — one extra field, no schema
+  change, no new column.
+- **Client.** `NotificationRoute.chat = 'chat_message'` plus its branch in the
+  shared resolver — no role gate (chat is available to everyone), falling back
+  to `/chat` when a malformed push carries no `conversationId`, mirroring the
+  existing cases/requests behaviour. `resolveNotificationRoute` stays pure.
+- **Foreground de-duplication.** Chat is now the only route with **two**
+  delivery paths, so both could fire for one message. Exactly one surface wins
+  per platform and the two suppressions are exact opposites: Apple keeps the OS
+  banner (the socket listener stands down via the new
+  `suppressesInAppChatBanner`), Android keeps the in-app banner (the chat FCM is
+  dropped before `onForeground`). **This deliberately preserves the pre-existing
+  app-wide rule** — no other notification type changed foreground behaviour.
+  An earlier draft achieved de-duplication by disabling iOS foreground
+  presentation *globally*, which would have silently changed how task,
+  attendance, case, request and broadcast pushes appear on iOS; that was
+  reverted in favour of the chat-only fix.
+
+Gates: analyze 1 pre-existing info · Dart **1481 pass / 0 fail** (+9) ·
+`drop-api` **105 pass / 0 fail** (+21) · `nest build` clean.
+
+> ⚠️ **Not device-verified, and inert until `drop-api` ships to Railway.** The
+> client half is live-safe on its own (an unknown route was already a guarded
+> no-op), but no push will arrive until the server half is deployed.
+>
+> Still fake, and out of scope for this pass: the **mute toggle** in
+> `chat_conversation_screen.dart` is a local `bool` that never persists and
+> resets on close. Now that chat actually pushes, a mute that does nothing is
+> materially worse than before it did.
+
+---
+
+## 2026-08-03 — Merge conflict repair on PR #25 (bug; LOW risk)
+
+Merging `claude/ui-fix-608998` into `release/v1-preparation` (PR #25, `6584808`)
+had five conflicting files. Three resolved correctly; two silently dropped one
+side's content, and neither loss produced an error — the tree compiled and the
+suite stayed green, so only a side-by-side diff against both parents found them.
+
+- **`broadcast_templates_screen.dart` (bug).** The resolution took the release
+  side's rewrite of the file wholesale but kept the feature side's *import* of
+  `app_error_state.dart` — so the error branch fell back to `AppEmptyState`
+  while carrying an unused import. This was one of the **six surfaces** the
+  entry below claims got `AppErrorState` + Retry; the code no longer matched
+  that claim. Restored to `AppErrorState` with
+  `onRetry: () => context.read<BroadcastTemplateCubit>().load()`.
+- **`firestore-tests/README.md` (doc).** Both sides appended a bullet to the
+  coverage list; the resolution kept only the feature side's **Notifications**
+  bullet and dropped the release side's **Attendance corrections** one. Restored.
+- **Verified intact:** `functions/index.js` (both sides carried the same
+  `isReminderEligibleStatus` extraction, so taking one was lossless),
+  `CHANGELOG.md`, and `CURRENT_STATE.md` — whose dropped *"Failing tests (2)"*
+  section is a correct removal, not a loss, since the splash failures were
+  fixed the same day.
+
+Gates, all re-run on the merged tree: analyze 1 pre-existing info · Dart **1472
+pass / 0 fail** · functions **83** · rules **61**.
+
+> **Also corrected: every test count in `CURRENT_STATE.md` was stale**, and the
+> file disagreed with *itself* — the At-a-glance table claimed 72 functions / 53
+> rules while the verification block below it claimed 68 / 37, the exact
+> "three different test counts in one file" failure the doc rules were written
+> to prevent. Real figures are above; route-name count corrected 51 → **53**.
+
+---
+
+## 2026-08-03 — Bundled typeface + premium empty / error / loading states (polish + bug; LOW risk)
+
+Branch `claude/ui-fix-608998`, **merged into `release/v1-preparation`** via PR
+#25 (`6584808`). Presentation only — no cubit, repository, rules or payload
+change.
+
+- **Typeface is now bundled (bug).** Every style pointed at the string
+  `'SF Pro Display'` while `pubspec.yaml` shipped **no font at all**, so the name
+  resolved to the system face on Apple platforms and fell back to **Roboto on
+  Android** — the app rendered in two different typefaces depending on platform.
+  **Inter** (400/500/600/700) now ships in `assets/fonts/`, `AppTypography`
+  exposes one public `fontFamily` constant, and both `ThemeData`s carry it so
+  unstyled text inherits it too. The five widgets that hardcoded the family
+  string now reference the constant. ⚠️ **Inter is an unconfirmed stand-in** for
+  the face in the owner's redesign mockup — the swap is one constant if wrong.
+- **Empty bar on a first-run Home (bug).** Every cell of the employee Home stat
+  strip is gated on a non-zero count, and its "Nothing to do" phrase needs
+  `total > 0` — so an employee with no tasks (or whose only open item is a
+  *rejected* task, which has no chip) got a bordered container with nothing in
+  it, reading as a component that failed to load. `_StatStrip.hasContent` now
+  gates the strip **and its spacing**, and shares the cell-building helpers with
+  `build` so the gate cannot drift from what is drawn.
+- **Rework has a figure of its own (polish).** Rejected work counted toward
+  `open` but had no chip, which is *why* the rejected-only case produced a blank
+  strip — and meant the strip stayed silent while work sat below waiting to be
+  redone. A **Rework** chip now leads the strip (ahead of To do / Active), using
+  the same `replay_rounded` glyph as the "Needs attention" section it refers to.
+  Verified at the five-column worst case: no ellipsis at 402pt.
+- **New `test/employee_home_stat_strip_test.dart`** (3 cases) pins all of it —
+  strip absent on a first run, present-with-Rework on a rejected-only day, and
+  collapsing to "Nothing to do" when there is history but nothing open. The first
+  two were confirmed to **fail against the pre-fix code**; text assertions alone
+  could not catch this bug, since the broken strip rendered no text either.
+- **Empty states are one crafted object (polish).** New
+  `core/widgets/empty_state_medallion.dart` — halo, two concentric hairlines and
+  a top-lit disc, strictly monochrome — replaces the flat grey glyph in
+  `AppEmptyState` and the bare faded mark in `DropEmptyState`. New public
+  `EmptyStateBody` holds the shared title/message/action rhythm and a 264px
+  measure. Because the two core states kept their APIs, all **~39** call sites
+  (task lists, pending review, My Tasks tabs, inbox, cases, requests, branch
+  lists) inherit it; Home's bespoke in-card empty state now composes the same
+  pieces at `size: 84`.
+
+- **A failure looked exactly like an empty screen (bug-adjacent).** Screens
+  rendered errors through `AppEmptyState` with an error glyph, so "the request
+  failed" and "you have nothing" were the same picture — and most offered no way
+  out. New `core/widgets/app_error_state.dart`:
+  - `AppErrorState` — full-area failure. Same medallion silhouette, tinted with
+    the semantic error tone (status colour expressing status, ADR-004), plus a
+    **Retry** control. Adopted in notifications, communications, broadcast
+    templates + schedules, branch operations and cases — **six surfaces that had
+    no retry, or a bare `TextButton`, now have the same one.**
+  - `AppProblemPanel` — the inline banner that existed as **three byte-identical
+    private `_ProblemPanel` copies** in the attendance weekly / monthly / daily
+    screens. Deduped into core, with optional retry.
+  - `EmptyStateMedallion` grew an optional `tone` so one silhouette serves both
+    "nothing here" (monochrome) and "this failed" (error-tinted).
+- **Loading states (polish).** `Skeleton`'s sweep ran `darkSurface` →
+  `darkSurfaceElevated` — a 6-value step, invisible on a card already painted
+  `darkSurface`, so every skeleton read as a dead grey slab. It now rests one
+  surface above its card and sweeps through a real highlight. Centred
+  `CircularProgressIndicator` bodies in cases, swap view, the attendance admin
+  workspace and daily review were replaced with the skeleton language so the
+  screen keeps the shape of what is arriving. In-button and in-sheet spinners
+  were deliberately left alone.
+
+### Offline policy: gate the actions, never the app (feature; MED risk)
+
+Asked for as a hard "the app does not open without internet", then **reversed
+the same session** once the consequence was spelled out — the shipped behaviour
+is the second design.
+
+**Why the wall was wrong here.** Clock-in happens *at a branch*, which is
+exactly where signal is worst — and attendance was built to survive that:
+`attendance/{uid}_{yyyyMMdd}_{shift}` is deterministic, so a write that replays
+late cannot duplicate. A launch gate broke the highest-value, lowest-risk
+offline case in the product, made the (deliberately enabled) Firestore cache
+useless, and had no override: the reachability probe is a DNS lookup, so a
+network throttling that one host would strand a user outside the app entirely.
+
+What shipped instead:
+
+- **`core/network/connectivity_service.dart`** — unchanged from the first pass
+  and the hard part. ⚠️ `connectivity_plus` reports the network *interface*, so
+  a captive portal or a dead upstream both report `wifi`. The interface is the
+  **trigger**; a DNS lookup of `firestore.googleapis.com` (5s) is the
+  **verdict** — "can this app reach its backend", not "is the internet up". No
+  interface short-circuits the probe.
+- **`core/widgets/connectivity_scope.dart`** — `ConnectivityScope` (inherited
+  state, mounted outermost in `main.dart`'s router builder), `OfflineBar`, and
+  the `requireOnline(context, action:)` guard.
+- **`OfflineBar`** is permanent while offline and names *when* the connection
+  dropped ("Offline since 18:15 — showing saved data"). A snackbar cannot stop a
+  manager trusting a stale roster ten minutes later; the timestamp answers the
+  question stale data actually raises. It takes the status-bar inset itself and
+  removes it from the child, so screens below lay out exactly as they do online.
+- **Gated:** every review decision — approve / request rework / reject — across
+  all four surfaces that carry them (`submission_details_sheet`,
+  `task_details_screen`, `task_action_sheets/review_sheet`,
+  `task_feed_expansion`). **Not gated:** reads, and clock in / out.
+- `requireOnline` defaults to **allowing** the action when no scope is above it,
+  so a widget tested in isolation is never accidentally offline.
+- New `test/connectivity_scope_test.dart` (8 cases) covering the false-online
+  verdict, that the app is never blocked, and both sides of the action gate.
+
+**The write guard (the part that actually closes this).** Gating UI buttons was
+never enough: with persistence on, *any* write issued offline is accepted into
+the cache, reported as a success, and replayed later — so a manager creates a
+task, sees it confirmed, nobody receives it, and it arrives an hour on. That is
+the silent delay the whole exercise was about.
+
+- **`core/network/network_guard.dart`** — `NetworkGuard.ensureWritable()` throws
+  the new `OfflineFailure` when there is no connection. Placed as the first
+  statement of every **write** repository method: **58 explicit call sites**,
+  plus the admin repository's `_run` helper which covers a further 9 in one
+  place. Reads never call it — serving a cached roster is the point of the cache.
+- It lives at the repository layer on purpose. Cubits already `catch (Failure)`
+  and emit their error state, so this surfaces on every screen with **zero
+  per-screen work** — and any *future* UI calling an existing repository method
+  is covered automatically. Guarding the 81 UI call sites instead would have been
+  complete today and decayed on the next screen.
+- ⚠️ **A cached flag, not a live probe.** The DNS lookup takes seconds; running
+  one in front of every write would put that on the happy path. `ConnectivityScope`
+  keeps the flag fresh from the same stream the bar uses.
+- ⚠️ **Defaults to online.** A test or script that never installs a status must
+  behave exactly as before — failing closed would turn a missing wire-up into
+  "every write in the app is broken".
+- **Exempt: `clockIn` / `clockOut`.** Pinned by a test, not just a comment.
+- **Not guarded, deliberately:** the three chat methods on the NestJS backend
+  (`startConversation`, `deleteMessageForMe`, `deleteMessageForEveryone`). They
+  go over HTTP, not Firestore, so they already fail loudly offline — there is no
+  silent queue to prevent.
+- New `test/offline_write_guard_test.dart` (4 cases): the online default, a
+  guarded write throwing and **never reaching the datasource**, clock-in still
+  writing while offline, and recovery.
+
+Still open: **Firestore offline persistence stays enabled** and now agrees with
+this design rather than contradicting it — the cache serves reads, and writes are
+refused honestly. Not exercised against a real radio — airplane mode and a
+captive portal on device are still untested.
+
+### Chat inbox N+1 removed — server now serves the preview (feature; MED risk)
+
+**Cross-repo.** Backend `~/Desktop/Developer/drop-api` (branch
+`feature/chat-backend`) + this app. **Not deployed** — the server half must ship
+first, but the client works either way (see below).
+
+The inbox issued one extra request per visible row because
+`ConversationListItemResponseDto` carried `lastMessageAt` but not the message,
+with the comment *"Last-message preview is intentionally absent"*. Checking the
+spec, that was not a decision: **FR-021 already requires the list to indicate a
+preview of the latest message.** The DTO was a deviation, so this implements the
+spec rather than reversing anything — no ADR needed.
+
+The cost turned out to be near-zero: `conversation.last_message_id` is a real FK
+the write side already maintains, so the preview is a **join**, not a query per
+row. Ten conversations went from **eleven requests to one**.
+
+- **Backend:** `LastMessagePreview` on the repository port; `include:
+  { lastMessage: true }` on the list query; the field threaded through view →
+  use case → DTO. One extra batched lookup honours **delete-for-me** — a message
+  the requester deleted for themselves is still the conversation's
+  `lastMessage` for everyone else and must be withheld from *their* inbox.
+  Payload is unformatted (`type` / `body` / `deletedForEveryoneAt`) so preview
+  wording stays in one language, on the client. +3 spec cases; **92 pass**.
+- **Client:** additive `ChatLastMessage` on the summary + `chatLastMessagePreviewText`.
+  ⚠️ **The per-row fallback was kept on purpose** — the deployed server does not
+  send the field yet, and removing the fallback would blank every preview until
+  the API ships. +8 cases covering both the served and the omitted shape.
+
+### Chat inbox state churn (bug; LOW risk)
+
+Owner report: "every time I open chat it keeps requesting things, and something
+changes every second." Diagnosed by reading the path, not by profiling a live
+session — the API was not available here.
+
+**Root cause is structural: the inbox is N+1.** `ChatConversationSummary`
+carries `lastMessageAt` but **not the message**, so `ChatScreen` fires one
+`latestChatMessage(id)` per visible row on open. Ten conversations = ten extra
+requests. That is by design today (`chat_conversation.dart`: *"Last-message
+previews remain client-resolved"*), and the real fix belongs in the NestJS list
+DTO — **not done here**.
+
+Three client-side defects sat on top of it and were fixed:
+
+- **A retry loop.** A lookup returning `null` removed the id from
+  `_previewFetching` but never recorded a result, so `containsKey` stayed false
+  and the row re-queued its fetch on **every rebuild** — and since each landing
+  lookup triggered a rebuild, the two fed each other. `ChatListCubit` now
+  distinguishes *resolved-empty* from *not-yet-resolved*.
+- **N full-screen repaints.** Every resolved preview called `setState`
+  individually, so a ten-row inbox repainted itself ten times in under a second
+  — the visible "everything keeps changing". Results are now written to the
+  cache as they land and a **single** repaint is scheduled for the batch (60ms
+  coalescing window).
+- **The memo died with the screen.** It lived on `_ChatScreenState`, so walking
+  into a conversation and back re-fetched every row. It now lives on the
+  app-wide `ChatListCubit` — resolved once per session. ⚠️ Deliberately placed
+  where `reset()` already clears it, so one account's previews can never appear
+  in the next account's inbox on a shared device.
+
+Not changed: `ChatListCubit.load()` (already idempotent, cache-paints before the
+network, and freezed's `DeepCollectionEquality` suppresses duplicate emits) and
+`ChatMessageList` (its `didUpdateWidget` guards are sound). The churn was not
+there.
+
+New `test/chat_preview_cache_test.dart` (5 cases), including the account-switch
+clear.
+
+### Splash centering — the suite is green again (bug; LOW risk)
+
+`splash_centering_test.dart` had been failing for weeks, written off in the docs
+as "either the layout regressed or `kSplashOpticalLift` changed". Neither guess
+was right: there were **two independent bugs**, one on each side, and they
+partly masked each other.
+
+- **The test mixed coordinate spaces.** `getRect` reports a box *as painted*, so
+  it already carries the centre-anchored `kLogoManualScale` (1.5×). The test then
+  added the **unscaled** artwork inset to that already-scaled rect — the dead
+  space above the artwork is magnified too. Worth ~9px.
+- **The page's lift formula never knew about the scale.** It predated
+  `kLogoManualScale` (owner-tuned by eye 2026-07-05), so the framing it produced
+  **drifted with window size** — a real 65.5px lift at 1440×900 but 61.6px at
+  1024×720 — while `kSplashOpticalLift` claimed 50 at both. The formula also
+  still carried a `kLogoVisualCenterOffset` term left over from an earlier
+  "centre the artwork" approach, which is not what the bbox framing needs.
+
+Fixed on both sides. The lift is now derived from the **visible** geometry
+(artwork inset × scale, minus the box's centre-anchored growth), and
+`kSplashOpticalLift` was set to **65.5** — the measured value of the framing the
+owner actually signed off. Net effect: **zero pixel change at 1440×900**, and
+1024×720 moves up ~4px to match it instead of drifting. The owner tuned pixels,
+so the pixels were treated as the specification and the constant was corrected to
+tell the truth about them.
+
+`kLogoVisualCenterOffset` is retained — it is still documented and separately
+pinned by `splash_visual_centering_test.dart` — but no longer feeds the lift.
+
+**`flutter test` is now fully green: 1457 pass, 0 fail.** That matters beyond
+this test: with two permanent failures, a genuine regression had somewhere to
+hide.
+
+Verified: `flutter analyze lib test` at the documented baseline (1 pre-existing
+test-style info); suite **1470 pass / 0 fail** (+30 new this branch); backend `npx jest` **92 pass** — no
+regressions. Geometry was confirmed by measuring the real widget at both window
+sizes, not by algebra alone. Not device-verified.
+## 2026-08-03 — Explicit broadcast delivery and premium templates (feature + polish; MED risk)
+
+- The New Broadcast composer now defaults to the visible **Push + Inbox** delivery
+  choice, with **Inbox only** as the only alternative. `sendsPush` travels through
+  the callable and schedules; the Cloud Function retains category-based fallback
+  for legacy payloads. Emergency keeps its separate high-priority treatment.
+- The composer leads with title and message, puts delivery before the nested
+  routing configuration, and retains the sticky send action. Templates now have
+  a structured monochrome library summary without changing library/picker/editor
+  behavior.
+
+Risk: MED — delivery wiring spans client, schedules, and the server; the fallback
+keeps existing scheduled broadcasts compatible.
+
+---
+
+## 2026-08-02 — Notification subjects and complete employee broadcasts (polish + bug; LOW risk)
+
+Because `title` is a pure `switch (type)` in every producer, `body` is the only
+line that can say *which* thing a row is about — so a body naming nothing gives
+you a column of identical rows. Tasks were fixed for this on 2026-08-01; cases,
+requests and attendance never were.
+
+- Case status, request lifecycle/comment, and attendance correction/auto-close
+  bodies now lead with their subject, then the event context after ` • `.
+  Attendance gains the shift and Cairo business date (`Morning shift, 2 Aug`),
+  so two missed clock-outs are no longer indistinguishable rows.
+- **Requests use the requester's own `details.message`, deliberately not
+  `lastEventPreview`.** That field is a *rolling* preview of the most recent
+  timeline event, so by the time a request is approved it may hold the latest
+  comment — giving "sounds fine to me • Approved". `details.message` is written
+  once and is the same string the opening notification used, so every row for
+  one request names the same thing. `lastEventPreview` stays as a fallback (it
+  equals the reason at creation), then the durable `REQ-######`.
+- Case notifications remain identity-free — only `subject` is used, never a
+  reporter name or uid.
+- An employee broadcast has no Communications detail route to open, so its
+  non-navigable row was truncating the message at five lines with nowhere to
+  read the rest. It now renders in full. Navigable subjects remain exactly one
+  line — that cap is load-bearing, a wrapping subject makes every card a
+  different height.
+
+Gates: analyze clean (1 pre-existing info) · Dart 1441 pass / 2 pre-existing
+splash failures · functions 82 pass · rules 61 pass.
+✅ The server-side body changes are **deployed 2026-08-02**; the tile change
+ships with the app build.
+
+---
+
+Gates: analyze clean (1 pre-existing info) · Dart **1442 pass / 2 pre-existing
+splash failures** · functions **83 pass** · rules **61 pass**.
+⚠️ The `sendsPush` field is honoured server-side — **needs a Cloud Functions
+deploy**. Deploy the server before shipping an app build that sends it;
+until then broadcasts fall back to the old category-derived delivery.
+
+---
+
+## 2026-08-03 — iOS push: UIScene silently swallowed the APNs token (bug; MED risk)
+
+APNs keys correct, Bundle ID correct, entitlement signed, permission
+`authorized` — and `getAPNSToken()` still returned null forever. The cause was
+the **UIScene lifecycle**, which ships in the stock Flutter 3.44.2 template.
+
+`firebase_messaging` receives the APNs token only through
+`[_registrar addApplicationDelegate:self]` — Flutter's `UIApplicationDelegate`
+forwarding — and sets it via `[FIRMessaging setAPNSToken:]`. Flutter 3.44 added a
+*separate* `addSceneDelegate:` path for scene-based apps, and
+firebase_messaging 15.2.10 **never calls it** (zero occurrences in the plugin).
+With `UIApplicationSceneManifest` active the callback never reaches the plugin,
+so the token is never set and every later step is dead. Android was untouched —
+none of this exists there.
+
+**Proven by A/B on the physical iPhone**, not by inspection:
+
+| Run | Config | `getAPNSToken()` |
+| --- | --- | --- |
+| 1 | DROP, scenes ON | null ×10 |
+| 2 | brand-new `flutter create` 3.44.2 + fbm 15.2.10, scenes ON | null ×10 — identical, so **not DROP-specific** |
+| 3 | same control, **scenes OFF** (only variable changed) | **token on attempt 1**, FCM token minted |
+| 4 | same control, scenes ON + manual `Messaging.apnsToken` in AppDelegate | null ×10 — the AppDelegate override is **not** sufficient |
+
+Run 4 is why the fix is removing the manifest rather than a three-line
+AppDelegate forward: under scenes the callback does not execute at all, so there
+is nothing to forward.
+
+- **Fix:** removed `UIApplicationSceneManifest` from `ios/Runner/Info.plist`.
+  `SceneDelegate.swift` is left on disk but is never instantiated without the
+  manifest, so it is inert — that is exactly how run 3 was configured.
+- **Trade-off:** DROP opts out of iOS 26 multi-window / multi-scene. It was
+  already opted out functionally (`UIApplicationSupportsMultipleScenes: false`)
+  and is a single-window app, so nothing observable is lost. Revisit when
+  firebase_messaging adopts `addSceneDelegate:`.
+
+Verified on the physical iPhone: `APNs token acquired` on the first attempt ·
+`FCM token` minted · `token written to users/{uid}.fcmTokens` · Firestore
+`fcmTokens` 0 → 1 · a real push logged `tokenCount:1 successCount:1
+failureCount:0`, which also confirms the APNs key on `com.ziad.drop`.
+
+Gates: analyze clean (1 pre-existing info) · Dart 1441 pass / 2 pre-existing
+splash · functions 82 · rules 61.
+
+---
+
+## 2026-08-03 — iOS push: the app was registering as the wrong Firebase app (bug; MED risk)
+
+APNs keys were uploaded, yet iOS still could not have received a push. The cause
+was not the credential — it was identity.
+
+**Xcode builds `com.ziad.drop`. Both `lib/firebase_options.dart` and
+`ios/Runner/GoogleService-Info.plist` described `com.example.fbro`** — a
+*different* Firebase iOS app (`…f1d3167839a737155a0bc0`). The project has three
+registered iOS apps, which is how this went unnoticed. Because `main.dart`
+initializes with `DefaultFirebaseOptions.currentPlatform`, the Dart values win
+over the plist, so **fixing only the plist would not have helped.** An APNs key
+is attached per iOS app, so tokens were minted against an app the sender never
+targets, and every push silently went nowhere. Android was unaffected — its own
+`google-services.json` was always correct — which is exactly why this looked like
+"Android works, iOS doesn't".
+
+Both now point at `1:450092605249:ios:c938624f6a08c77d5a0bc0` (`com.ziad.drop`),
+with the correct `iosClientId`. macOS shared the same wrong id and the same
+bundle id, so it was corrected too.
+
+- **iOS foreground notifications** now appear: `NotificationService.init` calls
+  `setForegroundNotificationPresentationOptions`, gated to Apple platforms. The
+  in-app snackbar is suppressed there so the OS banner cannot double-notify;
+  **Android keeps the snackbar exactly as before**, since a foreground push on
+  Android reaches `onMessage` only and the OS shows nothing.
+- **APNs token race fixed.** `registerToken` aborted whenever `getAPNSToken()`
+  returned null — routine on a cold start, since the auth listener fires the
+  moment sign-in completes. The old comment claimed `onTokenRefresh` would
+  re-register later, but that stream fires only when the **FCM** token *changes*;
+  on a returning device it never fires, so the token never reached
+  `users/{uid}.fcmTokens` and every push to that device vanished. Now polls up
+  to ~5s before giving up.
+
+Audited and deliberately left alone: `AppDelegate.swift` (firebase_messaging
+15.2.10 has swizzling enabled — it calls `registerForRemoteNotifications` and
+implements `didRegisterForRemoteNotificationsWithDeviceToken` itself, so adding
+them would duplicate or conflict), and `aps-environment=development` (Xcode
+rewrites it to `production` when exporting a distribution archive).
+
+Verified in the built artifact: the `.app` carries `CFBundleIdentifier`
+`com.ziad.drop`, a `GoogleService-Info.plist` whose `BUNDLE_ID` matches it,
+`UIBackgroundModes: [remote-notification]`, `MinimumOSVersion 13.0`.
+Gates: analyze clean · Dart 1441 pass / 2 pre-existing splash · functions 82 ·
+rules 61 · `flutter build ios --no-codesign` succeeds.
+
+⚠️ **Still unverified from here:** actual delivery needs a physical iPhone, and
+the APNs key must sit on the **`com.ziad.drop`** app in Firebase — not one of the
+other two iOS entries.
+
+---
+
+## 2026-08-02 — Notification delivery guarantees (bug; MED risk)
+
+- **Scheduled broadcasts:** claim the queried due instant transactionally before dispatch and finalize only after it. A failed claimed dispatch is deliberately consumed and logged at error level; if finalization is uncertain, the durable claim prevents an org-wide duplicate.
+- **Approved swaps:** `approveSwap` now server-writes one `swapApproved` inbox doc per party after its atomic roster exchange, so manager app termination cannot lose both notices. The duplicate client producer was removed; notification-write failure remains best-effort.
+- **Cases:** `changeStatus` stamps the authenticated manager/admin in `statusChangedBy`; reopen notices exclude that actor without exposing an identity in any notification content.
+- **Broadcast pushes:** one retry is allowed only for transient/thrown Admin Messaging sends. Dead/invalid tokens remain prune-only, and final delivery logs include real success/failure counts.
+
+The client half of the swap change ships with the app build; everything else is
+server-side. ✅ **Deployed 2026-08-02** — functions went out *ahead* of any app
+build carrying the client change, which is the correct order: shipping the build
+first would have left approved swaps announced to nobody.
+
+Gates: analyze clean (1 pre-existing info) · Dart 1440 pass / 2 pre-existing
+splash failures · functions 80 pass · rules 61 pass.
+
+---
+
+## 2026-08-02 — A correction could overwrite someone else's attendance (bug; MED risk)
+
+Found while auditing attendance *notifications* — the notification deep-linked the
+employee to a record they could not read, which is what exposed it.
+
+`attendance_corrections` bound `userId`, `requestedBy`, `status` and `branchId` on
+create, but **never `attendanceId`**, and `applyCorrectionResolution` trusted it:
+it fetched that record and called `ref.update()` with no check that the record's
+owner matched the correction's. Since record ids are deterministic
+(`{uid}_{yyyyMMdd}_{shift}`) and branch members can read own-branch users, a
+victim's id is constructible — so an employee could file a correction carrying
+their own `userId` and someone else's `attendanceId`, and a manager approving it
+would overwrite that person's clock times, worked minutes, lateness and overtime.
+The same gap let a manager evade the no-self-approval rule (rule (b) only checked
+`uid != userId`) by naming their own record.
+
+- **Rules:** both create branches now require the `attendanceId`'s owner prefix to
+  equal the correction's `userId`, and deny a malformed id outright. This is an
+  id-prefix check rather than a `get()` of the attendance doc **on purpose** —
+  manager "Add record" legitimately files against a record that does not exist yet,
+  which an `exists()` check would deny.
+- **Server (defence in depth):** `applyCorrectionResolution` returns a boolean and
+  refuses when an existing record declares a different `userId`, or when a
+  to-be-materialized id's prefix does not match. Both call sites now suppress the
+  approval notification on refusal — telling someone their correction was applied
+  when it was not is worse than silence.
+- **Tests:** new `firestore-tests/attendance_corrections.rules.test.mjs` (8 cases;
+  the collection previously had **no** rules test at all) plus pure Functions
+  coverage of the guard.
+
+Gates: analyze clean · Dart 1440 pass / 2 pre-existing · functions 76 · rules 61.
+✅ **Rules + functions deployed 2026-08-02** — the hole is closed in production.
+
+---
+
+## 2026-08-02 — Task notification path hardening (bug; HIGH risk)
+
+Found by an end-to-end audit of the task-notification path (backend + client,
+both platforms). Four fixes; the reminder bug and the rules hole were both live
+in production.
+
+- **Notification rules (P0):** the `notifications` update rule checked only the
+  OLD doc and restricted no fields, so a recipient could rewrite `recipientUid`,
+  `title`, `body`, `type`, and `payload` — moving forged content into another
+  user's inbox with a deep link of their choosing. Updates are now confined to
+  `readAt` / `archivedAt` / `pinnedAt`. New `firestore-tests/notifications.rules.test.mjs`
+  pins it (6 cases) alongside the unchanged read/delete/create behaviour.
+- **Task reminders (P1):** the terminal set was only `{approved, rejected}`, so
+  `runTaskReminders` kept sending "Task Late" pushes for work already auto-closed
+  as **Missed** or explicitly **Cancelled** — contradicting the Automated Tasks
+  spec §8. `missed` and `cancelled` are now excluded. The predicate moved to its
+  own `functions/task_reminders.js` (matching `recurring_task_deadline.js`) so a
+  test can reach it without loading the whole functions entry point. `rejected`
+  stays excluded on purpose — the reviewer owns rework — and the module comment
+  now says why, so it does not get "simplified" into `isTerminalTaskStatus`.
+- **iOS push app configuration:** added the development APNs entitlement,
+  Runner signing wiring, and `remote-notification` background mode. AppDelegate
+  is unchanged: Firebase Messaging swizzling handles APNs forwarding, and the
+  app deliberately retains its own foreground snackbar rather than doubling it
+  with an OS banner. Delivery still awaits the APNs credential.
+- **Android push:** FCM now uses the named, high-importance `drop_default`
+  channel created at app launch. A monochrome notification icon remains design
+  work; no placeholder asset was added.
+
+---
+
+## 2026-08-01 — Three controls on the reports that could never work (bug; LOW risk)
+
+Owner asked whether the weekly/monthly reports and the PDF export actually work.
+Auditing them found the reports themselves sound and three controls that were not.
+
+**"Close week" / "Close month" deleted.** Both were the *primary action* of their
+report — filled style, padlock icon, top of the page — and both were hardcoded
+`onPressed: null`. They could never do anything. Worse, they advertised the one
+behaviour the product deliberately refuses:
+[ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md) decides a
+week is **reviewed, never locked** — *"no write is rejected, no rule enforces it,
+no period becomes immutable."* The real mechanism already ships as the **Week
+review** section at the foot of the weekly report: it records who looked and when,
+and is reversible by Reopen. A padlock at the top contradicted it.
+
+**Two stale "Daily review is coming next" toasts wired up.** Daily Review shipped;
+the weekly report's own day table opens it. Yet both "Review these" buttons still
+toasted that it was coming.
+- Weekly → jumps to the **earliest day that still has a blocking decision**, and
+  disables itself when nothing is open rather than sending a manager to a settled
+  day.
+- The coverage widget's button is now **slot-based** (`onReviewOpen`); it knows a
+  count, not a branch or a period. **Null hides the button** instead of rendering
+  one that cannot act. The reports hub supplies the destination.
+
+Verified working and untouched: **the weekly PDF and timesheet CSV are real** —
+`buildWeeklyAttendancePdf` / `attendanceTimesheetCsv`, written via `path_provider`
+and handed to the system viewer, covered by three test files. They are gated by
+`attendanceExportAvailability`: manager/admin, rows exist, and **zero unsettled
+shifts** — a deliberate refusal to emit a document that would change later.
+
+Still genuinely not built (labelled honestly in the UI): the **monthly** PDF and
+spreadsheet.
+
+Suite **1440 pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+---
+
+## 2026-08-01 — History showed "No matches" for a person it had just counted (bug; MED risk)
+
+Owner screenshot: searched **"ziad"** in Attendance history. The summary strip
+said **1 Absent**. The list underneath said **"No matches — try widening the date
+range or clearing a filter."** The range was fine.
+
+The two halves of that screen read different sources. The summary comes from the
+**expectation ledger**, which has a row for every rostered shift including the
+ones nobody worked. The list comes from **attendance records** — and an absence
+deliberately has no record (`ATTENDANCE_SPEC` R13: *"Absent stays virtual… No
+phantom documents"*). That is the right storage decision and the wrong reading
+decision: the one day a manager asks about is the one day that renders nothing,
+under an empty-state that blames the filters.
+
+- New pure `attendanceHistoryGaps()` (`attendance_history_gap.dart`) — the
+  rostered shifts in the already-streamed ledger that have **no record**, narrowed
+  by the same text / shift / status facets the record list uses, so the two halves
+  can never disagree again. No new read, no new query, no minute math.
+- The list interleaves records and gaps chronologically, newest first. A gap
+  renders as a quieter, **deliberately non-tappable** card — there is no record to
+  open, and a dead tap target teaches a manager the screen is broken.
+- A gap can only satisfy facets that describe *not working*; asking for "Late" or
+  "Overtime" is asking about a record, so gaps drop out rather than padding a
+  filtered list with rows that cannot match it.
+
+**Removed "Payroll blockers"** from the summary strip. DROP does no payroll — it is
+a named scope guardrail (ADR-009/ADR-010) — so putting the word on a ledger the
+owner reads daily promised something the product does not do. The same count now
+reads **"Needs a decision"** and appears only when it is non-zero.
+
+**Removed the Today subtitle** *"Who is here, late, absent, or needs a decision"* —
+the counts and the grouped rows underneath already say it.
+
+Tests: `test/attendance_history_gap_test.dart` (8 cases), including the literal
+reproduction — search "ziad" against a ledger holding one absence and no record.
+Suite **1440 pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+---
+
+## 2026-08-01 — Attendance starts with Today (feature; LOW risk)
+
+Attendance & Reports now opens the existing live board rather than the reporting
+hub. Managers see their own branch; admins explicitly choose a branch. The board
+groups people into needs a decision, present/working, late, and absent, with
+Reports and Person history as direct next steps. An unscheduled clock-in now has
+plain **Mark present** copy that reuses the existing audited direct-resolution
+path; an explicit **Leave unapproved** action preserves the exception. `/admin/attendance` redirects to
+Today, avoiding two live board destinations. [ADR-021](docs/decisions/ADR-021-attendance-today-first.md)
+records the IA decision.
+
+Follow-up: Person history now has rolling Last 7 days / Last 30 days presets,
+and a Today row's History action carries that employee and branch into the
+existing reviewer ledger. Today bootstrap also retries when auth resolves late.
+
+---
+
+## 2026-08-01 — Daily Review: don't spend the one-shot on a pass that bailed out (hardening; LOW risk)
+
+Follow-up to the workspace hang. Auditing every screen for the same shape turned
+up one more latch with the same failure mode, reached differently:
+
+```dart
+if (_started) return;
+_started = true;                              // burned before it did anything
+if (date == null || user == null) return;     // …and never retried
+```
+
+A deep link that opens Daily Review before auth finishes restoring would spend the
+latch on a pass that loaded nothing, and the board would sit on its spinner for
+the life of the screen.
+
+Moving the flip below the guard is necessary but **not sufficient**, and the first
+draft of this fix was wrong about why: `context.currentUser` reads `AuthCubit`
+with `read`, registering **no dependency**, so a late session never re-triggers
+`didChangeDependencies` on its own. The latch would simply stay unspent forever.
+
+So it now uses the same two-path shape as the other correct screens: the already
+signed-in case starts from `didChangeDependencies`, and a `BlocListener<AuthCubit>`
+covers the session arriving late. `_maybeStart()` is idempotent, so the two can
+never double-dispatch.
+
+Unreachable in practice today — the route guard makes a null user very unlikely,
+and a malformed `dayKey` already renders an explicit "not a valid day link" panel
+rather than loading. Fixed anyway because the latch was one routing change away
+from mattering.
+
+Tests: `test/attendance_daily_review_bootstrap_test.dart` (4 cases), verified to
+**fail against the old ordering** — the late-session and load-exactly-once cases
+both break, the already-live and malformed-link cases still pass. Suite **1421
+pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+**Audit result, for the record:** across all 19 `BlocListener` + 21 `BlocConsumer`
+files, all 13 per-screen `create:` cubits, and every screen rendering an app-level
+singleton, the Admin workspace was the **only** true instance. Every other
+listener is error- or navigation-driven; the one that starts work
+(`manager_schedule_view`) keys off a busy→idle transition that cannot be
+pre-satisfied at mount. `attendance_history_screen._bootstrapReview()` and
+`chat_notification_listener.initState` already implement the correct pattern.
+
+---
+
+## 2026-08-01 — Admin workspace hung on its spinner forever (bug; LOW risk)
+
+Owner sent a screenshot of `/admin/attendance/workspace` spinning with no content.
+Reproducible 100% of the time by the **only** navigation path that exists.
+
+`_WorkspaceView.didChangeDependencies` called `BranchCubit.loadIfNeeded()` and
+then relied on a `BlocListener` to start the ledger fan-out. But `BranchCubit` is
+an **app-level singleton** (`main.dart` provides one instance for the session) and
+the Attendance & Reports hub — the tile you arrive from — already calls
+`loadIfNeeded()`. So the directory was always already loaded, `loadIfNeeded()`
+emitted nothing, **a `BlocListener` never fires without a state change**,
+`AdminAttendanceOverviewCubit.watch()` was never called, `overview` stayed null,
+and `_Body` rendered its `CircularProgressIndicator` forever.
+
+The codebase had already met this exact trap and written it down —
+`attendance_history_screen.dart` awaits `loadIfNeeded()` and then reads the cubit
+precisely because *"a `BlocListener` alone would miss the [already-loaded] case"*.
+The workspace was the one screen that didn't get the memo (and it echoes the
+standing macOS rule about never gating on a bloc-listener alone).
+
+- `_bootstrap()` awaits `loadIfNeeded()` and then reads `BranchCubit.state`
+  directly, covering the already-loaded case as well as the cold one.
+- The listener stays, for the cold path and for later directory refreshes — it
+  just can no longer be the only trigger.
+- `_watchBranches` is idempotent over the active-branch id set, so both paths can
+  call it without tearing down and re-subscribing an identical fan-out.
+- It now refuses to fan out on a **non-loaded** state. Previously an error state
+  would have produced `watch(branchIds: [])` → an empty overview reading as
+  *"every branch reported nothing"*, which is the one lie this screen exists to
+  prevent. Loading keeps the (honest) spinner.
+
+Tests: `test/attendance_admin_workspace_bootstrap_test.dart` (3 cases). Verified
+to **fail against the old code** — the "already loaded" case reproduces the hang
+while the "loads after mount" case passes, which is exactly the bug's shape. Suite
+**1417 pass / 2 fail** (the 2 pre-existing splash-centering failures).
+
+---
+
+## 2026-08-01 — The geofence policy actually governs the punch (bug + feature; MED risk)
+
+Owner: *"fix the geofence policy so it actually works."*
+
+`AttendanceLocationPolicy` — `none` / `soft` / `strict`, with `blocksOutside`,
+`capturesLocation` and a `fromString` parser, calling itself *"the single knob for
+the whole geofence behaviour"* — **was read by nothing.** Not the client, not
+`functions/`, not the rules. What ran instead was hardcoded in two places that
+could not disagree because neither consulted anything: `checkGpsFix` rejected
+`noGeofence`/`lowAccuracy`/`outsideRadius` unconditionally, and the clock screen
+disabled the button unless `geofenceReady && atBranch`.
+
+So every branch behaved as `strict` while the config's default said `none` — and
+**a branch with no geofence configured could never clock in at all.** The locked
+`ATTENDANCE_SPEC` workflow 6 said exactly that (*"no geofence … No record is
+written"*), so the code was faithful; the rule was the defect. `soft` and `strict`
+both mean "compare the fix to the geofence" — with no geofence the question is
+*undefined*, not failed, and the cost landed on someone standing at work unable to
+record it.
+
+**[ADR-020](docs/decisions/ADR-020-location-policy-is-real.md)** — amends the
+locked spec (workflow 6 + the clock-in error list).
+
+- `AttendanceService.resolveLocationPolicy({configured, hasGeofence})` is the one
+  seam. **No geofence → `none`**, so that branch runs a pure time clock instead of
+  being locked out. Draw the fence and it becomes `strict` with no other change.
+- `checkGpsFix` takes the resolved policy: `none` never refuses · `soft` captures,
+  stores, never refuses · `strict` is the full gate, **byte-for-byte unchanged**.
+  A `strict` branch whose fence vanishes still fails loudly rather than passing.
+- Default flipped `none` → `strict`, so the config describes what ships and an
+  un-migrated caller keeps the gate instead of silently losing it.
+- The cubit collapses the resolved policy into `_config` once the geofence is
+  known, so the validation gate, the UI and the record's config snapshot (R19) all
+  read one value.
+- UI: under `none` the GPS card isn't rendered at all; under `soft` it still shows
+  every state but stops saying *"move closer, then tap to retry"* next to an
+  enabled button — an unverifiable fix reads *"Recorded with your punch for a
+  manager to review."*
+
+**The trade, stated plainly:** a non-geofenced branch can now punch from anywhere.
+That is weaker than perfect enforcement — but the status quo was not enforcement,
+it was *no attendance at all* plus manager-typed reconstructions with no location
+evidence, which is the worse evidence ADR-018 already rejected once. Nothing
+changes at any branch that has a fence.
+
+Still open: `AttendanceService.configFor` returns one constant for everyone, so
+`soft` is reachable but unselectable. Per-branch `branches/{id}/attendanceConfig`
+is now data entry rather than another gate rewrite.
+
+Tests: 12 new cases across `attendance_validation_test.dart` (each policy's
+refuse/allow behaviour, the strict default, and `resolveLocationPolicy` over every
+enum value both ways). **One existing test changed meaning** —
+`attendance_cubit_test.dart`'s *"clockIn when the branch has no geofence is blocked
+(no write)"* now asserts the punch is recorded with a null verification; that is
+the reversal made visible. Suite **1414 pass / 2 fail** (the 2 pre-existing
+splash-centering failures).
+
+---
+
+## 2026-08-01 — Attendance reports: open one person from a "By person" row (feature; LOW risk)
+
+Owner question: *"is it easy to get an employee report or see all his history?"*
+For the employee themselves, yes. For a manager, **no** — and the audit found why:
+
+- The "By person" tables in both the weekly and monthly reports were plain text
+  rows. No `onTap`, no `InkWell`. You could read `Ziad Elsewedy · 4 · 0 · 4 ·
+  Absent` and had no way to open him.
+- The one screen that *can* answer it — reviewer-mode Attendance History, which
+  already has a branch-wide **"Search employee"** field — was reachable only from
+  `/attendance/review`, pushed only from `admin_attendance_screen.dart:57`, on a
+  route (`/admin/attendance`) that **nothing in the app navigates to**.
+
+So the capability existed and the door didn't. This adds the door.
+
+**A row now opens that person's own ledger, pinned to the branch and period the
+row was read in.** That pinning is the point: carrying only the name would land
+the reviewer on their own branch's default window and quietly show different
+numbers than the row they just tapped.
+
+- New `AttendanceReviewLink` (pure Dart) — name + optional `branchId` + optional
+  `start`/`end`. `hasWindow` is true only when **both** bounds are present; one
+  alone would half-apply a range the resolver falls back on anyway.
+- The `/attendance/review` route already accepted a bare `String` name as `extra`.
+  It now accepts the typed link and still accepts the String, so any hand-built or
+  older link keeps working.
+- `AttendanceHistoryScreen.review` gains `initialStart`/`initialEnd`; the DI
+  factory turns them into an `AttendanceDateRange.custom` query. The filter bar
+  already renders a custom window as its dates, so the chip reads **"26 Jul – 1
+  Aug"** on arrival with no extra work.
+- `AttendanceWeeklyEmployeeRows` gains a slot-based `onOpenEmployee`. Null leaves
+  the rows exactly as inert as before — the widget stays presentation-only and
+  never learns which branch or period it is inside.
+- Row affordance: pointer cursor plus a hover step where the **name** brightens,
+  not the numbers. The header row is never tappable.
+- **The reviewer search box is now seeded** from the query it filters. It was
+  rendering empty while the ledger was filtered, so a deep-linked list looked
+  mysteriously short with no visible cause and no obvious way back. Seeding a
+  caller-owned controller also gives the shared field's clear button something
+  real to clear.
+- Because hover and a cursor don't exist on a phone, the section says *"Open
+  anyone to see their own records for this period."* — but only when the rows
+  actually open.
+
+Not addressed here, and now written down in CURRENT_STATE under *Attendance gaps*:
+the dead `AttendanceLocationPolicy` (every branch behaves as `strict`; a branch
+with no geofence cannot clock in at all), the orphaned `/admin/attendance` route,
+a stale *"Daily review is coming next"* stub sitting next to a working Daily
+Review, and the still-missing period close + export.
+
+Tests: `test/attendance_person_drilldown_test.dart` (7 cases) — the row reports
+its own employee, the header never opens, rows stay inert **and unadvertised**
+without a callback, `hasWindow` needs both bounds, and the search box shows the
+name it is filtered to. Suite **1407 pass / 2 fail** (the 2 pre-existing
+splash-centering failures).
+
+---
+
+## 2026-08-01 — Employees directory: an identity-only row card (polish; LOW risk)
+
+Owner ask, verbatim: *"redesign the card of the employees and remove the
+complete and rate and all of this — just the name and branch, I don't need all
+of this."*
+
+The card had been carrying four inline KPIs (Completed · Pending · Rate · Late)
+since the 2026-07-27 density pass. In a real directory they were **nine zeros in
+a row** — every employee scored identically, so the numbers said nothing while
+costing the tallest band of every card. `EmployeeCard` is now identity-only:
+
+```
+⬤  Mohamed khaled                                    Active  [Details] [Edit] [⋯]
+MK 🏪 Drop the shop | Arkan
+```
+
+- **Removed** the `metrics` parameter and the whole `_InlineMetrics` block. Row
+  height drops from ~140px to ~68px, so roughly twice as many people fit on a
+  screen and the eye runs down one column of names.
+- **Removed** the role from the subtitle. It read "Employee ·" on nearly every
+  row; the Role filter and the Details inspector both still carry it.
+- **The branch is the second line on its own**, behind a storefront mark and one
+  step down the grey ramp. An unassigned employee reads *No branch* in italic
+  quaternary grey — a gap to fill, deliberately not an error red.
+- Access state, Details / Edit, the ellipsis menu and the desktop right-click
+  menu are **unchanged**; the card is still presentation-only.
+- Radius tightened to 16 (20 reads as a pill at this height); wide/narrow
+  breakpoint moved 620 → 520, since the row no longer has a KPI band to fit.
+
+**Nothing was lost.** `computeEmployeeMetrics` is untouched and still feeds the
+Details inspector, which has the room to present performance honestly. Removing
+the card's dependency on it also let `_body` stop `watch`ing `TaskCubit`, so the
+directory no longer rebuilds on every task-stream tick — the inspector reads the
+cubit on demand when it opens.
+
+Tests: `test/employee_card_test.dart` rewritten around the new contract (name ·
+branch · access · actions, "No branch", KPI labels absent, no overflow at
+280px). Suite **1400 pass / 2 fail** — the 2 are the pre-existing
+splash-centering failures.
+
+---
+
+## 2026-08-01 — Notification inbox: readable rows + the dead attendance tap (polish + bug; LOW/MED risk)
+
+## 2026-08-01 — Employee Home: the ring goes, the clock arrives (polish + bug; MED risk)
+
+Owner asked what Home was missing and what should go. Both answers were in the
+same 92 pixels.
+
+**The progress ring's arithmetic was wrong, and is fixed.** It drew
+`approved + completed + inReview / total`, so it rendered a *complete* circle
+"3 of 3" beside a strip reading "1 in review · 2 done" — two elements, one
+dataset, disagreeing. It now takes the same `_Counts.done`
+(`approved + completed`) the strip's own Done cell uses: a submission has left
+the employee's hands but a reviewer can send it straight back, so it is not
+closed.
+
+> The ring was **deleted** in the first pass and **restored by the owner** the
+> same day, at 78px beside the shift instead of 92px alone. Restored on the
+> condition above — it counts what the strip counts. Because the ring carries
+> the ratio, nothing else on Home draws it: the interim `_DayProgressBar` (a
+> 3px base line under the strip) is gone, and it had a flaw of its own — at
+> 100% a filled hairline is indistinguishable from the card's border.
+>
+> The green **"All caught up!"** banner went with it (owner). It was the only
+> coloured thing on the screen and the third element restating a finished day
+> after the ring and the strip. Its "Open all tasks" row stays — that is the way
+> through to the list, not a restatement. `_EmptyTaskState` ("No tasks yet") is
+> untouched: never-assigned is a different case from finished.
+
+**Its space went to the clock state.** DROP has a full GPS attendance engine,
+and clocking in/out is the thing an employee does twice a day at a fixed time —
+yet Home showed *"TODAY'S SHIFT · Morning shift"* and then never said whether
+they were on it. The only way in was an **unlabelled fingerprint icon** in the
+app bar. The card now reads `Morning shift 08:00 – 16:00` over a state row:
+green *"Clocked in 8:04 · 6h 30m on shift"*, amber *"Not clocked in · Shift
+started 34m ago"*, or a grey *"Clocked out 16:02"* with no action left. A day
+off drops the row entirely and the card shrinks.
+
+The action is a **hand-off, not a clock-in** — it opens the Attendance screen.
+Clocking in needs a verified GPS fix inside the branch geofence and fails in
+several distinct ways; a second copy of those rules on Home would drift. For the
+same reason Home calls `AttendanceCubit.load` but **never `previewLocation()`**:
+Home must not provoke a location prompt. `load` is idempotent, so opening
+Attendance afterwards reuses the subscription. ⚠️ **Cost:** two Firestore
+listeners (history + corrections) now run whenever an employee's Home is open.
+
+Zero columns are gone from the strip — `0 To do · 0 Active` spent half of it
+saying nothing; with no open work the two collapse to *"Nothing to do"* and
+return as figures the moment work exists.
+
+Two bugs found while wiring it:
+
+- `_Today.from` originally destructured the loaded state **positionally** — 17
+  fields, silently re-bound if anyone inserts one. Switched to `maybeMap`.
+- An attendance **stream error** left the card shimmering its skeleton forever —
+  an animation running permanently on a resting surface, claiming data was
+  coming when it was not. `error` now resolves to *"Shift unavailable"*. The
+  same fault is what made two Employee Home widget tests hang on
+  `pumpAndSettle`; their fake cubit now starts `loaded`, as reality does.
+
+Verified on an iPhone 17 simulator against a throwaway preview of all five
+states before any production file was touched — the owner asked for the preview
+explicitly and an HTML mock was not accepted in its place. `_SummaryPill`,
+`_ShiftBlock` and `_AllDoneCard` deleted; `AppDateFormatter` gained
+`hoursMinutes`.
+
+## 2026-08-01 — Task proof: a camera capture could be dropped in silence (bug; MED risk)
+
+Owner report: taking a photo to complete a task adds nothing — choosing from
+the gallery works, the camera doesn't, **on a real iPhone, with no error shown**.
+
+`AttachmentPickerField._takePhoto` had **two `if (!context.mounted) return;`
+guards placed after the capture**: one after `pickImage`, one after the cropper.
+Either one firing threw away a photo the user had already taken, with no
+message and no log — indistinguishable from the camera doing nothing. The
+gallery path has only the first guard and no cropper at all, which is exactly
+why it survived.
+
+The guards were there to satisfy `use_build_context_synchronously`, but they
+were guarding the wrong thing: **committing a pick needs `onChanged`, which the
+parent owns — not this widget's context.** `_commit` is now free of
+`BuildContext` and returns the rejection reason instead of showing it; each
+caller shows that reason behind its own `mounted` check. A pick can no longer
+be lost because the tree underneath the picker was rebuilt while the native
+camera was in front.
+
+Two more silent failures in the same file:
+
+- **`catch (_)` swallowed every exception** on all three pick paths. They now
+  log the real error (`AppLog.error`) and map `image_picker`'s actionable
+  `PlatformException` codes to something a user can act on —
+  `camera_access_denied` → *"Camera access is off. Enable it for DROP in
+  Settings."*, `no_available_camera` → *"No camera on this device."* — instead
+  of a flat "Could not take a photo."
+- **`_rejectReason` called `file.length()` unguarded**, so one unreadable pick
+  (a reclaimed temp, a bad path back from the cropper) threw and took the whole
+  batch down. It is now reported as a normal rejection.
+
+⚠️ **Not reproduced on the reporting device.** The two dropped-capture paths are
+real and fit the symptom exactly (silent, camera-only, gallery unaffected), but
+the failure has not been observed first-hand — the iOS Simulator has no camera,
+so this cannot be verified from here. If it recurs, the console now names the
+cause under the `attachments` scope. The build is unverified on a physical
+device.
+
+Owner report: the Notification Center *"looks bad and messy"*, and navigation
+from it needed fixing.
+
+### Second pass — the subject leads the row
+
+First pass removed the duplicated pill but left the deeper fault, which the
+owner named immediately: *"all the tasks look the same."* They did, and the
+reason is in the producers. **Every one of them — `NotifyTaskEvent` and the six
+`functions/index.js` sites alike — writes the event type into `title` ("New Task
+Assigned") and the thing it is about into `body` ("Fridge check • Due 2:59
+PM").** Rendering `title` as the headline therefore made the loudest line on
+every card the one line *guaranteed to repeat*; the only text that told three
+assigned tasks apart sat in 12px grey beneath it. Apple's own list guidance is
+the inverse — the subtitle exists *to distinguish rows from one another*.
+
+So the row is inverted:
+
+```
+NEW TASK ASSIGNED                    41m ●     ← kicker: 10px uppercase, semantic tint
+Restock the front cooler                        ← subject: 14.5px, ONE line, never wraps
+Due today 2:59 PM                               ← context: 12px, grey ramp
+```
+
+Nothing is discarded and **no stored data changes** — `title` is a pure function
+of `type` in every producer, so it was always a label and is now set as one. The
+kicker also carries the semantic accent, which is how the deleted category
+pill's *meaning* returns at a quarter of its weight.
+
+The subject holds **one line**. A wrapping headline gave every card a different
+height and the column read ragged, so the trailing context is split off into its
+own quieter line: new pure `splitNotificationBody` in `notification_format.dart`
+cuts on the first ` • ` or ` — ` (the separators every producer already uses),
+falling back to "all subject" when there is none — 7 cases in
+`notification_grouping_test.dart`. The one exception is a row with **nowhere to
+go**: it is not a pointer to the message, it *is* the message, so it is set as
+reading text (lighter, looser, up to 5 lines) instead of a headline that happens
+to be long.
+
+Client task copy was fixed to match: `taskApproved` said only *"Task approved"*
+and `taskRejected` / `taskRework` said only the reason, so those rows named
+nothing at all. Every branch of `_bodyFor` now leads with `task.title`.
+**Client-side only — no deploy.** (The server producers already name their
+subject; they were left alone.)
+
+### First pass — the duplicated pill
+
+**The mess was duplicated information.** Every row spent three stacked lines on
+three words: a tinted glyph, a title, a body, and then a coloured category pill
+on its own line — a pill reading "Task" beneath a title already reading "New
+Task Assigned", and the loudest element on the card. The filter pills own
+category and the glyph owns type, so the pill is gone; the age moved from the
+bottom-left meta row into the **right corner of the title line**, where an inbox
+is read. Rows came down ~40% in height (eight fit an iPhone screen where six
+did), and nothing that carried meaning was dropped.
+
+**Read/unread is now carried by brightness, not a lone 8px dot.** An unread row
+wears an accent-tinted glyph, a white title and a live dot; a read row goes
+quiet — flat glyph, grey title, no elevation. The list ranks itself before a
+word is read. A **critical unread** item (overdue · emergency · a swap awaiting
+approval) additionally carries the standard `AppGlassCard` semantic halo, and
+loses it once seen — emphasis marks the unseen, never the status forever
+([[feedback_task_card_hairline]]'s standing rule).
+
+Also: day headers became a labelled hairline carrying that day's unread count
+(`TODAY ──── 3 new`); the filter rail is masked at both ends so it fades instead
+of being sliced mid-word at the screen edge (the single thing that most made the
+bar read as broken); each pill carries its unread count, so *Requests 4* is
+visible without opening the filter; and the swipe-reveal radius was corrected to
+`AppRadius.cardAll` (20, not 16) so it lines up with the card sliding over it.
+
+**The navigation bug — `route: "attendance"` was a dead tap.**
+`writeAttendanceNotifications` in `functions/index.js` has always stamped it,
+but `resolveNotificationRoute` had no case for it, so every correction-filed /
+approved / rejected and every auto-closed-session notification fell through to
+`default → null`: tapping did nothing, in the inbox and on an FCM tap alike. It
+now opens the exact record (`/attendance/record/:id` — all four producers stamp
+`recordId`), falling back to `/attendance/review` for a reviewer and
+`/attendance/history` for an employee. Four cases added to
+`test/notification_deep_link_test.dart`.
+
+**The in-app tap is fixed by the app build.** The *push* tap needed the other
+half — `onNotificationCreated` was also dropping `recordId` / `correctionId`
+from the push `data`, so a background/cold-start tap had no id to resolve. Both
+are now forwarded — ✅ **deployed 2026-08-02**, so a background/cold-start
+attendance tap now reaches the exact record instead of the ledger fallback.
+Functions tests: 68 pass.
+
+The tile now also *tells the truth about* a tap that can't go anywhere: the
+screen resolves each notification through the same resolver and passes
+`navigable`, and a notification with no destination (an employee's broadcast)
+shows its body in full rather than clamping it to two lines behind a dead tap.
+
+`AppDateFormatter.relativeShort` was added alongside `relative` (`now · 5m ·
+3h · 2d · 6 Jul`) — the corner slot implies "ago", and the shorter string keeps
+the title from being squeezed on a narrow phone.
+
+Verified on an iPhone 17 simulator against the real screen over fakes.
+
+## 2026-08-01 — Shift task streams bind from cache, not a round trip (bug; MED risk)
+
+An employee's shift tasks — and therefore the Late and Missed counts that
+include them — appeared roughly a second after the rest of My Tasks. Not a cache
+miss and not a duplicate request: a **sequential dependency**. A shift task
+carries no `assigneeIds`, so it arrives only via `watchShiftTasks`, and that
+stream could not be opened until an **awaited** server read of the weekly
+schedule said which shift the employee was on today.
+
+The roster is now read cache-first (`ScheduleRepository.getScheduleCacheFirst`,
+a new method — `getSchedule` is unchanged, and anything that *displays* or edits
+the roster must keep using it), so the streams bind in the same frame.
+
+The obvious version of this is a trap: a plain cache-first read pins whatever
+roster is on disk, so an employee moved to another shift would silently stop
+seeing shift tasks for the whole session. So the authoritative server read still
+runs — **unawaited**, behind the fast path — and re-binds the shift sources only
+when today's roster actually differs. Fast path never more than one round trip
+stale; no stream churn in the common case where the cache was right.
+
+`TaskCubit._subs` became a map keyed by source, so shift sources can be
+re-bound without disturbing the assignee stream, and `_cancelSubsWhere` drops a
+cancelled source's last snapshot so `_updateSource`'s merge cannot resurrect its
+tasks.
+
+Tests: +7 (`task_shift_stream_binding_test.dart` — binding proved against a
+server read that *never completes*, re-bind on a changed roster, no churn on an
+unchanged one, stale-source tasks dropped, and the no-branch / read-failure
+degradations). The `ScheduleRepository` fakes in three existing task tests now
+implement the cache-first read too — left to `noSuchMethod` they threw, which
+silently routed every test onto the slow path and left the new one uncovered.
+
+## 2026-08-01 — Late and Missed each get their own tab in My Tasks (polish; LOW risk)
+
+Owner ruling: *"add missed tasks on their own like Done and Active — and Late the
+same. I don't want it all together."*
+
+The employee task screen went from two segments to four — **Active · Late ·
+Missed · Done**. Late was a pinned section at the top of Active; Missed was a
+pinned section at the top of Done. Both are now tabs, so each of the four
+readings is one tap and nothing else is stacked on top of it. The two words keep
+the meanings [TASKS.md](docs/design/TASKS.md) already defines: **Late** is *open*
+work past its deadline (still actionable), **Missed** is the server's terminal
+verdict on work that closed unfinished. Done is now Approved + Cancelled.
+
+What a tab costs is visibility, so two things pay it back:
+
+- `SegmentedTabBar` gained an optional `counts` — Late and Missed carry their
+  number on the segment itself (dimmed, inheriting the tab colour, drawn only
+  when non-zero). Active/Done stay plain words; the overview card above already
+  summarises them.
+- The all-clear state has **two readings**. An empty Active list means "caught
+  up" only when nothing is late; with late work waiting it reads *"Nothing new —
+  but you are behind"* over a button to that tab. Claiming "You're all caught up"
+  beside overdue work was the one real regression the split could have shipped.
+
+Tab membership is now three tested top-level predicates (`lateTasks` ·
+`missedTasks` · `finishedTasks`) instead of filters inlined in two widgets, and
+`_groupByRecency` / `_taskGrid` are shared rather than duplicated per tab.
+
+Tests: +17 (`my_tasks_tabs_test.dart` pins the partition — including that no task
+appears in two tabs, that Cancelled is never absorbed into Missed, and that Late
+never reads a closed task — plus `allClearCopy`, extracted pure precisely so the
+"you are behind" wording is testable without live overdue data;
+`segmented_tab_bar_test.dart` covers zero-count suppression and four counted
+segments on a 320pt phone).
+
+Also by owner ruling: the **"3m late" line on a completed card is now amber**
+(`AppColors.warning`) instead of tertiary grey — it was too quiet to register
+next to a green *Completed*. It remains a timeliness signal and deliberately
+does **not** take the error red that Missed wears; ADR-013 never fixed a colour
+for it (the grey was a code-comment convention), so nothing there is reversed.
+Changed on the employee card only — the manager task card and Task Details still
+render lateness as a neutral meta chip.
+
+Verified on the simulator: all four tabs, the count on the Missed segment
+(legible both selected and unselected), Done no longer carrying a Missed
+section, and the amber lateness line.
+
+## 2026-08-01 — Employee Home stat strip: one surface, not four boxes (polish; LOW risk)
+
+Owner: *"more premium, and decrease the size a little bit."*
+
+**To do · Active · In review · Done** was four bordered cards sitting side by
+side, each with icon-over-number-over-label. Four boxes in a row read as a
+dashboard; it is one glance, so it is now **one surface with hairline dividers**
+— the Design System V2 fact-row language already used by core `StatStrip`
+(not reused directly: that primitive carries no icons and no per-cell
+highlight, and its type is larger, not smaller).
+
+Height drops ~20% (≈81pt → ≈65pt): three rows became two, with the icon moved
+down beside its label so the **number leads**, which is what the eye is there
+for.
+
+The live-cell highlight moved from a tinted card to the **grey ramp** — number
+to white, label and icon up one step. Inside a shared surface a per-cell tint
+patches the row; hierarchy says the same thing more quietly (ADR-004 holds —
+still strictly monochrome).
+
+Verified on the simulator with a live highlighted cell (1 To do).
+
+---
+
+## 2026-08-01 — Checklist Templates become a real screen (polish + feature; MED risk)
+
+Owner on the New Checklist Template form: *"too old, make it more detailed, not
+a bottom sheet, make it premium, change the icon."*
+
+It was a **sheet opened from inside another sheet** (`_TemplateForm` via
+`showSheet` from `_ManageTemplatesState._add`). Both it and `_ManageTemplates`
+now push `CupertinoPageRoute(fullscreenDialog: true)` — the same presentation
+the task form already used (`task_action_sheets.dart:78`), so the two creation
+flows finally match. Public entry points (`showManageTemplatesSheet`, the
+`_add` flow popping `true`) kept their names and signatures, so every call site
+is unchanged.
+
+The "old" feel was literal: `_SimpleDropdown` was called with
+`labelOf: (t) => t.value`, and `value` returns the enum's `name` — so the form
+displayed the raw Firestore strings `daily` and `normal`, lowercase.
+`TaskType`/`TaskPriority` gained an **additive `label` getter**; `value` is the
+persisted wire string and was not touched.
+
+Also: checklist steps are drag-reorderable (order *is* the procedure), the
+unlabelled required-star became a legible **Required / Optional** control, and
+the Templates icon is one shared `kTemplatesIcon`
+(`Icons.checklist_rounded` — the old `dashboard_customize_outlined` read as
+"customize dashboard") used everywhere Templates appears.
+
+`_save` is byte-for-byte unchanged, and now has tests pinning it: title
+required, blank steps dropped, and `branchId: isAdmin ? '' : defaultBranchId`
+— where `''` is the persisted "global, every branch" value.
+
+**Bug found and fixed on the way:** `_ManageTemplatesState._reload` was
+`setState(() => _future = _load())`. Arrow syntax returns the assignment's
+value — a `Future` — and `setState` asserts on that. Asserts are stripped in
+release, so this only ever bit **debug** builds, on every template create and
+delete. Pre-existing (byte-identical to the previous revision); it survived
+because nothing tested that path until now.
+
+---
+
+## 2026-08-01 — The Admin Dashboard "Today" strip stops lying by omission (polish + bug-fix; MED risk)
+
+Owner used the dashboard on real data and asked "why is active 0 when there IS
+a task?". The number was correct — `Running now` counts `started` only, and
+the task in question was `pending`, never started — but the strip had **no
+number for outstanding work at all**, so `Running now` got read as that number
+by default. Added `Open` (pending/started/completed/rejected — the same
+definition Task Management's "Active" uses, so the two screens agree) and put
+it first, in the slot `Approval rate` freed.
+
+Second finding: `Delayed` (dashboard), `Late` (Task Management), and
+`Late tasks` (Operations) are the exact same `isTaskOverdue` predicate wearing
+three names and two colours (amber here, red everywhere else). Renamed to
+`Late`, recoloured to `AppColors.error`. Grepped the rest of the app for
+"Delayed" task copy — this was the only one.
+
+Third: `Approval rate` is gone, and it wasn't just decluttering — it was a
+second, disagreeing completion formula (`Approved ÷ (Approved + Rejected)`,
+from a separate `StatisticsCubit` aggregate) sitting next to Task
+Management's `Approved ÷ (Approved + Missed)` (§10.1). Removing it leaves one
+completion figure in the product. `_today()` no longer subscribes to
+`StatisticsCubit` at all as a result — `Completed today` is now derived from
+the task stream (`completedTodayCount`, `task_metrics.dart`, built on the same
+`isTaskInActiveWindow` `applyFeed` uses) instead of the lifetime-scoped
+`StatisticsCubit.completedTasksToday`, so the stat and its drill-down list can
+never disagree.
+
+Every cell except `Due soon` is now a real tap target into
+`FilteredTasksScreen`, each with a one-line "how does this count" description.
+`Due soon` stays deliberately inert: no `TaskFeedFilter` can reproduce
+`schedulePhase`'s dueSoon precedence (it excludes `completed`/`waitingReview`
+even though the active window includes them) without either an over-counting
+filter or a reverse dependency from `task_feed.dart` into `task_schedule.dart`
+— a cell that doesn't open beats one whose count and list could disagree.
+
+`manager_home_screen.dart` reads the same `StatisticsCubit.completedTasksToday`
+for its own "Completed today" tile, but it isn't tappable there, so it carries
+no count-vs-list risk today. Left unchanged — out of scope for this pass.
+
+---
+
+## 2026-08-01 — Task card outcome legibility, a redesigned preview sheet, and self-explaining stats (polish + feature; MED risk)
+
+Follow-up from the owner using the previous change on real data. Three findings:
+
+1. **The card's "by X" named the wrong person.** `TaskCard`'s footer showed the
+   task's *creator* even on a decided card, so "Approved" next to "by Admin"
+   read as "Admin approved this" — the wrong person answering a question
+   nobody asked. It now names the **decider** once a task is decided
+   (`Approved by <name>` / `Rejected by <name>` / `Cancelled by <name>`, via
+   the new shared `resolveDeciderName` in `activity_format.dart`, reused by
+   both the card and the new preview sheet so the two surfaces can't drift).
+   `Missed` has no decider — an automated sweep closed it — so it says
+   `Missed — closed automatically` and never falls back to the creator, on
+   purpose (that fallback was the exact bug). Undecided statuses are
+   byte-for-byte unchanged. A finished-late task's timeliness note moved from
+   a buried chip up next to the status pill (`_LatenessNote`, always neutral
+   grey — Late stays a timeliness signal, never pass/fail, per §10.4; never
+   the Missed/error red). The reference-attachment count chip was cut: it told
+   you material existed but gave you nothing to act on from the card itself.
+
+2. **The preview sheet read like a debug dump.** `showTaskPreviewSheet` used
+   to stack `TaskFeedRow` + `TaskFeedExpansion` — a dense monitoring row, then
+   a flat label/value grid. Rebuilt **locally** in `task_preview_sheet.dart`
+   (that pair is shared with the dashboard's live feed accordion and stays
+   untouched): a plain-language **situation sentence first** (state +
+   consequence — `Approved by Ziad · 1m late`, `Missed · deadline passed 21h
+   ago, closed automatically`), a 3-row facts card (branch+shift merged,
+   due+lateness merged, assignee), a one-line checklist summary, and a
+   hierarchy-first timeline (an emphasised head row for the newest event, a
+   muted ledger below, capped at 4 rows + a Full-Details pointer). The sticky
+   footer (`TaskFeedActions`) — approve/reject/reassign/note/open-full-details
+   — is unchanged; this is a presentation rebuild, not a new action path.
+
+3. **"How does Late count?" was a fair question nobody could answer from the
+   UI.** Verified against the code (not assumed): Late = active work only
+   (`pending`/`started`/`rejected`) past its deadline, with **no time
+   window** — a task three weeks overdue still counts, every day, until it's
+   closed; once finished it drops out of Late entirely and becomes a
+   "finished late" note on the task itself. `_BranchMetrics._overdue`
+   (admin overview), `isTaskOverdue` (`task_feed.dart`) and
+   `isOperationalOverdueTask` (`branch_workload.dart`) were checked side by
+   side and agree exactly — no predicate drift found. `FilteredTasksScreen`
+   gained an optional `description` (same slot `OperationsMetricScreen`
+   already uses) so every stat-row drill-down states, in one line, what it
+   counts and why — Late's line names the "no window, until closed" rule
+   explicitly.
+
+---
+
+## 2026-08-01 — Admin Task Management: a tappable stat row instead of two tabs (feature + polish; MED risk)
+
+Owner request: "I want to click on missed to see all missed tasks" — and one
+row can carry Active/In review/Late/Missed/Cancelled/Done without a segmented
+`Active | Done` toggle that only relabelled the same branch grid.
+`admin_task_overview_screen.dart` drops the tabs, the `_TaskLens` split, and the
+wordy `_OutcomeBreakdown` panel; every task-typed cell in the stat row is now a
+real tap target into `FilteredTasksScreen` with exactly those tasks. The branch
+grid keeps only its former "Active" framing (Active / Pending review / Late +
+the completion caption).
+
+**The trap this was built to avoid:** `FilteredTasksScreen` runs its filter
+through `applyFeed`, whose first line drops anything `isTaskInActiveWindow`
+excludes — Missed, Cancelled, and any task approved before today. A naive
+`status: missed` filter would have rendered an empty "All clear" page.
+`TaskFeedFilter` gained `activeWindowOnly` (default `true`, so every existing
+caller — the dashboard's Needs-Attention tiles, `task_feed_test.dart` — is
+byte-identical) and the Missed/Cancelled/Done stats set it `false`. Also added
+a `statuses` set (composes AND with the single `status` field) so "Active" can
+mean four statuses without adding a `FeedPreset` case (which would have grown
+the dashboard's chip row for free). `FeedPreset` itself is untouched.
+
+Cancelled still hides at zero, still never wears Missed's error-red, and
+nothing sums the two — the §8 hard invariant the deleted panel used to enforce
+is now enforced in the row instead. `StatStrip`'s `Stat` gained an optional
+`onTap` (press/hover + a `Semantics` button label); every other `StatStrip`
+caller is unaffected. `FilteredTasksScreen` gained an `emptyTitle` override
+(so an empty Missed page reads "No missed tasks", not "All clear") and a quiet
+task-count line. `TaskActivityCard` gained an opt-in `showDeadline` flag, on
+only for these drill-downs — the dashboard's Recent Activity feed is unchanged.
+
+---
+
 ## 2026-07-31 — Daily review: settle yesterday before it becomes a weekly surprise (feature; HIGH risk)
 
 Phase 2 of [ATTENDANCE_PRODUCT_REDESIGN_PLAN.md](docs/design/ATTENDANCE_PRODUCT_REDESIGN_PLAN.md)
@@ -62,6 +1788,85 @@ error: the correction is durable and applies on deploy.
 
 Verified: analyze clean, **1289 pass / 2 pre-existing splash failures**, +15
 tests.
+
+## 2026-08-01 — The weekly PDF, and payroll leaves the UI too
+
+Completes Phase 4 under [ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md).
+
+**One new dependency, `pdf`.** `printing` was deliberately not added: it brings
+platform plugin code for a print dialog nobody asked for, when the file can be
+written beside the Schedule PNG export and opened with `open_filex` — exactly
+what the chat document service already does for downloads.
+
+The document carries **the same five sections in the same order as the screen**.
+A PDF with its own information architecture would be a second one to keep in
+sync, and that order was argued for once already. It renders coverage *and*
+review in the header as two facts, never merged into one verdict — the rule the
+whole redesign turns on. Show-up rate is absent for the same reason it left the
+screen.
+
+⚠️ **On mobile, opening matters more than saving.** `getDownloadsDirectory()` is
+desktop-only, so on a phone both exports would land in the app sandbox where
+nobody could find them. Mobile now hands the file to the system viewer so it can
+actually be sent on; desktop skips that, having written to Downloads.
+
+**Payroll is now gone from the UI as well as the backend** — `payrollCsv`, the
+`notLocked` and `notDeployed` blocks, the `isLocked` and `serverReady` gate
+parameters, and the admin workspace's Payroll hand-off section. The gate is down
+to one rule worth keeping: an unsettled week must not be shared as though it were
+final, because a document outlives the screen that qualified it.
+
+Tested structurally rather than by string-matching a compressed binary: valid
+`%PDF-` header, `%%EOF` tail, and a populated week producing a larger file than
+an empty one. Empty weeks, blocked weeks and a name that would break a CSV all
+render without failing.
+
+Verified: **1335 pass / 2 pre-existing**, analyze clean, build succeeds.
+
+## 2026-08-01 — Exports become operational documents; a week is reviewed, not locked
+
+[ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md), after
+the owner retired the premise Phase 4 was built on: **DROP is an operations
+management system, not a payroll system, and payroll integration is not
+planned.**
+
+The reasoning collapsed in sequence. No machine ingests a file, so there is no
+machine schema to satisfy; nothing downstream consumes a figure, so nothing needs
+freezing; the artifact is not financial, so it needs no audit chain; and with no
+audit chain, server generation buys nothing a client cannot do. **Phase 4's
+deploy dependency disappeared with it.**
+
+**The timesheet CSV replaces the payroll CSV — a different artifact, not a
+trimmed one.** Payroll wanted `2026-07-29T05:30:00.000Z` and `487`, because a
+machine rounds for itself. A manager wants `29 Jul`, `08:37`, `7h 52m`. Eleven
+columns instead of thirty-seven, generated on the client and written beside the
+Schedule PNG export.
+
+**Week review kept, as an assertion rather than a lock.** The first plan removed
+the whole notion of finishing a week; the owner pushed back, correctly — closing
+and locking had been treated as one thing. A manager can now mark a branch-week
+reviewed, recording who and when, reversible by Reopen. Nothing is restricted:
+the rules carry no `locked` field by design.
+
+It is deliberately **orthogonal** to the derived coverage status and rendered
+apart from it. Coverage answers *is the record complete?*; review answers *has a
+person signed off?* — which cannot be computed, because a week can be Settled and
+never opened by anyone. Merging them is how "Fully closed" once appeared over a
+week that was 86% empty. Post-review changes are **derived** from timestamps, so
+"later changes are intentional and visible" needs no history collection at all.
+
+**Deleted:** the payroll CSV and its 18 node tests (functions 86 → 68), period
+lock, the export ledger, restatement versioning, and `AttendancePeriodStatus`,
+which never had a reader in `lib/`. IA §12.6 retired.
+
+Also fixed on the way: the review widget reached straight into a `late final` DI
+singleton, which crashed it under test. It is now injectable like the screen's
+cubit — a widget that cannot be pumped is a design problem, not a test problem.
+
+Rules deployed. Firestore rules **47 pass** (was 37), Dart **1330 pass / 2
+pre-existing**, functions **68 pass**, build succeeds.
+
+Still open: the weekly PDF, the one export that adds dependencies.
 
 ## 2026-07-31 — Deployed to production, and found the backlog was mostly a myth
 

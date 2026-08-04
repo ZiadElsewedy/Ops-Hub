@@ -12,9 +12,16 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
     required this.employees,
     this.emptyMessage = 'Nobody has a recorded shift this week yet.',
     this.showStatus = false,
+    this.onOpenEmployee,
   });
 
   final List<WeeklyAttendanceEmployeeAggregate> employees;
+
+  /// Opens one person's records. Slot-based so this widget stays
+  /// presentation-only: the report screen owns which branch and period the row
+  /// was read in, and this table never needs to know. Null leaves the rows
+  /// inert, exactly as before.
+  final ValueChanged<WeeklyAttendanceEmployeeAggregate>? onOpenEmployee;
 
   /// The Monthly report renders the same employee facts over a month window and
   /// only needs different empty-state copy.
@@ -42,10 +49,17 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
           // disclaimer, not to word it better. Not ranking people is enforced by
           // refusing to compute a score (ADR-017), not by a caption.
           Text('By person', style: AppTypography.h3),
-          if (showStatus) ...[
+          if (showStatus || onOpenEmployee != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Anyone needing attention is listed first.',
+              // Hover and the pointer cursor carry the affordance on desktop;
+              // on a phone there is neither, so the one place a reviewer can
+              // reach a single person's record has to say so.
+              [
+                if (showStatus) 'Anyone needing attention is listed first.',
+                if (onOpenEmployee != null)
+                  'Open anyone to see their own records for this period.',
+              ].join(' '),
               style: AppTypography.caption.copyWith(
                 color: AppColors.textTertiary,
               ),
@@ -92,6 +106,10 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
                           _EmployeeRow(
                             cells: _cellsFor(employee, showStatus),
                             band: showStatus ? employee.attentionBand : null,
+                            onTap: onOpenEmployee == null
+                                ? null
+                                : () => onOpenEmployee!(employee),
+                            semanticName: employee.displayName,
                           ),
                       ],
                     ),
@@ -129,17 +147,38 @@ class AttendanceWeeklyEmployeeRows extends StatelessWidget {
   }
 }
 
-class _EmployeeRow extends StatelessWidget {
-  const _EmployeeRow({required this.cells, this.header = false, this.band});
+class _EmployeeRow extends StatefulWidget {
+  const _EmployeeRow({
+    required this.cells,
+    this.header = false,
+    this.band,
+    this.onTap,
+    this.semanticName,
+  });
 
   final List<String> cells;
   final bool header;
   final AttendanceAttentionBand? band;
+  final VoidCallback? onTap;
+  final String? semanticName;
+
+  @override
+  State<_EmployeeRow> createState() => _EmployeeRowState();
+}
+
+class _EmployeeRowState extends State<_EmployeeRow> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
+    final cells = widget.cells;
+    final header = widget.header;
+    final band = widget.band;
     final last = cells.length - 1;
-    return Container(
+    final tappable = widget.onTap != null && !header;
+    final lit = tappable && _hovered;
+
+    final row = Container(
       constraints: const BoxConstraints(minHeight: 48),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -147,6 +186,8 @@ class _EmployeeRow extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: header
+            ? AppColors.darkSurfaceElevated
+            : lit
             ? AppColors.darkSurfaceElevated
             : AppColors.darkSurface.withValues(alpha: 0.72),
         border: const Border(bottom: BorderSide(color: AppColors.darkBorder)),
@@ -168,17 +209,40 @@ class _EmployeeRow extends StatelessWidget {
                     .copyWith(
                       // Only the Status cell carries tone, and only when the
                       // person needs something. Toning the whole row would make
-                      // a late arrival look like an emergency.
+                      // a late arrival look like an emergency. On hover the
+                      // *name* brightens — the affordance points at the thing
+                      // the row opens, not at the numbers.
                       color: header
                           ? AppColors.textTertiary
                           : i == last
                           ? _statusColour(band)
+                          : lit && i == 0
+                          ? AppColors.textPrimary
                           : AppColors.textSecondary,
                       fontWeight: header ? FontWeight.w600 : FontWeight.w500,
                     ),
               ),
             ),
         ],
+      ),
+    );
+
+    if (!tappable) return row;
+
+    return Semantics(
+      button: true,
+      label: widget.semanticName == null
+          ? 'Open attendance history'
+          : 'Open ${widget.semanticName}\'s attendance history',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: row,
+        ),
       ),
     );
   }

@@ -16,6 +16,7 @@ import 'package:drop/features/communications/domain/entities/broadcast_schedule_
 import 'package:drop/features/communications/presentation/communications_format.dart';
 import 'package:drop/features/communications/presentation/cubit/broadcast_schedule_cubit.dart';
 import 'package:drop/features/communications/presentation/cubit/broadcast_schedule_state.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 
 /// Scheduled broadcasts (Communications Center — Phase 2 Commit 4) — the manager
 /// surface for recurring/one-time schedules: next run, recurrence, run count,
@@ -52,10 +53,11 @@ class _BroadcastSchedulesScreenState extends State<BroadcastSchedulesScreen> {
         builder: (context, state) => state.maybeWhen(
           loading: () => const ListSkeleton(),
           loaded: (schedules, _) => _list(schedules),
-          error: (m) => AppEmptyState(
+          error: (m) => AppErrorState(
               icon: Icons.wifi_off_rounded,
               title: 'Could not load schedules',
-              message: m),
+              message: m,
+              onRetry: _load),
           orElse: () => const SizedBox.shrink(),
         ),
       ),

@@ -65,8 +65,9 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AdminUsersCubit>().load(AdminUserFilter.employees);
       _loadBranches();
-      // The admin task stream feeds each card's performance metrics. Load it
-      // only if it isn't already streaming (it usually is, from Admin Home).
+      // The admin task stream feeds the Details inspector's performance block.
+      // Load it only if it isn't already streaming (it usually is, from Admin
+      // Home) so the inspector has data the moment it opens.
       final taskCubit = context.read<TaskCubit>();
       final loaded = taskCubit.state.maybeWhen(
         loaded: (_, _, _, _, _) => true,
@@ -244,12 +245,9 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
 
   Widget _body(List<UserEntity> users, bool busy) {
     final filtered = _filter(users);
-    // Per-employee performance, derived from the live admin task stream.
-    final tasks = context.watch<TaskCubit>().state.maybeWhen(
-      loaded: (t, _, _, _, _) => t,
-      orElse: () => const <TaskEntity>[],
-    );
-    final metrics = computeEmployeeMetrics(tasks);
+    // The directory itself is identity-only, so it deliberately does not watch
+    // the task stream: performance is computed on demand when Details opens.
+    // That keeps a large employee list from rebuilding on every task tick.
     return Column(
       children: [
         if (busy) const LinearProgressIndicator(minHeight: 2),
@@ -259,7 +257,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
             onRefresh: () => context.read<AdminUsersCubit>().refresh(),
             child: filtered.isEmpty
                 ? _empty(users.isEmpty)
-                : _employeeDirectory(filtered, metrics),
+                : _employeeDirectory(filtered),
           ),
         ),
       ],
@@ -269,10 +267,7 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
   /// Lazily builds the directory. The earlier eager card grid constructed every
   /// card (and animation controller) at once; this keeps the same data and
   /// actions while remaining responsive for a large employee directory.
-  Widget _employeeDirectory(
-    List<UserEntity> users,
-    Map<String, EmployeeMetrics> metrics,
-  ) {
+  Widget _employeeDirectory(List<UserEntity> users) {
     final useGrid = context.isDesktop && _view == _EmployeeView.grid;
     return CustomScrollView(
       key: const PageStorageKey('admin_employees_directory'),
@@ -290,38 +285,32 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                   builder: (context, constraints) {
                     // A standard SliverGrid requires a fixed row extent. That
                     // is unsafe here because compact cards intentionally wrap
-                    // KPI/action rows at narrow widths or larger text scales.
+                    // their action row at narrow widths or larger text scales.
                     // Lazily building two natural-height cards per row retains
                     // the desktop grid affordance without clipping either card.
                     final twoColumns = constraints.crossAxisExtent >= 840;
                     return twoColumns
-                        ? _twoColumnEmployeeSliver(users, metrics)
-                        : _employeeListSliver(users, metrics);
+                        ? _twoColumnEmployeeSliver(users)
+                        : _employeeListSliver(users);
                   },
                 )
-              : _employeeListSliver(users, metrics),
+              : _employeeListSliver(users),
         ),
       ],
     );
   }
 
-  Widget _employeeListSliver(
-    List<UserEntity> users,
-    Map<String, EmployeeMetrics> metrics,
-  ) => SliverList.builder(
+  Widget _employeeListSliver(List<UserEntity> users) => SliverList.builder(
     itemCount: users.length,
     itemBuilder: (context, index) => Padding(
       padding: EdgeInsets.only(
         bottom: index == users.length - 1 ? 0 : AppSpacing.sm,
       ),
-      child: _employeeTile(users[index], metrics),
+      child: _employeeTile(users[index]),
     ),
   );
 
-  Widget _twoColumnEmployeeSliver(
-    List<UserEntity> users,
-    Map<String, EmployeeMetrics> metrics,
-  ) {
+  Widget _twoColumnEmployeeSliver(List<UserEntity> users) {
     final rowCount = (users.length + 1) ~/ 2;
     return SliverList.builder(
       itemCount: rowCount,
@@ -336,11 +325,11 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _employeeTile(users[firstIndex], metrics)),
+              Expanded(child: _employeeTile(users[firstIndex])),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: hasSecond
-                    ? _employeeTile(users[secondIndex], metrics)
+                    ? _employeeTile(users[secondIndex])
                     : const SizedBox.shrink(),
               ),
             ],
@@ -350,14 +339,13 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
     );
   }
 
-  Widget _employeeTile(UserEntity user, Map<String, EmployeeMetrics> metrics) {
+  Widget _employeeTile(UserEntity user) {
     return GestureDetector(
       // Right-click remains a complete alternative to the visible action row.
       onSecondaryTapDown: (details) =>
           _showContextMenu(user, details.globalPosition),
       child: EmployeeCard(
         user: user,
-        metrics: metrics[user.uid] ?? const EmployeeMetrics(),
         branchLabel: user.branchId == null ? null : _branchNames[user.branchId],
         onTap: () => _showDetails(user),
         actions: _actions(user),

@@ -1,6 +1,7 @@
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
 import 'package:drop/core/utils/app_logger.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/chat/data/datasources/chat_remote_datasource.dart';
 import 'package:drop/features/chat/data/local/chat_local_datasource.dart';
 import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
@@ -39,7 +40,23 @@ class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSource _remote;
   final ChatLocalDataSource? _local;
 
+  // Brokered URLs are short-lived credentials, not attachment bytes. Keeping
+  // them here makes every thumbnail/viewer request in this app session reuse
+  // the same URL until the server-provided expiry, which in turn lets
+  // Flutter's URL-keyed ImageCache reuse the decoded image.
+  final Map<String, ChatAttachmentDownload> _attachmentDownloads = {};
+  final Map<String, Future<ChatAttachmentDownload>> _attachmentDownloadRequests =
+      {};
+
   ChatRepositoryImpl(this._remote, [this._local]);
+
+  /// Drops every cached brokered URL. Called on sign-out beside the other chat
+  /// cache wipes: these are short-lived **credentials** for another account's
+  /// attachments, so a shared device must not carry them into the next session.
+  void clearAttachmentUrlCache() {
+    _attachmentDownloads.clear();
+    _attachmentDownloadRequests.clear();
+  }
 
   /// Prefix on a message-history cursor that the repository itself minted to
   /// page **backwards through the cache** (encodes the oldest seq served so
@@ -152,6 +169,7 @@ class ChatRepositoryImpl implements ChatRepository {
     String? replyToMessageId,
     void Function(int sent, int total)? onSendProgress,
   }) async {
+    NetworkGuard.ensureWritable();
     // Durable outbox — text sends only. Persist before dispatch so a message
     // composed offline (or lost to a crash) survives and can be retried after
     // reconnect; the same idempotency key makes the retry duplicate-safe. An
@@ -322,9 +340,30 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<ChatAttachmentDownload> getAttachmentDownloadUrl({
     required String conversationId,
     required String messageId,
-  }) =>
-      _guard(() => _remote.getAttachmentDownloadUrl(
-            conversationId: conversationId,
-            messageId: messageId,
-          ));
+  }) async {
+    final key = '$conversationId:$messageId';
+    final cached = _attachmentDownloads[key];
+    if (cached != null && !cached.isExpired) return cached;
+
+    // Multiple bubbles can ask for the same URL in the same frame (for
+    // example an inline image and a viewer transition). Coalesce that work as
+    // well as caching its completed result.
+    final inFlight = _attachmentDownloadRequests[key];
+    if (inFlight != null) return inFlight;
+
+    final request = _guard(() => _remote.getAttachmentDownloadUrl(
+          conversationId: conversationId,
+          messageId: messageId,
+        ));
+    _attachmentDownloadRequests[key] = request;
+    try {
+      final download = await request;
+      _attachmentDownloads[key] = download;
+      return download;
+    } finally {
+      if (identical(_attachmentDownloadRequests[key], request)) {
+        _attachmentDownloadRequests.remove(key);
+      }
+    }
+  }
 }

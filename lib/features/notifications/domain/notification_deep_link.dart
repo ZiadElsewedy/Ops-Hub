@@ -16,12 +16,21 @@ class NotificationRoute {
   static const String schedule = 'schedule';
   static const String caseThread = 'case_details';
   static const String request = 'request_details';
+
+  /// Direct chat messages. Written by the NestJS chat backend (the one route
+  /// not produced by `functions/index.js`) with a `conversationId`.
+  static const String chat = 'chat_message';
+
+  /// Attendance corrections + auto-closed sessions. Written by
+  /// `writeAttendanceNotifications` in `functions/index.js`, which always stamps
+  /// a `recordId` (and a `correctionId` for correction events).
+  static const String attendance = 'attendance';
 }
 
 /// The single, pure, role-aware deep-link resolver for a notification tap —
 /// used by BOTH tap surfaces (the in-app inbox tile and the FCM push handler)
-/// so a task/broadcast/schedule/case/request opens the SAME destination however
-/// it was tapped (foreground, background, cold-start, or in-app).
+/// so a task/broadcast/schedule/case/request/chat opens the SAME destination
+/// however it was tapped (foreground, background, cold-start, or in-app).
 ///
 /// Returns the concrete `go_router` location to navigate to, or `null` when
 /// there is no safe destination for this recipient (e.g. an employee tapping a
@@ -32,9 +41,9 @@ class NotificationRoute {
 /// [payload] is read leniently: it works for a [NotificationEntity.payload]
 /// map (typed values) and for an FCM `RemoteMessage.data` map (all-strings),
 /// since ids are coerced to a non-empty `String?`. When a specific target id is
-/// missing but a safe list destination exists (cases / requests), the resolver
-/// falls back to the list rather than returning `null`, so the tap is never
-/// wasted.
+/// missing but a safe list destination exists (cases / requests / chat), the
+/// resolver falls back to the list rather than returning `null`, so the tap is
+/// never wasted.
 String? resolveNotificationRoute({
   required String? route,
   required Map<String, dynamic> payload,
@@ -71,6 +80,28 @@ String? resolveNotificationRoute({
       return requestId != null
           ? RouteNames.requestDetail(requestId)
           : RouteNames.requests;
+
+    case NotificationRoute.chat:
+      final conversationId = _id(payload, 'conversationId');
+      // Chat is available to every role, so this deliberately has no role gate.
+      return conversationId != null
+          ? RouteNames.chatConversation(conversationId)
+          : RouteNames.chat;
+
+    case NotificationRoute.attendance:
+      // Every attendance producer stamps the record id, so a correction filed /
+      // decided or an auto-closed session opens the exact record (Firestore
+      // rules — not the route — decide who may read it).
+      final recordId = _id(payload, 'recordId');
+      if (recordId != null) return RouteNames.attendanceRecord(recordId);
+      // No record id (legacy doc) → the ledger this recipient is allowed to
+      // open: reviewers land on the branch review queue, an employee on their
+      // own history.
+      return switch (role) {
+        UserRole.admin || UserRole.manager => RouteNames.attendanceReview,
+        UserRole.employee => RouteNames.attendanceHistory,
+        null => null,
+      };
 
     default:
       // Unknown / missing route — no safe deep target.

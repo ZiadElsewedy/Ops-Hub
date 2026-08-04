@@ -22,6 +22,19 @@ import 'package:drop/features/schedule/domain/shift_plan.dart';
 abstract class ScheduleRemoteDataSource {
   // ── Weekly schedules ──
   Future<WeeklyScheduleModel?> getSchedule(String branchId, DateTime weekStart);
+
+  /// [getSchedule], but answered from the on-device Firestore cache when the
+  /// week's document is already there, falling back to the server on a miss.
+  ///
+  /// For callers that need the roster *now* and can tolerate it being one read
+  /// stale — today only `TaskCubit`, which uses it to bind shift task streams
+  /// without waiting on a network round trip, then reconciles against the
+  /// server. **Not a general replacement for [getSchedule]:** anything that
+  /// displays or edits the roster must keep reading server-first.
+  Future<WeeklyScheduleModel?> getScheduleCacheFirst(
+    String branchId,
+    DateTime weekStart,
+  );
   Future<List<WeeklyScheduleModel>> getBranchSchedules(String branchId);
   Future<List<WeeklyScheduleModel>> getAllSchedules();
   Future<WeeklyScheduleModel> createSchedule(WeeklyScheduleModel schedule);
@@ -123,6 +136,26 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to load the schedule.');
     }
+  }
+
+  @override
+  Future<WeeklyScheduleModel?> getScheduleCacheFirst(
+    String branchId,
+    DateTime weekStart,
+  ) async {
+    try {
+      final doc = await _schedules
+          .doc(ScheduleWeek.docId(branchId, weekStart))
+          .get(const GetOptions(source: Source.cache));
+      if (doc.exists && doc.data() != null) {
+        return WeeklyScheduleModel.fromMap(doc.data()!, id: doc.id);
+      }
+    } on FirebaseException {
+      // A cache miss throws `unavailable` rather than returning an empty
+      // snapshot. Either shape means "not on disk" — fall through to the
+      // server, which is the normal path on a first run.
+    }
+    return getSchedule(branchId, weekStart);
   }
 
   @override

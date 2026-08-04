@@ -2,16 +2,18 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `settings`
 
-> `lib/features/settings/` · **2 files** · layer-complete clean-architecture slice
+> `lib/features/settings/` · **3 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
 |---|---|---|
 | `RouteNames.settings` | `/settings` |  |
+| `RouteNames.about` | `/settings/about` |  |
 | `RouteNames.changePassword` | `/settings/change-password` |  |
 
 ## Owner files (by layer)
 **presentation:page**
+- `lib/features/settings/presentation/pages/about_page.dart`
 - `lib/features/settings/presentation/pages/change_password_page.dart`
 - `lib/features/settings/presentation/pages/settings_page.dart`
 

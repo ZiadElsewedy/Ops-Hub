@@ -17,8 +17,11 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/services/usage_tracker.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/utils/app_logger.dart';
+import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
+import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
+import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/auth/presentation/pages/splash_page.dart';
@@ -211,6 +214,15 @@ String _initialLocationFor(AuthState state) => state.maybeWhen(
 void _configureNotificationService() {
   AppDependencies.notificationService
     ..onForeground = (title, body, data) {
+      // iOS presents its own foreground banner
+      // (`setForegroundNotificationPresentationOptions`, set in
+      // NotificationService.init). Showing the in-app snackbar as well would
+      // double-notify for the same message, so Apple platforms rely on the OS
+      // banner — which is tappable and routes through the same
+      // `onMessageOpenedApp` → resolver path, so nothing is lost.
+      // ANDROID IS UNCHANGED: it keeps the snackbar, because a foreground push
+      // on Android is delivered to `onMessage` only and the OS shows nothing.
+      if (requiresApnsToken) return;
       final text = [
         title,
         body,
@@ -227,7 +239,15 @@ void _configureNotificationService() {
               ? null
               : SnackBarAction(
                   label: 'View',
-                  onPressed: () => _router?.push(destination),
+                  onPressed: () {
+                    final router = _router;
+                    if (router == null) return;
+                    if (_isChatDestination(destination)) {
+                      _openChatNotification(router, destination);
+                    } else {
+                      router.push(destination);
+                    }
+                  },
                 ),
         ),
       );
@@ -246,12 +266,34 @@ void _configureNotificationService() {
       // crashes on a stale or unknown notification.
       final destination = _resolveTapLocation(data);
       if (destination != null) {
-        router.push(destination);
+        if (_isChatDestination(destination)) {
+          _openChatNotification(router, destination);
+        } else {
+          router.push(destination);
+        }
       } else {
         router.go(RouteNames.notifications);
       }
     };
   unawaited(AppDependencies.notificationService.init());
+}
+
+bool _isChatDestination(String destination) =>
+    destination.startsWith('${RouteNames.chat}/');
+
+void _openChatNotification(GoRouter router, String destination) {
+  final conversationId = Uri.parse(destination).pathSegments.last;
+  final role = AppDependencies.authCubit.state.maybeWhen(
+    authenticated: (user) => user.role,
+    orElse: () => null,
+  );
+  if (role == null) return;
+  openChatDeepLink(
+    router,
+    conversationId,
+    role: role,
+    args: chatThreadArgsFor(conversationId),
+  );
 }
 
 /// Resolves an FCM push `data` map to a deep-link location for the signed-in
@@ -387,9 +429,18 @@ class App extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           // Above the router so a new chat message can raise an in-app banner
           // from any screen (suppressed for the conversation on screen).
-          builder: (context, child) => ChatNotificationListener(
-            router: router,
-            child: child ?? const SizedBox.shrink(),
+          //
+          // `ConnectivityScope` is outermost so every screen — and every
+          // `requireOnline` call inside one — can read the connection state.
+          // It does not block the app: the offline rule is "gate the actions,
+          // never the app" (see the class doc for why).
+          builder: (context, child) => ConnectivityScope(
+            child: OfflineBar(
+              child: ChatNotificationListener(
+                router: router,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
           ),
         ),
       ),

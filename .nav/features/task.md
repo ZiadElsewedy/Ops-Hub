@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `task`
 
-> `lib/features/task/` · **101 files** · layer-complete clean-architecture slice
+> `lib/features/task/` · **100 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -34,7 +34,6 @@
 - `lib/features/task/presentation/widgets/attachment_picker.dart`
 - `lib/features/task/presentation/widgets/attachment_viewer.dart`
 - `lib/features/task/presentation/widgets/dynamic_work_form.dart`
-- `lib/features/task/presentation/widgets/live_status_border.dart`
 - `lib/features/task/presentation/widgets/manager_task_card.dart`
 - `lib/features/task/presentation/widgets/recent_activity_feed.dart`
 - `lib/features/task/presentation/widgets/recurring_shift_task_sheets.dart`
@@ -143,6 +142,8 @@
 - **Design spec(s):** `docs/design/AUTOMATED_TASKS_PRODUCT_SPEC.md`, `docs/design/TASKS.md`
 
 ## Tests
+- `test/admin_task_overview_screen_test.dart`
+- `test/my_tasks_tabs_test.dart`
 - `test/recurring_shift_task_test.dart`
 - `test/task_access_test.dart`
 - `test/task_archive_test.dart`
@@ -166,11 +167,14 @@
 - `test/task_model_work_type_test.dart`
 - `test/task_ordering_test.dart`
 - `test/task_outcomes_test.dart`
+- `test/task_preview_sheet_test.dart`
 - `test/task_schedule_test.dart`
 - `test/task_seen_store_test.dart`
+- `test/task_shift_stream_binding_test.dart`
 - `test/task_start_gate_widget_test.dart`
 - `test/task_status_test.dart`
 - `test/task_submission_gate_test.dart`
+- `test/task_template_sheets_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)
 ```

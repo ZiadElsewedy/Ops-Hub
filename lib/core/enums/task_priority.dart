@@ -6,6 +6,14 @@ enum TaskPriority {
 
   String get value => name;
 
+  /// Human-readable label for display — **never** confuse with [value], the
+  /// persisted wire string written to `tasks/{taskId}.priority`.
+  String get label => switch (this) {
+    TaskPriority.low => 'Low',
+    TaskPriority.normal => 'Normal',
+    TaskPriority.high => 'High',
+  };
+
   bool get isLow => this == TaskPriority.low;
   bool get isNormal => this == TaskPriority.normal;
   bool get isHigh => this == TaskPriority.high;

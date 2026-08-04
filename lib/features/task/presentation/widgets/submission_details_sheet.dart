@@ -4,6 +4,7 @@ import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_dialog.dart';
+import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/auth/presentation/widgets/app_button.dart';
 import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
 import 'package:drop/features/task/domain/entities/activity_entry.dart';
@@ -319,11 +320,15 @@ class _SubmissionDetailsSheetState extends State<SubmissionDetailsSheet> {
   String? get _note => _notes.text.trim().isEmpty ? null : _notes.text.trim();
 
   void _approve() {
+    // A review decision is server-authoritative and someone else's work waits
+    // on it — it must not be taken against a possibly-stale submission.
+    if (!requireOnline(context, action: 'approving work')) return;
     widget.cubit.approveTask(widget.task, reviewNotes: _note);
     Navigator.of(context).pop();
   }
 
   Future<void> _requestRework() async {
+    if (!requireOnline(context, action: 'requesting rework')) return;
     final confirmed = await showConfirmDialog(
       context,
       title: 'Request rework?',

@@ -4,126 +4,78 @@ import 'package:drop/features/attendance/domain/reporting/attendance_export_gate
 
 void main() {
   AttendanceExportAvailability gate({
-    required AttendanceExportKind kind,
-    UserRole role = UserRole.admin,
+    AttendanceExportKind kind = AttendanceExportKind.summaryPdf,
+    UserRole role = UserRole.manager,
     bool hasRows = true,
-    bool isLocked = false,
     int blockingRows = 0,
-    bool serverReady = true,
   }) => attendanceExportAvailability(
     kind: kind,
     role: role,
     hasRows: hasRows,
-    isLocked: isLocked,
     blockingRows: blockingRows,
-    serverReady: serverReady,
   );
 
-  group('payroll export', () {
-    test('requires a locked period', () {
-      expect(
-        gate(kind: AttendanceExportKind.payrollCsv).block,
-        AttendanceExportBlock.notLocked,
-      );
-      expect(
-        gate(kind: AttendanceExportKind.payrollCsv, isLocked: true).isAllowed,
-        isTrue,
-      );
-    });
-
-    test('is never offered to a manager, however locked', () {
-      // Not distrust: an export one tap from a PDF button is eventually pressed
-      // by someone who meant to print a summary.
-      expect(
-        gate(
-          kind: AttendanceExportKind.payrollCsv,
-          role: UserRole.manager,
-          isLocked: true,
-        ).block,
-        AttendanceExportBlock.forbidden,
-      );
-    });
-
-    test('forbidden outranks every other reason', () {
-      // A manager must be told they are not the one who does this, not that the
-      // period needs locking — otherwise they go and lock it.
-      expect(
-        gate(
-          kind: AttendanceExportKind.payrollCsv,
-          role: UserRole.manager,
-          hasRows: false,
-          isLocked: false,
-        ).block,
-        AttendanceExportBlock.forbidden,
-      );
-    });
+  test('a settled week exports for a manager and an admin', () {
+    // Both artifacts are generated on the client (ADR-019), so there is nothing
+    // to deploy and nothing to wait for.
+    for (final kind in AttendanceExportKind.values) {
+      expect(gate(kind: kind, role: UserRole.manager).isAllowed, isTrue);
+      expect(gate(kind: kind, role: UserRole.admin).isAllowed, isTrue);
+    }
   });
 
-  group('manager artifacts', () {
-    test('do not require a lock — only a settled period', () {
-      for (final kind in [
-        AttendanceExportKind.summaryPdf,
-        AttendanceExportKind.timesheetCsv,
-      ]) {
-        expect(
-          gate(kind: kind, role: UserRole.manager, isLocked: false).isAllowed,
-          isTrue,
-          reason: 'a week must be shareable before payroll finalises it',
-        );
-        expect(
-          gate(
-            kind: kind,
-            role: UserRole.manager,
-            blockingRows: 2,
-          ).block,
-          AttendanceExportBlock.notSettled,
-        );
-      }
-    });
-
-    test('an employee gets nothing', () {
-      for (final kind in AttendanceExportKind.values) {
-        expect(
-          gate(kind: kind, role: UserRole.employee, isLocked: true).block,
-          AttendanceExportBlock.forbidden,
-        );
-      }
-    });
+  test('an unsettled week is not shareable as though it were final', () {
+    // A document leaves the app and outlives the screen that qualified it.
+    expect(
+      gate(blockingRows: 2).block,
+      AttendanceExportBlock.notSettled,
+    );
   });
 
   test('an empty period exports nothing at all', () {
+    expect(gate(hasRows: false).block, AttendanceExportBlock.noRows);
+  });
+
+  test('an employee gets nothing', () {
     for (final kind in AttendanceExportKind.values) {
       expect(
-        gate(kind: kind, hasRows: false, isLocked: true).block,
-        AttendanceExportBlock.noRows,
+        gate(kind: kind, role: UserRole.employee).block,
+        AttendanceExportBlock.forbidden,
       );
     }
   });
 
-  test('the undeployed server is reported last, after the real reason', () {
-    // "Settle these shifts" is more useful than "not deployed" to someone who
-    // has shifts to settle either way.
+  test('role outranks every other reason', () {
+    // Someone who may never export must be told that, not sent to settle
+    // shifts they cannot export afterwards either.
     expect(
-      gate(
-        kind: AttendanceExportKind.summaryPdf,
-        role: UserRole.manager,
-        blockingRows: 1,
-        serverReady: false,
-      ).block,
-      AttendanceExportBlock.notSettled,
-    );
-    expect(
-      gate(
-        kind: AttendanceExportKind.summaryPdf,
-        role: UserRole.manager,
-        serverReady: false,
-      ).block,
-      AttendanceExportBlock.notDeployed,
+      gate(role: UserRole.employee, hasRows: false, blockingRows: 3).block,
+      AttendanceExportBlock.forbidden,
     );
   });
 
+  test('payroll is gone — the enum carries only operational artifacts', () {
+    // ADR-019: DROP is an operations system, nothing ingests a payroll file.
+    expect(AttendanceExportKind.values, hasLength(2));
+    expect(
+      AttendanceExportKind.values.map((k) => k.label),
+      ['PDF summary', 'Timesheet'],
+    );
+    for (final kind in AttendanceExportKind.values) {
+      expect(kind.label.toLowerCase(), isNot(contains('payroll')));
+    }
+  });
+
   test('every block explains itself without jargon', () {
-    const banned = ['ledger', 'cloud function', 'firestore', 'null', 'index'];
+    const banned = [
+      'ledger',
+      'cloud function',
+      'firestore',
+      'null',
+      'index',
+      'locked',
+      'deploy',
+    ];
     for (final block in AttendanceExportBlock.values) {
       expect(block.message, isNotEmpty);
       for (final word in banned) {

@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:drop/features/attendance/domain/attendance_review_link.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_timesheet_csv.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_weekly_pdf.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:drop/core/widgets/app_snackbar.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
@@ -16,10 +23,14 @@ import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_export_gate.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
+import 'package:drop/features/attendance/domain/repositories/attendance_week_review_repository.dart';
+import 'package:drop/features/attendance/domain/reporting/attendance_week_review.dart';
+import 'package:drop/features/attendance/domain/attendance_id.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_weekly_kpis.dart';
@@ -34,10 +45,16 @@ class AttendanceWeeklyReportScreen extends StatelessWidget {
     super.key,
     required this.periodId,
     this.cubit,
+    this.weekReviewRepository,
   });
 
   final String periodId;
   final AttendanceReportCubit? cubit;
+
+  /// Injectable for tests, exactly like [cubit]. Null falls back to DI — a
+  /// widget reaching straight into a `late final` singleton is what made this
+  /// screen untestable in the first place.
+  final AttendanceWeekReviewRepository? weekReviewRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +62,7 @@ class AttendanceWeeklyReportScreen extends StatelessWidget {
     final view = _AttendanceWeeklyReportView(
       period: parsed,
       rawPeriodId: periodId,
+      weekReviewRepository: weekReviewRepository,
     );
     final provided = cubit;
     if (provided != null) {
@@ -64,10 +82,12 @@ class _AttendanceWeeklyReportView extends StatefulWidget {
   const _AttendanceWeeklyReportView({
     required this.period,
     required this.rawPeriodId,
+    this.weekReviewRepository,
   });
 
   final WeeklyAttendancePeriodRef? period;
   final String rawPeriodId;
+  final AttendanceWeekReviewRepository? weekReviewRepository;
 
   @override
   State<_AttendanceWeeklyReportView> createState() =>
@@ -124,7 +144,10 @@ class _AttendanceWeeklyReportViewState
           if (period == null)
             _InvalidPeriodPanel(rawPeriodId: widget.rawPeriodId)
           else
-            _WeeklyReportLoader(period: period),
+            _WeeklyReportLoader(
+              period: period,
+              weekReviewRepository: widget.weekReviewRepository,
+            ),
         ],
       ),
     );
@@ -132,9 +155,13 @@ class _AttendanceWeeklyReportViewState
 }
 
 class _WeeklyReportLoader extends StatelessWidget {
-  const _WeeklyReportLoader({required this.period});
+  const _WeeklyReportLoader({
+    required this.period,
+    this.weekReviewRepository,
+  });
 
   final WeeklyAttendancePeriodRef period;
+  final AttendanceWeekReviewRepository? weekReviewRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +197,7 @@ class _WeeklyReportLoader extends StatelessWidget {
               period: period,
               branchName: branchName,
               report: report,
+              weekReviewRepository: weekReviewRepository,
             );
           },
         );
@@ -190,11 +218,13 @@ class _WeeklyReportContent extends StatelessWidget {
     required this.period,
     required this.branchName,
     required this.report,
+    this.weekReviewRepository,
   });
 
   final WeeklyAttendancePeriodRef period;
   final String branchName;
   final WeeklyAttendanceReport report;
+  final AttendanceWeekReviewRepository? weekReviewRepository;
 
   /// Five sections, fixed order (`ATTENDANCE_REPORTS_IA` §6.4, amended
   /// 2026-07-31). Section 1 carries the only verb on the page and is absent
@@ -213,7 +243,11 @@ class _WeeklyReportContent extends StatelessWidget {
 
         // 1 — Needs your attention.
         if (blockingGroups.isNotEmpty) ...[
-          _NeedsAttention(report: report, groups: blockingGroups),
+          _NeedsAttention(
+            report: report,
+            groups: blockingGroups,
+            period: period,
+          ),
           const SizedBox(height: AppSpacing.xl),
         ],
 
@@ -231,10 +265,21 @@ class _WeeklyReportContent extends StatelessWidget {
           AttendanceWeeklyKpis(summary: report.summary),
         const SizedBox(height: AppSpacing.xl),
 
-        // 3 — By person, exceptions first.
+        // 3 — By person, exceptions first. A row opens that person's own
+        // records, pinned to this branch and this week, so the ledger answers
+        // the question the row raised instead of a differently-scoped one.
         AttendanceWeeklyEmployeeRows(
           employees: report.employees,
           showStatus: true,
+          onOpenEmployee: (employee) => context.push(
+            RouteNames.attendanceReview,
+            extra: AttendanceReviewLink(
+              employeeName: employee.displayName,
+              branchId: period.branchId,
+              start: period.window.startDate,
+              end: period.window.endDate,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.xl),
 
@@ -249,7 +294,16 @@ class _WeeklyReportContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
 
         // 5 — Share.
-        _SharePanel(report: report),
+        _SharePanel(report: report, branchName: branchName),
+        const SizedBox(height: AppSpacing.xl),
+
+        // 6 — Week review: an assertion, kept visually apart from the derived
+        // status in the header so neither can be read as implying the other.
+        _WeekReview(
+          period: period,
+          report: report,
+          repository: weekReviewRepository,
+        ),
       ],
     );
   }
@@ -276,16 +330,18 @@ class _HeaderSection extends StatelessWidget {
       // manager has one timezone and no decision to make about `v1`. Both move
       // to the admin audit surface in Phase 3.
       subtitle: '${_weekLabel(period.window)} · ${coverage.statusLabel}',
-      primaryAction: PremiumButton(
-        label: 'Close week',
-        icon: Icons.lock_outline_rounded,
-        onPressed: null,
-        style: PremiumButtonStyle.filled,
-      ),
-      // Only the status pill travels in the hero. A third disabled action here
-      // overflowed PageHero's stacked Row by 155px at mobile width, and the
-      // share panel at the foot of the report already carries the PDF/CSV
-      // affordances — so this was redundant as well as too wide.
+      // No "Close week" here. It was the most prominent control on the report,
+      // wore a padlock, and was hardcoded `onPressed: null` — it could never do
+      // anything. Worse, it promised the one thing the product deliberately
+      // refuses: [ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md)
+      // decides a week is **reviewed, never locked** — "no write is rejected, no
+      // rule enforces it, no period becomes immutable". The real mechanism is the
+      // Week review section at the foot of this report, which records who looked
+      // and when, and is reversible.
+      //
+      // Only the status pill travels in the hero. A third action here overflowed
+      // PageHero's stacked Row by 155px at mobile width, and the share panel at
+      // the foot already carries the PDF/CSV affordances.
       trailing: [_StatusPill(status: coverage.status)],
     );
   }
@@ -302,10 +358,28 @@ class _HeaderSection extends StatelessWidget {
 /// because it is the most common state, but because when it exists it outranks
 /// everything else on the page.
 class _NeedsAttention extends StatelessWidget {
-  const _NeedsAttention({required this.report, required this.groups});
+  const _NeedsAttention({
+    required this.report,
+    required this.groups,
+    required this.period,
+  });
 
   final WeeklyAttendanceReport report;
   final List<WeeklyAttendanceExceptionGroup> groups;
+
+  /// Carries the branch id — the report itself does not, and Daily Review is
+  /// addressed by branch + day.
+  final WeeklyAttendancePeriodRef period;
+
+  /// The earliest day this week that still has a blocking decision, as a
+  /// `yyyyMMdd` key. Null when nothing is open, which disables the action rather
+  /// than sending a manager to an already-settled day.
+  static String? _firstDayNeedingAttention(WeeklyAttendanceReport report) {
+    for (final day in report.days) {
+      if (day.blockingExceptionCount > 0) return day.dayKey;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -333,13 +407,22 @@ class _NeedsAttention extends StatelessWidget {
                 _MiniFact(label: group.label, value: '${group.count}'),
             ],
           );
-          // The queue itself is Phase 2. The affordance explains itself rather
-          // than sitting inert — a disabled button tells a manager nothing
-          // about why it cannot be used.
+          // This said "Daily review is coming next" long after Daily Review
+          // shipped — the day table directly below already opens it. It now goes
+          // where the decisions are actually made: the earliest day in this week
+          // that still has something open.
+          final openDay = _firstDayNeedingAttention(report);
           final action = PremiumButton(
             label: 'Review these',
             icon: Icons.fact_check_outlined,
-            onPressed: () => context.showInfo('Daily review is coming next.'),
+            onPressed: openDay == null
+                ? null
+                : () => context.push(
+                    RouteNames.attendanceDailyReview(
+                      period.branchId,
+                      openDay,
+                    ),
+                  ),
           );
           if (constraints.maxWidth < 560) {
             return Column(
@@ -501,9 +584,10 @@ class _NoDataYetPanel extends StatelessWidget {
 /// *restatement* went with it: it is an accounting term for correcting a
 /// published financial statement and had no business on a store screen.
 class _SharePanel extends StatelessWidget {
-  const _SharePanel({required this.report});
+  const _SharePanel({required this.report, required this.branchName});
 
   final WeeklyAttendanceReport report;
+  final String branchName;
 
   @override
   Widget build(BuildContext context) {
@@ -513,11 +597,7 @@ class _SharePanel extends StatelessWidget {
       kind: AttendanceExportKind.summaryPdf,
       role: role,
       hasRows: report.rows.isNotEmpty,
-      isLocked: false,
       blockingRows: report.coverage.ledgerCoverage.blockingExceptionRowCount,
-      // File generation is a Cloud Function under ADR-005 and has never been
-      // deployed. Naming that is better than a button that fails.
-      serverReady: false,
     );
 
     return GlassContainer(
@@ -549,12 +629,16 @@ class _SharePanel extends StatelessWidget {
                     PremiumButton(
                       label: AttendanceExportKind.summaryPdf.label,
                       icon: Icons.picture_as_pdf_outlined,
-                      onPressed: availability.isAllowed ? () {} : null,
+                      onPressed: availability.isAllowed
+                          ? () => _saveWeeklyPdf(context, report, branchName)
+                          : null,
                     ),
                     PremiumButton(
                       label: AttendanceExportKind.timesheetCsv.label,
                       icon: Icons.table_view_outlined,
-                      onPressed: availability.isAllowed ? () {} : null,
+                      onPressed: availability.isAllowed
+                          ? () => _saveTimesheetCsv(context, report, branchName)
+                          : null,
                     ),
                   ],
                 ),
@@ -564,6 +648,230 @@ class _SharePanel extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Write the weekly PDF beside the timesheet and open it.
+///
+/// Opening matters more than saving on mobile: `getDownloadsDirectory()` is
+/// desktop-only, so on a phone the file lands in the app's sandbox where nobody
+/// would ever find it. Handing it to the system viewer is what lets a manager
+/// actually send it on — the same reason `chat_document_service` opens what it
+/// downloads.
+Future<void> _saveWeeklyPdf(
+  BuildContext context,
+  WeeklyAttendanceReport report,
+  String branchName,
+) async {
+  try {
+    final bytes = await buildWeeklyAttendancePdf(
+      report: report,
+      branchName: branchName,
+    );
+    final file = await _writeExport(
+      attendanceWeeklyPdfFilename(branchName, report.window.startDate),
+      (f) => f.writeAsBytes(bytes, flush: true),
+    );
+    if (context.mounted) {
+      AppSnackbar.success(context, 'Saved · ${file.uri.pathSegments.last}');
+    }
+    await _openExport(file);
+  } catch (_) {
+    if (context.mounted) {
+      AppSnackbar.error(context, 'Could not create the PDF.');
+    }
+  }
+}
+
+Future<File> _writeExport(
+  String filename,
+  Future<void> Function(File) write,
+) async {
+  final directory =
+      await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+  final file = File('${directory.path}${Platform.pathSeparator}$filename');
+  await write(file);
+  return file;
+}
+
+/// Mobile gets the system opener; desktop already reveals the Downloads folder,
+/// so a viewer would be noise there.
+Future<void> _openExport(File file) async {
+  if (Platform.isAndroid || Platform.isIOS) {
+    await OpenFilex.open(file.path);
+  }
+}
+
+/// Write the timesheet next to where the Schedule PNG export puts its file, so
+/// a manager looks in one place for anything this app produces ([ADR-019]).
+///
+/// Client-side by design now that the artifact is operational rather than a
+/// payroll hand-off — no Cloud Function, no Storage, no deploy dependency.
+Future<void> _saveTimesheetCsv(
+  BuildContext context,
+  WeeklyAttendanceReport report,
+  String branchName,
+) async {
+  try {
+    final csv = buildAttendanceTimesheetCsv(report.rows);
+    final file = await _writeExport(
+      attendanceTimesheetFilename(branchName, report.window.startDate),
+      (f) => f.writeAsString(csv, flush: true),
+    );
+    if (context.mounted) {
+      AppSnackbar.success(context, 'Saved · ${file.uri.pathSegments.last}');
+    }
+    await _openExport(file);
+  } catch (_) {
+    if (context.mounted) {
+      AppSnackbar.error(context, 'Could not save the timesheet.');
+    }
+  }
+}
+
+/// **Week review** — a manager's statement that they looked ([ADR-019]).
+///
+/// Deliberately its own section, and deliberately *not* merged into the header
+/// status pill. The pill answers "is the record complete?" and is computed; this
+/// answers "has a person signed off?" and cannot be. Merging them is how
+/// "Fully closed" once appeared over a week that was 86% empty.
+class _WeekReview extends StatefulWidget {
+  const _WeekReview({
+    required this.period,
+    required this.report,
+    this.repository,
+  });
+
+  final WeeklyAttendancePeriodRef period;
+  final WeeklyAttendanceReport report;
+  final AttendanceWeekReviewRepository? repository;
+
+  @override
+  State<_WeekReview> createState() => _WeekReviewState();
+}
+
+class _WeekReviewState extends State<_WeekReview> {
+  bool _busy = false;
+
+  AttendanceWeekReviewRepository get _repo =>
+      widget.repository ?? AppDependencies.weekReviewRepository;
+
+  Future<void> _mark(BuildContext context) async {
+    final user = context.currentUser;
+    if (user == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await _repo.markReviewed(
+        AttendanceWeekReview(
+          branchId: widget.period.branchId,
+          weekStartKey: attendanceDayKey(widget.period.window.startDate),
+          reviewedBy: user.uid,
+          reviewedByName: user.displayName,
+          // Overwritten by the server stamp; a device clock must not be able to
+          // place a sign-off before a change it actually followed.
+          reviewedAt: DateTime.now(),
+        ),
+      );
+      if (context.mounted) AppSnackbar.success(context, 'Week marked reviewed.');
+    } catch (_) {
+      if (context.mounted) {
+        AppSnackbar.error(context, 'Could not save the review.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _reopen(BuildContext context) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await _repo.reopen(
+        branchId: widget.period.branchId,
+        weekStart: widget.period.window.startDate,
+      );
+      if (context.mounted) AppSnackbar.info(context, 'Week reopened.');
+    } catch (_) {
+      if (context.mounted) AppSnackbar.error(context, 'Could not reopen.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AttendanceWeekReview?>(
+      stream: _repo.watchWeekReview(
+        branchId: widget.period.branchId,
+        weekStart: widget.period.window.startDate,
+      ),
+      builder: (context, snapshot) {
+        final state = AttendanceWeekReviewState.resolve(
+          review: snapshot.data,
+          rows: widget.report.rows,
+        );
+        final open =
+            widget.report.coverage.ledgerCoverage.blockingExceptionRowCount;
+        return GlassContainer(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Week review', style: AppTypography.h3),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                state.label,
+                style: AppTypography.bodySmall.copyWith(
+                  color: state.hasChangedSince
+                      ? AppColors.warning
+                      : AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                _note(state, open),
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              if (state.isReviewed)
+                PremiumButton(
+                  label: 'Reopen',
+                  icon: Icons.lock_open_rounded,
+                  style: PremiumButtonStyle.tonal,
+                  onPressed: _busy ? null : () => _reopen(context),
+                )
+              else
+                PremiumButton(
+                  label: 'Mark week reviewed',
+                  icon: Icons.check_rounded,
+                  style: PremiumButtonStyle.filled,
+                  onPressed: _busy ? null : () => _mark(context),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// A week with open items is still reviewable, and says so. Blocking the
+  /// button would read as broken, and "a person looked" is true whether or not
+  /// everything could be resolved.
+  static String _note(AttendanceWeekReviewState state, int open) {
+    if (!state.isReviewed) {
+      return open > 0
+          ? 'Marking it reviewed records that you looked. It does not lock '
+                'anything, and $open item${open == 1 ? '' : 's'} would stay open.'
+          : 'Marking it reviewed records that you looked. It does not lock '
+                'anything — later changes stay possible, and show up here.';
+    }
+    if (state.hasChangedSince) {
+      return 'Attendance changed after you reviewed this week. Nothing was '
+          'blocked — this is here so the change is visible.';
+    }
+    return 'Nothing has changed since you reviewed it.';
   }
 }
 
@@ -697,7 +1005,7 @@ class _InvalidPeriodPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ProblemPanel(
+    return AppProblemPanel(
       title: 'Invalid weekly report link',
       message:
           'The period id "$rawPeriodId" is not parseable. Expected branch_weekly_YYYYMMDD_YYYYMMDD_vN.',
@@ -711,7 +1019,7 @@ class _ScopeDeniedPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _ProblemPanel(
+    return const AppProblemPanel(
       title: 'Weekly report unavailable',
       message:
           'This manager account cannot open a weekly report for another branch.',
@@ -736,7 +1044,7 @@ class _ErrorPanel extends StatelessWidget {
         ? 'Attendance reports are not switched on yet — an administrator needs '
               'to finish setting them up. Details: $raw'
         : raw;
-    return _ProblemPanel(
+    return AppProblemPanel(
       title: 'Weekly attendance unavailable',
       message: actionable,
       icon: Icons.error_outline_rounded,
@@ -745,50 +1053,6 @@ class _ErrorPanel extends StatelessWidget {
   }
 }
 
-class _ProblemPanel extends StatelessWidget {
-  const _ProblemPanel({
-    required this.title,
-    required this.message,
-    required this.icon,
-    this.tone = AppColors.warning,
-  });
-
-  final String title;
-  final String message;
-  final IconData icon;
-  final Color tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassContainer(
-      highlight: true,
-      accent: tone,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: tone),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.h3),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  message,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class WeeklyAttendancePeriodRef {
   const WeeklyAttendancePeriodRef({

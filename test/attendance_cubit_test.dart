@@ -320,14 +320,21 @@ void main() {
     await cubit.close();
   });
 
-  test('clockIn when the branch has no geofence is blocked (no write)', () async {
+  // ADR-020 reverses the old rule (a no-geofence branch used to be refused
+  // forever, which locked it out of attendance entirely). `soft`/`strict` both
+  // mean "compare the fix to the geofence", so with no geofence the effective
+  // policy is `none` and the clock is a pure time action.
+  test('clockIn with no geofence records the punch, unverified', () async {
     final cubit = build(geofence: null);
     await cubit.load(user);
     repo.pushHistory([]);
     await pump();
 
     await cubit.clockIn();
-    expect(repo.clockedIn, isEmpty);
+
+    expect(repo.clockedIn, hasLength(1));
+    // No coordinates are captured when nothing can be checked against them.
+    expect(repo.clockedIn.single.clockInVerification, isNull);
     await cubit.close();
   });
 

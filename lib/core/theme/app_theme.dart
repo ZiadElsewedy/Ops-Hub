@@ -9,6 +9,7 @@ class AppTheme {
 
   static ThemeData get dark => ThemeData(
         useMaterial3: true,
+        fontFamily: AppTypography.fontFamily,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: AppColors.darkBg,
         colorScheme: const ColorScheme.dark(
@@ -45,6 +46,7 @@ class AppTheme {
 
   static ThemeData get light => ThemeData(
         useMaterial3: true,
+        fontFamily: AppTypography.fontFamily,
         brightness: Brightness.light,
         scaffoldBackgroundColor: AppColors.lightBg,
         colorScheme: const ColorScheme.light(

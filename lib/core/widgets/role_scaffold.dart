@@ -88,23 +88,17 @@ class RoleScaffold extends StatelessWidget {
         backgroundColor: AppColors.darkBg,
         elevation: 0,
         titleSpacing: 24,
-        // Brand lockup — the real DROP artwork leads every role's home.
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const DropLogo(height: 22),
-            const SizedBox(width: 10),
-            // Flexible + ellipsis so the title never overflows when the action
-            // cluster squeezes the app bar on a narrow phone.
-            Flexible(
-              child: Text(
-                title,
-                style: AppTypography.h3,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        // Brand lockup only — the real DROP artwork leads every role's home.
+        // The role word used to sit beside it and was the first thing the
+        // action cluster ate on a phone ("Mana…" on the manager, which has the
+        // most actions of any role). It was also redundant: each home opens
+        // with a hero that greets the user by name and names their scope, so
+        // the mark alone reads cleaner and never truncates. [title] still
+        // labels the bar for screen readers and titles the desktop header.
+        title: Semantics(
+          header: true,
+          label: title,
+          child: const DropLogo(height: 22),
         ),
         actions: [
           // Communications Center — admin + manager only (employees can't access).

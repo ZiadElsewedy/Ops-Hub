@@ -12,9 +12,11 @@ import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/responsive_card_grid.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/brand_watermark.dart';
+import 'package:drop/core/widgets/primary_cta.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
+import 'package:drop/core/widgets/metric_tile.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
@@ -167,13 +169,9 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
           );
         },
       ),
+      // "All tasks" moved out of this unlabelled glyph and into the labelled
+      // action row under the hero, which left the branch name room to breathe.
       actions: [
-        IconButton(
-          icon: const Icon(Icons.checklist_rounded,
-              color: AppColors.textSecondary),
-          tooltip: 'All tasks',
-          onPressed: _openAllTasks,
-        ),
         IconButton(
           icon: const Icon(Icons.refresh_rounded,
               color: AppColors.textSecondary),
@@ -181,14 +179,11 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
           onPressed: _refreshAll,
         ),
       ],
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _newTask,
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        icon: const Icon(Icons.add_rounded),
-        label: Text('New Task',
-            style: AppTypography.label.copyWith(color: AppColors.onPrimary)),
-      ),
+      // No FAB. An extended FAB parked over this page's **shift toggle**, so on
+      // a phone the "Night" lens was permanently unreachable — a floating
+      // control covering a real one. New Task is now the screen's single
+      // primary CTA in the action row under the hero (V2: one primary action
+      // per screen, in the header lockup), which cannot collide with anything.
       body: BlocConsumer<BranchOperationsCubit, BranchOperationsState>(
         listener: (context, state) =>
             state.whenOrNull(error: (m) => AppSnackbar.error(context, m)),
@@ -213,7 +208,8 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
           AppSpacing.pagePadding,
           AppSpacing.lg,
           AppSpacing.pagePadding,
-          AppSpacing.xxxl * 2,
+          // No FAB to clear any more — the tail is just breathing room.
+          AppSpacing.xxxl,
         ),
         children: [
           _BranchHero(
@@ -222,6 +218,8 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
             employeeCount: employees.length,
             filter: filter,
           ),
+          const SizedBox(height: AppSpacing.lg),
+          _HeroActions(onNewTask: _newTask, onAllTasks: _openAllTasks),
           const SizedBox(height: AppSpacing.lg),
           OperationsSummaryHeader(
             summary: workload.summary,
@@ -259,6 +257,64 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Hero actions (the screen's one primary CTA + its list door) ─────────────
+
+/// The action row under the branch hero: the screen's single [PrimaryCta]
+/// (**New Task**) beside the quiet door into the full branch task list.
+///
+/// Replaced a floating extended FAB (2026-08-03) that sat on top of the shift
+/// toggle, making the "Night" lens unreachable on a phone. In the header the
+/// CTA is labelled, always visible, and can never cover a real control.
+class _HeroActions extends StatelessWidget {
+  const _HeroActions({required this.onNewTask, required this.onAllTasks});
+
+  final VoidCallback onNewTask;
+  final VoidCallback onAllTasks;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: PrimaryCta(
+            icon: Icons.add_rounded,
+            label: 'New Task',
+            onTap: onNewTask,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Semantics(
+          button: true,
+          label: 'All tasks',
+          child: InkWell(
+            onTap: onAllTasks,
+            borderRadius: AppRadius.buttonAll,
+            child: Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.buttonAll,
+                border: Border.all(color: AppColors.darkBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.checklist_rounded,
+                      size: 18, color: AppColors.textSecondary),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text('All tasks',
+                      style: AppTypography.label
+                          .copyWith(color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -437,126 +493,37 @@ class OperationsSummaryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tiles = <Widget>[
-      _StatTile(
-        value: summary.activeTasks,
-        label: 'Active tasks',
-        icon: Icons.bolt_rounded,
-        onTap: () => onSelect(OperationsMetric.activeTasks),
-      ),
-      _StatTile(
-        value: summary.overdueTasks,
-        label: 'Late',
-        icon: Icons.warning_amber_rounded,
-        alert: summary.overdueTasks > 0,
-        onTap: () => onSelect(OperationsMetric.overdue),
-      ),
-      _StatTile(
-        value: summary.pendingReviews,
-        label: 'Pending review',
-        icon: Icons.fact_check_outlined,
-        onTap: () => onSelect(OperationsMetric.pendingReview),
-      ),
-      _StatTile(
-        value: summary.staffActive,
-        label: 'Staff active',
-        icon: Icons.groups_2_outlined,
-        onTap: () => onSelect(OperationsMetric.staffActive),
-      ),
-    ];
-
-    // Desktop: one tight row of four compact stat tiles (not 2×2 giant cards).
-    if (context.isDesktop) {
-      return Row(
-        children: [
-          for (var i = 0; i < tiles.length; i++) ...[
-            if (i > 0) const SizedBox(width: AppSpacing.sm),
-            Expanded(child: tiles[i]),
-          ],
-        ],
-      );
-    }
-
-    // Mobile / tablet: 2×2.
-    return Column(
-      children: [
-        Row(children: [
-          Expanded(child: tiles[0]),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: tiles[1]),
-        ]),
-        const SizedBox(height: AppSpacing.sm),
-        Row(children: [
-          Expanded(child: tiles[2]),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: tiles[3]),
-        ]),
-      ],
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.alert = false,
-  });
-
-  final int value;
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool alert;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = alert ? AppColors.error : AppColors.textPrimary;
-    return Semantics(
-      button: true,
-      label: 'Open $label',
-      child: GlassContainer(
-        onTap: onTap,
-        padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md, horizontal: AppSpacing.lg),
-        borderRadius: AppRadius.lgAll,
-        highlight: alert,
-        accent: AppColors.error,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  '$value',
-                  style: AppTypography.h1.copyWith(
-                    fontSize: 26,
-                    color: color,
-                  ),
-                ),
-                const Spacer(),
-                const Icon(Icons.arrow_outward_rounded,
-                    size: 16, color: AppColors.textTertiary),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Icon(icon, size: 13, color: color.withAlpha(180)),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(label,
-                      style: AppTypography.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ),
-              ],
-            ),
-          ],
+    // The shared `MetricTile` — this header's own private tile was extracted to
+    // `core/widgets/` when Manager Home's Today row wanted the same cell, so the
+    // two surfaces cannot drift into two dialects of the same metric.
+    return MetricTileRow(
+      tiles: [
+        MetricTile(
+          value: summary.activeTasks,
+          label: 'Active tasks',
+          icon: Icons.bolt_rounded,
+          onTap: () => onSelect(OperationsMetric.activeTasks),
         ),
-      ),
+        MetricTile(
+          value: summary.overdueTasks,
+          label: 'Late',
+          icon: Icons.warning_amber_rounded,
+          alert: summary.overdueTasks > 0,
+          onTap: () => onSelect(OperationsMetric.overdue),
+        ),
+        MetricTile(
+          value: summary.pendingReviews,
+          label: 'Pending review',
+          icon: Icons.fact_check_outlined,
+          onTap: () => onSelect(OperationsMetric.pendingReview),
+        ),
+        MetricTile(
+          value: summary.staffActive,
+          label: 'Staff active',
+          icon: Icons.groups_2_outlined,
+          onTap: () => onSelect(OperationsMetric.staffActive),
+        ),
+      ],
     );
   }
 }

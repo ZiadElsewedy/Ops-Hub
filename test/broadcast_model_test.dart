@@ -10,6 +10,28 @@ import 'package:drop/features/communications/domain/entities/broadcast_entity.da
 /// is mapped correctly in both directions.
 void main() {
   group('BroadcastModel serialization', () {
+    test('delivery defaults to Push + Inbox and reaches the callable payload', () {
+      const defaultModel = BroadcastModel(
+        id: 'b-delivery',
+        title: 'Title',
+        message: 'Message',
+        senderId: 'sender',
+        senderName: 'Sender',
+      );
+      expect(defaultModel.sendsPush, isTrue);
+      expect(defaultModel.toCallablePayload()['sendsPush'], isTrue);
+
+      const inboxOnly = BroadcastModel(
+        id: 'b-inbox',
+        title: 'Title',
+        message: 'Message',
+        senderId: 'sender',
+        senderName: 'Sender',
+        sendsPush: false,
+      );
+      expect(inboxOnly.toCallablePayload()['sendsPush'], isFalse);
+    });
+
     test('toMap writes the persisted fields (no createdAt — server-set)', () {
       final map = const BroadcastModel(
         id: 'b1',

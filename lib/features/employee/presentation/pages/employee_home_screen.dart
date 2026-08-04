@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/di/injection.dart';
@@ -14,20 +15,23 @@ import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/widgets/app_empty_state.dart';
 import 'package:drop/core/widgets/app_glass_card.dart';
 import 'package:drop/core/widgets/app_motion.dart';
+import 'package:drop/core/widgets/empty_state_medallion.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
+import 'package:drop/features/attendance/domain/attendance_calculator.dart';
+import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
+import 'package:drop/features/attendance/presentation/cubit/attendance_state.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/chat/presentation/widgets/recent_messages_card.dart';
-import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
-import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
 import 'package:drop/features/task/domain/active_window.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_schedule.dart';
@@ -38,13 +42,21 @@ import 'package:drop/features/task/presentation/widgets/task_attention_surface.d
 
 /// Redesigned employee home — a personal operations command center.
 ///
-/// Time-aware greeting, an animated "Today" hero (a sweeping progress ring +
-/// today's shift), a live count-up breakdown strip, and a live, **actionable**
-/// task list right on the home page: an employee can start a task inline,
-/// continue one in progress, or jump into a rejected one's feedback without
-/// leaving Home. Everything fades/lifts in with a gentle stagger; the ring
-/// sweeps and the numbers count up. Stays strictly monochrome — colour is used
-/// only to signal status.
+/// Time-aware greeting, a "Today" hero (today's shift + **where the employee
+/// stands in it** — clocked in, not yet, or done), a live count-up breakdown
+/// strip, and a live, **actionable** task list right on the home page: an
+/// employee can start a task inline, continue one in progress, or jump into a
+/// rejected one's feedback without leaving Home. Everything fades/lifts in with
+/// a gentle stagger and the numbers count up. Stays strictly monochrome —
+/// colour is used only to signal status.
+///
+/// **2026-08-01 — the progress ring was removed.** It drew `finished / total`,
+/// which the strip immediately below already stated as four figures, and it
+/// counted *in review* as finished, so it could show a full "3 of 3" circle
+/// beside a strip reading "1 in review · 2 done". Its ratio survives as the
+/// strip's own 3px base line ([_DayProgressBar]) with **in review excluded**;
+/// its space went to the clock state, which had no presence on Home at all
+/// despite being the thing an employee does twice a day.
 class EmployeeHomeScreen extends StatefulWidget {
   const EmployeeHomeScreen({super.key});
 
@@ -92,6 +104,15 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       // a coworker is waiting on them to accept/reject, and their own in-flight
       // requests. (Previously only reachable inside Schedule → Swaps.)
       context.read<ShiftSwapCubit>().loadMine(user.uid);
+      // Today's clock state, for the shift card. `load` is idempotent (it early
+      // -returns when the same user is already subscribed), so opening the
+      // Attendance screen afterwards reuses this subscription rather than
+      // rebuilding it.
+      //
+      // Deliberately NOT `previewLocation()` — that takes a GPS fix, and Home
+      // must never provoke a location permission prompt. The card shows state
+      // and hands off; the Attendance screen owns the fix and the write.
+      unawaited(context.read<AttendanceCubit>().load(user, forceRefresh: force));
     }
   }
 
@@ -279,13 +300,14 @@ class _Counts {
   int get total =>
       pending + started + inReview + approved + completed + rejected;
 
-  /// Work the employee has handled (done or handed off for review).
-  int get finished => approved + completed + inReview;
+  /// Work that is actually **closed**. In review is deliberately excluded: the
+  /// submission has left the employee's hands but a reviewer can send it back,
+  /// so counting it as done is what let the old ring read "3 of 3" beside a
+  /// strip still listing work in review.
+  int get done => approved + completed;
 
   /// Work still needing the employee's hands.
   int get open => pending + started + rejected;
-
-  double get progress => total == 0 ? 0 : finished / total;
 }
 
 // ─── Dashboard (ring hero + strip + sections) ────────────────────────
@@ -335,11 +357,16 @@ class _Dashboard extends StatelessWidget {
           delay: staggerDelay(1),
           child: _HeroTodayCard(counts: counts),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        EntranceFade(
-          delay: staggerDelay(2),
-          child: _StatStrip(counts: counts),
-        ),
+        // With no tasks at all the strip has nothing to say, and an empty
+        // bordered bar is worse than no bar — it reads as a component that
+        // failed to load. Drop it *and* its spacing in that case.
+        if (_StatStrip.hasContent(counts)) ...[
+          const SizedBox(height: AppSpacing.lg),
+          EntranceFade(
+            delay: staggerDelay(2),
+            child: _StatStrip(counts: counts),
+          ),
+        ],
         const SizedBox(height: AppSpacing.xl),
         EntranceFade(
           delay: staggerDelay(3),
@@ -446,213 +473,207 @@ class _GreetingSection extends StatelessWidget {
   }
 }
 
-// ─── "Today" hero — progress ring + shift ────────────────────────────
+// ─── "Today" hero — the shift, and where the employee stands in it ────
 
+/// Today's shift, with the employee's **clock state** underneath it.
+///
+/// This replaced a 92px progress ring (2026-08-01). The ring drew
+/// `finished / total`, which the strip directly below already stated as four
+/// figures — and it counted *in review* as finished, so it showed a full circle
+/// "3 of 3" beside a strip reading "1 in review · 2 done". Two elements, one
+/// dataset, and they disagreed.
+///
+/// The space now answers the question the ring never did: **am I clocked in?**
+/// Clocking in and out is the thing an employee does twice a day at a fixed
+/// time, and it had no presence on Home at all — only an unlabelled fingerprint
+/// icon in the app bar. The card states it and hands off; the GPS fix and the
+/// write stay in the Attendance screen, which owns the failure modes.
 class _HeroTodayCard extends StatelessWidget {
   const _HeroTodayCard({required this.counts});
   final _Counts counts;
-
-  String get _summary {
-    if (counts.open > 0) {
-      final base = '${counts.open} to do';
-      return counts.inReview > 0
-          ? '$base · ${counts.inReview} in review'
-          : base;
-    }
-    if (counts.inReview > 0) return '${counts.inReview} in review';
-    if (counts.total > 0) return 'All caught up';
-    return 'Nothing assigned yet';
-  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: AppGlassCard(
-        child: Row(
-          children: [
-            _ProgressRing(
-              finished: counts.finished,
-              total: counts.total,
-              size: 92,
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const _ShiftBlock(),
-                  const SizedBox(height: AppSpacing.md),
-                  _SummaryPill(text: _summary, active: counts.open > 0),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ShiftBlock extends StatelessWidget {
-  const _ShiftBlock();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<StatisticsCubit, StatisticsState>(
-      builder: (context, state) => state.maybeWhen(
-        loaded: (s) => _content(s),
-        orElse: () => const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Skeleton(
-              width: 72,
-              height: 9,
-              borderRadius: BorderRadius.all(Radius.circular(4)),
-            ),
-            SizedBox(height: 8),
-            Skeleton(
-              width: 120,
-              height: 18,
-              borderRadius: BorderRadius.all(Radius.circular(6)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _content(StatisticsEntity s) {
-    final off = s.currentShiftName == null || s.currentShiftName!.isEmpty;
-    final isMorning = s.currentShiftName == 'morning';
-    final label = off
-        ? 'Off today'
-        : isMorning
-        ? 'Morning shift'
-        : 'Night shift';
-    final icon = off
-        ? Icons.self_improvement_outlined
-        : isMorning
-        ? Icons.wb_sunny_outlined
-        : Icons.nightlight_outlined;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          "TODAY'S SHIFT",
-          style: AppTypography.caption.copyWith(
-            letterSpacing: 1.1,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textTertiary,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Row(
-          children: [
-            Icon(icon, size: 16, color: AppColors.textPrimary),
-            const SizedBox(width: 7),
-            Flexible(
-              child: Text(
-                label,
-                style: AppTypography.h3,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        if (s.upcomingShiftName != null && s.upcomingShiftName!.isNotEmpty) ...[
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              const Icon(
-                Icons.arrow_forward_rounded,
-                size: 11,
-                color: AppColors.textTertiary,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  'Next: ${s.upcomingShiftName}',
-                  style: AppTypography.caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+        // Sections carry their own padding so the divider can run edge to edge.
+        padding: EdgeInsets.zero,
+        child: BlocBuilder<AttendanceCubit, AttendanceState>(
+          builder: (context, attendance) {
+            final today = _Today.from(attendance);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Row(
+                    children: [
+                      _ProgressRing(
+                        done: counts.done,
+                        total: counts.total,
+                        size: 78,
+                      ),
+                      const SizedBox(width: AppSpacing.lg),
+                      Expanded(child: _ShiftLine(today: today)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _SummaryPill extends StatelessWidget {
-  const _SummaryPill({required this.text, required this.active});
-  final String text;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: active ? AppColors.primarySurface : AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(
-          color: active
-              ? AppColors.primary.withAlpha(38)
-              : AppColors.darkBorder,
+                // A day with no shift has no clock state to report, so the card
+                // simply ends — it shrinks rather than holding empty space open.
+                if (today.hasShift) ...[
+                  Container(height: 1, color: AppColors.darkBorder),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: _ClockLine(today: today),
+                  ),
+                ],
+              ],
+            );
+          },
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active ? AppColors.primary : AppColors.success,
-            ),
-          ),
-          const SizedBox(width: 7),
-          Flexible(
-            child: Text(
-              text,
-              style: AppTypography.labelSmall.copyWith(
-                color: active ? AppColors.textPrimary : AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
 
-// ─── Animated progress ring ──────────────────────────────────────────
+/// Everything the hero needs about today, resolved from [AttendanceState] once
+/// so the two rows can't disagree about which shift they're describing.
+class _Today {
+  const _Today({
+    required this.label,
+    required this.icon,
+    required this.hours,
+    required this.hasShift,
+    required this.phase,
+    required this.clockIn,
+    required this.clockOut,
+    required this.workedMinutes,
+    required this.scheduledStart,
+    required this.loading,
+  });
 
+  final String label;
+  final IconData icon;
+
+  /// `08:00 – 16:00`, or null when nothing is rostered.
+  final String? hours;
+  final bool hasShift;
+  final _ClockPhase phase;
+  final DateTime? clockIn;
+  final DateTime? clockOut;
+  final int workedMinutes;
+  final DateTime? scheduledStart;
+  final bool loading;
+
+  /// Reads the loaded state by NAME (`maybeMap`, not `maybeWhen`) — the loaded
+  /// union has seventeen fields, and a positional destructure would silently
+  /// re-bind them all if anyone ever inserts one.
+  factory _Today.from(AttendanceState state) {
+    return state.maybeMap(
+      loaded: (s) {
+        // On leave outranks a roster entry: the employee is not expected today,
+        // so no clock row is offered.
+        final leave = s.leave;
+        if (leave != null) {
+          return _Today._off(
+              label: leave.label, icon: Icons.beach_access_outlined);
+        }
+        final shift = s.shift;
+        if (shift == null) {
+          return _Today._off(
+              label: 'Off today', icon: Icons.self_improvement_outlined);
+        }
+
+        final record = s.session ?? s.today;
+        final phase = s.session != null
+            ? _ClockPhase.clockedIn
+            : (record?.hasClockedOut ?? false)
+                ? _ClockPhase.clockedOut
+                : _ClockPhase.notClockedIn;
+        final start = s.scheduledStart;
+        final end = s.scheduledEnd;
+
+        return _Today(
+          label: shift.label,
+          icon: shift == ScheduleShift.night
+              ? Icons.nightlight_outlined
+              : Icons.wb_sunny_outlined,
+          hours: (start != null && end != null)
+              ? '${AppDateFormatter.time24(start)} – '
+                  '${AppDateFormatter.time24(end)}'
+              : null,
+          hasShift: true,
+          phase: phase,
+          clockIn: record?.clockIn,
+          clockOut: record?.clockOut,
+          // `AttendanceCalculator` is the single minute-math source — never
+          // subtract two timestamps here (breaks and the grace rules live in it).
+          workedMinutes: record == null
+              ? 0
+              : AttendanceCalculator.liveWorkedMinutes(record, s.tick,
+                  config: s.config),
+          scheduledStart: start,
+          loading: false,
+        );
+      },
+      // The stream failed. Do NOT keep shimmering: a skeleton that never
+      // resolves is an animation running forever on a resting surface, and it
+      // claims data is coming when it is not. Say so instead.
+      error: (_) => _Today._off(
+          label: 'Shift unavailable', icon: Icons.cloud_off_outlined),
+      // Home loads attendance itself, but the first frame lands before the
+      // stream does — show the shift block in its resting shape meanwhile.
+      orElse: () => _Today._off(
+          label: '', icon: Icons.wb_sunny_outlined, loading: true),
+    );
+  }
+
+  factory _Today._off({
+    required String label,
+    required IconData icon,
+    bool loading = false,
+  }) =>
+      _Today(
+        label: label,
+        icon: icon,
+        hours: null,
+        hasShift: false,
+        phase: _ClockPhase.notClockedIn,
+        clockIn: null,
+        clockOut: null,
+        workedMinutes: 0,
+        scheduledStart: null,
+        loading: loading,
+      );
+}
+
+enum _ClockPhase { notClockedIn, clockedIn, clockedOut }
+
+/// The day's progress as a sweeping ring — owner-restored 2026-08-01 after the
+/// first pass removed it.
+///
+/// It is kept on one condition: **it counts what the strip counts.** The
+/// original drew `approved + completed + inReview / total`, which is why it
+/// could show a full "3 of 3" circle beside a strip still listing work in
+/// review. It now takes [done] from the same `_Counts.done` the strip's "Done"
+/// cell uses, so the two can no longer disagree — and because the ring carries
+/// the ratio, nothing else on Home draws it a second time.
 class _ProgressRing extends StatelessWidget {
   const _ProgressRing({
-    required this.finished,
+    required this.done,
     required this.total,
     required this.size,
   });
 
-  final int finished;
+  final int done;
   final int total;
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final target = total == 0 ? 0.0 : finished / total;
+    final target = total == 0 ? 0.0 : done / total;
     return SizedBox(
       width: size,
       height: size,
@@ -663,26 +684,18 @@ class _ProgressRing extends StatelessWidget {
         builder: (context, value, _) {
           final shown = (value * total).round();
           return CustomPaint(
-            painter: _RingPainter(
-              progress: value,
-              track: AppColors.darkBorder,
-              arc: AppColors.primary,
-              stroke: 7,
-            ),
+            painter: _RingPainter(progress: value, stroke: 6),
             child: Center(
               child: total == 0
-                  ? const Icon(
-                      Icons.check_rounded,
-                      size: 22,
-                      color: AppColors.textTertiary,
-                    )
+                  ? const Icon(Icons.check_rounded,
+                      size: 20, color: AppColors.textTertiary)
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           '$shown',
                           style: AppTypography.h2.copyWith(
-                            fontSize: 26,
+                            fontSize: 23,
                             fontWeight: FontWeight.w700,
                             height: 1.0,
                           ),
@@ -702,50 +715,221 @@ class _ProgressRing extends StatelessWidget {
 }
 
 class _RingPainter extends CustomPainter {
-  _RingPainter({
-    required this.progress,
-    required this.track,
-    required this.arc,
-    required this.stroke,
-  });
+  _RingPainter({required this.progress, required this.stroke});
 
   final double progress;
-  final Color track;
-  final Color arc;
   final double stroke;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect =
-        Offset(stroke / 2, stroke / 2) &
+    final rect = Offset(stroke / 2, stroke / 2) &
         Size(size.width - stroke, size.height - stroke);
-
-    final trackPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round
-      ..color = track;
-    canvas.drawArc(rect, 0, 2 * math.pi, false, trackPaint);
-
-    if (progress > 0) {
-      final arcPaint = Paint()
+    canvas.drawArc(
+      rect,
+      0,
+      2 * math.pi,
+      false,
+      Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke
         ..strokeCap = StrokeCap.round
-        ..color = arc;
+        ..color = AppColors.darkBorder,
+    );
+    if (progress > 0) {
       canvas.drawArc(
         rect,
         -math.pi / 2,
         2 * math.pi * progress.clamp(0.0, 1.0),
         false,
-        arcPaint,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..strokeCap = StrokeCap.round
+          ..color = AppColors.primary,
       );
     }
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) =>
-      old.progress != progress || old.arc != arc || old.track != track;
+  bool shouldRepaint(_RingPainter old) => old.progress != progress;
+}
+
+class _ShiftLine extends StatelessWidget {
+  const _ShiftLine({required this.today});
+  final _Today today;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          "TODAY'S SHIFT",
+          style: AppTypography.caption.copyWith(
+            letterSpacing: 1.1,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textTertiary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (today.loading)
+          const Skeleton(
+            width: 150,
+            height: 20,
+            borderRadius: BorderRadius.all(Radius.circular(6)),
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Icon(today.icon, size: 17, color: AppColors.textPrimary),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  today.label,
+                  style: AppTypography.h3,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (today.hours != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  today.hours!,
+                  style: AppTypography.caption
+                      .copyWith(color: AppColors.textTertiary),
+                ),
+              ],
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+/// The clock row: a state dot, what happened (and when), and the way on.
+///
+/// The action is a **hand-off, not a clock-in** — it opens the Attendance
+/// screen. Clocking in needs a verified GPS fix inside the branch geofence and
+/// fails in several distinct ways; duplicating that here would mean a second
+/// copy of the rules and the error handling.
+class _ClockLine extends StatelessWidget {
+  const _ClockLine({required this.today});
+  final _Today today;
+
+  @override
+  Widget build(BuildContext context) {
+    final (dot, headline, sub, action) = _content();
+    return GestureDetector(
+      onTap: () => context.push(RouteNames.attendance),
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  headline,
+                  style: AppTypography.label.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: today.phase == _ClockPhase.clockedOut
+                        ? AppColors.textSecondary
+                        : AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (sub != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    sub,
+                    style: AppTypography.caption
+                        .copyWith(color: AppColors.textTertiary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (action != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: AppColors.darkSurfaceElevated,
+                borderRadius: AppRadius.smAll,
+                border: Border.all(color: AppColors.darkBorder),
+              ),
+              child: Text(
+                action,
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ] else
+            const Icon(Icons.chevron_right_rounded,
+                size: 20, color: AppColors.textQuaternary),
+        ],
+      ),
+    );
+  }
+
+  /// (dot colour, headline, sub-line, action label — null = no action, just the
+  /// chevron, because a finished shift has nothing left to do here).
+  (Color, String, String?, String?) _content() {
+    switch (today.phase) {
+      case _ClockPhase.clockedIn:
+        final at = today.clockIn;
+        return (
+          AppColors.success,
+          at == null ? 'Clocked in' : 'Clocked in ${AppDateFormatter.time24(at)}',
+          '${AppDateFormatter.hoursMinutes(today.workedMinutes)} on shift',
+          'Clock out',
+        );
+      case _ClockPhase.clockedOut:
+        final at = today.clockOut;
+        return (
+          AppColors.textQuaternary,
+          at == null
+              ? 'Clocked out'
+              : 'Clocked out ${AppDateFormatter.time24(at)}',
+          '${AppDateFormatter.hoursMinutes(today.workedMinutes)} worked',
+          null,
+        );
+      case _ClockPhase.notClockedIn:
+        // Amber only once the shift is actually underway — before it starts,
+        // "not clocked in" is simply the normal state and must not read as a
+        // problem.
+        final start = today.scheduledStart;
+        final now = DateTime.now();
+        final late = start != null && now.isAfter(start);
+        return (
+          late ? AppColors.warning : AppColors.textQuaternary,
+          'Not clocked in',
+          late
+              ? 'Shift started '
+                  '${AppDateFormatter.hoursMinutes(now.difference(start).inMinutes)} ago'
+              : start == null
+                  ? null
+                  : 'Starts ${AppDateFormatter.time24(start)}',
+          'Clock in',
+        );
+    }
+  }
 }
 
 // ─── Stat strip ──────────────────────────────────────────────────────
@@ -754,42 +938,110 @@ class _StatStrip extends StatelessWidget {
   const _StatStrip({required this.counts});
   final _Counts counts;
 
+  /// The figures the strip would show. Every chip is gated on a non-zero count,
+  /// so this is empty more often than it looks — a first-run employee has none.
+  ///
+  /// Order is "what needs your hands first". Rework leads: it is the only
+  /// category that means *you already did this and it came back*, and the
+  /// section below sorts it above everything else for the same reason.
+  static List<_StatChipData> _chipsFor(_Counts counts) => [
+        if (counts.rejected > 0)
+          _StatChipData(
+            label: 'Rework',
+            value: counts.rejected,
+            // Same glyph as the "Needs attention" section header below, so the
+            // figure and the cards it refers to read as one thing.
+            icon: Icons.replay_rounded,
+            highlight: true,
+          ),
+        if (counts.pending > 0)
+          _StatChipData(
+            label: 'To do',
+            value: counts.pending,
+            icon: Icons.radio_button_unchecked_rounded,
+            highlight: true,
+          ),
+        if (counts.started > 0)
+          _StatChipData(
+            label: 'Active',
+            value: counts.started,
+            icon: Icons.timelapse_rounded,
+            highlight: true,
+          ),
+        if (counts.inReview > 0)
+          _StatChipData(
+            label: 'In review',
+            value: counts.inReview,
+            icon: Icons.hourglass_top_rounded,
+            highlight: false,
+          ),
+        if (counts.done > 0)
+          _StatChipData(
+            label: 'Done',
+            value: counts.done,
+            icon: Icons.check_circle_outline_rounded,
+            highlight: false,
+          ),
+      ];
+
+  /// The strip collapses to the phrase when there is history but nothing left
+  /// to act on.
+  static bool _showsPhrase(_Counts counts) =>
+      counts.open == 0 && counts.total > 0;
+
+  /// Whether the strip would render anything at all — in practice only a
+  /// first-run employee with no tasks at all. Checked by the caller before
+  /// reserving space: with no cells the container was still painting its surface
+  /// and border, which read as a component that had failed to load.
+  static bool hasContent(_Counts counts) =>
+      _showsPhrase(counts) || _chipsFor(counts).isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
-    final items = [
-      _StatChipData(
-        label: 'To do',
-        value: counts.pending,
-        icon: Icons.radio_button_unchecked_rounded,
-        highlight: counts.pending > 0,
-      ),
-      _StatChipData(
-        label: 'Active',
-        value: counts.started,
-        icon: Icons.timelapse_rounded,
-        highlight: counts.started > 0,
-      ),
-      _StatChipData(
-        label: 'In review',
-        value: counts.inReview,
-        icon: Icons.hourglass_top_rounded,
-        highlight: false,
-      ),
-      _StatChipData(
-        label: 'Done',
-        value: counts.approved + counts.completed,
-        icon: Icons.check_circle_outline_rounded,
-        highlight: false,
-      ),
+    // A zero is not a fact worth a column. "0 To do · 0 Active" spent half the
+    // strip saying nothing; with no open work the two collapse into one phrase,
+    // and they come back as figures the moment there is work (2026-08-01).
+    final cells = <Widget>[
+      if (_showsPhrase(counts))
+        const Expanded(
+          child: Text(
+            'Nothing to do',
+            textAlign: TextAlign.center,
+            style: AppTypography.caption,
+          ),
+        ),
+      for (final item in _chipsFor(counts)) Expanded(child: _StatChip(data: item)),
     ];
 
-    return Row(
-      children: [
-        for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _StatChip(data: items[i])),
-        ],
-      ],
+    // One calm surface with hairline dividers — the Design System V2 fact-row
+    // language (see core `StatStrip`), rather than four competing bordered
+    // cards. Four boxes in a row read as a dashboard; one divided surface reads
+    // as a single glance, which is what this actually is.
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.darkSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      // No base-line progress bar here: the hero's ring already draws the day's
+      // ratio, and at 100% a filled 3px line was indistinguishable from the
+      // card's own border anyway.
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.md,
+          horizontal: AppSpacing.xs,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            for (var i = 0; i < cells.length; i++) ...[
+              if (i > 0)
+                Container(width: 1, height: 26, color: AppColors.darkBorder),
+              cells[i],
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -807,6 +1059,14 @@ class _StatChipData {
   });
 }
 
+/// One cell of the strip: the figure, then its name. Two rows instead of three
+/// (the icon moved down beside the label) — that is most of the height saved,
+/// and it puts the number first, which is what the eye is here for.
+///
+/// **The highlight is carried by the grey ramp, not a box.** Inside a single
+/// shared surface a per-cell tinted card would patch the row; stepping the
+/// number to white and its label/icon up one grey says "this one is live" more
+/// quietly and more expensively (Design System V2 — calm through hierarchy).
 class _StatChip extends StatelessWidget {
   const _StatChip({required this.data});
   final _StatChipData data;
@@ -814,54 +1074,50 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hl = data.highlight;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.md,
-        horizontal: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: hl ? AppColors.primarySurface : AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: hl ? AppColors.primary.withAlpha(40) : AppColors.darkBorder,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            data.icon,
-            size: 15,
-            color: hl ? AppColors.textPrimary : AppColors.textTertiary,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: data.value.toDouble()),
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeOutCubic,
+          builder: (context, v, _) => Text(
+            '${v.round()}',
+            style: AppTypography.h2.copyWith(
+              fontSize: 18,
+              color: hl ? AppColors.textPrimary : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+              letterSpacing: -0.3,
+            ),
           ),
-          const SizedBox(height: 6),
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: data.value.toDouble()),
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeOutCubic,
-            builder: (context, v, _) => Text(
-              '${v.round()}',
-              style: AppTypography.h2.copyWith(
-                fontSize: 19,
-                color: hl ? AppColors.textPrimary : AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-                height: 1.0,
+        ),
+        const SizedBox(height: 5),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              data.icon,
+              size: 11,
+              color: hl ? AppColors.textSecondary : AppColors.textQuaternary,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                data.label,
+                style: AppTypography.caption.copyWith(
+                  fontSize: 10,
+                  color: hl ? AppColors.textSecondary : AppColors.textTertiary,
+                  letterSpacing: 0.1,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            data.label,
-            style: AppTypography.caption.copyWith(
-              fontSize: 10,
-              color: hl ? AppColors.textSecondary : AppColors.textTertiary,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -920,7 +1176,11 @@ class _TaskSection extends StatelessWidget {
         rejected.isEmpty &&
         inReview.isEmpty &&
         missed.isEmpty) {
-      return const _AllDoneCard();
+      // No green "All caught up!" banner (owner, 2026-08-01). The ring above
+      // already reads "3 of 3" and the strip says "Nothing to do" — a third
+      // element restating it was the loudest of the three, and the only thing
+      // on the screen wearing a colour. Just the way through to the full list.
+      return const _ViewAllRow(label: 'Open all tasks', emphasized: true);
     }
 
     return Column(
@@ -1643,7 +1903,9 @@ class _PressableState extends State<_Pressable> {
   }
 }
 
-// ─── Empty & all-done ────────────────────────────────────────────────
+// ─── Empty state ─────────────────────────────────────────────────────
+// Only the "nothing has ever been assigned" case gets a card. A day whose work
+// is *finished* gets no banner — the ring and the strip already say so.
 
 class _EmptyTaskState extends StatelessWidget {
   const _EmptyTaskState();
@@ -1658,84 +1920,20 @@ class _EmptyTaskState extends StatelessWidget {
         borderRadius: AppRadius.cardAll,
         border: Border.all(color: AppColors.darkBorder),
       ),
-      child: Column(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.darkSurfaceElevated,
-              border: Border.all(color: AppColors.darkBorder),
-            ),
-            child: const Icon(
-              Icons.inbox_outlined,
-              size: 24,
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Text('No tasks yet', style: AppTypography.h3),
-          const SizedBox(height: 4),
-          const Text(
-            'When your manager assigns work, it shows up right here.',
-            style: AppTypography.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AllDoneCard extends StatelessWidget {
-  const _AllDoneCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          decoration: BoxDecoration(
-            color: AppColors.successSurface,
-            borderRadius: AppRadius.cardAll,
-            border: Border.all(color: AppColors.success.withAlpha(40)),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.check_circle_rounded,
-                size: 26,
-                color: AppColors.success,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'All caught up!',
-                      style: AppTypography.label.copyWith(
-                        color: AppColors.success,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Nothing needs your attention right now.',
-                      style: AppTypography.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+      // The same medallion the full-page empty states use, scaled down for a
+      // card. One silhouette everywhere beats a bespoke circle per screen.
+      child: const EmptyStateBody(
+        mark: EmptyStateMedallion(
+          size: 84,
+          child: Icon(
+            Icons.inbox_outlined,
+            size: 21,
+            color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        const _ViewAllRow(label: 'Open all tasks', emphasized: true),
-      ],
+        title: 'No tasks yet',
+        message: 'When your manager assigns work, it shows up right here.',
+      ),
     );
   }
 }

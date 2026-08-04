@@ -26,6 +26,39 @@ int reviewCount(List<TaskEntity> tasks) =>
 int runningNowCount(List<TaskEntity> tasks) =>
     tasks.where((t) => t.status == TaskStatus.started).length;
 
+/// All outstanding work, whatever stage — pending / started / completed /
+/// rejected. The same definition the Task Management stat row uses for
+/// "Active", so the two screens can never disagree on "how much is on the
+/// table" (2026-08-01 — the dashboard's "Today" strip had no such number at
+/// all, which is why `runningNowCount` alone was misread as it).
+int openCount(List<TaskEntity> tasks) => tasks.where((t) {
+  switch (t.status) {
+    case TaskStatus.pending:
+    case TaskStatus.started:
+    case TaskStatus.completed:
+    case TaskStatus.rejected:
+      return true;
+    case TaskStatus.waitingReview:
+    case TaskStatus.approved:
+    case TaskStatus.missed:
+    case TaskStatus.cancelled:
+      return false;
+  }
+}).length;
+
+/// Tasks approved **today** — deliberately reuses [isTaskInActiveWindow]
+/// rather than re-deriving "same day" locally: that predicate is exactly
+/// what [applyFeed] runs when a caller filters `status: approved` with its
+/// default `activeWindowOnly: true`, so this count and that drill-down's list
+/// can never disagree (2026-08-01 — the dashboard used to read this from
+/// `StatisticsCubit`'s lifetime-scoped `completedTasksToday`, a different data
+/// source from the task stream any drill-down would have rendered).
+int completedTodayCount(List<TaskEntity> tasks, DateTime now) => tasks
+    .where(
+      (t) => t.status == TaskStatus.approved && isTaskInActiveWindow(t, now),
+    )
+    .length;
+
 /// Active individual/team tasks with **no owner** — they can't progress until
 /// someone is assigned. Shift tasks target a shift (never "unassigned"), and
 /// already-finished work is excluded via the active window.

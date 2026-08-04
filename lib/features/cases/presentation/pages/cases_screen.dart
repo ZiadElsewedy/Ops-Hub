@@ -18,6 +18,8 @@ import 'package:drop/features/cases/presentation/cubit/case_list_cubit.dart';
 import 'package:drop/features/cases/presentation/cubit/case_list_state.dart';
 import 'package:drop/features/cases/presentation/widgets/case_conversation_view.dart';
 import 'package:drop/features/cases/presentation/widgets/case_list_tile.dart';
+import 'package:drop/core/widgets/list_skeleton.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 
 /// Case Management entry point. **Desktop** → a split-pane workspace (case
 /// inbox on the left, active conversation on the right). **Mobile / tablet** →
@@ -376,8 +378,9 @@ class _ArchiveHeader extends StatelessWidget {
 class _Loading extends StatelessWidget {
   const _Loading();
   @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator(color: AppColors.primary));
+  // The card rhythm the real list will land in, rather than a spinner in the
+  // middle of nowhere — the screen no longer jumps when data arrives.
+  Widget build(BuildContext context) => const ListSkeleton();
 }
 
 class _ErrorView extends StatelessWidget {
@@ -386,22 +389,10 @@ class _ErrorView extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: AppColors.textTertiary, size: 40),
-            const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.lg),
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AppErrorState(
+        title: 'Could not load cases',
+        message: message,
+        retryLabel: 'Retry',
+        onRetry: onRetry,
+      );
 }

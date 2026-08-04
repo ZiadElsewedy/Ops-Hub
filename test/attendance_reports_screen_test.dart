@@ -218,8 +218,9 @@ void _expectSingleTitle() {
 void _expectGoDeeper() {
   expect(find.text('Weekly report'), findsOneWidget);
   expect(find.text('Monthly report'), findsOneWidget);
+  expect(find.text('Person history'), findsOneWidget);
   expect(
-    find.text('Per-employee, period close, and export are coming next.'),
+    find.text('Period close and export remain the next reporting surfaces.'),
     findsOneWidget,
   );
 }
@@ -394,10 +395,7 @@ void main() {
       expect(find.text('Needs attention'), findsOneWidget);
       expect(find.text('2 of 2 shifts settled'), findsOneWidget);
       expect(find.text('Needs your decision'), findsOneWidget);
-      expect(
-        find.text('2 of 2 shifts still need a decision.'),
-        findsOneWidget,
-      );
+      expect(find.text('2 of 2 shifts still need a decision.'), findsOneWidget);
       expect(find.text('Review these'), findsOneWidget);
       expect(find.text('Nothing is waiting on you'), findsNothing);
 
@@ -413,7 +411,10 @@ void main() {
       expect(find.text('Worked time'), findsOneWidget);
       expect(find.text('15h 50m'), findsOneWidget);
       expect(find.text('Across 2 shifts worked'), findsOneWidget);
-      expect(find.textContaining('no punctuality or worked time to show'), findsNothing);
+      expect(
+        find.textContaining('no punctuality or worked time to show'),
+        findsNothing,
+      );
 
       _expectSingleTitle();
       _expectGoDeeper();

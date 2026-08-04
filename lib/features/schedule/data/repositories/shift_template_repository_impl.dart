@@ -1,5 +1,6 @@
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/schedule/data/datasources/shift_template_remote_datasource.dart';
 import 'package:drop/features/schedule/data/models/shift_template_model.dart';
 import 'package:drop/features/schedule/domain/repositories/shift_template_repository.dart';
@@ -42,6 +43,7 @@ class ShiftTemplateRepositoryImpl implements ShiftTemplateRepository {
 
   @override
   Future<void> deleteTemplate(String id) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.deleteTemplate(id);
     } on ServerException catch (e) {

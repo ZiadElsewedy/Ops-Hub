@@ -54,6 +54,7 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
   late final List<BroadcastAudience> _allowed;
   late BroadcastAudience _audience;
   BroadcastCategory _category = BroadcastCategory.announcement;
+  bool _sendsPush = true;
 
   List<BranchEntity> _branches = const [];
   BranchEntity? _selectedBranch; // admin's chosen branch (branch / individual)
@@ -81,6 +82,7 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
       _titleCtrl.text = p.title;
       _bodyCtrl.text = p.message;
       _category = BroadcastCategory.fromString(p.category);
+      _sendsPush = p.sendsPush;
       if (_allowed.contains(p.audience)) _audience = p.audience;
     }
     _titleCtrl.addListener(_onFormChanged);
@@ -180,9 +182,11 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
     if (_userQuery.isEmpty) return _users;
     final q = _userQuery.toLowerCase();
     return _users
-        .where((u) =>
-            (u.displayName ?? '').toLowerCase().contains(q) ||
-            u.email.toLowerCase().contains(q))
+        .where(
+          (u) =>
+              (u.displayName ?? '').toLowerCase().contains(q) ||
+              u.email.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -196,21 +200,25 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
         ? BroadcastAudience.custom
         : _audience;
     final singleUid = isPeople && people.length == 1 ? people.first : null;
-    final isBranchOrAll = _audience == BroadcastAudience.branch ||
+    final isBranchOrAll =
+        _audience == BroadcastAudience.branch ||
         _audience == BroadcastAudience.allBranches;
 
     final count = await context.read<BroadcastCubit>().send(
-          sender: _sender,
-          title: _titleCtrl.text,
-          message: _bodyCtrl.text,
-          audience: sendAudience,
-          branchId: _audience == BroadcastAudience.branch ? _targetBranchId : null,
-          targetUserId: singleUid,
-          targetUserBranchId: _userBranch(singleUid),
-          targetUserIds: sendAudience == BroadcastAudience.custom ? people : const [],
-          roleFilter: isBranchOrAll ? _roleFilter : '',
-          category: _category.value,
-        );
+      sender: _sender,
+      title: _titleCtrl.text,
+      message: _bodyCtrl.text,
+      audience: sendAudience,
+      branchId: _audience == BroadcastAudience.branch ? _targetBranchId : null,
+      targetUserId: singleUid,
+      targetUserBranchId: _userBranch(singleUid),
+      targetUserIds: sendAudience == BroadcastAudience.custom
+          ? people
+          : const [],
+      roleFilter: isBranchOrAll ? _roleFilter : '',
+      category: _category.value,
+      sendsPush: _sendsPush,
+    );
     if (!mounted) return;
     setState(() => _submitting = false);
     if (count != null) {
@@ -231,7 +239,8 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
       isScrollControlled: true,
       backgroundColor: AppColors.darkSurface,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => const _ScheduleSheet(),
     );
     if (cfg == null || !mounted) return;
@@ -241,7 +250,8 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
     final sendAudience = isPeople && people.length > 1
         ? BroadcastAudience.custom
         : _audience;
-    final isBranchOrAll = _audience == BroadcastAudience.branch ||
+    final isBranchOrAll =
+        _audience == BroadcastAudience.branch ||
         _audience == BroadcastAudience.allBranches;
 
     final entity = BroadcastScheduleEntity(
@@ -249,6 +259,7 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
       title: _titleCtrl.text.trim(),
       message: _bodyCtrl.text.trim(),
       category: _category,
+      sendsPush: _sendsPush,
       audience: sendAudience,
       branchId: _audience == BroadcastAudience.branch ? _targetBranchId : null,
       roleFilter: isBranchOrAll ? _roleFilter : 'all',
@@ -263,10 +274,11 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
     );
 
     await context.read<BroadcastScheduleCubit>().create(
-          entity,
-          targetUserIds:
-              sendAudience == BroadcastAudience.custom ? people : const [],
-        );
+      entity,
+      targetUserIds: sendAudience == BroadcastAudience.custom
+          ? people
+          : const [],
+    );
     if (!mounted) return;
     AppSnackbar.success(context, 'Broadcast scheduled');
     context.pop();
@@ -281,15 +293,22 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
         IconButton(
           tooltip: 'Schedule for later',
           onPressed: _canSend ? _scheduleSend : null,
-          icon: Icon(Icons.schedule_rounded,
-              color: _canSend ? AppColors.primary : AppColors.textTertiary),
+          icon: Icon(
+            Icons.schedule_rounded,
+            color: _canSend ? AppColors.primary : AppColors.textTertiary,
+          ),
         ),
         TextButton.icon(
           onPressed: _useTemplate,
-          icon: const Icon(Icons.dashboard_customize_outlined,
-              size: 18, color: AppColors.primary),
-          label: Text('Templates',
-              style: AppTypography.label.copyWith(color: AppColors.primary)),
+          icon: const Icon(
+            Icons.dashboard_customize_outlined,
+            size: 18,
+            color: AppColors.primary,
+          ),
+          label: Text(
+            'Templates',
+            style: AppTypography.label.copyWith(color: AppColors.primary),
+          ),
         ),
       ],
       bottomBar: _SendBar(
@@ -301,19 +320,13 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
         listener: (context, state) =>
             state.whenOrNull(error: (m) => AppSnackbar.error(context, m)),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
-              AppSpacing.lg, AppSpacing.pagePadding, AppSpacing.xl),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding,
+            AppSpacing.lg,
+            AppSpacing.pagePadding,
+            AppSpacing.xl,
+          ),
           children: [
-            const _Label('Audience'),
-            _audienceSelector(),
-            ..._audienceTarget(),
-            const SizedBox(height: AppSpacing.xl),
-            const _Label('Category'),
-            _categorySelector(),
-            const SizedBox(height: AppSpacing.xl),
-            const SizedBox(height: AppSpacing.md),
-            _DeliveryHint(category: _category),
-            const SizedBox(height: AppSpacing.xl),
             const _Label('Title'),
             AppTextField(
               controller: _titleCtrl,
@@ -334,6 +347,16 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
             ),
             _Counter(length: _bodyCtrl.text.length, max: 500),
             const SizedBox(height: AppSpacing.xl),
+            const _Label('Delivery'),
+            _deliverySelector(),
+            const SizedBox(height: AppSpacing.lg),
+            const _Label('Audience'),
+            _audienceSelector(),
+            ..._audienceTarget(),
+            const SizedBox(height: AppSpacing.xl),
+            const _Label('Category'),
+            _categorySelector(),
+            const SizedBox(height: AppSpacing.xl),
             Row(
               children: [
                 const _Label('Preview'),
@@ -349,6 +372,7 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
               title: _titleCtrl.text,
               message: _bodyCtrl.text,
               category: _category,
+              sendsPush: _sendsPush,
             ),
           ],
         ),
@@ -361,7 +385,9 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
   /// (rendering `{{placeholders}}` with the current context).
   Future<void> _useTemplate() async {
     final picked = await context.push<BroadcastTemplateEntity?>(
-        RouteNames.communicationsTemplates, extra: 'pick');
+      RouteNames.communicationsTemplates,
+      extra: 'pick',
+    );
     if (picked == null || !mounted) return;
     final ctx = _placeholderContext();
     setState(() {
@@ -415,11 +441,11 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
   }
 
   String _audienceChoiceLabel(BroadcastAudience a) => switch (a) {
-        BroadcastAudience.allBranches => 'Everyone',
-        BroadcastAudience.branch => 'Branch',
-        BroadcastAudience.user => 'People',
-        BroadcastAudience.custom => 'People',
-      };
+    BroadcastAudience.allBranches => 'Everyone',
+    BroadcastAudience.branch => 'Branch',
+    BroadcastAudience.user => 'People',
+    BroadcastAudience.custom => 'People',
+  };
 
   /// The audience-specific picker (branch selector / role filter / people picker).
   List<Widget> _audienceTarget() {
@@ -427,7 +453,9 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
       case BroadcastAudience.allBranches:
         return [
           const SizedBox(height: AppSpacing.md),
-          const _Hint('Every active user across all branches will be notified.'),
+          const _Hint(
+            'Every active user across all branches will be notified.',
+          ),
           const SizedBox(height: AppSpacing.md),
           _roleSelector(),
         ];
@@ -514,17 +542,20 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
         child: Center(
-            child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5))),
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2.5),
+          ),
+        ),
       );
     }
     if (_users.isEmpty) {
       return const _Hint('No active users to message in this branch.');
     }
     final filtered = _filteredUsers;
-    final allSelected = filtered.isNotEmpty &&
+    final allSelected =
+        filtered.isNotEmpty &&
         filtered.every((u) => _selectedUsers.contains(u.uid));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,9 +586,10 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
                   }
                 }
               }),
-              child: Text(allSelected ? 'Clear all' : 'Select all',
-                  style:
-                      AppTypography.caption.copyWith(color: AppColors.primary)),
+              child: Text(
+                allSelected ? 'Clear all' : 'Select all',
+                style: AppTypography.caption.copyWith(color: AppColors.primary),
+              ),
             ),
           ],
         ),
@@ -593,6 +625,24 @@ class _ComposeBroadcastScreenState extends State<ComposeBroadcastScreen> {
     );
   }
 
+  Widget _deliverySelector() => Wrap(
+    spacing: AppSpacing.sm,
+    runSpacing: AppSpacing.sm,
+    children: [
+      _Choice(
+        icon: Icons.inbox_outlined,
+        label: 'Inbox only',
+        selected: !_sendsPush,
+        onTap: () => setState(() => _sendsPush = false),
+      ),
+      _Choice(
+        icon: Icons.notifications_active_outlined,
+        label: 'Push + Inbox',
+        selected: _sendsPush,
+        onTap: () => setState(() => _sendsPush = true),
+      ),
+    ],
+  );
 }
 
 /// A live character counter shown under a field.
@@ -607,43 +657,12 @@ class _Counter extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4, right: 4),
       child: Align(
         alignment: Alignment.centerRight,
-        child: Text('$length/$max',
-            style: AppTypography.caption.copyWith(
-                color: over ? AppColors.error : AppColors.textTertiary)),
-      ),
-    );
-  }
-}
-
-/// A read-only note on how the chosen category is delivered — delivery is
-/// derived from the category (no manual priority/channel dial): announcement is
-/// quiet inbox-only; reminder + emergency push; emergency rides high priority.
-class _DeliveryHint extends StatelessWidget {
-  const _DeliveryHint({required this.category});
-  final BroadcastCategory category;
-  @override
-  Widget build(BuildContext context) {
-    final emergency = category == BroadcastCategory.emergency;
-    final color = emergency ? AppColors.error : AppColors.textSecondary;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: color.withAlpha(emergency ? 20 : 14),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withAlpha(emergency ? 70 : 40)),
-      ),
-      child: Row(
-        children: [
-          Icon(emergency ? Icons.crisis_alert_rounded : Icons.send_outlined,
-              size: 18, color: color),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'Delivery: ${category.deliverySummary}',
-              style: AppTypography.caption.copyWith(color: color),
-            ),
+        child: Text(
+          '$length/$max',
+          style: AppTypography.caption.copyWith(
+            color: over ? AppColors.error : AppColors.textTertiary,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -655,11 +674,13 @@ class _PreviewCard extends StatelessWidget {
     required this.title,
     required this.message,
     required this.category,
+    required this.sendsPush,
   });
 
   final String title;
   final String message;
   final BroadcastCategory category;
+  final bool sendsPush;
 
   @override
   Widget build(BuildContext context) {
@@ -706,20 +727,25 @@ class _PreviewCard extends StatelessWidget {
           Text(
             message.trim().isEmpty ? 'Your message preview…' : message,
             style: AppTypography.bodySmall.copyWith(
-                color: message.trim().isEmpty
-                    ? AppColors.textTertiary
-                    : AppColors.textSecondary),
+              color: message.trim().isEmpty
+                  ? AppColors.textTertiary
+                  : AppColors.textSecondary,
+            ),
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Text(category.label,
-                  style: AppTypography.caption.copyWith(color: catColor)),
+              Text(
+                category.label,
+                style: AppTypography.caption.copyWith(color: catColor),
+              ),
               const SizedBox(width: 8),
-              Text('· ${category.deliverySummary}',
-                  style: AppTypography.caption),
+              Text(
+                '· ${sendsPush ? 'Push + Inbox' : 'Inbox only'}',
+                style: AppTypography.caption,
+              ),
             ],
           ),
         ],
@@ -777,8 +803,13 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
     );
     if (!mounted) return;
     setState(() {
-      _startAt = DateTime(date.year, date.month, date.day, time?.hour ?? 9,
-          time?.minute ?? 0);
+      _startAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time?.hour ?? 9,
+        time?.minute ?? 0,
+      );
     });
   }
 
@@ -790,7 +821,11 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
       lastDate: DateTime.now().add(const Duration(days: 1095)),
     );
     if (!mounted) return;
-    if (date != null) setState(() => _endDate = DateTime(date.year, date.month, date.day, 23, 59));
+    if (date != null) {
+      setState(
+        () => _endDate = DateTime(date.year, date.month, date.day, 23, 59),
+      );
+    }
   }
 
   @override
@@ -800,8 +835,12 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
       padding: EdgeInsets.only(bottom: bottom),
       child: ListView(
         shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, AppSpacing.md,
-            AppSpacing.pagePadding, AppSpacing.xl),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding,
+          AppSpacing.md,
+          AppSpacing.pagePadding,
+          AppSpacing.xl,
+        ),
         children: [
           Center(
             child: Container(
@@ -809,8 +848,9 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
               height: 4,
               margin: const EdgeInsets.only(bottom: AppSpacing.lg),
               decoration: BoxDecoration(
-                  color: AppColors.darkBorder,
-                  borderRadius: BorderRadius.circular(2)),
+                color: AppColors.darkBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
           const Text('Schedule broadcast', style: AppTypography.h3),
@@ -845,19 +885,21 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
                 const Text('Every', style: AppTypography.body),
                 const SizedBox(width: AppSpacing.md),
                 _StepBtn(
-                    icon: Icons.remove_rounded,
-                    onTap: () => setState(
-                        () => _interval = (_interval - 1).clamp(1, 365))),
+                  icon: Icons.remove_rounded,
+                  onTap: () =>
+                      setState(() => _interval = (_interval - 1).clamp(1, 365)),
+                ),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: Text('$_interval',
-                      style: AppTypography.h3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  child: Text('$_interval', style: AppTypography.h3),
                 ),
                 _StepBtn(
-                    icon: Icons.add_rounded,
-                    onTap: () => setState(
-                        () => _interval = (_interval + 1).clamp(1, 365))),
+                  icon: Icons.add_rounded,
+                  onTap: () =>
+                      setState(() => _interval = (_interval + 1).clamp(1, 365)),
+                ),
                 const SizedBox(width: AppSpacing.md),
                 const Text('days', style: AppTypography.body),
               ],
@@ -875,8 +917,11 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
               trailing: _endDate == null
                   ? null
                   : IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          size: 18, color: AppColors.textTertiary),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: AppColors.textTertiary,
+                      ),
                       onPressed: () => setState(() => _endDate = null),
                     ),
             ),
@@ -893,8 +938,11 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
                 endDate: _rec.isRecurring ? _endDate : null,
               ),
             ),
-            icon: const Icon(Icons.schedule_rounded,
-                size: 18, color: AppColors.onPrimary),
+            icon: const Icon(
+              Icons.schedule_rounded,
+              size: 18,
+              color: AppColors.onPrimary,
+            ),
           ),
         ],
       ),
@@ -902,16 +950,24 @@ class _ScheduleSheetState extends State<_ScheduleSheet> {
   }
 
   Widget _label(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Text(t.toUpperCase(),
-            style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary, letterSpacing: 0.6)),
-      );
+    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+    child: Text(
+      t.toUpperCase(),
+      style: AppTypography.caption.copyWith(
+        color: AppColors.textTertiary,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
 }
 
 class _Tappable extends StatelessWidget {
-  const _Tappable(
-      {required this.icon, required this.label, required this.onTap, this.trailing});
+  const _Tappable({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.trailing,
+  });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -970,11 +1026,15 @@ class _Label extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: Text(text.toUpperCase(),
-            style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary, letterSpacing: 0.6)),
-      );
+    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+    child: Text(
+      text.toUpperCase(),
+      style: AppTypography.caption.copyWith(
+        color: AppColors.textTertiary,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
 }
 
 class _Hint extends StatelessWidget {
@@ -1011,21 +1071,28 @@ class _Choice extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: selected ? AppColors.primary : AppColors.darkSurface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: selected ? AppColors.primary : AppColors.darkBorder),
+            color: selected ? AppColors.primary : AppColors.darkBorder,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 16, color: fg),
             const SizedBox(width: 6),
-            Text(label,
-                style: AppTypography.label
-                    .copyWith(color: fg, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: AppTypography.label.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
@@ -1035,8 +1102,11 @@ class _Choice extends StatelessWidget {
 
 /// A fixed (non-selectable) target tile — the manager's own branch.
 class _FixedTarget extends StatelessWidget {
-  const _FixedTarget(
-      {required this.icon, required this.label, required this.caption});
+  const _FixedTarget({
+    required this.icon,
+    required this.label,
+    required this.caption,
+  });
   final IconData icon;
   final String label;
   final String caption;
@@ -1057,9 +1127,12 @@ class _FixedTarget extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: AppTypography.label, maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  label,
+                  style: AppTypography.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 2),
                 Text(caption, style: AppTypography.caption),
               ],
@@ -1072,8 +1145,11 @@ class _FixedTarget extends StatelessWidget {
 }
 
 class _UserTile extends StatelessWidget {
-  const _UserTile(
-      {required this.user, required this.selected, required this.onTap});
+  const _UserTile({
+    required this.user,
+    required this.selected,
+    required this.onTap,
+  });
   final UserEntity user;
   final bool selected;
   final VoidCallback onTap;
@@ -1093,7 +1169,8 @@ class _UserTile extends StatelessWidget {
           color: selected ? AppColors.primarySurface : AppColors.darkSurface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: selected ? AppColors.primary : AppColors.darkBorder),
+            color: selected ? AppColors.primary : AppColors.darkBorder,
+          ),
         ),
         child: Row(
           children: [
@@ -1103,14 +1180,18 @@ class _UserTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name,
-                      style: AppTypography.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  Text(user.email,
-                      style: AppTypography.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    name,
+                    style: AppTypography.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    user.email,
+                    style: AppTypography.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -1130,8 +1211,11 @@ class _UserTile extends StatelessWidget {
 
 /// The sticky bottom Send CTA.
 class _SendBar extends StatelessWidget {
-  const _SendBar(
-      {required this.enabled, required this.loading, required this.onSend});
+  const _SendBar({
+    required this.enabled,
+    required this.loading,
+    required this.onSend,
+  });
   final bool enabled;
   final bool loading;
   final VoidCallback onSend;
@@ -1139,8 +1223,12 @@ class _SendBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, AppSpacing.md,
-          AppSpacing.pagePadding, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pagePadding,
+        AppSpacing.md,
+        AppSpacing.pagePadding,
+        AppSpacing.md,
+      ),
       decoration: const BoxDecoration(
         color: AppColors.darkBg,
         border: Border(top: BorderSide(color: AppColors.darkBorder)),
@@ -1151,8 +1239,11 @@ class _SendBar extends StatelessWidget {
           label: 'Send Broadcast',
           isLoading: loading,
           onPressed: enabled ? onSend : null,
-          icon: const Icon(Icons.send_rounded,
-              size: 18, color: AppColors.onPrimary),
+          icon: const Icon(
+            Icons.send_rounded,
+            size: 18,
+            color: AppColors.onPrimary,
+          ),
         ),
       ),
     );

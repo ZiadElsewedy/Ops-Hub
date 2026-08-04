@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/animated_count.dart';
@@ -19,6 +20,7 @@ class Stat {
     this.count,
     this.suffix = '',
     this.tone,
+    this.onTap,
   }) : assert(
           value != null || count != null,
           'A Stat needs either a string value or an int count',
@@ -39,6 +41,13 @@ class Stat {
 
   /// Optional semantic tint for the value (null = monochrome white).
   final Color? tone;
+
+  /// When set, the cell becomes a real tap target (press/hover feedback, a
+  /// `Semantics` button label) that drills into that stat's own list — e.g.
+  /// "Missed" pushes the list of missed tasks. Null keeps the cell purely
+  /// informational (a context count like "Branches", or a ratio like
+  /// "Complete" that isn't a list of anything).
+  final VoidCallback? onTap;
 }
 
 /// **StatStrip** — a calm, single-surface row of small facts (DROP Design System
@@ -123,7 +132,7 @@ class StatStrip extends StatelessWidget {
               style: valueStyle,
             ),
           );
-    return Column(
+    final content = Column(
       crossAxisAlignment: cross,
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -138,6 +147,21 @@ class StatStrip extends StatelessWidget {
           style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
         ),
       ],
+    );
+    if (s.onTap == null) return content;
+    // A real tap target (>=44pt via the vertical padding) with press/hover
+    // feedback — this app runs on macOS desktop too, so hover matters.
+    return Semantics(
+      button: true,
+      label: '${s.label}: ${s.value ?? s.count}',
+      child: InkWell(
+        onTap: s.onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: content,
+        ),
+      ),
     );
   }
 

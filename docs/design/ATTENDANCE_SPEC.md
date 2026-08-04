@@ -96,11 +96,22 @@ overtime remain **derived facts, not states** (Technical Constraint T2).
 5. **Forgot clock-out.** Working → `autoCloseAttendance` at scheduledEnd + grace →
    **Pending Review** + employee nudge. Employee files a correction with the real
    clock-out → approved → **Corrected**. (Or manager resolves directly.)
-6. **GPS rejected at clock-in.** Eligibility passed but GPS gate fails (off / denied
-   / no geofence / low accuracy / outside radius). **No record is written.** Employee
-   sees the specific reason and a retry. If genuinely on-site but GPS won't
-   cooperate, the shift falls through to the forgot-clock-in recovery (workflow 4).
-   Clock-**out** is never GPS-blocked.
+6. **GPS rejected at clock-in.** *(Amended by [ADR-020](../decisions/ADR-020-location-policy-is-real.md).)*
+   The gate runs only under the branch's **effective location policy**
+   (`AttendanceService.resolveLocationPolicy`), which is `none` wherever the branch
+   has no geofence:
+   - **`strict`** (the default for a geofenced branch) — eligibility passed but the
+     gate fails (off / denied / low accuracy / outside radius). **No record is
+     written.** Employee sees the specific reason and a retry. If genuinely on-site
+     but GPS won't cooperate, the shift falls through to the forgot-clock-in
+     recovery (workflow 4).
+   - **`soft`** — the fix is captured and stored on the record, and **never refuses
+     the punch**. An unverifiable or out-of-fence fix is evidence for review.
+   - **`none`** — no location is captured and nothing is checked. A branch with **no
+     geofence configured** resolves here, so it runs a pure time clock rather than
+     being locked out of attendance entirely (the pre-ADR-020 behaviour).
+
+   Clock-**out** is never GPS-blocked under any policy.
 7. **Offline.** Clock-in/out queue against the deterministic id (idempotent). UI
    shows *syncing* / *offline*. The live timer runs on the GPS capture time until the
    server timestamp syncs back, then the server time wins. End state identical to
@@ -151,7 +162,7 @@ overtime remain **derived facts, not states** (Technical Constraint T2).
 | R9 | Does an incomplete session block new attendance? | **Never.** |
 | R10 | Auto-close open sessions? | **Yes** (R6 + R7). |
 | R11 | Managers create attendance directly? | **Yes — manager manual entry and direct resolve apply immediately with audit.** Managers are the branch authority. |
-| R12 | Do employees still file requests? | **Yes.** Employee-filed corrections/missed-punch requests **require reviewer approval**. Self-approval forbidden server-side. |
+| R12 | Do employees still file requests? | **Yes.** Employee-filed corrections/missed-punch requests **require reviewer approval**. Self-approval is forbidden server-side, and every correction's deterministic `attendanceId` must name the same `userId` as the correction owner; a correction can never target another employee's record. |
 | R13 | Do absent shifts create records? | **No — lazily.** Absent stays virtual until a manager excuses/creates or an employee files a missed-punch. No phantom documents. |
 | R14 | Excused absence? | **Yes, a real outcome** (`status=excused`, zero minutes, reason). Materialized only when acted on. |
 | R15 | Duplicate corrections? | **No.** At most **one open correction per record**. A new one is blocked while one is pending. |
@@ -197,8 +208,12 @@ manager only acts on **exceptions**.
   Inside the window: **Clock In** (runs the GPS gate). Working: a live timer +
   **Clock Out**. Settled: a **Summary** + **View history**.
 - **Clock-in errors (each specific, actionable):** location off / permission denied
-  / weak GPS / outside radius / branch not geofenced / no shift / already done. Never
-  a generic failure.
+  / weak GPS / outside radius / no shift / already done. Never a generic failure.
+  The location errors appear **only under `strict`** — under `soft` the same states
+  are shown on the GPS card but read as recorded-for-review, and under `none` the
+  card is not rendered at all ([ADR-020](../decisions/ADR-020-location-policy-is-real.md)).
+  *"Branch not geofenced" is no longer a clock-in error*: that branch resolves to
+  `none` and clocks in normally.
 - **Feedback that used to be silent, now explicit:** clocking in late shows a
   "You're marked late" acknowledgement. This prevents disputes.
 - **Forgot to punch.** The Absent state offers **"I worked but forgot to clock in"**
@@ -379,6 +394,12 @@ overnight-session prompt.
 - **T4 — Clients write only the record**; the `events` subcollection is Admin-SDK
   only. Manual entry / direct resolve therefore go through the same
   correction-apply (upsert) path, not a client write to `events`.
+- **T4a — Correction target ownership is bound twice.** Firestore creation rules
+  require the first `_`-separated segment of deterministic `attendanceId` to equal
+  correction `userId` (including missing-record materialization); the server apply
+  path independently refuses an existing record whose `userId` differs or a missing
+  record id with a different owner prefix. A refused target sends no lifecycle
+  notification.
 - **T5 — Date/week resolved from device local date** (calendar), not device clock
   instants; wrong device *date* resolves the wrong schedule week (low-likelihood,
   documented).

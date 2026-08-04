@@ -77,9 +77,9 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Navigation | `go_router` | Auth-aware redirects + role guards |
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
 | Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
-| Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Caches metadata/URLs, **never image bytes** |
+| Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Drift caches metadata; `ChatRepositoryImpl` session-caches brokered URLs until their server expiry; **never image bytes** |
 | Server logic | Cloud Functions (Node.js, `functions/`) | 24 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
-| Push | `firebase_messaging` | iOS unconfigured — see CURRENT_STATE |
+| Push | `firebase_messaging` | iOS app-side configuration is present; APNs credential remains — see CURRENT_STATE |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
 | Serialization | `json_serializable` | |
 | Media | `image_picker` · `image_cropper` · `video_compress` | Mobile-gated |
@@ -160,7 +160,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `requests` | Employee → manager yes/no approvals | [REQUESTS](docs/design/REQUESTS.md) |
 | `cases` | Private employee ↔ manager/admin conversations | [CASES](docs/design/CASES.md) |
-| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync); REST is the source of truth) | — |
+| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox; room membership follows app lifecycle so push suppression is honest) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync); REST is the source of truth) | — |
 | `communications` | Broadcasts, templates, schedules, reminders | [COMMUNICATIONS](docs/design/COMMUNICATIONS.md) |
 | `notifications` | Notification inbox + deep-link resolver | [NOTIFICATIONS](docs/design/NOTIFICATIONS.md) |
 | `operations` | Branch Operations cockpit: workload, KPI drills | [TASKS](docs/design/TASKS.md) |
@@ -191,7 +191,7 @@ features' cubits.
 | `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (49 routes) |
 | `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
-| `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` |
+| `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
 
 **`core/` is feature-neutral except `app_shell.dart`, the existing
@@ -210,7 +210,7 @@ Reuse these. Do not re-implement or duplicate them.
 | Any Storage upload | `core/media/media_upload_service.dart` |
 | Any NestJS API call | `core/network/api_client.dart` (never import `dio` elsewhere) |
 | Chat realtime (socket) | `features/chat/data/realtime/chat_socket_service.dart` (never import `socket_io_client` elsewhere; consume the `ChatRealtime` port) |
-| Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Metadata/URLs only, **never image bytes** |
+| Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Drift holds metadata only; the repository session-caches brokered attachment URLs through `ChatAttachmentDownload.isExpired`; **never image bytes** |
 | Task status → colour | `core/widgets/status_badge.dart` (`taskStatusColor`) |
 | Structured logging | `core/utils/app_logger.dart` (`AppLog`) |
 | Shift slot timing | `schedule/domain/shift_window.dart` |
@@ -234,6 +234,12 @@ Reuse these. Do not re-implement or duplicate them.
 | Role chrome (bottom nav) | `core/widgets/role_scaffold.dart` + `app_bottom_nav.dart` |
 | Desktop chrome (sidebar, ⌘K) | `core/widgets/app_shell.dart` + `app_sidebar.dart` + `command_palette.dart` |
 | Colours / type / spacing / radius | `core/theme/` — never inline a `Color(...)` or `TextStyle(...)` |
+| The typeface itself | `assets/fonts/` + the `fonts:` block in `pubspec.yaml` + `AppTypography.fontFamily` — all three, or the app falls back per platform |
+| Connectivity / offline behaviour | `core/network/connectivity_service.dart` + `core/widgets/connectivity_scope.dart` — never trust the interface alone; the probe is the verdict |
+| **Any new repository write** | start it with `NetworkGuard.ensureWritable()` (`core/network/network_guard.dart`) — without it, an offline write is cached, reported as success, and replayed silently an hour later |
+| Any "nothing here" state | `core/widgets/app_empty_state.dart` · `drop_empty_state.dart` · `empty_state_medallion.dart` — never a bespoke circle + icon |
+| Any failure or retry surface | `core/widgets/app_error_state.dart` (`AppErrorState` full-area · `AppProblemPanel` inline) — never an empty state with an error glyph |
+| Any loading placeholder | `core/widgets/list_skeleton.dart` · `skeleton.dart` — a centred spinner only inside a button or sheet action |
 | Global component styling | `core/theme/app_theme.dart` |
 | Firestore / Storage security | `firestore.rules` · `storage.rules` → add a case in `firestore-tests/` → **deploy** |
 | Server logic | `functions/index.js` → **deploy** |
@@ -336,6 +342,31 @@ colour.
   signed off on a mockup first. Two standing rules came out of that: **emphasis
   means unseen, never status**, and **nothing on a resting surface animates
   forever**.
+- **One typeface, bundled.** `AppTypography.fontFamily` is the single source and
+  both `ThemeData`s carry it. The face ships in `assets/fonts/` — never name a font
+  that is not bundled, or the app silently renders in a different face per platform
+  (that is exactly how it ran on Roboto on Android for months).
+- **An empty state is a finished state, not a missing one.** Every "nothing here"
+  surface renders through `AppEmptyState` (glyph) or `DropEmptyState` (brand), both
+  of which carry their mark in `EmptyStateMedallion`. Don't hand-roll a circle and
+  a grey icon per screen. Equally: a container whose every cell is conditional must
+  gate **itself and its spacing** on having content — an empty bordered box reads to
+  users as a component that failed to load.
+- **Empty ≠ failed, and a failure offers a way out.** A failure never renders as an
+  empty state: use `AppErrorState` (full area, error-tinted medallion, **Retry**) or
+  `AppProblemPanel` (inline, when the screen still has content around it). Both are
+  in `core/widgets/app_error_state.dart`.
+- **Loading keeps the shape of what is arriving.** A list loads as `ListSkeleton`,
+  a panel as `Skeleton` blocks — not a centred `CircularProgressIndicator`, which
+  tells the user nothing and makes the screen jump when data lands. Spinners are
+  fine *inside* a button or a sheet action, where the shape is already known.
+- **Offline gates the writes, never the app.** Reads stay available from cache
+  under a permanent `OfflineBar` that says *when* the connection dropped.
+  **Clock in / out is the one write allowed offline** — it happens at a branch,
+  where signal is worst, and `attendance/{uid}_{yyyyMMdd}_{shift}` is
+  deterministic so a late write cannot duplicate. A launch-blocking gate was
+  built and reversed on 2026-08-03; don't reintroduce one without reading that
+  entry.
 - **One primary CTA per screen.**
 - Task action sheets may use neutral tonal depth, restrained entrance/stagger motion,
   and pointer lift feedback; chromatic colour remains semantic-only and reduced
@@ -350,8 +381,15 @@ colour.
 | Buttons | `AppButton` (`primary`/`secondary`/`ghost`, built-in `isLoading`) · `PremiumButton` (compact inline) |
 | Card surface | `GlassContainer` — the shared gradient/border/depth surface |
 | Page header | `PageHero` (eyebrow · title · subtitle · one CTA) |
+| A hero's one CTA | `PrimaryCta` (filled monochrome, hover-lift/press-scale) |
+| A hero's live state line | `HeroMood` + `dashboardMood(needsAttention:)` |
+| "Act on these first" | `AttentionPanel` + `AttentionSignal` — ONE grouped box: triage rows most-urgent-first, cleared ones in a footer, all-clear summary at zero, one living border |
+| "Everything else" doors | `DigestPanel` + `DigestEntry` (a figure is optional) |
+| Dashboard refresh control | `SyncButton` (+ pure `syncLabel`) |
+| Desktop ⌘K discoverability | `CommandHint` |
 | Triage cell | `AttentionTile` (monochrome at zero, tints only when there's work) |
-| Fact row | `StatStrip` |
+| Tappable figure cell | `MetricTile` + `MetricTileRow` — **every tile must open a list**; never draw an inert cell beside tappable ones |
+| Fact row | `StatStrip` (read-only facts; if a cell should drill, use `MetricTile`) |
 | Feed row | `ActivityCard` |
 | Status pill | `StatusBadge` (`.task` is canonical) |
 | Task card edge | `TaskAttentionSurface` + `taskAttentionTone` (Employee Home) |

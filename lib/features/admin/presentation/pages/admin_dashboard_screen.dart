@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -8,22 +6,21 @@ import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/action_card.dart';
 import 'package:drop/core/widgets/admin_section_header.dart';
-import 'package:drop/core/widgets/animated_count.dart';
-import 'package:drop/core/widgets/app_shell.dart';
-import 'package:drop/core/widgets/command_palette.dart';
+import 'package:drop/core/widgets/attention_panel.dart';
+import 'package:drop/core/widgets/command_hint.dart';
+import 'package:drop/core/widgets/digest_panel.dart';
+import 'package:drop/core/widgets/hero_mood.dart';
+import 'package:drop/core/widgets/primary_cta.dart';
 import 'package:drop/core/widgets/responsive_card_grid.dart';
 import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/live_list_item.dart';
 import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/core/widgets/stat_strip.dart';
-import 'package:drop/features/admin/presentation/dashboard_mood.dart';
+import 'package:drop/core/widgets/sync_button.dart';
+import 'package:drop/core/utils/dashboard_mood.dart';
 import 'package:drop/features/cases/presentation/cubit/case_list_cubit.dart';
 import 'package:drop/features/cases/presentation/cubit/case_list_state.dart';
 import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
@@ -42,7 +39,6 @@ import 'package:drop/features/task/domain/task_schedule.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/pages/filtered_tasks_screen.dart';
-import 'package:drop/features/task/presentation/widgets/live_status_border.dart';
 import 'package:drop/features/task/presentation/widgets/recent_activity_feed.dart';
 import 'package:drop/features/task/presentation/widgets/task_template_sheets.dart';
 
@@ -125,7 +121,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Widget _syncButton({bool compact = false}) => _SyncButton(
+  Widget _syncButton({bool compact = false}) => SyncButton(
     syncing: _syncing,
     lastSynced: _lastSynced,
     onSync: () => _load(force: true),
@@ -236,17 +232,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 return PageHero(
                   eyebrow: eyebrow,
                   title: '$_salutation, $first',
-                  subtitleWidget: _HeroMood(
+                  subtitleWidget: HeroMood(
                     mood: mood,
                     scope: _scopeLine(s, running),
                   ),
-                  primaryAction: _PrimaryCta(
+                  primaryAction: PrimaryCta(
                     icon: Icons.add_rounded,
                     label: 'Create Task',
                     onTap: _createTask,
                   ),
                   trailing: context.isDesktop
-                      ? [_syncButton(compact: true), _CommandHint()]
+                      ? [_syncButton(compact: true), const CommandHint()]
                       : [_syncButton(compact: true)],
                 );
               },
@@ -285,34 +281,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           },
           builder: (context, c) {
             final (overdue, reviews, unassigned, rejected) = c;
-            final total = overdue + reviews + unassigned + rejected + swaps;
-            final reduceMotion = MediaQuery.of(context).disableAnimations;
-            // ONE grouped box, always in the same place. When every queue is
-            // empty it's a calm "all clear" summary; the moment anything needs a
-            // decision it's the box of triage rows — a fresh signal slides in as
-            // a row (never the whole grid re-appearing). A quiet crossfade carries
-            // the rare clear ⇄ active flip.
-            final Widget child = total == 0
-                ? const KeyedSubtree(
-                    key: ValueKey('attn-clear'),
-                    child: _AllClearPanel(),
-                  )
-                : KeyedSubtree(
-                    key: const ValueKey('attn-active'),
-                    child: _needsAttentionBox(
-                      reviews: reviews,
-                      overdue: overdue,
-                      unassigned: unassigned,
-                      rejected: rejected,
-                      swaps: swaps,
-                    ),
-                  );
-            if (reduceMotion) return child;
-            return AnimatedSwitcher(
-              duration: const Duration(milliseconds: 260),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              child: child,
+            return AttentionPanel(
+              signals: _signals(
+                reviews: reviews,
+                overdue: overdue,
+                unassigned: unassigned,
+                rejected: rejected,
+                swaps: swaps,
+              ),
             );
           },
         );
@@ -322,13 +298,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   /// Push a reusable filtered task list (title + predicate) on the caller's
   /// navigator, so Back returns to the dashboard exactly where it was.
-  void _openFiltered(String title, TaskFeedFilter filter, {String? empty}) {
+  /// [description] is the optional one-line "how does this count" line (same
+  /// slot as `OperationsMetricScreen.description`) — null for callers that
+  /// don't need it, so the Needs-attention box's existing calls are unchanged.
+  void _openFiltered(
+    String title,
+    TaskFeedFilter filter, {
+    String? empty,
+    String? description,
+  }) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => FilteredTasksScreen(
           title: title,
           filter: filter,
           emptyMessage: empty ?? 'Nothing needs attention here right now.',
+          description: description,
         ),
       ),
     );
@@ -340,25 +325,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     showBranch: true,
   );
 
-  /// The grouped Needs-attention box (active state — at least one signal has
-  /// work). One `GlassContainer` of triage rows wrapped in a **single** living
-  /// border; a fresh signal slides in as a row (`LiveListItem` keyed reuse), the
-  /// cleared signals collapse to a quiet footer, and the box's orbit reads the
-  /// most-urgent signal's tone (overdue → orange pulse, else the calm accent).
-  Widget _needsAttentionBox({
+  /// The triage signals this board watches, in **fixed urgency order** — the
+  /// order [AttentionPanel] renders them in and the order the cleared footer
+  /// names them. Every entry drills into its own filtered list.
+  List<AttentionSignal> _signals({
     required int reviews,
     required int overdue,
     required int unassigned,
     required int rejected,
     required int swaps,
   }) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-
-    // Fixed urgency ranking (lower = more urgent).
-    final all = <_Signal>[
-      _Signal(
-        key: 'overdue',
-        rank: 0,
+    return <AttentionSignal>[
+      AttentionSignal(
+        id: 'overdue',
         count: overdue,
         accent: AppColors.error,
         icon: Icons.event_busy_outlined,
@@ -370,9 +349,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           empty: 'No late work. Nicely done.',
         ),
       ),
-      _Signal(
-        key: 'reviews',
-        rank: 1,
+      AttentionSignal(
+        id: 'reviews',
         count: reviews,
         accent: AppColors.warning,
         icon: Icons.rate_review_outlined,
@@ -380,9 +358,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         sublabel: 'Approve or send back',
         onTap: () => context.push(RouteNames.adminReview),
       ),
-      _Signal(
-        key: 'rejected',
-        rank: 2,
+      AttentionSignal(
+        id: 'rejected',
         count: rejected,
         accent: AppColors.error,
         icon: Icons.replay_rounded,
@@ -394,9 +371,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           empty: 'Nothing has been sent back.',
         ),
       ),
-      _Signal(
-        key: 'unassigned',
-        rank: 3,
+      AttentionSignal(
+        id: 'unassigned',
         count: unassigned,
         accent: AppColors.warning,
         icon: Icons.person_off_outlined,
@@ -408,9 +384,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           empty: 'Every task has an owner.',
         ),
       ),
-      _Signal(
-        key: 'swaps',
-        rank: 4,
+      AttentionSignal(
+        id: 'swaps',
         count: swaps,
         accent: AppColors.warning,
         icon: Icons.swap_horiz_rounded,
@@ -419,251 +394,105 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         onTap: _openSwaps,
       ),
     ];
-
-    final active = all.where((s) => s.count > 0).toList()
-      ..sort((a, b) => a.rank.compareTo(b.rank));
-    final cleared = all.where((s) => s.count == 0).toList();
-    // Caller only builds this box when something is active, but guard anyway.
-    if (active.isEmpty) return const _AllClearPanel();
-    final overdueLead = active.first.accent == AppColors.error;
-
-    final rows = <Widget>[
-      for (final (i, s) in active.indexed)
-        if (reduceMotion)
-          KeyedSubtree(
-            key: ValueKey('attn-row-${s.key}'),
-            child: _attnRow(s, first: i == 0),
-          )
-        else
-          LiveListItem(
-            key: ValueKey('attn-row-${s.key}'),
-            entranceDelay: Duration(milliseconds: (i * 45).clamp(0, 180)),
-            highlightRadius: 12,
-            child: _attnRow(s, first: i == 0),
-          ),
-    ];
-
-    final box = GlassContainer(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Only the row set resizes when a signal arrives/clears, so the box
-          // grows/shrinks smoothly instead of snapping.
-          AnimatedSize(
-            duration:
-                reduceMotion ? Duration.zero : const Duration(milliseconds: 260),
-            curve: Curves.easeOut,
-            alignment: Alignment.topCenter,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: rows,
-            ),
-          ),
-          if (cleared.isNotEmpty) _attnFooter(cleared),
-        ],
-      ),
-    );
-
-    if (reduceMotion) return box;
-    // One unified orbit around the whole box (not five scattered borders),
-    // reading the most-urgent signal's tone.
-    return LiveStatusBorder(
-      color: overdueLead ? const Color(0xFFFB923C) : kLivingBorderAccent,
-      pulse: overdueLead,
-      speed: 1.1,
-      borderRadius: AppRadius.cardAll,
-      child: box,
-    );
-  }
-
-  /// One triage row inside the grouped box: tinted glyph · label + sublabel ·
-  /// count (counts up) · chevron. Tapping drills to that signal's filtered view.
-  Widget _attnRow(_Signal s, {required bool first}) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (!first)
-          const Divider(
-            height: 1,
-            thickness: 1,
-            color: AppColors.darkBorder,
-            indent: AppSpacing.md,
-            endIndent: AppSpacing.md,
-          ),
-        Semantics(
-          button: true,
-          label: '${s.count} ${s.label}',
-          child: InkWell(
-            onTap: s.onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: 12,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: s.accent.withAlpha(34),
-                      borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: s.accent.withAlpha(60)),
-                    ),
-                    child: Icon(s.icon, size: 20, color: s.accent),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Row title reads white (the "what"); its sublabel steps
-                        // down to medium grey.
-                        Text(
-                          s.label,
-                          style: AppTypography.label.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          s.sublabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  AnimatedCount(
-                    value: s.count,
-                    duration: reduceMotion
-                        ? Duration.zero
-                        : const Duration(milliseconds: 650),
-                    style: AppTypography.h2.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: AppColors.textTertiary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// The quiet footer naming the cleared signals ("sent back · unassigned ·
-  /// swaps — all clear"), so a healthy queue is visible without five empty rows.
-  Widget _attnFooter(List<_Signal> cleared) {
-    final names = cleared.map((s) => s.label.toLowerCase()).join(' · ');
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Divider(
-          height: 1,
-          thickness: 1,
-          color: AppColors.darkBorder,
-          indent: AppSpacing.md,
-          endIndent: AppSpacing.md,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.md, 10, AppSpacing.md, 8),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.check_rounded,
-                size: 15,
-                color: AppColors.textTertiary,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '$names — all clear',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 
   // ── Today (light metrics) ────────────────────────────────────────
+  /// **No `StatisticsCubit` dependency** (removed 2026-08-01 with `Approval
+  /// rate`, whose `Approved ÷ (Approved + Rejected)` was a second, disagreeing
+  /// completion formula next to Task Management's §10.1 figure — deleting it
+  /// leaves that one figure as the app's single completion rate). Every stat
+  /// here now derives from the same task stream `applyFeed` reads for the
+  /// matching drill-down, so a cell's count and its list can never disagree.
   Widget _today() {
-    return BlocBuilder<StatisticsCubit, StatisticsState>(
-      builder: (context, statsState) {
-        final s = statsState.maybeWhen(loaded: (s) => s, orElse: () => null);
-        return BlocSelector<TaskCubit, TaskState, (int, int, int)>(
-          selector: (state) {
-            final tasks = state.maybeWhen(
-              loaded: (t, _, _, _, _) => t,
-              orElse: () => const <TaskEntity>[],
-            );
-            final now = DateTime.now();
-            return (
-              runningNowCount(tasks),
-              overdueCount(tasks, now),
-              dueSoonCount(tasks, now),
-            );
-          },
-          builder: (context, c) {
-            final (running, overdue, dueSoon) = c;
-            final rate = approvalRatePct(
-              approved: s?.completedTasks ?? 0,
-              rejected: s?.rejectedTasks ?? 0,
-            );
-            return StatStrip(
-              stats: [
-                Stat(
-                  label: 'Completed today',
-                  count: s?.completedTasksToday ?? 0,
+    return BlocSelector<TaskCubit, TaskState, (int, int, int, int, int)>(
+      selector: (state) {
+        final tasks = state.maybeWhen(
+          loaded: (t, _, _, _, _) => t,
+          orElse: () => const <TaskEntity>[],
+        );
+        final now = DateTime.now();
+        return (
+          openCount(tasks),
+          runningNowCount(tasks),
+          dueSoonCount(tasks, now),
+          overdueCount(tasks, now),
+          completedTodayCount(tasks, now),
+        );
+      },
+      builder: (context, c) {
+        final (open, running, dueSoon, late, completedToday) = c;
+        return StatStrip(
+          stats: [
+            // "How much is on the table" — the number the owner was reading
+            // Running now as (Running now = started only; a fresh, un-started
+            // task is still Open, not Running).
+            Stat(
+              label: 'Open',
+              count: open,
+              onTap: () => _openFiltered(
+                'Open',
+                const TaskFeedFilter(
+                  statuses: {
+                    TaskStatus.pending,
+                    TaskStatus.started,
+                    TaskStatus.completed,
+                    TaskStatus.rejected,
+                  },
                 ),
-                Stat(label: 'Running now', count: running),
-                Stat(
-                  label: 'Due soon',
-                  count: dueSoon,
-                  tone: dueSoon > 0 ? AppColors.warning : null,
-                ),
-                Stat(
-                  label: 'Delayed',
-                  count: overdue,
-                  tone: overdue > 0 ? AppColors.warning : null,
-                ),
-                if (rate == null)
-                  const Stat(label: 'Approval rate', value: '—')
-                else
-                  Stat(
-                    label: 'Approval rate',
-                    count: rate,
-                    suffix: '%',
-                    tone: AppColors.success,
-                  ),
-              ],
-            );
-          },
+                description:
+                    'Open work — not started, in progress, marked done, or '
+                    'sent back for rework.',
+                empty: 'No open work — everything is either done or waiting '
+                    'on review.',
+              ),
+            ),
+            Stat(
+              label: 'Running now',
+              count: running,
+              onTap: () => _openFiltered(
+                'Running now',
+                const TaskFeedFilter(status: TaskStatus.started),
+                description: 'An employee is executing this right now.',
+                empty: 'Nothing is running right now.',
+              ),
+            ),
+            // Not tappable — see the delta-2 report. No `TaskFeedFilter` can
+            // reproduce `schedulePhase`'s dueSoon precedence (it excludes
+            // completed/waitingReview even though the active window includes
+            // them) without either an over-counting filter or a reverse
+            // dependency from `task_feed.dart` into `task_schedule.dart`. A
+            // cell that doesn't open beats one whose count and list disagree.
+            Stat(
+              label: 'Due soon',
+              count: dueSoon,
+              tone: dueSoon > 0 ? AppColors.warning : null,
+            ),
+            Stat(
+              label: 'Late',
+              count: late,
+              tone: late > 0 ? AppColors.error : null,
+              onTap: () => _openFiltered(
+                'Late',
+                const TaskFeedFilter(preset: FeedPreset.overdue),
+                description:
+                    'Active work past its deadline — counted every day '
+                    "until it's closed, however old. Work that finished "
+                    'late shows on the task itself, not here.',
+                empty: 'Nothing is running past its deadline.',
+              ),
+            ),
+            Stat(
+              label: 'Completed today',
+              count: completedToday,
+              onTap: () => _openFiltered(
+                'Completed today',
+                const TaskFeedFilter(status: TaskStatus.approved),
+                description:
+                    'Approved today only — not the running lifetime total.',
+                empty: 'Nothing approved yet today.',
+              ),
+            ),
+          ],
         );
       },
     );
@@ -688,42 +517,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               builder: (context, activeCases) {
                 final scheduled = s?.branchesWithSchedule ?? 0;
                 final totalBranches = s?.totalBranches ?? 0;
-                return GlassContainer(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.xs,
-                  ),
-                  child: Column(
-                    children: [
-                      _DigestRow(
-                        icon: Icons.assignment_turned_in_outlined,
-                        label: 'Pending requests',
-                        value: '$pendingReq',
-                        accent: pendingReq > 0
-                            ? AppColors.warning
-                            : AppColors.textTertiary,
-                        onTap: () => context.push(RouteNames.requests),
-                      ),
-                      const Divider(color: AppColors.darkBorder, height: 1),
-                      _DigestRow(
-                        icon: Icons.forum_outlined,
-                        label: 'Active cases',
-                        value: '$activeCases',
-                        accent: activeCases > 0
-                            ? AppColors.warning
-                            : AppColors.textTertiary,
-                        onTap: () => context.push(RouteNames.cases),
-                      ),
-                      const Divider(color: AppColors.darkBorder, height: 1),
-                      _DigestRow(
-                        icon: Icons.calendar_view_week_outlined,
-                        label: 'Schedule coverage',
-                        value: '$scheduled/$totalBranches',
-                        accent: AppColors.textSecondary,
-                        onTap: () => context.push(RouteNames.adminSchedule),
-                      ),
-                    ],
-                  ),
+                return DigestPanel(
+                  entries: [
+                    DigestEntry(
+                      icon: Icons.assignment_turned_in_outlined,
+                      label: 'Pending requests',
+                      value: '$pendingReq',
+                      accent: pendingReq > 0 ? AppColors.warning : null,
+                      onTap: () => context.push(RouteNames.requests),
+                    ),
+                    DigestEntry(
+                      icon: Icons.forum_outlined,
+                      label: 'Active cases',
+                      value: '$activeCases',
+                      accent: activeCases > 0 ? AppColors.warning : null,
+                      onTap: () => context.push(RouteNames.cases),
+                    ),
+                    DigestEntry(
+                      icon: Icons.calendar_view_week_outlined,
+                      label: 'Schedule coverage',
+                      value: '$scheduled/$totalBranches',
+                      accent: AppColors.textSecondary,
+                      onTap: () => context.push(RouteNames.adminSchedule),
+                    ),
+                  ],
                 );
               },
             );
@@ -915,613 +732,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ─── Primary CTA ────────────────────────────────────────────────────
-
-/// The single, prominent primary action of the hero — a filled monochrome
-/// button (white accent · dark label). The V2 "one primary action" rule: every
-/// module hero has at most one of these. It carries a soft key-light shadow so
-/// it reads as *the* action, and responds to hover (a whisper of lift) and press
-/// (a subtle scale) — the tactile feedback of a premium control.
-class _PrimaryCta extends StatefulWidget {
-  const _PrimaryCta({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  State<_PrimaryCta> createState() => _PrimaryCtaState();
-}
-
-class _PrimaryCtaState extends State<_PrimaryCta> {
-  bool _hovered = false;
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    final lifted = _hovered && !reduceMotion;
-    return Semantics(
-      button: true,
-      label: widget.label,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
-          onTap: widget.onTap,
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTapCancel: () => setState(() => _pressed = false),
-          child: AnimatedScale(
-            scale: _pressed ? 0.97 : 1.0,
-            duration: const Duration(milliseconds: 110),
-            curve: Curves.easeOut,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOut,
-              transform: Matrix4.translationValues(0, lifted ? -1 : 0, 0),
-              transformAlignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: 14,
-              ),
-              decoration: BoxDecoration(
-                color: lifted ? AppColors.accentHover : AppColors.accent,
-                borderRadius: AppRadius.buttonAll,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.black.withAlpha(lifted ? 90 : 55),
-                    blurRadius: lifted ? 22 : 14,
-                    offset: Offset(0, lifted ? 8 : 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(widget.icon, size: 18, color: AppColors.onAccent),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    widget.label,
-                    style: AppTypography.label.copyWith(
-                      color: AppColors.onAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Hero mood ──────────────────────────────────────────────────────
-
-/// The hero's contextual subtitle: a breathing "system live" pulse dot, the
-/// [DashboardMood] sentence (white + bold when it wants the eye, a relaxed light
-/// grey when the board is calm), and the quiet operational scope beneath it.
-class _HeroMood extends StatelessWidget {
-  const _HeroMood({required this.mood, required this.scope});
-
-  final DashboardMood mood;
-  final String scope;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            _LivePulseDot(color: mood.pulseColor),
-            const SizedBox(width: AppSpacing.sm),
-            Flexible(
-              child: Text(
-                mood.headline,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.body.copyWith(
-                  color: mood.emphasised
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
-                  fontWeight:
-                      mood.emphasised ? FontWeight.w600 : FontWeight.w500,
-                  height: 1.2,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Text(
-          scope,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
-        ),
-      ],
-    );
-  }
-}
-
-/// A small "the system is alive" indicator — a solid dot with a soft halo and a
-/// slow expanding ring that fades outward (like a live/heartbeat pin). The ring
-/// is purely reassuring motion; under reduced motion it collapses to a static
-/// glowing dot so it never distracts or spins forever for no reason.
-class _LivePulseDot extends StatefulWidget {
-  const _LivePulseDot({required this.color});
-
-  final Color color;
-
-  @override
-  State<_LivePulseDot> createState() => _LivePulseDotState();
-}
-
-class _LivePulseDotState extends State<_LivePulseDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  );
-  bool _animating = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduce = MediaQuery.of(context).disableAnimations;
-    if (!reduce && !_animating) {
-      _animating = true;
-      _c.repeat();
-    } else if (reduce && _animating) {
-      _animating = false;
-      _c.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  static const double _core = 8;
-
-  Widget _dot() => Container(
-        width: _core,
-        height: _core,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: widget.color,
-          boxShadow: [
-            BoxShadow(color: widget.color.withAlpha(120), blurRadius: 6),
-          ],
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_animating) return _dot();
-    // Isolate the forever-running ring in its own layer so each frame repaints
-    // only this 18px box, never the hero around it.
-    return RepaintBoundary(
-      child: SizedBox(
-        width: 18,
-        height: 18,
-        child: AnimatedBuilder(
-          animation: _c,
-          builder: (context, _) {
-            final t = Curves.easeOut.transform(_c.value);
-            final ringSize = _core * (1 + t * 1.1);
-            final ringAlpha = ((1 - t) * 80).round();
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: ringSize,
-                  height: ringSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: widget.color.withAlpha(ringAlpha),
-                  ),
-                ),
-                _dot(),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Operations digest row ──────────────────────────────────────────
-
-class _DigestRow extends StatelessWidget {
-  const _DigestRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '$value $label',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-          child: Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: accent.withAlpha(28),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 18, color: accent),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              // Row label is a supporting label (light grey); the count is the
-              // metric and reads white when there's work to do.
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTypography.label.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              Text(
-                value,
-                style: AppTypography.label.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: accent == AppColors.textTertiary
-                      ? AppColors.textSecondary
-                      : AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              // Decorative affordance → medium grey (a step below the label).
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: AppColors.textTertiary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The desktop "Search or run a command ⌘K" pill — mirrors the shell shortcut
-/// so the palette is discoverable, not just known.
-class _CommandHint extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final user = context.currentUser;
-    if (user == null) return const SizedBox.shrink();
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => showCommandPalette(
-          context,
-          user: user,
-          sections: AppShell.sectionsForRole(user.role),
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.darkSurface,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.darkBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.search_rounded,
-                size: 15,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Search or run a command',
-                style: AppTypography.caption.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.darkBorder),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '⌘K',
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Sync control ───────────────────────────────────────────────────
-
-/// Relative "last synced" label for the dashboard [_SyncButton]. Pure with an
-/// injectable clock so it's unit-testable.
-String syncLabel(DateTime? lastSynced, {DateTime? now}) {
-  if (lastSynced == null) return 'Sync';
-  final d = (now ?? DateTime.now()).difference(lastSynced);
-  if (d.inSeconds < 45) return 'Synced just now';
-  if (d.inMinutes < 60) return 'Synced ${d.inMinutes}m ago';
-  if (d.inHours < 24) return 'Synced ${d.inHours}h ago';
-  return 'Synced ${d.inDays}d ago';
-}
-
-/// A premium **Sync** control for the dashboard header. Rotates while a refresh
-/// is in flight and otherwise shows how long ago the live data was last pulled;
-/// tapping force-refreshes the live sources. Desktop shows a labelled pill;
-/// mobile shows an icon-only tap target next to the greeting.
-class _SyncButton extends StatefulWidget {
-  const _SyncButton({
-    required this.syncing,
-    required this.lastSynced,
-    required this.onSync,
-    this.compact = false,
-  });
-
-  final bool syncing;
-  final DateTime? lastSynced;
-  final VoidCallback onSync;
-  final bool compact;
-
-  @override
-  State<_SyncButton> createState() => _SyncButtonState();
-}
-
-class _SyncButtonState extends State<_SyncButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _spin = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
-  Timer? _ticker;
-  bool _hovered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.syncing) _spin.repeat();
-    // Keep the "3m ago" label honest without leaning on a parent rebuild.
-    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant _SyncButton old) {
-    super.didUpdateWidget(old);
-    if (widget.syncing == old.syncing) return;
-    if (widget.syncing) {
-      _spin.repeat();
-    } else {
-      // Let the current turn finish for a smooth stop, then settle to rest.
-      _spin
-          .animateTo(1, duration: const Duration(milliseconds: 220))
-          .whenComplete(() {
-            if (mounted) _spin.reset();
-          });
-    }
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    _spin.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final label = widget.syncing ? 'Syncing…' : syncLabel(widget.lastSynced);
-    final onTap = widget.syncing ? null : widget.onSync;
-    final icon = RotationTransition(
-      turns: _spin,
-      child: Icon(
-        Icons.sync_rounded,
-        size: 15,
-        color: widget.syncing ? AppColors.textPrimary : AppColors.textSecondary,
-      ),
-    );
-
-    if (widget.compact) {
-      return Semantics(
-        button: true,
-        label: label,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.darkSurface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.darkBorder),
-            ),
-            child: Center(child: icon),
-          ),
-        ),
-      );
-    }
-
-    return Semantics(
-      button: true,
-      label: label,
-      child: MouseRegion(
-        cursor: onTap == null
-            ? SystemMouseCursors.basic
-            : SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.darkSurface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: _hovered ? AppColors.textTertiary : AppColors.darkBorder,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                icon,
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Needs-attention signal ─────────────────────────────────────────
-
-/// One triage signal in the grouped Needs-attention box — its urgency [rank],
-/// live [count], semantic [accent], glyph, copy, and the drill it opens.
-class _Signal {
-  const _Signal({
-    required this.key,
-    required this.rank,
-    required this.count,
-    required this.accent,
-    required this.icon,
-    required this.label,
-    required this.sublabel,
-    required this.onTap,
-  });
-
-  final String key;
-  final int rank;
-  final int count;
-  final Color accent;
-  final IconData icon;
-  final String label;
-  final String sublabel;
-  final VoidCallback onTap;
-}
-
-// ─── All clear (needs-attention cleared) ────────────────────────────
-
-/// The Needs-attention layer when **every** queue is empty — one reassuring
-/// summary instead of a grid of switched-off tiles. A large success check, a
-/// positive sentence, and a muted inline row of the zeroed facts, so a healthy
-/// board reads *under control* rather than merely blank.
-class _AllClearPanel extends StatelessWidget {
-  const _AllClearPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'All clear. Nothing needs your attention right now.',
-      child: GlassContainer(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // A large, calm success check — the board's own state is "healthy",
-            // the one place a status colour earns its place on this screen.
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: AppColors.success.withAlpha(28),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: AppColors.success.withAlpha(60)),
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                size: 28,
-                color: AppColors.success,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('All clear', style: AppTypography.h3),
-                  const SizedBox(height: 3),
-                  // Reassuring sentence → light grey, a clear step under the title.
-                  Text(
-                    'Nothing needs you right now — every queue is empty.',
-                    style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  // The zeroed facts, quiet and inline (medium grey) — proof the
-                  // calm state is real, not a failed load.
-                  Text(
-                    '0 pending review · 0 late · 0 unassigned · '
-                    '0 sent back · 0 swaps',
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -1,12 +1,9 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_export_gate.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
@@ -20,9 +17,9 @@ import 'package:drop/features/attendance/domain/reporting/admin_attendance_overv
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart';
 import 'package:drop/features/attendance/presentation/admin/widgets/attendance_evidence_table.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
+import 'package:drop/core/widgets/skeleton.dart';
 
 /// **Admin Workspace** — where the attendance record is proved rather than
 /// operated (`ATTENDANCE_PRODUCT_REDESIGN_PLAN` §8).
@@ -73,6 +70,13 @@ class _WorkspaceView extends StatefulWidget {
 
 class _WorkspaceViewState extends State<_WorkspaceView> {
   bool _started = false;
+
+  /// The active-branch set the fan-out is currently watching. Lets the cold path
+  /// (the listener fires when branches load) and the warm path (bootstrap seeds
+  /// it) both call [_watchBranches] without tearing down and rebuilding an
+  /// identical set of streams.
+  List<String>? _watching;
+
   late final AttendancePeriodWindow _window = weeklyWindow(DateTime.now());
 
   @override
@@ -80,7 +84,47 @@ class _WorkspaceViewState extends State<_WorkspaceView> {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    context.read<BranchCubit>().loadIfNeeded();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  /// `BranchCubit` is an **app-level singleton** (`main.dart` provides one
+  /// instance for the whole session), and the Attendance & Reports hub — the only
+  /// way into this screen — already calls `loadIfNeeded()`. So by the time the
+  /// workspace opens the branch list is normally *already loaded*:
+  /// `loadIfNeeded()` emits nothing, a `BlocListener` alone never fires, the
+  /// fan-out is never started and the screen sits on its spinner forever.
+  ///
+  /// Awaiting the load and then reading the cubit's own state covers the
+  /// already-loaded case as well as the cold one — the same fix
+  /// `attendance_history_screen.dart` documents for the same trap.
+  Future<void> _bootstrap() async {
+    final branchCubit = context.read<BranchCubit>();
+    await branchCubit.loadIfNeeded();
+    if (!mounted) return;
+    _watchBranches(branchCubit.state);
+  }
+
+  void _watchBranches(BranchState state) {
+    // Only a genuinely loaded list may start a fan-out. While loading, the
+    // spinner is honest; on an error, an empty overview would read as "every
+    // branch reported nothing", which is the one lie this screen exists to
+    // prevent.
+    final branches = state.maybeWhen(
+      loaded: (items, _) => items,
+      orElse: () => null,
+    );
+    if (branches == null) return;
+
+    final active = branches.where((b) => b.isActive).toList();
+    final ids = [for (final b in active) b.id];
+    if (_watching != null && listEquals(_watching, ids)) return;
+    _watching = ids;
+
+    context.read<AdminAttendanceOverviewCubit>().watch(
+      branchIds: ids,
+      names: {for (final b in active) b.id: b.name},
+      window: _window,
+    );
   }
 
   @override
@@ -90,20 +134,12 @@ class _WorkspaceViewState extends State<_WorkspaceView> {
       subtitle: 'Is the record complete and defensible?',
       compactDesktopHeader: true,
       body: BlocListener<BranchCubit, BranchState>(
+        // Still here for the cold path (branches load *after* this screen mounts)
+        // and for a later refresh of the directory. It can no longer be the only
+        // trigger — see [_bootstrap].
         listenWhen: (_, next) =>
             next.maybeWhen(loaded: (_, _) => true, orElse: () => false),
-        listener: (context, state) {
-          final branches = state.maybeWhen(
-            loaded: (items, _) => items,
-            orElse: () => const <BranchEntity>[],
-          );
-          final active = branches.where((b) => b.isActive).toList();
-          context.read<AdminAttendanceOverviewCubit>().watch(
-            branchIds: active.map((b) => b.id).toList(),
-            names: {for (final b in active) b.id: b.name},
-            window: _window,
-          );
-        },
+        listener: (context, state) => _watchBranches(state),
         child: ListView(
           key: const PageStorageKey('attendance-admin-workspace'),
           padding: EdgeInsets.fromLTRB(
@@ -137,9 +173,16 @@ class _Body extends StatelessWidget {
           );
         }
         if (overview == null) {
+          // Skeleton over spinner — the workspace holds its shape while it loads.
           return const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
-            child: Center(child: CircularProgressIndicator()),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Column(
+              children: [
+                Skeleton(height: 96, borderRadius: AppRadius.cardAll),
+                SizedBox(height: AppSpacing.md),
+                Skeleton(height: 96, borderRadius: AppRadius.cardAll),
+              ],
+            ),
           );
         }
         final now = DateTime.now();
@@ -167,9 +210,6 @@ class _Body extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
 
             _AcrossBranches(overview: overview),
-            const SizedBox(height: AppSpacing.xl),
-
-            _PayrollHandoff(overview: overview),
             const SizedBox(height: AppSpacing.xl),
 
             GlassContainer(
@@ -482,71 +522,10 @@ class _Fact extends StatelessWidget {
   }
 }
 
-/// Section 4 — the hand-off, and the only export with financial consequence.
-///
-/// **Gated on a locked period, admin-only, and deliberately nowhere near a
-/// manager's PDF button.** A pay figure that can still move is not a pay figure,
-/// and an export sitting one tap from a summary is eventually pressed by someone
-/// who meant to print one.
-class _PayrollHandoff extends StatelessWidget {
-  const _PayrollHandoff({required this.overview});
-
-  final AdminAttendanceOverview overview;
-
-  @override
-  Widget build(BuildContext context) {
-    final role = context.currentUser?.role ?? UserRole.employee;
-    final blocking = overview.branches.fold<int>(
-      0,
-      (total, b) => total + b.blockingRows,
-    );
-    final availability = attendanceExportAvailability(
-      kind: AttendanceExportKind.payrollCsv,
-      role: role,
-      hasRows: overview.hasRows,
-      // Period lock does not exist yet — it lands with the close pipeline, and
-      // the gate reports that honestly rather than pretending the week is final.
-      isLocked: false,
-      blockingRows: blocking,
-      serverReady: false,
-    );
-
-    return GlassContainer(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Payroll hand-off', style: AppTypography.h3),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            availability.message ??
-                'One row per shift, whole minutes, for the payroll system to '
-                    'round and price.',
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            // The division of labour, stated where it is easy to get wrong.
-            'DROP hands off a reconciled record. It does not calculate pay, and '
-            'it does not round to payroll increments — the payroll system owns '
-            'both.',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          PremiumButton(
-            label: AttendanceExportKind.payrollCsv.label,
-            icon: Icons.receipt_long_outlined,
-            onPressed: availability.isAllowed ? () {} : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
+// The payroll hand-off section lived here. ADR-019 removed it with the rest of
+// the payroll machinery: DROP is an operations system, nothing ingests a payroll
+// file, and an export nobody reads is worse than none. Managers export the
+// timesheet and the PDF from the weekly report itself.
 
 class _Panel extends StatelessWidget {
   const _Panel({

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
+import 'package:drop/features/auth/domain/entities/user_entity.dart';
 
 /// Presentation helpers that map a task [ActivityEntry.status] string onto a
 /// human label + dot colour, and format an event time. Shared by the Task
@@ -70,6 +71,18 @@ IconData activityIcon(String status) => switch (status) {
   'noteIssue' => Icons.report_gmailerrorred_rounded,
   _ => Icons.circle_outlined,
 };
+
+/// Resolves a **decider** uid (`approvedBy` / `rejectedBy` / `cancelledBy`)
+/// through [directory] to a display name — degrading to the generic "Admin"
+/// wording (never a raw uid) when [uid] is null/empty or the person is outside
+/// the directory (a manager/admin from another branch, or a legacy record).
+/// The single source so the task card's footer fact and the preview sheet's
+/// situation sentence can't drift on how they name a decider (2026-08-01).
+String resolveDeciderName(String? uid, Map<String, UserEntity> directory) {
+  final u = (uid == null || uid.isEmpty) ? null : directory[uid];
+  if (u == null) return 'Admin';
+  return (u.displayName?.isNotEmpty ?? false) ? u.displayName! : u.email;
+}
 
 /// Compact relative time ("Just now", "5m ago", "3h ago", "2d ago", "19 Jun").
 /// Delegates to the single [AppDateFormatter]; kept as a task-timeline alias so

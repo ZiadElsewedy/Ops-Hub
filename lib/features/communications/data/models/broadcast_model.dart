@@ -43,6 +43,7 @@ class BroadcastModel {
   /// otherwise.
   final String targetUserId;
   final String category;
+  final bool sendsPush;
   final int? recipientCount;
   final int? deliveredCount;
   final DateTime? archivedAt;
@@ -59,6 +60,7 @@ class BroadcastModel {
     this.branchId = '',
     this.targetUserId = '',
     this.category = 'general',
+    this.sendsPush = true,
     this.recipientCount,
     this.deliveredCount,
     this.archivedAt,
@@ -77,6 +79,11 @@ class BroadcastModel {
         branchId: map['branchId'] as String? ?? '',
         targetUserId: map['targetUserId'] as String? ?? '',
         category: map['category'] as String? ?? 'general',
+        // Legacy documents predate the explicit field, so display the same
+        // effective delivery the server will use for them.
+        sendsPush:
+            map['sendsPush'] as bool? ??
+            ((map['category'] as String?) != 'announcement'),
         recipientCount: (map['recipientCount'] as num?)?.toInt(),
         deliveredCount: (map['deliveredCount'] as num?)?.toInt(),
         archivedAt: map.date('archivedAt'),
@@ -84,21 +91,22 @@ class BroadcastModel {
       );
 
   factory BroadcastModel.fromEntity(BroadcastEntity e) => BroadcastModel(
-        id: e.id,
-        title: e.title,
-        message: e.message,
-        senderId: e.senderId,
-        senderName: e.senderName,
-        senderRole: e.senderRole,
-        audience: e.audience,
-        branchId: _branchIdFor(e),
-        targetUserId: e.isDirect ? (e.targetUserId ?? '') : '',
-        category: e.category,
-        recipientCount: e.recipientCount,
-        deliveredCount: e.deliveredCount,
-        archivedAt: e.archivedAt,
-        createdAt: e.createdAt,
-      );
+    id: e.id,
+    title: e.title,
+    message: e.message,
+    senderId: e.senderId,
+    senderName: e.senderName,
+    senderRole: e.senderRole,
+    audience: e.audience,
+    branchId: _branchIdFor(e),
+    targetUserId: e.isDirect ? (e.targetUserId ?? '') : '',
+    category: e.category,
+    sendsPush: e.sendsPush,
+    recipientCount: e.recipientCount,
+    deliveredCount: e.deliveredCount,
+    archivedAt: e.archivedAt,
+    createdAt: e.createdAt,
+  );
 
   /// The persisted `branchId` for [e]: all-branches → `''`, individual →
   /// [directBranchMarker], branch → the branch id.
@@ -118,73 +126,77 @@ class BroadcastModel {
   /// Writable fields. `createdAt` / `recipientCount` are set server-side by the
   /// Cloud Function, so they are excluded here.
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'title': title,
-        'message': message,
-        'senderId': senderId,
-        'senderName': senderName,
-        'senderRole': senderRole.value,
-        'audience': audience.value,
-        'branchId': branchId,
-        'targetUserId': targetUserId,
-        'category': category,
-      };
+    'id': id,
+    'title': title,
+    'message': message,
+    'senderId': senderId,
+    'senderName': senderName,
+    'senderRole': senderRole.value,
+    'audience': audience.value,
+    'branchId': branchId,
+    'targetUserId': targetUserId,
+    'category': category,
+    'sendsPush': sendsPush,
+  };
 
   /// The payload sent to the callable `sendBroadcast` Cloud Function. The
   /// function validates permissions, resolves recipients, persists the doc, and
   /// pushes the notification — so only the intent is sent, never a doc write.
   Map<String, dynamic> toCallablePayload() => {
-        'title': title,
-        'body': message,
-        'category': category,
-        'audience': audience.value,
-        'branchId': audience == BroadcastAudience.branch ? branchId : '',
-        'targetUserId': targetUserId,
-      };
+    'title': title,
+    'body': message,
+    'category': category,
+    'sendsPush': sendsPush,
+    'audience': audience.value,
+    'branchId': audience == BroadcastAudience.branch ? branchId : '',
+    'targetUserId': targetUserId,
+  };
 
   BroadcastModel copyWith({
     String? id,
     int? recipientCount,
     int? deliveredCount,
-  }) =>
-      BroadcastModel(
-        id: id ?? this.id,
-        title: title,
-        message: message,
-        senderId: senderId,
-        senderName: senderName,
-        senderRole: senderRole,
-        audience: audience,
-        branchId: branchId,
-        targetUserId: targetUserId,
-        category: category,
-        recipientCount: recipientCount ?? this.recipientCount,
-        deliveredCount: deliveredCount ?? this.deliveredCount,
-        archivedAt: archivedAt,
-        createdAt: createdAt,
-      );
+  }) => BroadcastModel(
+    id: id ?? this.id,
+    title: title,
+    message: message,
+    senderId: senderId,
+    senderName: senderName,
+    senderRole: senderRole,
+    audience: audience,
+    branchId: branchId,
+    targetUserId: targetUserId,
+    category: category,
+    sendsPush: sendsPush,
+    recipientCount: recipientCount ?? this.recipientCount,
+    deliveredCount: deliveredCount ?? this.deliveredCount,
+    archivedAt: archivedAt,
+    createdAt: createdAt,
+  );
 
   BroadcastEntity toEntity() => BroadcastEntity(
-        id: id,
-        title: title,
-        message: message,
-        senderId: senderId,
-        senderName: senderName,
-        senderRole: senderRole,
-        audience: audience,
-        // The persisted markers ('' for all, directBranchMarker for a DM,
-        // customBranchMarker for a custom send) map back to a null entity
-        // branchId; a real branch id is preserved.
-        branchId: (branchId.isEmpty ||
-                branchId == directBranchMarker ||
-                branchId == customBranchMarker)
-            ? null
-            : branchId,
-        targetUserId: targetUserId.isEmpty ? null : targetUserId,
-        category: category,
-        recipientCount: recipientCount,
-        deliveredCount: deliveredCount,
-        archivedAt: archivedAt,
-        createdAt: createdAt,
-      );
+    id: id,
+    title: title,
+    message: message,
+    senderId: senderId,
+    senderName: senderName,
+    senderRole: senderRole,
+    audience: audience,
+    // The persisted markers ('' for all, directBranchMarker for a DM,
+    // customBranchMarker for a custom send) map back to a null entity
+    // branchId; a real branch id is preserved.
+    branchId:
+        (branchId.isEmpty ||
+            branchId == directBranchMarker ||
+            branchId == customBranchMarker)
+        ? null
+        : branchId,
+    targetUserId: targetUserId.isEmpty ? null : targetUserId,
+    category: category,
+    sendsPush: sendsPush,
+    recipientCount: recipientCount,
+    deliveredCount: deliveredCount,
+    archivedAt: archivedAt,
+    createdAt: createdAt,
+  );
 }

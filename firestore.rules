@@ -648,13 +648,16 @@ service cloud.firestore {
     //            (type whitelist · branch-scoped recipients · length caps ·
     //            server-stamped senderUid); broadcasts/reminders come from
     //            their own functions. All writes are Admin SDK (bypass rules).
-    //   update — the recipient only (mark read flips `readAt`); content is not
-    //            re-validated, but only the owner can touch their own docs.
+    //   update — the recipient only; only their inbox lifecycle fields may
+    //            change (read/archive/pin). Content and routing stay server-owned.
     //   delete — the recipient, or an admin (dismiss / cleanup).
     match /notifications/{id} {
       allow read: if isOwner(resource.data.get('recipientUid', '')) || isAdmin();
       allow create: if false;
-      allow update: if isOwner(resource.data.get('recipientUid', ''));
+      allow update: if isOwner(resource.data.get('recipientUid', ''))
+        && request.resource.data.get('recipientUid', '') == resource.data.get('recipientUid', '')
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['readAt', 'archivedAt', 'pinnedAt']);
       allow delete: if isOwner(resource.data.get('recipientUid', '')) || isAdmin();
     }
 
@@ -860,6 +863,38 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ── Attendance week review (`attendance_week_reviews/{branchId_weekKey}`) ──
+    // A manager's statement that they LOOKED at a branch-week (ADR-019).
+    //
+    // **An assertion, not a lock.** Nothing here restricts any other write: a
+    // reviewed week stays fully editable, and post-review changes are surfaced
+    // by comparing timestamps, never by rejecting them. Deliberately no
+    // `locked` field — the moment one exists this has become the period lock
+    // ADR-019 declined to build.
+    //
+    //   read   — admin (all) · own-branch manager. Employees never see it: it
+    //            is a management sign-off, not a fact about their shift.
+    //   write  — admin (any branch) · manager (own branch only). The reviewer
+    //            must be the caller: attribution is the entire point, so it
+    //            cannot be written on someone else's behalf.
+    //   delete — allowed: "Reopen" removes the assertion. It is a statement,
+    //            and withdrawing it is as legitimate as making it.
+    match /attendance_week_reviews/{reviewId} {
+      allow read: if isAdmin()
+        || (isManager() && resource.data.get('branchId', '') == selfBranch());
+
+      allow create, update: if isSignedIn()
+        && request.resource.data.get('reviewedBy', '') == request.auth.uid
+        && (
+          isAdmin()
+          || (isManager()
+              && request.resource.data.get('branchId', '') == selfBranch())
+        );
+
+      allow delete: if isAdmin()
+        || (isManager() && resource.data.get('branchId', '') == selfBranch());
+    }
+
     // ── Attendance corrections (`attendance_corrections/{correctionId}`) ──
     // An employee disputes/fixes their OWN settled record; a manager (own branch)
     // or admin decides. The approved resolution is applied to the parent record
@@ -884,6 +919,12 @@ service cloud.firestore {
         || isOwner(resource.data.get('userId', ''));
 
       allow create: if isSignedIn()
+        // Deterministic record ids start with their owner's Firebase uid.
+        // This is deliberately an id-prefix check, not an attendance get(), so
+        // manager Add record can still materialize an absent record.
+        && request.resource.data.get('attendanceId', '').split('_').size() > 1
+        && request.resource.data.get('attendanceId', '').split('_')[0] ==
+           request.resource.data.get('userId', '')
         && (
           // (a) employee self-files a pending correction for their own record
           (

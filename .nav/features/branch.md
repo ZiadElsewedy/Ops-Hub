@@ -8,6 +8,7 @@
 | Route const | Path | Guard/notes |
 |---|---|---|
 | `RouteNames.adminBranches` | `/admin/branches` |  |
+| `RouteNames.attendanceDailyReviewPattern` | `/attendance/daily/:branchId/:dayKey` |  |
 
 ## Owner files (by layer)
 **presentation:page**

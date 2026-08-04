@@ -107,6 +107,8 @@ import 'package:drop/features/attendance/data/services/geolocator_location_servi
 import 'package:drop/features/attendance/domain/attendance_service.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
+import 'package:drop/features/attendance/domain/repositories/attendance_week_review_repository.dart';
+import 'package:drop/features/attendance/data/repositories/attendance_week_review_repository_impl.dart';
 import 'package:drop/features/attendance/domain/usecases/clock_in.dart';
 import 'package:drop/features/attendance/domain/usecases/clock_out.dart';
 import 'package:drop/features/attendance/domain/usecases/decide_correction.dart';
@@ -159,6 +161,10 @@ class AppDependencies {
   /// Direct (1:1) chat — domain + data layers over the NestJS API (Phase 2).
   static late final ChatRepository chatRepository;
 
+  /// The same instance as [chatRepository], typed — only so sign-out can drop
+  /// its cached brokered URLs (a cache concern the port deliberately omits).
+  static ChatRepositoryImpl? _chatRepositoryImpl;
+
   /// Direct chat — the realtime channel (Socket.IO). Read-only delivery; all
   /// writes stay on [chatRepository]. Lazily connected while any thread cubit
   /// has its conversation joined.
@@ -192,8 +198,12 @@ class AppDependencies {
   static ChatConversationCubit createChatConversationCubit(
     String conversationId, {
     String? counterpartUserId,
+    // The screen's lifecycle observer owns join/leave once mounted, so it opts
+    // out of the cubit's own room management to keep one owner of the room.
+    bool manageRealtimeRoom = true,
   }) =>
       ChatConversationCubit(
+        manageRealtimeRoom: manageRealtimeRoom,
         getConversation: _getChatConversation,
         loadHistory: _loadChatHistory,
         sendMessage: _sendChatMessage,
@@ -231,6 +241,10 @@ class AppDependencies {
   /// to the next. Best-effort: a failure is swallowed (nothing to recover).
   static Future<void> clearChatCache() async {
     _chatThreadCache.clear();
+    // Brokered attachment URLs are short-lived credentials for THIS user's
+    // attachments — they must not survive into the next session on a shared
+    // device, same reason as the thread cache below.
+    _chatRepositoryImpl?.clearAttachmentUrlCache();
     try {
       await _chatLocalDataSource.clearAll();
     } catch (_) {/* cache clear is best-effort */}
@@ -423,6 +437,7 @@ class AppDependencies {
   // requests detail cubit. The employee/admin cubits above hold it internally.
   static late final AttendanceRepository _attendanceRepository;
   static late final AttendanceReportingRepository _attendanceReportingRepository;
+  static late final AttendanceWeekReviewRepository weekReviewRepository;
 
   /// Branch member directory used by the reporting screens to put a name on a
   /// phantom no-show, which has no attendance record to carry one.
@@ -441,13 +456,26 @@ class AppDependencies {
     String? userId,
     String? branchId,
     String? initialSearch,
+    DateTime? initialStart,
+    DateTime? initialEnd,
   }) =>
       AttendanceHistoryCubit(
         repository: _attendanceRepository,
         mode: mode,
         userId: userId,
         branchId: branchId,
-        query: AttendanceHistoryQuery(text: initialSearch ?? ''),
+        // A deep link from a report pins the ledger to that report's window, so
+        // the rows read the same period the row was tapped in. Both bounds are
+        // required — one alone would half-apply a range the resolver would then
+        // fall back on anyway.
+        query: (initialStart != null && initialEnd != null)
+            ? AttendanceHistoryQuery(
+                range: AttendanceDateRange.custom,
+                customStart: initialStart,
+                customEnd: initialEnd,
+                text: initialSearch ?? '',
+              )
+            : AttendanceHistoryQuery(text: initialSearch ?? ''),
       );
 
   /// Builds a **fresh** attendance board cubit for Daily Review.
@@ -537,7 +565,7 @@ class AppDependencies {
     // opened conversation (see createChatConversationCubit).
     _chatLocalDataSource = ChatLocalDataSourceImpl(ChatDatabase.open());
     _chatThreadCache.attachLocal(_chatLocalDataSource);
-    chatRepository = ChatRepositoryImpl(
+    chatRepository = _chatRepositoryImpl = ChatRepositoryImpl(
       ChatRemoteDataSourceImpl(apiClient),
       _chatLocalDataSource,
     );
@@ -744,6 +772,11 @@ class AppDependencies {
     // Shared with the on-demand History / Details cubit factories.
     _attendanceRepository = attendanceRepository;
     _attendanceReportingRepository = attendanceReportingRepository;
+    // The week-review assertion (ADR-019) — a plain client write gated by
+    // rules, deliberately outside the ledger-only reporting read path.
+    weekReviewRepository = AttendanceWeekReviewRepositoryImpl(
+      FirebaseFirestore.instance,
+    );
     attendanceCubit = AttendanceCubit(
       repository: attendanceRepository,
       scheduleRepository: scheduleRepository,

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:drop/core/enums/attachment_type.dart';
@@ -8,6 +9,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/features/task/domain/entities/task_attachment.dart';
@@ -217,12 +219,18 @@ class AttachmentPickerField extends StatelessWidget {
         maxWidth: AttachmentLimits.imageMaxWidth,
       );
       if (picked.isEmpty) return;
-      if (!context.mounted) return;
-      await _commit(context, [
+      final reason = await _commit([
         for (final x in picked) (File(x.path), AttachmentType.image, null, null)
       ]);
-    } catch (_) {
-      if (context.mounted) AppSnackbar.error(context, 'Could not add photos.');
+      if (reason != null && context.mounted) {
+        AppSnackbar.error(context, reason);
+      }
+    } catch (e, st) {
+      AppLog.error('attachments', 'gallery pick failed', e, st);
+      if (context.mounted) {
+        AppSnackbar.error(
+            context, _pickErrorMessage(e, 'Could not add photos.'));
+      }
     }
   }
 
@@ -233,18 +241,46 @@ class AttachmentPickerField extends StatelessWidget {
         imageQuality: AttachmentLimits.imageQuality,
         maxWidth: AttachmentLimits.imageMaxWidth,
       );
-      if (x == null || !context.mounted) return;
+      if (x == null) return; // user backed out of the camera
       // Offer the editor immediately after capture — the natural moment to
       // straighten/crop proof before it's added. A cancel keeps the original.
       var file = File(x.path);
       if (supportsImageEditing) {
         final edited = await MediaProcessing.editImage(file);
         if (edited != null) file = edited;
-        if (!context.mounted) return;
       }
-      await _commit(context, [(file, AttachmentType.image, null, null)]);
-    } catch (_) {
-      if (context.mounted) AppSnackbar.error(context, 'Could not take a photo.');
+      // The commit runs whether or not this widget survived the camera round
+      // trip — see `_commit`. Only the message needs a live context.
+      final reason = await _commit([(file, AttachmentType.image, null, null)]);
+      if (reason != null && context.mounted) {
+        AppSnackbar.error(context, reason);
+      }
+    } catch (e, st) {
+      // Never swallow this one: a camera failure is a permission problem, an
+      // unavailable camera (simulator), or a plugin fault, and each wants a
+      // different fix. Log the real cause and say which it was.
+      AppLog.error('attachments', 'camera capture failed', e, st);
+      if (context.mounted) {
+        AppSnackbar.error(context,
+            _pickErrorMessage(e, 'Could not take a photo. Please try again.'));
+      }
+    }
+  }
+
+  /// Turns a pick failure into something the user can act on. `image_picker`
+  /// reports the actionable ones as `PlatformException` codes; anything else
+  /// falls back to [fallback] (and the real cause is in the log).
+  String _pickErrorMessage(Object error, String fallback) {
+    final code = error is PlatformException ? error.code : '';
+    switch (code) {
+      case 'camera_access_denied':
+        return 'Camera access is off. Enable it for DROP in Settings.';
+      case 'photo_access_denied':
+        return 'Photo access is off. Enable it for DROP in Settings.';
+      case 'no_available_camera':
+        return 'No camera on this device — choose a photo instead.';
+      default:
+        return fallback;
     }
   }
 
@@ -265,11 +301,17 @@ class AttachmentPickerField extends StatelessWidget {
         if (out == null) return; // user cancelled compression
         file = out;
       }
-      if (!context.mounted) return;
-      await _commit(
-          context, [(file, AttachmentType.video, durationMs, originalBytes)]);
-    } catch (_) {
-      if (context.mounted) AppSnackbar.error(context, 'Could not add the video.');
+      final reason = await _commit(
+          [(file, AttachmentType.video, durationMs, originalBytes)]);
+      if (reason != null && context.mounted) {
+        AppSnackbar.error(context, reason);
+      }
+    } catch (e, st) {
+      AppLog.error('attachments', 'video pick failed', e, st);
+      if (context.mounted) {
+        AppSnackbar.error(
+            context, _pickErrorMessage(e, 'Could not add the video.'));
+      }
     }
   }
 
@@ -313,8 +355,17 @@ class AttachmentPickerField extends StatelessWidget {
       );
 
   /// Validates each picked file against the count + size limits, appends the
-  /// accepted ones, and surfaces the first rejection reason (once).
-  Future<void> _commit(BuildContext context,
+  /// accepted ones via [onChanged], and returns the first rejection reason (or
+  /// null when everything was accepted).
+  ///
+  /// **Deliberately free of [BuildContext].** The parent owns the list, so the
+  /// commit must not be conditional on this widget still being mounted — the
+  /// native camera and (on Android) the cropper run in their own activity, and
+  /// coming back can rebuild the tree underneath. Gating the commit on
+  /// `context.mounted` silently threw away a photo the user had already taken,
+  /// which is indistinguishable from the camera doing nothing. Showing the
+  /// reason is the caller's job, where a `mounted` check belongs.
+  Future<String?> _commit(
       List<(File, AttachmentType, int?, int?)> incoming) async {
     final next = [...attachments];
     String? reason;
@@ -328,7 +379,10 @@ class AttachmentPickerField extends StatelessWidget {
           durationMs: durationMs, originalBytes: originalBytes));
     }
     onChanged(next);
-    if (reason != null && context.mounted) AppSnackbar.error(context, reason);
+    if (reason != null) {
+      AppLog.warning('attachments', 'pick rejected', meta: {'reason': reason});
+    }
+    return reason;
   }
 
   /// Why a picked file can't be added (count / per-type size), or null if it's
@@ -346,7 +400,17 @@ class AttachmentPickerField extends StatelessWidget {
     if (type.isVideo && videos >= AttachmentLimits.maxVideos) {
       return 'Up to ${AttachmentLimits.maxVideos} videos.';
     }
-    final size = await file.length();
+    // A file that can't be stat'd is gone (a temp the OS reclaimed, or a bad
+    // path back from the cropper). Report it as a rejection rather than letting
+    // it throw — one unreadable pick must not take the whole batch down, and a
+    // silent loss here is what makes a capture look like it "did nothing".
+    final int size;
+    try {
+      size = await file.length();
+    } catch (e) {
+      AppLog.error('attachments', 'picked file unreadable: ${file.path}', e);
+      return 'That file could not be read. Please try again.';
+    }
     if (size > AttachmentLimits.maxBytesFor(type)) {
       final what = type.isVideo ? 'video' : 'photo';
       return 'Each $what must be under ${AttachmentLimits.maxMbFor(type)} MB.';

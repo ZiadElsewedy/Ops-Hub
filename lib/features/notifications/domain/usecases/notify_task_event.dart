@@ -94,6 +94,11 @@ class NotifyTaskEvent {
     }
   }
 
+  /// The notification's **subject** — the inbox renders this as the row's
+  /// headline and demotes [_titleFor] to a small kicker, so **every branch must
+  /// name the task**. A body that only restates the event ("Task approved")
+  /// leaves a row that is indistinguishable from every other row of its type,
+  /// which is exactly the complaint this copy was rewritten for.
   String _bodyFor(TaskEntity task, NotificationType type, String actorName) {
     switch (type) {
       case NotificationType.taskAssigned:
@@ -101,14 +106,18 @@ class NotifyTaskEvent {
         return due == null ? task.title : '${task.title} • Due $due';
       case NotificationType.taskRework:
         final reason = (task.rejectionReason ?? '').trim();
-        return reason.isNotEmpty ? reason : 'This task needs rework.';
+        return reason.isNotEmpty
+            ? '${task.title} — $reason'
+            : '${task.title} needs rework';
       case NotificationType.taskSubmitted:
         return '${task.title} submitted by $actorName';
       case NotificationType.taskApproved:
-        return 'Task approved';
+        return '${task.title} — approved by $actorName';
       case NotificationType.taskRejected:
         final reason = (task.rejectionReason ?? '').trim();
-        return reason.isNotEmpty ? reason : 'Review manager notes';
+        return reason.isNotEmpty
+            ? '${task.title} — $reason'
+            : '${task.title} — review manager notes';
       case NotificationType.taskCancelled:
         // Always says WHY — the reason is mandatory precisely so the person who
         // was going to do this work isn't left guessing. Work already underway

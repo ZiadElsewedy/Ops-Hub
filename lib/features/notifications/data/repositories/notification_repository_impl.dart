@@ -1,5 +1,6 @@
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/notifications/data/datasources/notification_remote_datasource.dart';
 import 'package:drop/features/notifications/data/models/notification_model.dart';
 import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
@@ -12,6 +13,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
 
   @override
   Future<void> create(NotificationEntity notification) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.create(NotificationModel.fromEntity(notification));
     } on ServerException catch (e) {
@@ -21,6 +23,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
 
   @override
   Future<void> createMany(List<NotificationEntity> notifications) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.createMany(
           notifications.map(NotificationModel.fromEntity).toList());
@@ -59,6 +62,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
 
   @override
   Future<void> delete(String id) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.delete(id);
     } on ServerException catch (e) {
@@ -68,6 +72,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
 
   @override
   Future<void> setArchived(String id, bool archived) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setArchived(id, archived);
     } on ServerException catch (e) {
@@ -77,6 +82,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
 
   @override
   Future<void> setPinned(String id, bool pinned) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setPinned(id, pinned);
     } on ServerException catch (e) {

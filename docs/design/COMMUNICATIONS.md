@@ -1,23 +1,21 @@
 # Communications — broadcasts
 
-Admin/manager → many. One-way announcements, delivered to the in-app inbox and
-(where the category warrants) push. Employees never send.
+Admin/manager → many. One-way announcements, always delivered to the in-app
+inbox and optionally mirrored as push. Employees never send.
 
-## Delivery is derived, not chosen
+## Delivery is explicit
 
-The single most important thing to know: **there is no priority selector and no
-channel selector.** Delivery is derived from the **category**:
+The composer has one visible delivery control, defaulting to **Push + Inbox**:
 
-| Category | Delivery |
+| Choice | Stored `sendsPush` | Delivery |
 | --- | --- |
-| `announcement` | inbox only |
-| `reminder` | push + inbox |
-| `emergency` | push + inbox, high priority |
+| Inbox only | `false` | in-app inbox |
+| Push + Inbox | `true` | in-app inbox + FCM |
 
-This one dial governs broadcasts, templates, schedules, **and** the Cloud Function.
-The `BroadcastPriority` / `BroadcastChannel` enums and their selectors were
-**removed** (2026-06-24) — a sender who must pick both category *and* channel picks
-them inconsistently, and the two then disagree. Don't re-add them.
+Category remains an independent label (`announcement` / `reminder` / `emergency`).
+Emergency alone carries high FCM priority. `dispatchBroadcast()` uses explicit
+`sendsPush` when present; legacy schedule/client payloads without it fall back to
+the historic category rule (`announcement` inbox-only, others push + inbox).
 
 ## Audiences
 
@@ -48,7 +46,8 @@ The function validates permissions → resolves recipients → writes the doc �
 `users.fcmTokens` → `sendEachForMulticast` → prunes dead tokens → returns
 `{success, recipientCount, deliveredCount, broadcastId}`.
 
-`dispatchBroadcast()` is shared with the scheduler.
+`dispatchBroadcast()` is shared with the scheduler; new schedules persist the same
+`sendsPush` choice.
 
 ## Slices
 

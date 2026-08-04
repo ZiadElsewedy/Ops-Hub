@@ -5,113 +5,142 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/status_badge.dart';
 import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
 import 'package:drop/features/notifications/presentation/notification_format.dart';
 
-/// A single notification in the inbox — icon (tinted by type), title, body,
-/// time-ago, and an unread dot. Strictly monochrome; semantic colour only for
-/// the rework / rejected / approved / emergency / overdue accents. Tapping marks
-/// it read + deep-links. Deliberately display-only (2026-06-23 simplification):
-/// no per-tile menu / pin — the inbox uses swipe-to-delete instead.
+/// A single notification in the inbox — a **subject-led two-line row**: a type
+/// glyph, a small event kicker with the age in the right corner, and the
+/// **subject** on the line beneath.
+///
+/// ## Why the subject leads (2026-08-01, second pass)
+///
+/// Every producer — `NotifyTaskEvent` and the `functions/index.js` mirrors
+/// alike — writes the **event type** into `title` ("New Task Assigned") and the
+/// **thing it is about** into `body` ("Fridge check • Due today 2:59 PM").
+/// Rendering `title` as the headline therefore made the loudest line on the card
+/// the one line *guaranteed to repeat*: three assigned tasks were three
+/// identical bold headings, and the only text that told them apart sat in 12px
+/// grey underneath. Owner, correctly: *"all the tasks look the same."*
+///
+/// So the row is inverted. `body` — the subject — is the headline, and `title`
+/// becomes a small uppercase **kicker** above it. Nothing is discarded and no
+/// stored data changes (`title` is a pure function of `type` in every producer,
+/// so it was always a label, never content). The kicker also carries the
+/// semantic accent, which is how the deleted category pill's *meaning* comes
+/// back at a quarter of its visual weight.
+///
+/// **Read/unread is carried by brightness, not by a lone dot.** An unread
+/// notification wears an accent-tinted glyph, a white subject and a live dot; a
+/// read one goes quiet — a flat glyph, a grey subject, no dot. The eye ranks the
+/// list before it reads a word. Strictly monochrome except the semantic accent
+/// (rework · rejected · approved · emergency · overdue), and a **critical unread**
+/// item additionally carries the card's soft semantic halo.
 class NotificationTile extends StatelessWidget {
   const NotificationTile({
     super.key,
     required this.notification,
     this.onTap,
+    this.navigable = true,
   });
 
   final NotificationEntity notification;
   final VoidCallback? onTap;
 
+  /// Whether tapping this notification opens somewhere (resolved by the screen
+  /// via `resolveNotificationRoute`). When it does **not** — an employee's
+  /// broadcast, say — the inbox is the notification's only surface, so the body
+  /// is shown in full instead of being clamped to two lines. Tapping still
+  /// marks it read.
+  final bool navigable;
+
   @override
   Widget build(BuildContext context) {
     final unread = notification.isUnread;
     final accent = _accentFor(notification.type);
-    final (catLabel, catColor) = _category(notification.type);
-    // A critical notification (overdue · emergency) gets a stronger unread
-    // indicator — the dot picks up its semantic accent and grows a touch. Subtle,
-    // still monochrome elsewhere.
+    // A critical notification (overdue · emergency · a swap awaiting approval)
+    // that has not been seen yet earns the card's soft semantic halo. Once read
+    // the halo goes — emphasis marks the unseen, never the status forever.
     final critical =
         notificationPriority(notification.type) == NotificationPriority.critical;
-    final dotColor = critical ? accent : AppColors.primary;
-    final dotSize = critical ? 10.0 : 8.0;
+    final parts = splitNotificationBody(notification.body);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppGlassCard(
         onTap: onTap,
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md),
         elevated: unread,
+        glow: critical && unread ? accent : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon bubble — tinted by the notification's semantic accent.
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: accent.withAlpha(28),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: accent.withAlpha(60)),
-              ),
-              child: Icon(_iconFor(notification.type), size: 20, color: accent),
+            _Glyph(
+              icon: _iconFor(notification.type),
+              accent: accent,
+              lit: unread,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          notification.title,
-                          style: AppTypography.label.copyWith(
-                            fontWeight:
-                                unread ? FontWeight.w700 : FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      // Unread dot — fades out when the notification is read
-                      // (§5c motion); keeps its slot so the title never reflows.
-                      Padding(
-                        padding: const EdgeInsets.only(left: 6, top: 4),
-                        child: AnimatedOpacity(
-                          opacity: unread ? 1 : 0,
-                          duration: const Duration(milliseconds: 320),
-                          curve: Curves.easeOut,
-                          child: Container(
-                            width: dotSize,
-                            height: dotSize,
-                            decoration: BoxDecoration(
-                              color: dotColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  _KickerRow(
+                    label: notification.title,
+                    createdAt: notification.createdAt,
+                    unread: unread,
+                    // The kicker is tinted only when the type carries a semantic
+                    // accent (approved · rejected · overdue · rework …). A
+                    // neutral type keeps the grey ramp, so colour still means
+                    // something when it appears.
+                    accent: accent == AppColors.primary ? null : accent,
                   ),
                   const SizedBox(height: 2),
+                  // The subject holds ONE line and never wraps: a wrapped
+                  // headline makes every card a different height and the column
+                  // reads ragged. Its trailing context drops to the line below,
+                  // where it can be smaller and quieter.
+                  //
+                  // A row with nowhere to go is the exception — it is not a
+                  // pointer to the message, it IS the message — so it is set as
+                  // reading text (lighter, looser, multi-line) rather than as a
+                  // headline that happens to be three lines long.
                   Text(
-                    notification.body,
-                    style: AppTypography.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    parts.subject,
+                    style: navigable
+                        ? AppTypography.label.copyWith(
+                            fontSize: 14.5,
+                            height: 1.25,
+                            fontWeight:
+                                unread ? FontWeight.w600 : FontWeight.w500,
+                            color: unread
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                          )
+                        : AppTypography.body.copyWith(
+                            fontSize: 13.5,
+                            height: 1.45,
+                            color: unread
+                                ? AppColors.textSecondary
+                                : AppColors.textTertiary,
+                          ),
+                    maxLines: navigable ? 1 : null,
+                    overflow: navigable ? TextOverflow.ellipsis : null,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  // Category badge + relative time.
-                  Row(
-                    children: [
-                      StatusBadge(label: catLabel, color: catColor),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(AppDateFormatter.relative(notification.createdAt),
-                          style: AppTypography.caption),
-                    ],
-                  ),
+                  if (parts.context != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      parts.context!,
+                      style: AppTypography.bodySmall.copyWith(
+                        height: 1.35,
+                        color: unread
+                            ? AppColors.textTertiary
+                            : AppColors.textQuaternary,
+                      ),
+                      maxLines: navigable ? 2 : null,
+                      overflow: navigable ? TextOverflow.ellipsis : null,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -119,65 +148,6 @@ class NotificationTile extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  /// The notification's category badge — Task · Review · Reminder · Broadcast.
-  /// Monochrome for the neutral kinds; a semantic tint only where it carries
-  /// meaning (a review outcome, a reminder, an emergency).
-  (String, Color) _category(NotificationType type) {
-    switch (type) {
-      case NotificationType.taskAssigned:
-        return ('Task', AppColors.textSecondary);
-      // A cancellation is a business decision, not a failure — it stays neutral
-      // so it never reads like the Missed beside it (Automated Tasks spec §8).
-      case NotificationType.taskCancelled:
-        return ('Task', AppColors.textSecondary);
-      case NotificationType.taskMissed:
-        return ('Task', AppColors.error);
-      case NotificationType.taskReportedIncorrect:
-        return ('Task', AppColors.warning);
-      case NotificationType.taskSubmitted:
-      case NotificationType.taskApproved:
-      case NotificationType.taskRejected:
-      case NotificationType.taskRework:
-        return ('Review', _accentFor(type));
-      case NotificationType.taskReminder:
-      case NotificationType.taskOverdue:
-      case NotificationType.broadcastReminder:
-        return ('Reminder', AppColors.warning);
-      case NotificationType.broadcastEmergency:
-        return ('Broadcast', AppColors.error);
-      case NotificationType.broadcastAnnouncement:
-        return ('Broadcast', AppColors.textSecondary);
-      case NotificationType.swapRequested:
-      case NotificationType.swapAccepted:
-      case NotificationType.swapApproved:
-      case NotificationType.swapRejected:
-        return ('Schedule', _accentFor(type));
-      case NotificationType.caseClosed:
-        return ('Case', AppColors.success);
-      case NotificationType.caseOpened:
-      case NotificationType.caseUpdated:
-      case NotificationType.caseReplied:
-        return ('Case', AppColors.textSecondary);
-      case NotificationType.requestApproved:
-      case NotificationType.requestCompleted:
-        return ('Request', AppColors.success);
-      case NotificationType.requestRejected:
-      case NotificationType.requestCancelled:
-        return ('Request', AppColors.error);
-      case NotificationType.requestSubmitted:
-      case NotificationType.requestCommented:
-        return ('Request', AppColors.textSecondary);
-      case NotificationType.attendanceCorrectionApproved:
-        return ('Attendance', AppColors.success);
-      case NotificationType.attendanceCorrectionRejected:
-        return ('Attendance', AppColors.error);
-      case NotificationType.attendanceAutoClosed:
-        return ('Attendance', AppColors.warning);
-      case NotificationType.attendanceCorrectionFiled:
-        return ('Attendance', AppColors.textSecondary);
-    }
   }
 
   IconData _iconFor(NotificationType type) {
@@ -254,12 +224,14 @@ class NotificationTile extends StatelessWidget {
         return AppColors.success;
       case NotificationType.taskRejected:
       case NotificationType.taskOverdue:
+      case NotificationType.taskMissed:
       case NotificationType.broadcastEmergency:
       case NotificationType.swapRejected:
       case NotificationType.attendanceCorrectionRejected:
         return AppColors.error;
       case NotificationType.taskRework:
       case NotificationType.taskReminder:
+      case NotificationType.broadcastReminder:
       case NotificationType.swapAccepted:
       case NotificationType.attendanceAutoClosed:
         return AppColors.warning;
@@ -267,5 +239,120 @@ class NotificationTile extends StatelessWidget {
         return AppColors.primary;
     }
   }
+}
 
+/// The type glyph. **Lit** (unread) it carries a tint of the semantic accent —
+/// a wash, a hairline and a coloured icon. **Unlit** (read) it recedes to a
+/// flat inset square with a grey icon, so a read row never competes with a
+/// live one. `AppColors.primary` is white, so a neutral unread glyph reads as a
+/// clean white-on-dark chip and the monochrome rule holds.
+class _Glyph extends StatelessWidget {
+  const _Glyph({required this.icon, required this.accent, required this.lit});
+
+  final IconData icon;
+  final Color accent;
+  final bool lit;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOut,
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: lit ? accent.withAlpha(28) : AppColors.darkBg,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(
+          color: lit ? accent.withAlpha(64) : AppColors.darkBorder,
+        ),
+      ),
+      child: Icon(
+        icon,
+        size: 19,
+        color: lit ? accent : AppColors.textTertiary,
+      ),
+    );
+  }
+}
+
+/// The meta line above the subject: the **event kicker** on the left, the age in
+/// the right corner, the unread dot last. Small uppercase with wide tracking —
+/// it labels the row without competing with it, which is exactly what the old
+/// coloured category pill failed to do. The dot and the time keep fixed slots so
+/// a row never reflows when it is marked read.
+class _KickerRow extends StatelessWidget {
+  const _KickerRow({
+    required this.label,
+    required this.createdAt,
+    required this.unread,
+    required this.accent,
+  });
+
+  final String label;
+  final DateTime createdAt;
+  final bool unread;
+
+  /// The type's semantic colour, or null for a neutral type (grey ramp).
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    // A read row drops to the faintest step of the ramp — including a semantic
+    // one, so yesterday's red does not shout as loudly as this morning's.
+    final kickerColor = unread
+        ? (accent ?? AppColors.textTertiary)
+        : AppColors.textQuaternary;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            label.toUpperCase(),
+            style: AppTypography.caption.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+              color: kickerColor,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          AppDateFormatter.relativeShort(createdAt),
+          style: AppTypography.caption.copyWith(
+            fontSize: 10.5,
+            color: unread ? AppColors.textTertiary : AppColors.textQuaternary,
+          ),
+        ),
+        // Unread dot — fades out when the notification is read (§5c motion);
+        // keeps its slot so the meta line never reflows.
+        SizedBox(
+          width: 14,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: AnimatedOpacity(
+              opacity: unread ? 1 : 0,
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOut,
+              // Always the plain accent-white: the dot means "unread" and
+              // nothing else. The kicker already carries the semantic colour,
+              // and double-encoding it here would make the unread signal
+              // change meaning per type.
+              child: Container(
+                width: 7,
+                height: 7,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

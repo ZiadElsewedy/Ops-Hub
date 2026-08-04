@@ -29,6 +29,7 @@ import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
 import 'package:drop/features/task/presentation/widgets/manager_task_card.dart';
 import 'package:drop/features/task/presentation/widgets/task_empty_state.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 
 /// The four operational questions exposed by the Branch Operations headline.
 /// Each value opens a distinct drill-down experience while sharing one live,
@@ -100,10 +101,11 @@ class OperationsMetricScreen extends StatelessWidget {
         ),
         error: (message) => AdaptiveScaffold(
           title: metric.title,
-          body: AppEmptyState(
+          body: AppErrorState(
             icon: Icons.wifi_off_rounded,
             title: 'Could not load branch operations',
             message: message,
+            onRetry: () => context.read<BranchOperationsCubit>().refresh(),
           ),
         ),
         orElse: () =>

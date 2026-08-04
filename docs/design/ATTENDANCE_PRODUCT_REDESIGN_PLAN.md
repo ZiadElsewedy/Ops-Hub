@@ -1253,11 +1253,29 @@ Phases 1–2.
 
 ---
 
-## Phase 4 — Exports ⚠️ PARTIAL 2026-07-31 — blocked on deploy
+## Phase 4 — Exports ✅ RESCOPED AND SHIPPED 2026-08-01
 
 **Type:** feature · **Risk:** HIGH · **Status:** the *decisions* and the
 *payroll schema* have landed and are tested. The *transport* cannot land here.
 
+> **RESCOPED 2026-08-01 by [ADR-019](../decisions/ADR-019-operational-exports-and-week-review.md).**
+> The owner retired the premise this phase was built on: *DROP is an operations
+> management system, not a payroll system, and payroll integration is not
+> planned.* That collapsed the reasoning below in sequence — no machine ingests
+> a file, so no machine schema; nothing consumes a figure, so nothing needs
+> freezing; the artifact is not financial, so it needs no audit chain; and with
+> no audit chain, server generation buys nothing a client cannot do.
+>
+> **Shipped instead:** a client-generated operational timesheet CSV (11 human
+> columns, written beside the Schedule PNG export), and **week review** — a
+> manager's assertion that they looked, kept deliberately separate from the
+> derived coverage status. Deleted: the payroll CSV, period lock, the export
+> ledger, restatement versioning, and the dead `AttendancePeriodStatus`.
+>
+> **Still open:** the weekly PDF, which needs the `pdf` + `printing` packages.
+>
+> *Superseded reasoning, kept for the record:*
+>
 > **Why this phase could not be finished in code.** ADR-005 and ADR-017 make a
 > payroll artifact server-authored — a file the client assembled cannot be
 > audited, because nothing outside the client saw the inputs. So the file must

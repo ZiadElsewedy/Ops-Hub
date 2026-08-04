@@ -31,6 +31,7 @@ import 'package:drop/features/task/presentation/attachment_format.dart';
 import 'package:drop/features/task/domain/work_types/work_draft.dart';
 import 'package:drop/features/task/domain/work_types/work_type_registry.dart';
 import 'package:drop/core/media/picked_attachment.dart';
+import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/widgets/attachment_gallery.dart';
 import 'package:drop/features/task/presentation/widgets/attachment_picker.dart';

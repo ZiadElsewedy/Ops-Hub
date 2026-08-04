@@ -59,11 +59,19 @@ class WorkloadCard extends StatelessWidget {
                 _ShiftBadge(shifts: w.shiftsToday),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            _MetricRow(w: w),
-            const SizedBox(height: AppSpacing.md),
-            const Divider(color: AppColors.darkBorder, height: 1),
-            const SizedBox(height: AppSpacing.sm),
+            // The strip — and its spacing — are gated on having a figure worth
+            // drawing. A caught-up branch used to render one bordered box of
+            // four zeros per employee, which is a component that looks failed,
+            // repeated down the whole page. Idle people now collapse to a slim
+            // identity row so the ones carrying work stand out by height alone.
+            if (w.hasFigures) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _MetricRow(w: w),
+              const SizedBox(height: AppSpacing.md),
+              const Divider(color: AppColors.darkBorder, height: 1),
+              const SizedBox(height: AppSpacing.sm),
+            ] else
+              const SizedBox(height: AppSpacing.md),
             _CurrentTaskRow(w: w),
           ],
         ),
@@ -136,6 +144,11 @@ class _MetricCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A zero is context, not a metric: it steps down the grey ramp so only the
+    // cells that actually carry work catch the eye across a row of four.
+    final Color valueColor = value == 0
+        ? AppColors.textTertiary
+        : (alert ? AppColors.error : AppColors.textPrimary);
     return Expanded(
       child: Column(
         children: [
@@ -143,8 +156,7 @@ class _MetricCell extends StatelessWidget {
             '$value',
             style: AppTypography.label.copyWith(
               fontWeight: FontWeight.w700,
-              color:
-                  alert && value > 0 ? AppColors.error : AppColors.textPrimary,
+              color: valueColor,
             ),
           ),
           const SizedBox(height: 2),

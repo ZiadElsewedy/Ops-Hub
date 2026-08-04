@@ -1,5 +1,5 @@
 import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/features/admin/presentation/dashboard_mood.dart';
+import 'package:drop/core/utils/dashboard_mood.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -7,7 +7,7 @@ void main() {
     test('zero needs-attention reads the calm, reassuring line (grey pulse)', () {
       final m = dashboardMood(needsAttention: 0);
       expect(m.tone, MoodTone.calm);
-      expect(m.headline, 'All caught up — nothing needs you right now');
+      expect(m.headline, 'All caught up');
       expect(m.emphasised, isFalse);
       expect(m.pulseColor, AppColors.textSecondary);
     });

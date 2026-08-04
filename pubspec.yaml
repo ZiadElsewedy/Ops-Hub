@@ -44,6 +44,11 @@ dependencies:
   # import dio directly.
   dio: ^5.7.0
 
+  # Connectivity — DROP requires a live connection to open (see
+  # `core/network/connectivity_service.dart`). Reports the *interface* only,
+  # which is why the service pairs it with a real reachability probe.
+  connectivity_plus: ^6.1.0
+
   # Firebase
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
@@ -89,6 +94,20 @@ dependencies:
   # Filesystem path joining for the Drift database file (chat cache).
   path: ^1.9.0
   open_filex: ^4.7.0
+  # Weekly attendance PDF (ADR-019). Pure Dart — deliberately NOT `printing`,
+  # which adds platform plugin code for a print dialog we do not need: the file
+  # is written beside the Schedule PNG export and opened with `open_filex`,
+  # exactly like a chat document.
+  pdf: ^3.11.1
+  # Hands a mailto: / https: link to the OS so Support on the About page can
+  # open the mail client or WhatsApp. `open_filex` cannot do this — it opens a
+  # local file, not a URL.
+  url_launcher: ^6.3.1
+  # Real brand marks on the About page's Support rows (assets/gmail.svg,
+  # assets/whatsapp.svg). Deliberately NOT an icon font: a font can only paint
+  # one colour, which turned Gmail's four-colour M into a flat red glyph, and a
+  # wrong logo reads worse than no logo.
+  flutter_svg: ^2.0.10
 
 dev_dependencies:
   flutter_test:
@@ -132,7 +151,21 @@ flutter:
 
   assets:
     - assets/drop_logo.png
+    - assets/gmail.svg
+    - assets/whatsapp.svg
     - assets/0704.json
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

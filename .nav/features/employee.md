@@ -26,8 +26,10 @@
 
 ## Tests
 - `test/employee_card_test.dart`
+- `test/employee_home_stat_strip_test.dart`
 - `test/employee_metrics_test.dart`
 - `test/employee_week_stats_test.dart`
+- `test/manager_home_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)
 ```

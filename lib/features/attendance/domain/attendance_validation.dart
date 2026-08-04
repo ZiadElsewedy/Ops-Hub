@@ -1,3 +1,4 @@
+import 'package:drop/core/enums/attendance_location_policy.dart';
 import 'package:drop/core/enums/attendance_status.dart';
 import 'package:drop/core/enums/leave_type.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
@@ -121,14 +122,35 @@ class AttendanceValidation {
   /// The **GPS gate** for a clock-in — pure over the acquisition outcome. The
   /// caller (cubit) reads the device location, evaluates it against the branch
   /// geofence into [verification], and passes either a [locationError] (nothing
-  /// could be read) or the [verification]. Rejections, in order:
-  ///   service off → permission denied → couldn't read → branch not geofenced →
-  ///   GPS too inaccurate → outside the allowed radius.
+  /// could be read) or the [verification].
+  ///
+  /// [policy] is the **effective** policy from
+  /// `AttendanceService.resolveLocationPolicy` — already collapsed to
+  /// [AttendanceLocationPolicy.none] when the branch has no geofence, so
+  /// `geofenceConfigured` is only ever false alongside `none` in practice. It is
+  /// still checked, because a `strict` branch whose geofence vanishes mid-session
+  /// must fail loudly rather than silently pass.
+  ///
+  /// * **none** — nothing is captured or checked. Always OK (ADR-020).
+  /// * **soft** — capture, record, **never block**. The verification rides on the
+  ///   record (possibly unverified) as evidence for review.
+  /// * **strict** — the full gate, rejections in order: service off → permission
+  ///   denied → couldn't read → branch not geofenced → GPS too inaccurate →
+  ///   outside the allowed radius.
   static AttendanceCheck checkGpsFix({
     required LocationError? locationError,
     required AttendanceVerification? verification,
     required bool geofenceConfigured,
+    AttendanceLocationPolicy policy = AttendanceLocationPolicy.strict,
   }) {
+    // A pure time clock: the punch is never refused for a location reason, and
+    // nothing above needed to be read in the first place.
+    if (policy == AttendanceLocationPolicy.none) return AttendanceCheck.ok;
+
+    // Warn-only: the location is still captured and stored — that is the whole
+    // point of `soft` — but it can never cost someone their punch.
+    if (!policy.blocksOutside) return AttendanceCheck.ok;
+
     if (locationError != null) {
       switch (locationError) {
         case LocationError.serviceDisabled:

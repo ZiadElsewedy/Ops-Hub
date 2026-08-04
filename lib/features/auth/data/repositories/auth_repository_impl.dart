@@ -1,5 +1,6 @@
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:drop/features/auth/data/datasources/user_remote_datasource.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
@@ -66,6 +67,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.sendPasswordResetEmail(email);
     } on AuthException catch (e) {
@@ -90,6 +92,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> setMustChangePassword(String uid, bool value) async {
+    NetworkGuard.ensureWritable();
     try {
       await _userRemote.setMustChangePassword(uid, value);
     } on AuthException catch (e) {
@@ -99,6 +102,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> setProfileCompleted(String uid, bool value) async {
+    NetworkGuard.ensureWritable();
     try {
       await _userRemote.setProfileCompleted(uid, value);
     } on AuthException catch (e) {
@@ -108,6 +112,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> setOnboardingCompleted(String uid, bool value) async {
+    NetworkGuard.ensureWritable();
     try {
       await _userRemote.setOnboardingCompleted(uid, value);
     } on AuthException catch (e) {

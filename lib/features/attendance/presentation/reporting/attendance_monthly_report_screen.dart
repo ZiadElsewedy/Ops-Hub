@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
+import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
@@ -14,6 +16,8 @@ import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
+import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_monthly_report.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
@@ -229,6 +233,15 @@ class _MonthlyReportContent extends StatelessWidget {
           employees: report.employees,
           emptyMessage:
               'Nobody has a recorded shift this month yet.',
+          onOpenEmployee: (employee) => context.push(
+            RouteNames.attendanceReview,
+            extra: AttendanceReviewLink(
+              employeeName: employee.displayName,
+              branchId: period.branchId,
+              start: period.window.startDate,
+              end: period.window.endDate,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.xl),
         if (report.exceptionGroups.isNotEmpty) ...[
@@ -262,12 +275,9 @@ class _HeaderSection extends StatelessWidget {
           eyebrow: 'Attendance & Reports / Monthly',
           title: branchName,
           subtitle: '${monthLabel(period.window)} · ${coverage.statusLabel}',
-          primaryAction: PremiumButton(
-            label: 'Close month',
-            icon: Icons.lock_outline_rounded,
-            onPressed: null,
-            style: PremiumButtonStyle.filled,
-          ),
+          // "Close month" removed for the same reason as the weekly twin: it was
+          // permanently disabled and it promised locking, which ADR-019 refuses.
+          // A month is a rollup of reviewed weeks; there is nothing here to close.
           trailing: [_StatusPill(status: coverage.status)],
         ),
         const SizedBox(height: AppSpacing.md),
@@ -731,7 +741,7 @@ class _InvalidPeriodPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ProblemPanel(
+    return AppProblemPanel(
       title: 'Invalid monthly report link',
       message:
           'The period id "$rawPeriodId" is not parseable. Expected branch_monthly_YYYYMMDD_YYYYMMDD_vN covering one whole calendar month.',
@@ -745,7 +755,7 @@ class _ScopeDeniedPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _ProblemPanel(
+    return const AppProblemPanel(
       title: 'Monthly report unavailable',
       message:
           'This manager account cannot open a monthly report for another branch.',
@@ -770,7 +780,7 @@ class _ErrorPanel extends StatelessWidget {
         ? 'Attendance reports are not switched on yet — an administrator needs '
               'to finish setting them up. Details: $raw'
         : raw;
-    return _ProblemPanel(
+    return AppProblemPanel(
       title: 'Monthly attendance unavailable',
       message: actionable,
       icon: Icons.error_outline_rounded,
@@ -779,50 +789,6 @@ class _ErrorPanel extends StatelessWidget {
   }
 }
 
-class _ProblemPanel extends StatelessWidget {
-  const _ProblemPanel({
-    required this.title,
-    required this.message,
-    required this.icon,
-    this.tone = AppColors.warning,
-  });
-
-  final String title;
-  final String message;
-  final IconData icon;
-  final Color tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassContainer(
-      highlight: true,
-      accent: tone,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: tone),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTypography.h3),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  message,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// The parsed `{branchId}_monthly_{startKey}_{endKey}_v{version}` route
 /// parameter.

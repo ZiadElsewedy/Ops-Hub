@@ -1,5 +1,6 @@
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/communications/data/datasources/broadcast_remote_datasource.dart';
 import 'package:drop/features/communications/data/models/broadcast_model.dart';
 import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
@@ -16,6 +17,7 @@ class BroadcastRepositoryImpl implements BroadcastRepository {
     List<String> targetUserIds = const [],
     String roleFilter = '',
   }) async {
+    NetworkGuard.ensureWritable();
     try {
       final created = await _remote.sendBroadcast(
         BroadcastModel.fromEntity(broadcast),
@@ -42,6 +44,7 @@ class BroadcastRepositoryImpl implements BroadcastRepository {
 
   @override
   Future<void> setArchived(String id, bool archived) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.setArchived(id, archived);
     } on ServerException catch (e) {
@@ -51,6 +54,7 @@ class BroadcastRepositoryImpl implements BroadcastRepository {
 
   @override
   Future<void> delete(String id) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.delete(id);
     } on ServerException catch (e) {

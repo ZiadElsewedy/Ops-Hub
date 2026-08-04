@@ -5,6 +5,20 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:drop/core/constants/app_constants.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/utils/platform_capabilities.dart';
+import 'package:drop/features/notifications/domain/notification_deep_link.dart';
+
+/// Whether a foreground FCM message is intentionally left to chat's
+/// socket-backed in-app banner instead of surfacing a second notification.
+///
+/// Chat is the one route with **two** independent delivery paths — the chat
+/// socket and FCM — so without this the same message notifies twice while the
+/// app is open. The socket banner wins on Android because a foreground push
+/// there reaches `onMessage` only and the OS draws nothing; on Apple platforms
+/// the OS banner wins instead and `ChatNotificationListener` stands down (see
+/// its `_onIncoming`). Every FCM data value is a string, but this stays lenient
+/// for tests and legacy callers.
+bool suppressForegroundFcmNotification(Map<String, dynamic> data) =>
+    data['route']?.toString() == NotificationRoute.chat;
 
 /// Firebase Cloud Messaging engine (Phase 6 foundation + Phase 2 receive
 /// handling). Requests notification permission, keeps the device's FCM token in
@@ -12,7 +26,7 @@ import 'package:drop/core/utils/platform_capabilities.dart';
 /// sign-out), and routes incoming messages:
 /// - **foreground** → [onForeground] (e.g. an in-app snackbar);
 /// - **tap** (background-opened or cold-start) → [onMessageTap] with the push
-///   `data` payload (category · senderId · broadcastId), for navigation.
+///   `data` payload (category · target ids · route), for navigation.
 ///
 /// Sending is done server-side by the `sendBroadcast` Cloud Function; this is
 /// the client device + delivery side.
@@ -30,7 +44,7 @@ class NotificationService {
   /// Set by the app to show foreground notifications in-app (e.g. a snackbar).
   /// Receives the push `data` payload too, so the in-app surface can offer a
   /// tappable action that deep-links to the same destination a background tap
-  /// would (route · taskId · caseId · requestId · broadcastId).
+  /// would (route · taskId · caseId · requestId · broadcastId · conversationId).
   void Function(String? title, String? body, Map<String, dynamic> data)?
       onForeground;
 
@@ -58,13 +72,43 @@ class NotificationService {
           'requestPermission',
           () => _messaging.requestPermission(
               alert: true, badge: true, sound: true));
-      // DIAGNOSTIC (temporary): surface whether the OS granted notification
-      // permission — a denied/notDetermined status means no system push will
-      // ever show. Check this in `flutter logs` / logcat / Xcode console.
-      developer.log(
-        'permission status = ${settings.authorizationStatus}',
-        name: 'fcm',
-      );
+      // What the OS actually granted. `denied` / `notDetermined`
+      // means iOS may never complete APNs registration, so `getAPNSToken()`
+      // stays null and no push can arrive.
+      //
+      // Deliberately AppLog, not developer.log: on a device the
+      // `developer.log` line does NOT surface in the Xcode/Cursor console, so
+      // this diagnostic was invisible on the exact platform it exists to debug.
+      //
+      // `alert`/`badge`/`sound` are logged separately from `authorizationStatus`
+      // because they can be denied INDIVIDUALLY while the status still reads
+      // `authorized` — a push then arrives and displays nothing, which looks
+      // identical to "push is broken".
+      AppLog.success(
+          'fcm',
+          'permission: status=${settings.authorizationStatus.name} '
+          'alert=${settings.alert.name} badge=${settings.badge.name} '
+          'sound=${settings.sound.name}');
+      if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+          settings.authorizationStatus != AuthorizationStatus.provisional) {
+        AppLog.error(
+            'fcm',
+            'notifications are ${settings.authorizationStatus.name} — iOS will '
+            'not issue an APNs token, so no push can arrive until this is '
+            'granted (Settings > DROP > Notifications).');
+      }
+
+      // iOS ONLY: without this, iOS shows nothing while the app is open — the
+      // system suppresses the banner and only `onMessage` fires. Android is
+      // unaffected (the OS posts to the `drop_default` channel itself), so this
+      // call is gated to Apple platforms and changes no Android behaviour.
+      if (requiresApnsToken) {
+        await _messaging.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
 
       // Foreground messages — suppressed if intended for a different account.
       FirebaseMessaging.onMessage.listen((message) {
@@ -72,6 +116,10 @@ class NotificationService {
           _handleMismatch(message);
           return;
         }
+        // The chat socket listener is the only foreground chat surface. This
+        // prevents Android's Dart-side snackbar from duplicating it; iOS's
+        // system presentation is disabled above for the same reason.
+        if (suppressForegroundFcmNotification(message.data)) return;
         final n = message.notification;
         if (n != null) onForeground?.call(n.title, n.body, message.data);
       });
@@ -120,29 +168,71 @@ class NotificationService {
       // platform can't produce one (missing entitlement / simulator); the
       // `onTokenRefresh` listener re-registers when a token appears later.
       if (requiresApnsToken) {
-        final apns = await _messaging.getAPNSToken();
+        final apns = await _awaitApnsToken();
         if (apns == null) {
-          AppLog.error('fcm',
-              'registerToken aborted — APNS token not available yet '
-              '(push entitlement missing, or registration still in flight)');
+          AppLog.error(
+              'fcm',
+              'no APNs token after retrying — registration never completed, so '
+              'no FCM token can be minted and no push can arrive.');
           return;
         }
+        AppLog.success(
+            'fcm', 'APNs token acquired (…${apns.substring(apns.length - 8)})');
       }
       final token = await AppLog.time(
           'fcm', 'getToken', () => _messaging.getToken());
-      // DIAGNOSTIC (temporary): did the device obtain an FCM token at all? A
-      // null token = the device can't register (iOS without APNs/entitlement,
-      // missing Play Services, permission denied). A non-null token that never
-      // reaches Firestore points at the write (see _rotateToken below).
-      developer.log(
-        'registerToken uid=$uid token=${token == null ? "NULL" : "…${token.substring(token.length - 8)}"}',
-        name: 'fcm',
-      );
-      if (token != null) await _rotateToken(uid, token);
-    } catch (e) {
-      developer.log('registerToken FAILED: $e', name: 'fcm');
+      if (token == null) {
+        AppLog.error(
+            'fcm',
+            'APNs token exists but getToken() returned null — FCM could not '
+            'mint a token, which points at the Firebase app / APNs-key pairing '
+            'rather than the device.');
+        return;
+      }
+      AppLog.success(
+          'fcm', 'FCM token (…${token.substring(token.length - 12)})');
+      await _rotateToken(uid, token);
+    } catch (e, st) {
+      AppLog.error('fcm', 'registerToken THREW — $e');
+      developer.log('registerToken FAILED: $e',
+          name: 'fcm', error: e, stackTrace: st);
       // Best-effort; push is non-critical to app function.
     }
+  }
+
+  /// Waits briefly for Apple to hand back the APNS token.
+  ///
+  /// **This is the iOS silent-failure guard.** `getAPNSToken()` returns null
+  /// while APNs registration is still in flight, and the auth listener calls
+  /// [registerToken] the instant sign-in completes — which is almost always
+  /// earlier. A single null check therefore aborted registration on a cold
+  /// start, and the old comment's claim that "`onTokenRefresh` re-registers when
+  /// a token appears later" does **not** hold: that stream only fires when the
+  /// **FCM** token *changes*. On a returning device the FCM token is already
+  /// minted and unchanged, so nothing ever re-fired, the token never reached
+  /// `users/{uid}.fcmTokens`, and every push to that device silently vanished.
+  ///
+  /// Polls up to ~5s, which comfortably covers normal APNs registration while
+  /// still giving up on a build that genuinely cannot register (no entitlement,
+  /// simulator). Returns `null` only after exhausting the budget.
+  Future<String?> _awaitApnsToken({
+    int attempts = 10,
+    Duration gap = const Duration(milliseconds: 500),
+  }) async {
+    for (var i = 0; i < attempts; i++) {
+      final token = await _messaging.getAPNSToken();
+      if (token != null) {
+        // Only worth a line when it took more than one try — that is the signal
+        // that registration is running slow rather than not happening at all.
+        if (i > 0) {
+          AppLog.success(
+              'fcm', 'APNs token arrived on attempt ${i + 1}/$attempts');
+        }
+        return token;
+      }
+      if (i < attempts - 1) await Future<void>.delayed(gap);
+    }
+    return null;
   }
 
   /// Remove this device's token (call on sign-out) so the signed-out account no
@@ -205,7 +295,13 @@ class NotificationService {
   /// Adds [token] to the user's `fcmTokens` array and drops the previously
   /// tracked token for this device (token refresh), in a single merge write.
   Future<void> _rotateToken(String uid, String token) async {
-    if (_currentToken == token && _uid == uid) return;
+    if (_currentToken == token && _uid == uid) {
+      // Not an error, but it IS a way the token can appear "not uploaded":
+      // this device already wrote this exact token for this uid in-process.
+      // Not an error: this device already wrote this exact token for this uid
+      // in-process, so there is nothing to re-persist.
+      return;
+    }
     try {
       final doc =
           _firestore.collection(AppConstants.usersCollection).doc(uid);
@@ -222,13 +318,16 @@ class NotificationService {
         }, SetOptions(merge: true));
       }
       _currentToken = token;
-      // DIAGNOSTIC (temporary): the token write to users/{uid}.fcmTokens
-      // succeeded — the recipient is now registered for push.
-      developer.log('token written to users/$uid (push registered)', name: 'fcm');
+      AppLog.success('fcm',
+          'token written to users/$uid.fcmTokens — device registered for push');
     } catch (e) {
-      // DIAGNOSTIC (temporary): a PERMISSION_DENIED here means firestore.rules
-      // rejected the self-write of fcmTokens — the device stays unregistered and
-      // every send to this user reports "0 delivered / failed".
+      // A PERMISSION_DENIED here means firestore.rules rejected the self-write
+      // of fcmTokens: the device stays unregistered and every send to this user
+      // reports "0 delivered / failed".
+      AppLog.error(
+          'fcm',
+          'token write to users/$uid rejected — $e. An FCM token exists but no '
+          'server can find it, so every push to this user will report 0 delivered.');
       developer.log('token write FAILED for users/$uid: $e', name: 'fcm');
       // Non-fatal.
     }

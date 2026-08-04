@@ -48,8 +48,43 @@ case / request /             onCase* / onRequest*        pushedByFunction:true) 
 - **Terminated / cold-start** (`getInitialMessage`) → same `onMessageTap`.
 - **In-app tile tap** → `NotificationsScreen._deepLink` → **the same resolver**.
 
+### Direct-chat push exception
+
+Chat messages are pushed by the NestJS chat backend, not by `functions/index.js`
+or a `notifications/{id}` document. Its pinned FCM `data` contract is
+`route: "chat_message"` with `conversationId`, `messageId`,
+`senderExternalId`, and `recipientUid`; all values are strings. The shared
+resolver opens `/chat/:conversationId` for every role and falls back to `/chat`
+when a legacy or malformed message has no conversation id.
+
+**Foreground de-duplication.** Chat is the only route with **two** independent
+delivery paths — the chat socket and FCM — so both can fire for one message
+while the app is open. Exactly one surface must win per platform, and the two
+suppressions are exact opposites:
+
+| Platform | Chat surface in the foreground | How the other one stands down |
+| --- | --- | --- |
+| iOS / macOS | the **OS banner** (FlutterFire presents it for every route) | `ChatNotificationListener` returns early on `suppressesInAppChatBanner` |
+| Android | the **in-app socket banner** (the OS draws nothing in the foreground) | `suppressForegroundFcmNotification` drops the chat FCM before `onForeground` |
+
+This deliberately preserves the pre-existing app-wide rule that Apple platforms
+rely on the OS banner and Android on the in-app snackbar — chat did not change
+foreground behaviour for any other route. Per-message iOS presentation cannot be
+selected from Dart, which is why the socket banner (not the OS one) is what
+yields there. Background and terminated chat pushes render normally and route
+through `onMessageOpenedApp` / `getInitialMessage`.
+
 `pushedByFunction:true` on broadcast docs prevents `onNotificationCreated` from
-double-pushing (the broadcast engine already pushed inline).
+double-pushing (the broadcast engine already pushed inline). The inline send is
+best-effort and retries one time only when the Admin Messaging call fails with a
+transient service error (or throws before returning per-token outcomes); dead or
+invalid tokens are pruned, never retried. Its final log records success and
+failure counts. The inbox doc remains authoritative regardless of push outcome.
+
+**Server-owned transitions:** `approveSwap` writes one `swapApproved` inbox doc
+for each swap party only after its roster-exchange transaction commits; the
+client no longer produces that event. `onNotificationCreated` mirrors both docs
+to FCM. The other swap events remain client-produced through `sendNotification`.
 
 ### Recipient safety (defense-in-depth #3)
 Every push carries `data.recipientUid`. The client **drops** any push whose
@@ -69,7 +104,9 @@ reaches the wrong account even during an account-switch/token-drift race.
 3. **Read** — a tap or swipe sets `readAt` (server timestamp). The live stream
    re-emits; no optimistic write. `markAllRead` batches every unread doc.
 4. **Archive** — `archivedAt` set/cleared (hidden from the default inbox, kept
-   for history). `pinnedAt` similarly.
+   for history). `pinnedAt` similarly. Firestore rules permit the recipient to
+   update **only** `readAt`, `archivedAt`, and `pinnedAt`; `recipientUid`, content,
+   type, and payload remain server-owned.
 5. **Delete** — the recipient (or an admin) hard-deletes the doc.
 
 ### Token lifecycle
@@ -99,12 +136,26 @@ unknown, or unauthorized notification.
 | `schedule` | `swapId` | role schedule (`/my-schedule`, …) | `null` if role unknown |
 | `case_details` | `caseId` | `/case/:caseId` | `/cases` |
 | `request_details` | `requestId` | `/request/:requestId` | `/requests` |
+| `attendance` | `recordId` | `/attendance/record/:id` | `/attendance/review` (admin·manager) · `/attendance/history` (employee) · `null` if role unknown |
 | *unknown / null* | — | — | `null` (caller opens the inbox) |
+
+> **`attendance` was a dead tap until 2026-08-01.** `writeAttendanceNotifications`
+> has always stamped `route: "attendance"`, but the resolver had no case for it,
+> so every correction-filed / decided / auto-closed notification fell through to
+> the `default` → `null` and the tile did nothing when tapped. The row above is
+> the fix; covered by `test/notification_deep_link_test.dart`. **The in-app tap
+> works with the app build — no deploy needed.** The push tap needs the other
+> half: `onNotificationCreated` was also dropping `recordId` / `correctionId`
+> from the push `data`, now forwarded — ⚠️ **inert until
+> `firebase deploy --only functions`**, until which a *background/cold-start*
+> attendance tap lands on the ledger fallback instead of the exact record.
 
 Route strings are the shared contract, centralized as `NotificationRoute.*` and
 referenced by the client producers. **The server producers (`functions/index.js`)
 and the FCM push `data` block must mirror these exact strings and forward every
-id the resolver reads** — `taskId · caseId · requestId · broadcastId · swapId`.
+id the resolver reads** — `taskId · caseId · requestId · broadcastId · swapId ·
+recordId · conversationId`. `chat_message` is the exception: it is produced by
+the NestJS chat backend, not by `functions/index.js`.
 (A missing id in the push `data` silently breaks the deep link on a background /
 cold-start tap; this pass fixed `requestId` + `swapId` being omitted.)
 
@@ -112,6 +163,36 @@ cold-start tap; this pass fixed `requestId` + `swapId` being omitted.)
 broadcast by id (`BroadcastRepository.getBroadcast`) when the Communications feed
 isn't loaded, so a notification tap opening `/communications/:id` cold shows the
 real message instead of "Broadcast unavailable".
+
+---
+
+## 4b. The inbox row (2026-08-01)
+
+**`title` is a label, `body` is the content — and the row is built that way.**
+Every producer, client (`NotifyTaskEvent`) and server (`functions/index.js`)
+alike, writes the **event type** into `title` via a pure `switch (type)`, and the
+**subject** into `body`. `title` therefore carries no information the `type`
+doesn't; it is a label, never content.
+
+```
+[glyph]  NEW TASK ASSIGNED            41m ●   ← kicker  = title, 10px uppercase, semantic tint
+         Restock the front cooler              ← subject = body, 14.5px, ONE LINE
+         Due today 2:59 PM                     ← context = body's tail, 12px grey
+```
+
+| Rule | Why |
+|------|-----|
+| The **subject leads**; `title` is demoted to the kicker | Rendering `title` as the headline made the loudest line the one guaranteed to repeat — three assigned tasks read identically |
+| The subject holds **one line**, never wraps | A wrapping headline gives every card a different height; the column reads ragged |
+| `splitNotificationBody` cuts `body` on its **first** ` • ` / ` — ` | Producers already use these to hang context off a subject; no separator → all subject |
+| **Every producer must name its subject in `body`** | A body that only restates the event ("Task approved") leaves a row that names nothing |
+| **Case, request, and attendance notifications lead with their specific subject** | Case status notices use the case subject; requests use `lastEventPreview`, falling back to `refCode`; attendance uses a compact `Shift, d Mon` label. The event/result follows the first separator. Case notices remain identity-free. |
+| No per-card category badge | The filter pills own category; the kicker's tint carries what the pill meant |
+| The unread dot is **always white** | It means "unread" and nothing else — the kicker owns semantic colour |
+| `navigable: false` → the subject is set as **reading text**, not a headline, and has no line cap | With nowhere to tap, the row *is* the message, not a pointer to it; employees therefore can read a complete broadcast in the inbox. Navigable subjects remain one line. |
+
+> Widget tests must find a tile by `find.byType(NotificationTile)`, **not** by
+> its title text — the kicker is uppercased.
 
 ---
 
@@ -155,28 +236,35 @@ double-notify.
 > deadline crossing is noise, and the noise is what makes people stop reading
 > the alerts that matter.
 
+### Reminder eligibility
+
+`runTaskReminders` skips `approved`, `missed`, and `cancelled` tasks because
+they are closed, and also skips `rejected`: lifecycle-wise rejected remains open
+for rework, but the reviewer owns the next move, so reminding the assignee is
+noise. `pending` and `started` tasks remain eligible.
+
 ---
 
 ## 6. Release / deploy checklist (this pass)
 
-Code changes verified with `flutter analyze` (clean on touched files) and
-`flutter test` (all notification tests pass). The following require **your
-machine / accounts** to take effect:
+The app-side configuration below is complete, and all four gates pass
+(`flutter analyze` clean · `flutter test` 1398/2 pre-existing · Cloud Functions
+72 · Firestore rules 53). The following require **your machine / accounts** to
+take effect:
 
 - [ ] **Deploy Cloud Functions** — the push-data fix lives server-side:
   `firebase deploy --only functions:onNotificationCreated`
   (or all functions). Until deployed, request/swap push taps still lack their id.
-- [ ] **Android** — `POST_NOTIFICATIONS` + `INTERNET` are now declared in
-  `AndroidManifest.xml`. Rebuild the app; on Android 13+ confirm the OS prompt
-  appears and a push shows on a physical device.
-- [ ] **(Optional, Android polish)** a named default channel + monochrome
-  notification icon need `flutter_local_notifications` (or a `drawable`); left
-  out to avoid referencing an asset nothing creates. FCM's auto default channel
-  is used meanwhile.
-- [ ] **iOS (deferred — separate task)** push is **not configured**: no
-  `.entitlements`, no `aps-environment`, no `remote-notification` background
-  mode. iOS cannot receive push until this is added and signed in Xcode with the
-  Apple account (needs an APNs key in the Firebase console too).
+- [ ] **Android** — `POST_NOTIFICATIONS` + `INTERNET` are declared and FCM maps
+  notifications to the named high-importance `drop_default` channel, created at
+  app start. Rebuild the app; on Android 13+ confirm the OS prompt and a push on
+  physical hardware. A monochrome notification icon remains owner design work.
+- [ ] **iOS** — app-side configuration is complete: `Runner.entitlements` has
+  `aps-environment`, all Runner configurations sign it, and `remote-notification`
+  is declared. Delivery awaits the APNs credential. Foreground OS presentation
+  stays **enabled** (the Apple foreground surface); no native delegate is
+  installed, which is why chat yields its in-app banner on Apple rather than the
+  OS banner yielding per-message.
 
 ---
 
@@ -189,4 +277,5 @@ machine / accounts** to take effect:
   route exist, but there is no `communityEvent` `NotificationType` or producer
   yet. The resolver is the extension point (add a `event_details` case + its
   producer together).
-- **iOS push** — see the checklist. The single biggest remaining pilot gap.
+- **iOS push credential** — app-side setup is complete; delivery awaits the
+  APNs credential. See the checklist.

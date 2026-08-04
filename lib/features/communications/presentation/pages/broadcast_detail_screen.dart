@@ -47,8 +47,9 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
     if (_fetchAttempted) return;
     _fetchAttempted = true;
     setState(() => _fetching = true);
-    final entity =
-        await context.read<BroadcastCubit>().fetchById(widget.broadcastId);
+    final entity = await context.read<BroadcastCubit>().fetchById(
+      widget.broadcastId,
+    );
     if (!mounted) return;
     setState(() {
       _fetched = entity;
@@ -75,14 +76,12 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
 
         return AdaptiveScaffold(
           title: 'Broadcast',
-          actions: [
-            if (b != null) _ActionsMenu(broadcast: b),
-          ],
+          actions: [if (b != null) _ActionsMenu(broadcast: b)],
           body: b != null
               ? _detail(context, b)
               : _fetching
-                  ? const Center(child: CircularProgressIndicator())
-                  : _missing(),
+              ? const Center(child: CircularProgressIndicator())
+              : _missing(),
         );
       },
     );
@@ -96,19 +95,24 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
   }
 
   Widget _missing() => const AppEmptyState(
-        icon: Icons.campaign_outlined,
-        title: 'Broadcast unavailable',
-        message: 'This broadcast may have been deleted, or you no longer have '
-            'access to it.',
-      );
+    icon: Icons.campaign_outlined,
+    title: 'Broadcast unavailable',
+    message:
+        'This broadcast may have been deleted, or you no longer have '
+        'access to it.',
+  );
 
   Widget _detail(BuildContext context, BroadcastEntity b) {
     final category = BroadcastCategory.fromString(b.category);
     final catColor = categoryColor(category);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, AppSpacing.lg,
-          AppSpacing.pagePadding, AppSpacing.xxxl),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pagePadding,
+        AppSpacing.lg,
+        AppSpacing.pagePadding,
+        AppSpacing.xxxl,
+      ),
       children: [
         // Header
         GlassContainer(
@@ -125,17 +129,23 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: catColor.withAlpha(60)),
                     ),
-                    child:
-                        Icon(categoryIcon(category), color: catColor, size: 22),
+                    child: Icon(
+                      categoryIcon(category),
+                      color: catColor,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(category.label,
-                            style: AppTypography.caption
-                                .copyWith(color: catColor)),
+                        Text(
+                          category.label,
+                          style: AppTypography.caption.copyWith(
+                            color: catColor,
+                          ),
+                        ),
                         const SizedBox(height: 2),
                         Text(b.title, style: AppTypography.h2),
                       ],
@@ -146,13 +156,18 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  Icon(audienceIcon(b.audience),
-                      size: 14, color: AppColors.textTertiary),
+                  Icon(
+                    audienceIcon(b.audience),
+                    size: 14,
+                    color: AppColors.textTertiary,
+                  ),
                   const SizedBox(width: 6),
                   Text(audienceLabel(b), style: AppTypography.caption),
                   const Spacer(),
-                  Text(broadcastTimeAgo(b.createdAt),
-                      style: AppTypography.caption),
+                  Text(
+                    broadcastTimeAgo(b.createdAt),
+                    style: AppTypography.caption,
+                  ),
                 ],
               ),
             ],
@@ -163,9 +178,12 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
         // Message
         const _SectionLabel('Message'),
         GlassContainer(
-          child: Text(b.message,
-              style: AppTypography.bodyLarge
-                  .copyWith(color: AppColors.textPrimary)),
+          child: Text(
+            b.message,
+            style: AppTypography.bodyLarge.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
 
@@ -189,7 +207,8 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
                     child: _Stat(
                       icon: Icons.mark_email_read_outlined,
                       label: 'Delivered',
-                      value: b.deliveredCount?.toString() ??
+                      value:
+                          b.deliveredCount?.toString() ??
                           (b.recipientCount == null ? '—' : 'Pending'),
                     ),
                   ),
@@ -216,26 +235,31 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
           child: Column(
             children: [
               _MetaRow(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Sender',
-                  value: b.senderName),
+                icon: Icons.person_outline_rounded,
+                label: 'Sender',
+                value: b.senderName,
+              ),
               _MetaRow(
-                  icon: audienceIcon(b.audience),
-                  label: 'Audience',
-                  value: audienceLabel(b)),
+                icon: audienceIcon(b.audience),
+                label: 'Audience',
+                value: audienceLabel(b),
+              ),
               _MetaRow(
-                  icon: categoryIcon(category),
-                  label: 'Category',
-                  value: category.label),
+                icon: categoryIcon(category),
+                label: 'Category',
+                value: category.label,
+              ),
               _MetaRow(
-                  icon: Icons.send_outlined,
-                  label: 'Delivery',
-                  value: category.deliverySummary),
+                icon: Icons.send_outlined,
+                label: 'Delivery',
+                value: b.sendsPush ? 'Push + Inbox' : 'Inbox only',
+              ),
               _MetaRow(
-                  icon: Icons.schedule_rounded,
-                  label: 'Sent',
-                  value: broadcastFullDate(b.createdAt),
-                  last: true),
+                icon: Icons.schedule_rounded,
+                label: 'Sent',
+                value: broadcastFullDate(b.createdAt),
+                last: true,
+              ),
             ],
           ),
         ),
@@ -244,11 +268,11 @@ class _BroadcastDetailScreenState extends State<BroadcastDetailScreen> {
   }
 
   Widget _vDivider() => Container(
-        width: 1,
-        height: 40,
-        color: AppColors.darkBorder,
-        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      );
+    width: 1,
+    height: 40,
+    color: AppColors.darkBorder,
+    margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+  );
 }
 
 /// The detail app-bar overflow menu, reusing the feed's action handling.
@@ -257,7 +281,9 @@ class _ActionsMenu extends StatelessWidget {
   final BroadcastEntity broadcast;
 
   Future<void> _onAction(
-      BuildContext context, BroadcastCardAction action) async {
+    BuildContext context,
+    BroadcastCardAction action,
+  ) async {
     final cubit = context.read<BroadcastCubit>();
     switch (action) {
       case BroadcastCardAction.open:
@@ -274,8 +300,10 @@ class _ActionsMenu extends StatelessWidget {
         if (!ok || !context.mounted) return;
         final count = await cubit.repeatNow(sender: user, source: broadcast);
         if (count != null && context.mounted) {
-          AppSnackbar.success(context,
-              'Broadcast sent to $count ${count == 1 ? 'recipient' : 'recipients'}');
+          AppSnackbar.success(
+            context,
+            'Broadcast sent to $count ${count == 1 ? 'recipient' : 'recipients'}',
+          );
         }
       case BroadcastCardAction.archive:
         await cubit.setArchived(broadcast.id, true);
@@ -310,10 +338,17 @@ class _ActionsMenu extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       onSelected: (a) => _onAction(context, a),
       itemBuilder: (context) => [
-        _item(BroadcastCardAction.repeatNow, Icons.replay_rounded, 'Repeat now'),
+        _item(
+          BroadcastCardAction.repeatNow,
+          Icons.replay_rounded,
+          'Repeat now',
+        ),
         if (archived)
-          _item(BroadcastCardAction.unarchive, Icons.unarchive_rounded,
-              'Unarchive')
+          _item(
+            BroadcastCardAction.unarchive,
+            Icons.unarchive_rounded,
+            'Unarchive',
+          )
         else
           _item(BroadcastCardAction.archive, Icons.archive_outlined, 'Archive'),
       ],
@@ -345,16 +380,24 @@ class _SectionLabel extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.sm, left: 2),
-        child: Text(text.toUpperCase(),
-            style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary, letterSpacing: 0.6)),
-      );
+    padding: const EdgeInsets.only(bottom: AppSpacing.sm, left: 2),
+    child: Text(
+      text.toUpperCase(),
+      style: AppTypography.caption.copyWith(
+        color: AppColors.textTertiary,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat(
-      {required this.icon, required this.label, required this.value, this.color});
+  const _Stat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.color,
+  });
   final IconData icon;
   final String label;
   final String value;
@@ -372,8 +415,12 @@ class _Stat extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
-        Text(value,
-            style: AppTypography.h2.copyWith(color: color ?? AppColors.textPrimary)),
+        Text(
+          value,
+          style: AppTypography.h2.copyWith(
+            color: color ?? AppColors.textPrimary,
+          ),
+        ),
       ],
     );
   }
@@ -402,11 +449,13 @@ class _MetaRow extends StatelessWidget {
           Text(label, style: AppTypography.body),
           const Spacer(),
           Flexible(
-            child: Text(value,
-                style: AppTypography.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right),
+            child: Text(
+              value,
+              style: AppTypography.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+            ),
           ),
         ],
       ),
