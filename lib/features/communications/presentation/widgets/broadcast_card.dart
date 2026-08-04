@@ -10,12 +10,11 @@ import 'package:drop/features/communications/presentation/communications_format.
 /// The per-item action menu on a broadcast feed card.
 enum BroadcastCardAction { open, repeatNow, archive, unarchive, delete }
 
-/// A single broadcast in the Communications Center history feed (Phase 2) —
-/// title, category, message preview, sender, time, delivery summary
-/// (recipients · delivered · failed), status, and a per-item actions menu
-/// (Open · Repeat Now · Duplicate · Schedule Again · Archive · Delete).
-/// Premium monochrome (built on [GlassContainer]); colour only for an urgent
-/// category / priority / status.
+/// A single broadcast in the Communications Center history feed — a calm,
+/// minimal card: a quiet category glyph, the title, one supporting meta line
+/// (category · audience · sender · time), a one-line message preview, and a
+/// right-aligned delivery figure. Premium monochrome (built on [GlassContainer]);
+/// colour only for an emergency category or a failed delivery.
 class BroadcastCard extends StatelessWidget {
   const BroadcastCard({
     super.key,
@@ -42,26 +41,28 @@ class BroadcastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final category = BroadcastCategory.fromString(broadcast.category);
     final catColor = categoryColor(category);
+    final urgent = category.isUrgent;
     final dimmed = !broadcast.isActive; // archived / deleted read muted
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Opacity(
-        opacity: dimmed ? 0.6 : 1,
+        opacity: dimmed ? 0.55 : 1,
         child: GlassContainer(
           onTap: onTap,
           highlight: selected,
           accent: AppColors.primary,
+          padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   if (onSelected != null) ...[
                     SizedBox(
-                      width: 32,
-                      height: 40,
+                      width: 28,
+                      height: 28,
                       child: Checkbox(
                         key: ValueKey('select-${broadcast.id}'),
                         value: selected,
@@ -69,6 +70,9 @@ class BroadcastCard extends StatelessWidget {
                         activeColor: AppColors.primary,
                         checkColor: AppColors.black,
                         side: const BorderSide(color: AppColors.textTertiary),
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(5),
                         ),
@@ -76,15 +80,20 @@ class BroadcastCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                   ],
+                  // Quiet category glyph — a soft fill, no border. Emergency is
+                  // the only one that carries colour.
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
-                      color: catColor.withAlpha(category.isUrgent ? 30 : 20),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: catColor.withAlpha(60)),
+                      color: urgent
+                          ? catColor.withAlpha(26)
+                          : AppColors.primary.withAlpha(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(categoryIcon(category), size: 20, color: catColor),
+                    child: Icon(categoryIcon(category),
+                        size: 17,
+                        color: urgent ? catColor : AppColors.textSecondary),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
@@ -98,48 +107,33 @@ class BroadcastCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
-                        Text(category.label,
-                            style: AppTypography.caption
-                                .copyWith(color: catColor)),
+                        const SizedBox(height: 3),
+                        _MetaLine(broadcast: broadcast, category: category),
                       ],
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  _AudiencePill(broadcast: broadcast),
-                  if (onAction != null) _menu(context),
+                  if (onAction != null) _menu(context) else const SizedBox(width: 6),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: 10),
               Text(
                 broadcast.message,
                 style: AppTypography.body,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(Icons.person_outline_rounded,
-                      size: 14, color: AppColors.textTertiary),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(broadcast.senderName,
-                        style: AppTypography.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                  _dot(),
-                  Text(broadcastTimeAgo(broadcast.createdAt),
-                      style: AppTypography.caption),
+                  _DeliveryLine(broadcast: broadcast),
                   const Spacer(),
-                  _DeliveryChip(broadcast: broadcast),
+                  if (!broadcast.isActive)
+                    _StatusChip(broadcast: broadcast)
+                  else
+                    Text(broadcastTimeAgo(broadcast.createdAt),
+                        style: AppTypography.caption),
                 ],
               ),
-              if (!broadcast.isActive) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _StatusChip(broadcast: broadcast),
-              ],
             ],
           ),
         ),
@@ -151,7 +145,7 @@ class BroadcastCard extends StatelessWidget {
     final archived = broadcast.isArchived;
     return PopupMenuButton<BroadcastCardAction>(
       tooltip: 'Actions',
-      icon: const Icon(Icons.more_vert_rounded,
+      icon: const Icon(Icons.more_horiz_rounded,
           size: 20, color: AppColors.textTertiary),
       color: AppColors.darkSurfaceElevated,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -193,46 +187,45 @@ class BroadcastCard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _dot() => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 6),
-        child: Text('·', style: TextStyle(color: AppColors.textTertiary)),
-      );
-
 }
 
-class _AudiencePill extends StatelessWidget {
-  const _AudiencePill({required this.broadcast});
+/// The single supporting line under the title: category · audience · sender.
+/// Everything muted; the emergency category is the only tinted token. Kept as
+/// discrete [Text] runs (not one joined string) so each fact stays legible and
+/// individually testable.
+class _MetaLine extends StatelessWidget {
+  const _MetaLine({required this.broadcast, required this.category});
   final BroadcastEntity broadcast;
+  final BroadcastCategory category;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.darkBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(audienceIcon(broadcast.audience),
-              size: 12, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
-          Text(audienceLabel(broadcast),
-              style: AppTypography.caption
-                  .copyWith(color: AppColors.textSecondary)),
-        ],
-      ),
+    final catColor = categoryColor(category);
+    return Row(
+      children: [
+        Text(category.label,
+            style: AppTypography.caption.copyWith(
+              color: category.isUrgent ? catColor : AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            )),
+        _dot(),
+        Text(audienceLabel(broadcast), style: AppTypography.caption),
+        _dot(),
+        Flexible(
+          child: Text(broadcast.senderName,
+              style: AppTypography.caption,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ),
+      ],
     );
   }
 }
 
-/// Delivery summary chip — "delivered M / N" once known, with a failed count
-/// when any push failed; else "N recipients".
-class _DeliveryChip extends StatelessWidget {
-  const _DeliveryChip({required this.broadcast});
+/// Delivery summary — "Delivered M/N" once known (with a red failed count when
+/// any push failed), else "N recipients". Text-only, no leading glyph.
+class _DeliveryLine extends StatelessWidget {
+  const _DeliveryLine({required this.broadcast});
   final BroadcastEntity broadcast;
 
   @override
@@ -247,13 +240,11 @@ class _DeliveryChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.send_rounded, size: 12, color: AppColors.textTertiary),
-        const SizedBox(width: 4),
-        Text(text, style: AppTypography.caption),
+        Text(text,
+            style: AppTypography.caption
+                .copyWith(color: AppColors.textSecondary)),
         if (failed != null && failed > 0) ...[
-          const SizedBox(width: 6),
-          const Icon(Icons.error_outline_rounded, size: 12, color: AppColors.error),
-          const SizedBox(width: 2),
+          _dot(),
           Text('$failed failed',
               style: AppTypography.caption.copyWith(color: AppColors.error)),
         ],
@@ -270,22 +261,19 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const color = AppColors.textTertiary;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withAlpha(50)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.archive_outlined, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(broadcastStatusLabel(broadcast),
-              style: AppTypography.caption.copyWith(color: color)),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.archive_outlined, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(broadcastStatusLabel(broadcast),
+            style: AppTypography.caption.copyWith(color: color)),
+      ],
     );
   }
 }
+
+Widget _dot() => const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 6),
+      child: Text('·', style: TextStyle(color: AppColors.textQuaternary)),
+    );

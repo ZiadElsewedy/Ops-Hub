@@ -14,6 +14,290 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Dashboard "All clear" empty state centred (fix; LOW risk)
+
+The Recent activity **"All clear"** empty state (`_AllClear` in
+`recent_activity_feed.dart`) sat pinned to the left of the feed column: its
+`Column` shrink-wrapped to its content and the parent's `CrossAxisAlignment.start`
+left-aligned the whole block. Wrapped it in a full-width `SizedBox` so the
+already-centred content actually centres in the middle of the feed area (admin +
+manager dashboards, desktop and mobile). Presentation only.
+
+## 2026-08-04 — Schedule: mobile Final view, exports, caching, roster fix (feature + fix; MED risk)
+
+Four things the owner flagged from an iPhone, one pass.
+
+- **Final view is now readable on a phone.** The published sheet
+  (`FinalScheduleSheet`) is a fixed **1600px landscape print document** — crisp
+  on a Mac, an illegible thumbnail shrunk to a phone. On mobile the screen now
+  shows a new **`FinalScheduleMobileView`**: one day per card, Morning then
+  Night, each person an **avatar · name · role** row (same `UserAvatar` as the
+  editor), with hours, leave and day-notes inline — top-to-bottom, no zoom, no
+  horizontal scroll. The toolbar gained a **"Final schedule" title** on mobile
+  (the Dashboard shortcut was dropped there), and the header meta labels the
+  manager with a colon (`Manager: Name`) instead of a mid-dot that blended into a
+  doubled-looking "Manager · Manager". **The macOS view is untouched** (still the
+  landscape sheet, scaled to fit); the split is on `context.isDesktop` (≥1024).
+- **The sheet lists only the people actually on the schedule**, not every branch
+  member — the "why is everyone on it" complaint. New `scheduledRoster()` helper
+  (anyone with ≥1 shift that week, orphans dropped) drives the sheet, the mobile
+  view **and** the PDF, so they never disagree. The editor still assigns from the
+  whole team; only the *published* output is filtered.
+- **Save as image or PDF, from any platform.** Export is now a chooser (PNG /
+  PDF). PNG is captured from an off-screen `RepaintBoundary` of the landscape
+  sheet (so a phone can export the same document it isn't showing); PDF is a new
+  vector builder (`buildScheduleFinalPdf`, `pdf` package, landscape A4). Both are
+  written beside the other exports and handed to the OS via `open_filex` on
+  mobile — the **approved ADR-019 delivery** (share/preview → Save to Photos /
+  Files / send). No new dependencies.
+  - **iOS write-path fix (same day):** the first cut still failed on iOS with
+    "Could not save" — on iOS `getDownloadsDirectory()` neither throws nor
+    returns null, it hands back a sandbox `.../Downloads` path that was never
+    created, so `?? documents` never fired and the write threw. Both exports
+    share that step, so both failed. `_writeExport` now goes **straight to the
+    app documents dir on mobile** (Downloads is desktop-only) and
+    `create(recursive: true)`s it. The **same latent bug in the attendance
+    weekly export** was fixed identically.
+- **The weekly editor stops refetching on every open.** `ScheduleCubit.load`
+  gained a 60s freshness window: re-opening the same (branch, week) within it is
+  a no-op instead of a fresh Firestore read on every tap. A real scope change
+  (branch/week), the Refresh button, pull-to-refresh (`force`) and every roster
+  mutation still refetch, so a stale window is at most 60s and only against edits
+  on another device.
+
+- **Phone editor is no longer the cramped 7-day grid.** On mobile the weekly
+  editor is now **`ScheduleDayEditor`** — one day at a time: a day selector
+  (coverage dot per day), then roomy **Morning / Night** cards listing who's on
+  each shift (real `EmployeeRow` avatars), with a move-to-the-other-shift
+  control, a remove control, an **Add** button (opens the shared
+  `showEmployeePicker`), and a **Notes & leave** shortcut. It's pure
+  presentation: every edit routes back through the **same validated handlers**
+  the desktop grid uses (`_moveChip` / `_removeChip` / `_openChipActions` /
+  `cubit.assign`), so move confirms leave clashes, remove warns before leaving a
+  shift unstaffed, and undo still works. On a phone the controls block (branch
+  picker · week nav) **leads the scroll and moves up as you scroll** instead of
+  pinning to the top and eating the screen; desktop keeps its toolbar pinned. Two
+  mobile controls moved off that block: the **All/Morning/Night shift filter is
+  dropped** (it only narrowed the grid; the day editor always shows both shifts,
+  so it did nothing), and the **Final view moved into the app bar** as an eye icon
+  (`ScheduleFinalViewAction`, shown once a schedule is loaded — admin only on the
+  Week tab). Both remain on desktop. Pending swaps stay reachable; the
+  grid-only fact chips are dropped (coverage dots + "Open" tags carry the same
+  signal). **Desktop keeps the grid + inspector, untouched.** Shipped from an
+  owner-approved clickable prototype.
+
+Tests: mobile-vs-desktop view swap, scheduled-only roster, no-overflow at
+iPhone width, export toolbar, and the day editor (day switch + add/remove/move
+handlers fire with the right slot). `flutter analyze` clean; schedule suite green.
+
+## 2026-08-04 — Task Management production polish (polish; MED risk)
+
+Second refinement pass. Presentation only.
+
+- **Missed is a `MetricTile` door** on Task Management, beside Active · In
+  review · Late — it was an 11px record line under the reliability panel, which
+  is the wrong weight for the company's only failure figure and two tiers below
+  the `Late` it gets confused with. Its own glyph (`timer_off`, "time ran out")
+  vs Late's `event_busy`. Still hidden at zero, still never summed with
+  Cancelled, and now **drawn exactly once** (the record door is gone).
+- **One list, everywhere**: new `TaskSectionList` (sections + rows) is now used
+  by the browser *and* by `FilteredTasksScreen`, which had been stacking
+  `TaskActivityCard`s — a metric drill-down looked like a different product from
+  the list it drilled out of. `showDeadline` is gone (the row always carries a
+  date). `TaskActivityCard` stays on the dashboard's Recent Activity feed.
+- **Rows**: no per-row chevron (thirty glyphs restating the tappable row); the
+  divider is suppressed on the last row of a section, so it no longer doubles up
+  with the next section's rule; a **record is dated by when it closed**, not by
+  its deadline — a "Closed today" section was showing `4:30 PM` next to `5 Aug`.
+- `MetricTileRow`: an odd last tile spans the full width instead of sitting
+  beside a `Spacer` — the hole read as a tile that had failed to load.
+- A branch card with nothing open shows **"Nothing open"** instead of three
+  zeros (the ruling the employee workload row already follows).
+- Lens chips hide a zero count; record doors give the figure the weight and the
+  word the support; a lens change cross-fades instead of snapping; the branch
+  task list's mobile title is a two-line lockup, so "All tasks" can never
+  truncate away; the list clears the FAB.
+- **The row's touch surface is rounded and inset**, not a square-cornered band
+  bleeding to both screen edges, and the separator sits under it at the same
+  inset. `TaskBrowser` now owns its horizontal rhythm (`horizontalPadding`) so
+  the rows can extend past the page margin while every title stays on it — host
+  pages no longer wrap it in page padding. The branch cockpit's Tasks preview is
+  held in a `GlassContainer`, so the section has a visible beginning and end.
+  Row hover is a translucent white lift, which reads on the page background and
+  on a card alike.
+
+---
+
+## 2026-08-04 — Task Management UX refinement pass (polish; MED risk)
+
+Presentation only — no repository, Firestore, rules, function, cubit or
+`task_feed` change, and no new reads.
+
+- **The task row is two lines.** The title owns the first line (truncating only
+  against the date); status, branch, assignee and checklist progress drop to one
+  meta line that ellipsizes as a single string. Removed: the bordered branch
+  chip, the assignee avatar disc and the 2px checklist track (now `3/5 steps` in
+  the meta line). A deadline landing today renders as a **time**, not as today's
+  date. Applies to the dashboard feed as well — one row spec, one place.
+- **Search is a workflow**: match count + a Clear affordance while a query is
+  live, and a dedicated "Nothing matches …" state that offers the way out
+  instead of claiming the branch is empty.
+- **Lenses wrap and carry counts** (`Late 3`), derived from the same filter that
+  builds the list, so a chip and its list cannot disagree. An empty lens now
+  explains itself and offers "Show all tasks".
+- **Closed work is sectioned by when it closed** — *Closed today · Yesterday ·
+  Earlier this week · Last week · Older*, newest first — in the new pure
+  `task_browser_groups.dart`. Open work still delegates to the feed engine's own
+  buckets. **Fixes a real defect**: the engine's forward-looking `dueTime`
+  grouping put every finished task in one bucket labelled *Done today*, so an
+  approved task from three weeks ago was announced as closing today.
+- Branch Operations: one `AdminSectionHeader` and one spacing rhythm across
+  Tasks · Automation · Team; the Tasks preview shows the **active window**, not
+  the archive; Automation lost its nested bordered box; empty/error states now
+  use the shared `AppEmptyState` / `AppErrorState`.
+- `AppSearchField` now tracks its controller, so an external clear updates the
+  field's own clear glyph (previously stale until the next keypress).
+
+---
+
+## 2026-08-04 — Task operations phone hierarchy (polish; MED risk)
+
+- Added the shared in-memory task browser for admin/manager operations: live
+  search (title · description · branch · assignee), status lenses, due-date
+  groups, compact rows and the existing task preview/action path. It reuses the
+  `task_feed` engine over the live `TaskCubit` stream, so it adds **no new
+  Firestore reads**. Branch Operations now previews branch tasks, employee
+  workload cards are compressed, and employee detail no longer repeats full
+  manager cards for approved records.
+- The browser's closed lens is named **Closed**, not "Done" — it spans approved,
+  missed and cancelled work, and the spec forbids presenting Missed or Cancelled
+  as Done. Nothing is summed: each row keeps its own status badge.
+- Admin Task Management’s record strip became a tappable reliability panel.
+  Reliability remains Approved ÷ (Approved + Missed); Cancelled is neutral,
+  hidden at zero, and excluded from the rate.
+- The employee workload row builds its metric line from non-zero figures only,
+  and now includes Done — gating on `hasFigures` (which counts `completedToday`)
+  while omitting Done rendered "0 active · 0 late · 0 in review" for someone who
+  had only finished work that day.
+
+---
+
+## 2026-08-04 — Manager records carry no schedule at all (feature; MED risk)
+
+- A manager's attendance record is now created with **no `scheduledStart` /
+  `scheduledEnd`**, even when they are on the roster. Worked hours run clock-in →
+  clock-out and late / early-leave / overtime stay 0. `AttendanceCalculator`
+  needed no change: it already measures from `clockIn` when there is no
+  scheduled window, which is exactly presence tracking.
+- New `AttendanceEntity.presenceOnly` (default false, absent = false for every
+  existing record). **A missing `scheduledStart` alone was not enough**: it reads
+  as `unscheduledWork` — an *exception* meaning "worked a shift nobody rostered"
+  — and reporting drops unscheduled rows from present/absent counts. Without the
+  flag every manager day would have been filed as an anomaly and managers would
+  have vanished from attendance stats.
+- Reporting now treats presence rows as real work that is **not roster
+  adherence**: they keep their row and contribute worked minutes, but sit out of
+  both sides of the show-up rate. Counting them present without a matching
+  expectation would push that rate above 100%; counting them expected would
+  invent a shift nobody scheduled.
+- The roster-length implausibility check ("long shift, almost no work") is
+  skipped for presence records — the question has no meaning without a roster.
+
+⚠️ **The ledger has a server half.** `functions/attendance_expectation.js`
+mirrors the same classification, and both sides now check `presenceOnly`. They
+must stay in agreement or the persisted ledger and the in-app report describe
+the same day differently. **Not deployed** — `firebase deploy --only functions`
+is still pending for this change.
+
+---
+
+## 2026-08-04 — Manager attendance is presence tracking (feature; LOW risk)
+
+- Managers may clock in at any time, with or without a rostered shift. The policy
+  is resolved solely through `AttendanceService.configFor` as
+  `AttendanceConfig.enforceSchedule: false`; employees keep the default schedule
+  requirement and early clock-in window unchanged.
+- All non-schedule gates remain shared: branch manager-clock toggle, active account,
+  leave, duplicate-punch protections, and GPS/geofence validation. Clock-out and
+  worked-minute calculation are unchanged.
+
+---
+
+## 2026-08-04 — Branch-level manager clock policy (feature; MED risk)
+
+- Admins can choose whether managers at each branch may clock in/out. The new
+  `managersCanClock` branch field defaults to true when absent, so legacy branches
+  retain their current behaviour; employees and admins remain enabled.
+- The attendance policy resolves this flag from the cubit's one branch-directory
+  lookup. Disabling it blocks new manager clock-ins, including unscheduled ones,
+  but deliberately permits clock-out for an already-open session.
+
+Two traps worth keeping, both load-bearing:
+
+- **`checkClockOut` gated on `config.enabled` too.** Resolving the flag into
+  `enabled` alone would have left a manager who clocked in before the switch
+  unable to clock out — their session hanging until `autoCloseAttendance` swept
+  it to `pendingReview`. That guard now stands down when a session is already
+  open: a disabled module must still let you finish what you started.
+- **`clockInUnscheduled` never calls `checkClockIn`.** It runs only the GPS
+  check, so it was a second, ungated way in; it now checks `enabled` itself.
+  Any future clock entry point must gate itself — the validation engine does not
+  cover this path.
+
+Enforcement is client-side by design: `branches/{id}` is already admin-only to
+write, and a manager writing their own attendance record is legitimate, so this
+is a policy preference rather than a privilege boundary. No `firestore.rules`
+change, and none needed.
+## 2026-08-04 — Admin schedule Today coverage and Final View phone toolbar (feature + bug; MED risk)
+
+- Admin Schedule now opens on Today: a problems-first branch list that shows
+  identity, optional location, Morning/Night headcounts, an explicit amber
+  uncovered-shift sentence, and a distinct no-schedule-for-this-week state.
+  Tapping a row reuses the existing roster peek; Edit opens the unchanged Week
+  editor with that branch selected.
+- Coverage uses a dedicated `TodayCoverageCubit`, capped at three concurrent
+  per-branch cache-first schedule/member reads. It never reads or mutates the
+  app-wide `ScheduleCubit` during loading, preserving the editor's selection.
+- `ManagerScheduleView` gained one additive optional `initialBranchId`; the grid
+  itself is untouched. Edit **must** pass the branch in at construction: the
+  editor mounts only after the tab animation settles and its own init then loads
+  the default branch, so selecting from the outside beforehand is silently
+  overwritten and Edit lands on the wrong branch. Pinned by a widget test.
+- The Final View toolbar now uses icon-only button variants below 560pt (with
+  tooltips) so Back, Dashboard, and Save PNG remain reachable without the
+  reported phone-width overflow. The export canvas is unchanged.
+- **Roster sheet fixes found on device.** Its footer hard-coded
+  `router.push(adminSchedule)`, which was right from Manager Home but a no-op
+  from the Today list — that screen *is* `/admin/schedule`, so it stacked a
+  second identical copy and read as a dead button. `showTodayRosterSheet` gained
+  `onOpenSchedule` (switch tabs in place) and `roster` (render a roster the
+  caller already derived instead of re-reading the same week through the shared
+  `ScheduleCubit`, which also removes a needless displacement of the editor's
+  selection). Manager Home's call is unchanged and still pushes the route.
+- Returning to the **Today** tab re-derives coverage, so a shift you just filled
+  in the editor no longer still reads "Nobody is on night".
+
+## 2026-08-04 — Admin mobile hierarchy and Task Management polish (polish; MED risk)
+
+- Admin Home now carries company scope in the eyebrow, uses four drillable Today
+  `MetricTile`s (Open · Running now · Due today · Done today), and removes repeated
+  Late/Due soon noise. The former mobile Quick actions + Manage grids are one
+  compact Manage directory for the five destinations otherwise absent from mobile
+  navigation; desktop's rail is Operations only because the sidebar already owns
+  that navigation.
+- Admin Task Management now ranks Active · In review · Late above a compact
+  record strip (Branches · Complete plus drillable Done/Missed/Cancelled), names
+  the branch section, and gives cover-photo cards a compact strongly-scrimmed
+  identity band. Cards retain their operational triple and the single completion
+  statement, without a redundant progress bar. The app-bar refresh glyph was
+  removed; pull-to-refresh remains.
+- Missed/Cancelled zero hiding, neutral Cancelled treatment, task-stream counts,
+  matching filter drills, branch ordering, and completion-rate semantics are
+  unchanged. Gates green: `flutter analyze lib test` at its 1 pre-existing info,
+  `flutter test` **1508 pass · 0 fail**.
+
+---
+
 ## 2026-08-04 — Firebase Hosting serves the App Store privacy policy (polish; LOW risk)
 
 Hosting exists for exactly one reason: App Store Connect requires a public

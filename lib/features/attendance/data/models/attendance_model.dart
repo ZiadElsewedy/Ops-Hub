@@ -25,6 +25,9 @@ class AttendanceModel {
   final String dayKey;
   final DateTime? scheduledStart;
   final DateTime? scheduledEnd;
+
+  /// Presence-style record (managers) — never measured against a roster.
+  final bool presenceOnly;
   final DateTime? clockIn;
   final DateTime? clockOut;
   final List<AttendanceBreak> breaks;
@@ -58,6 +61,7 @@ class AttendanceModel {
     required this.dayKey,
     this.scheduledStart,
     this.scheduledEnd,
+    this.presenceOnly = false,
     this.clockIn,
     this.clockOut,
     this.breaks = const [],
@@ -93,6 +97,7 @@ class AttendanceModel {
         dayKey: map['dayKey'] as String? ?? '',
         scheduledStart: map.date('scheduledStart'),
         scheduledEnd: map.date('scheduledEnd'),
+        presenceOnly: map['presenceOnly'] == true,
         clockIn: map.date('clockIn'),
         clockOut: map.date('clockOut'),
         breaks: _breaksFromList(map['breaks']),
@@ -129,6 +134,7 @@ class AttendanceModel {
         dayKey: e.dayKey,
         scheduledStart: e.scheduledStart,
         scheduledEnd: e.scheduledEnd,
+        presenceOnly: e.presenceOnly,
         clockIn: e.clockIn,
         clockOut: e.clockOut,
         breaks: e.breaks,
@@ -162,6 +168,7 @@ class AttendanceModel {
         date: date,
         scheduledStart: scheduledStart,
         scheduledEnd: scheduledEnd,
+        presenceOnly: presenceOnly,
         clockIn: clockIn,
         clockOut: clockOut,
         breaks: breaks,
@@ -198,6 +205,7 @@ class AttendanceModel {
         'dayKey': dayKey,
         'scheduledStart': _ts(scheduledStart),
         'scheduledEnd': _ts(scheduledEnd),
+        'presenceOnly': presenceOnly,
         'clockIn': _ts(clockIn),
         'clockOut': _ts(clockOut),
         'breaks': breaksToList(breaks),

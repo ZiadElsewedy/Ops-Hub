@@ -61,6 +61,14 @@ void main() {
     expect(make().isUnscheduled, isFalse);
   });
 
+  test('a presence-only record is never "unscheduled"', () {
+    // It has no schedule by policy, not by accident — so there is no anomaly
+    // to explain and nothing downstream should treat it as one.
+    final presence = make(unscheduled: true).copyWith(presenceOnly: true);
+    expect(presence.scheduledStart, isNull);
+    expect(presence.isUnscheduled, isFalse);
+  });
+
   test('soft delete flag', () {
     expect(make(deletedAt: DateTime(2026, 7, 12)).isDeleted, isTrue);
     expect(make().isDeleted, isFalse);

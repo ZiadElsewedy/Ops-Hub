@@ -74,6 +74,12 @@ class AttendanceConfig {
   /// a manager approves it in Daily Review.
   final bool allowUnscheduledClockIn;
 
+  /// Whether the scheduled roster constrains the clock. True (employees): a
+  /// shift may be required and the early clock-in window is enforced. False
+  /// (managers): attendance is presence tracking — clock in at any time, with
+  /// or without a rostered shift. Every non-schedule rule still applies.
+  final bool enforceSchedule;
+
   const AttendanceConfig({
     this.enabled = false,
     this.lateGraceMinutes = 5,
@@ -85,6 +91,7 @@ class AttendanceConfig {
     this.locationPolicy = AttendanceLocationPolicy.strict,
     this.requirePhoto = false,
     this.allowUnscheduledClockIn = true,
+    this.enforceSchedule = true,
   });
 
   /// The standing defaults. `enabled` stays false here — a branch turns the
@@ -102,6 +109,7 @@ class AttendanceConfig {
     AttendanceLocationPolicy? locationPolicy,
     bool? requirePhoto,
     bool? allowUnscheduledClockIn,
+    bool? enforceSchedule,
   }) =>
       AttendanceConfig(
         enabled: enabled ?? this.enabled,
@@ -117,5 +125,6 @@ class AttendanceConfig {
         requirePhoto: requirePhoto ?? this.requirePhoto,
         allowUnscheduledClockIn:
             allowUnscheduledClockIn ?? this.allowUnscheduledClockIn,
+        enforceSchedule: enforceSchedule ?? this.enforceSchedule,
       );
 }

@@ -57,6 +57,9 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
       widget.existing?.swapPolicy?.restrictToSamePosition ?? false;
   late int _minRestHours = widget.existing?.swapPolicy?.minRestHours ?? 0;
 
+  // Branch attendance policy, seeded from the loaded entity for safe form saves.
+  late bool _managersCanClock = widget.existing?.managersCanClock ?? true;
+
   @override
   void dispose() {
     _name.dispose();
@@ -74,7 +77,11 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
     final existing = widget.existing;
     if (existing == null) {
       // Swap rules are configured when editing (they default to permissive).
-      widget.cubit.createBranch(name: name, location: location);
+      widget.cubit.createBranch(
+        name: name,
+        location: location,
+        managersCanClock: _managersCanClock,
+      );
     } else {
       widget.cubit.editBranch(existing.copyWith(
         name: name,
@@ -83,6 +90,7 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
           restrictToSamePosition: _restrictPositions,
           minRestHours: _minRestHours > 0 ? _minRestHours : null,
         ),
+        managersCanClock: _managersCanClock,
       ));
     }
     Navigator.of(context).pop();
@@ -142,6 +150,19 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
               controller: _location,
               label: 'Location (optional)',
               prefixIcon: Icons.place_outlined,
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+            Text('ATTENDANCE',
+                style: AppTypography.caption.copyWith(
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textTertiary,
+                )),
+            const SizedBox(height: AppSpacing.md),
+            _ManagersClockSection(
+              managersCanClock: _managersCanClock,
+              onChanged: (value) => setState(() => _managersCanClock = value),
             ),
 
             // ── Branch media (editing only — needs an existing branch id) ──
@@ -205,6 +226,47 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ManagersClockSection extends StatelessWidget {
+  const _ManagersClockSection({
+    required this.managersCanClock,
+    required this.onChanged,
+  });
+
+  final bool managersCanClock;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.darkSurface,
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _RuleLabel(
+              title: 'Managers can clock in / out',
+              subtitle: managersCanClock
+                  ? 'Managers can clock their own attendance.'
+                  : 'Managers keep attendance review and approval — they just '
+                      'have no clock of their own.',
+            ),
+          ),
+          Switch(
+            value: managersCanClock,
+            onChanged: onChanged,
+            activeThumbColor: AppColors.primary,
+          ),
+        ],
       ),
     );
   }

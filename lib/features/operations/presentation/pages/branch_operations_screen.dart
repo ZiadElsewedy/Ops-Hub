@@ -8,6 +8,9 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
+import 'package:drop/core/widgets/admin_section_header.dart';
+import 'package:drop/core/widgets/app_empty_state.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/responsive_card_grid.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
@@ -29,10 +32,13 @@ import 'package:drop/features/operations/presentation/pages/employee_detail_scre
 import 'package:drop/features/operations/presentation/pages/operations_metric_screen.dart';
 import 'package:drop/features/operations/presentation/widgets/workload_card.dart';
 import 'package:drop/features/task/domain/entities/recurring_task_template_entity.dart';
+import 'package:drop/features/task/domain/task_feed.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/pages/branch_task_list_screen.dart';
 import 'package:drop/features/task/presentation/widgets/recurring_shift_task_sheets.dart';
 import 'package:drop/features/task/presentation/widgets/task_template_sheets.dart';
+import 'package:drop/features/task/presentation/widgets/task_browser.dart';
+import 'package:drop/features/task/presentation/widgets/task_feed_row.dart';
 
 /// The Branch Operations cockpit — the heart of the task→operations redesign.
 /// One scannable surface that answers a manager/admin's real questions about a
@@ -71,9 +77,10 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
   void _load() {
     // Branch directory for the header logo (§8b) — cheap + cached.
     context.read<BranchCubit>().loadIfNeeded();
-    context
-        .read<BranchOperationsCubit>()
-        .load(widget.branchId, branchName: widget.branchName);
+    context.read<BranchOperationsCubit>().load(
+      widget.branchId,
+      branchName: widget.branchName,
+    );
     // Load the task workflow stream too, so the employee drill-down, Task
     // Details actions and the "All tasks" list are live + writable here.
     final user = context.currentUser;
@@ -98,21 +105,23 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
   String get _branchLabel => widget.branchName ?? 'Branch operations';
 
   Future<void> _newTask() => startNewTaskFlow(
-        context: context,
-        cubit: context.read<TaskCubit>(),
-        // Branch is fixed to this cockpit's branch for both roles.
-        isAdmin: false,
-        defaultBranchId: widget.branchId,
-        templateBranchFilter: widget.branchId,
-      );
+    context: context,
+    cubit: context.read<TaskCubit>(),
+    // Branch is fixed to this cockpit's branch for both roles.
+    isAdmin: false,
+    defaultBranchId: widget.branchId,
+    templateBranchFilter: widget.branchId,
+  );
 
-  void _openAllTasks() => Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => BranchTaskListScreen(
-          branchId: widget.branchId,
-          branchName: widget.branchName ?? 'Branch',
-          isAdmin: context.isAdmin,
-        ),
-      ));
+  void _openAllTasks() => Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => BranchTaskListScreen(
+        branchId: widget.branchId,
+        branchName: widget.branchName ?? 'Branch',
+        isAdmin: context.isAdmin,
+      ),
+    ),
+  );
 
   Future<void> _manageRecurringShiftTasks() async {
     await showManageRecurringShiftTasksSheet(
@@ -123,24 +132,26 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
     _refreshAutomationSummary();
   }
 
-  void _openEmployee(UserEntity employee) =>
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => EmployeeDetailScreen(
-          employee: employee,
-          isAdmin: context.isAdmin,
-          defaultBranchId: widget.branchId,
-        ),
-      ));
+  void _openEmployee(UserEntity employee) => Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => EmployeeDetailScreen(
+        employee: employee,
+        isAdmin: context.isAdmin,
+        defaultBranchId: widget.branchId,
+      ),
+    ),
+  );
 
-  void _openMetric(OperationsMetric metric) =>
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => OperationsMetricScreen(
-          metric: metric,
-          branchId: widget.branchId,
-          branchName: _branchLabel,
-          isAdmin: context.isAdmin,
-        ),
-      ));
+  void _openMetric(OperationsMetric metric) => Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => OperationsMetricScreen(
+        metric: metric,
+        branchId: widget.branchId,
+        branchName: _branchLabel,
+        isAdmin: context.isAdmin,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +160,9 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
       title: _branchLabel,
       titleWidget: BlocBuilder<BranchCubit, BranchState>(
         builder: (context, _) {
-          final branch = context.read<BranchCubit>().branchById(widget.branchId);
+          final branch = context.read<BranchCubit>().branchById(
+            widget.branchId,
+          );
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -161,9 +174,11 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
               ),
               const SizedBox(width: AppSpacing.sm),
               Flexible(
-                child: Text(branch?.name ?? _branchLabel,
-                    style: isDesktop ? AppTypography.h1 : AppTypography.h3,
-                    overflow: TextOverflow.ellipsis),
+                child: Text(
+                  branch?.name ?? _branchLabel,
+                  style: isDesktop ? AppTypography.h1 : AppTypography.h3,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           );
@@ -173,8 +188,10 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
       // action row under the hero, which left the branch name room to breathe.
       actions: [
         IconButton(
-          icon: const Icon(Icons.refresh_rounded,
-              color: AppColors.textSecondary),
+          icon: const Icon(
+            Icons.refresh_rounded,
+            color: AppColors.textSecondary,
+          ),
           tooltip: 'Refresh',
           onPressed: _refreshAll,
         ),
@@ -191,7 +208,9 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
           loading: () => const ListSkeleton(),
           loaded: (branchId, workload, filter, branchName, directory) =>
               _cockpit(workload, filter),
-          error: (m) => _ErrorState(message: m, onRetry: _refreshAll),
+          // The shared error surface, not a hand-rolled one: a failed load must
+          // not look like an empty branch, and it must offer the retry.
+          error: (m) => AppErrorState(message: m, onRetry: _refreshAll),
           orElse: () => const SizedBox.shrink(),
         ),
       ),
@@ -211,6 +230,10 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
           // No FAB to clear any more — the tail is just breathing room.
           AppSpacing.xxxl,
         ),
+        // One vertical rhythm for the whole cockpit: `xl` between sections,
+        // `md` between a section's head and its body (owned by
+        // `AdminSectionHeader`). Before this the page mixed lg/xl/md gaps, which
+        // is what made five related blocks read as five unrelated widgets.
         children: [
           _BranchHero(
             branchId: widget.branchId,
@@ -220,24 +243,36 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           _HeroActions(onNewTask: _newTask, onAllTasks: _openAllTasks),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
           OperationsSummaryHeader(
             summary: workload.summary,
             onSelect: _openMetric,
           ),
           const SizedBox(height: AppSpacing.xl),
+          _BranchTasksPreview(
+            branchId: widget.branchId,
+            onViewAll: _openAllTasks,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          // Automation sits with Tasks, not with Team: it is where this
+          // branch's recurring *work* comes from.
           _AutomationOverview(
             future: _automationsFuture,
             onTap: _manageRecurringShiftTasks,
           ),
           const SizedBox(height: AppSpacing.xl),
+          const AdminSectionHeader(
+            title: 'Team',
+            subtitle: 'Heaviest workload first',
+          ),
           _ShiftToggle(
             value: filter,
-            onChanged: (f) => context.read<BranchOperationsCubit>().setFilter(f),
+            onChanged: (f) =>
+                context.read<BranchOperationsCubit>().setFilter(f),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          _SectionLabel(filter: filter, count: employees.length),
           const SizedBox(height: AppSpacing.md),
+          _TeamCount(filter: filter, count: employees.length),
+          const SizedBox(height: AppSpacing.sm),
           if (employees.isEmpty)
             _EmptyTeam(filter: filter)
           else
@@ -261,6 +296,49 @@ class _BranchOperationsScreenState extends State<BranchOperationsScreen> {
   }
 }
 
+/// The branch's most urgent work, inline. Six rows and one door — the section
+/// head is the shared [AdminSectionHeader] every other section on this page
+/// uses, so the block reads as part of the branch rather than as a bolted-on
+/// task widget with its own title treatment and its own `TextButton`.
+class _BranchTasksPreview extends StatelessWidget {
+  const _BranchTasksPreview({required this.branchId, required this.onViewAll});
+  final String branchId;
+  final VoidCallback onViewAll;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      AdminSectionHeader(
+        title: 'Tasks',
+        subtitle: 'Open work, soonest first',
+        actionLabel: 'View all',
+        onAction: onViewAll,
+      ),
+      // Held in the page's own card surface, so the preview has a visible
+      // beginning and end. Bare rows on the page background let a row's touch
+      // highlight run edge to edge as a hard-cornered grey band — the one thing
+      // on this screen that looked unfinished.
+      //
+      // The **active window**, not the whole archive. Browsing closed records
+      // is what "View all" is for; a cockpit whose Tasks section filled up with
+      // six approved tasks from a fortnight ago was answering a question nobody
+      // standing in the branch was asking.
+      GlassContainer(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: TaskBrowser(
+          compact: true,
+          maxItems: 6,
+          // Flush to the card: the row's own inset becomes the cell padding.
+          horizontalPadding: kTaskRowInset,
+          initialFilter: TaskFeedFilter(branchId: branchId),
+          emptyMessage: 'Nothing open in this branch right now.',
+        ),
+      ),
+    ],
+  );
+}
+
 // ─── Hero actions (the screen's one primary CTA + its list door) ─────────────
 
 /// The action row under the branch hero: the screen's single [PrimaryCta]
@@ -277,44 +355,56 @@ class _HeroActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: PrimaryCta(
-            icon: Icons.add_rounded,
-            label: 'New Task',
-            onTap: onNewTask,
+    // `IntrinsicHeight` + `stretch`, not a hard-coded 50: the secondary button
+    // was two pixels taller than the CTA beside it, which is exactly the kind of
+    // mismatch that reads as "unfinished" without anyone being able to name it.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: PrimaryCta(
+              icon: Icons.add_rounded,
+              label: 'New Task',
+              onTap: onNewTask,
+            ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Semantics(
-          button: true,
-          label: 'All tasks',
-          child: InkWell(
-            onTap: onAllTasks,
-            borderRadius: AppRadius.buttonAll,
-            child: Container(
-              height: 50,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              decoration: BoxDecoration(
-                borderRadius: AppRadius.buttonAll,
-                border: Border.all(color: AppColors.darkBorder),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.checklist_rounded,
-                      size: 18, color: AppColors.textSecondary),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text('All tasks',
-                      style: AppTypography.label
-                          .copyWith(color: AppColors.textSecondary)),
-                ],
+          const SizedBox(width: AppSpacing.md),
+          Semantics(
+            button: true,
+            label: 'All tasks',
+            child: InkWell(
+              onTap: onAllTasks,
+              borderRadius: AppRadius.buttonAll,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                decoration: BoxDecoration(
+                  borderRadius: AppRadius.buttonAll,
+                  border: Border.all(color: AppColors.darkBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.checklist_rounded,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'All tasks',
+                      style: AppTypography.label.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -340,10 +430,10 @@ class _BranchHero extends StatelessWidget {
   final ShiftFilter filter;
 
   (IconData, String) get _shift => switch (filter) {
-        ShiftFilter.all => (Icons.schedule_rounded, 'All shifts'),
-        ShiftFilter.morning => (Icons.wb_sunny_outlined, 'Morning shift'),
-        ShiftFilter.night => (Icons.nightlight_outlined, 'Night shift'),
-      };
+    ShiftFilter.all => (Icons.schedule_rounded, 'All shifts'),
+    ShiftFilter.morning => (Icons.wb_sunny_outlined, 'Morning shift'),
+    ShiftFilter.night => (Icons.nightlight_outlined, 'Night shift'),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -353,8 +443,9 @@ class _BranchHero extends StatelessWidget {
         final name = branch?.name ?? fallbackName ?? 'Branch';
         final cover = branch?.coverUrl ?? '';
         final hasCover = cover.isNotEmpty;
-        final empLabel =
-            employeeCount == 1 ? '1 employee' : '$employeeCount employees';
+        final empLabel = employeeCount == 1
+            ? '1 employee'
+            : '$employeeCount employees';
         final (shiftIcon, shiftLabel) = _shift;
 
         return Container(
@@ -413,16 +504,18 @@ class _BranchHero extends StatelessWidget {
                         Row(
                           children: [
                             BranchAvatar(
-                                logoUrl: branch?.logoUrl,
-                                name: name,
-                                size: 40,
-                                radius: 11),
+                              logoUrl: branch?.logoUrl,
+                              name: name,
+                              size: 40,
+                              radius: 11,
+                            ),
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: Text(
                                 name,
-                                style: AppTypography.h2
-                                    .copyWith(color: AppColors.textPrimary),
+                                style: AppTypography.h2.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -432,22 +525,36 @@ class _BranchHero extends StatelessWidget {
                         const SizedBox(height: AppSpacing.sm),
                         Row(
                           children: [
-                            const Icon(Icons.groups_outlined,
-                                size: 14, color: AppColors.textSecondary),
+                            const Icon(
+                              Icons.groups_outlined,
+                              size: 14,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: 5),
-                            Text(empLabel,
-                                style: AppTypography.caption
-                                    .copyWith(color: AppColors.textSecondary)),
+                            Text(
+                              empLabel,
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                             const SizedBox(width: AppSpacing.sm),
-                            const Text('·',
-                                style: TextStyle(color: AppColors.textTertiary)),
+                            const Text(
+                              '·',
+                              style: TextStyle(color: AppColors.textTertiary),
+                            ),
                             const SizedBox(width: AppSpacing.sm),
-                            Icon(shiftIcon,
-                                size: 14, color: AppColors.textSecondary),
+                            Icon(
+                              shiftIcon,
+                              size: 14,
+                              color: AppColors.textSecondary,
+                            ),
                             const SizedBox(width: 5),
-                            Text(shiftLabel,
-                                style: AppTypography.caption
-                                    .copyWith(color: AppColors.textSecondary)),
+                            Text(
+                              shiftLabel,
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -469,14 +576,14 @@ class _MonoHeroBg extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.darkSurfaceElevated, AppColors.darkSurface],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-      );
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [AppColors.darkSurfaceElevated, AppColors.darkSurface],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+  );
 }
 
 // ─── Summary header (branch health in 3 seconds) ──────────────────────────────
@@ -562,6 +669,15 @@ class _AutomationOverview extends StatelessWidget {
             : nextCheck == null
             ? 'Not scheduled yet'
             : AppDateFormatter.relativeDayTime(nextCheck);
+        // The displayed sentence, so a transient state never renders as the
+        // nonsense "Next check Loading…".
+        final nextSentence = loading
+            ? 'Checking schedule…'
+            : unavailable
+            ? 'Summary unavailable'
+            : nextCheck == null
+            ? 'No check scheduled'
+            : 'Next check $nextLabel';
         final semanticsLabel = loading
             ? 'Open Automation Center. Automation summary loading.'
             : 'Open Automation Center. $active active, $paused paused. '
@@ -617,55 +733,44 @@ class _AutomationOverview extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.md,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.darkSurfaceElevated,
-                    borderRadius: AppRadius.mdAll,
-                    border: Border.all(color: AppColors.darkBorder),
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final counts = Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          _AutomationCountChip(
-                            count: loading || unavailable ? null : active,
-                            label: 'Active',
-                          ),
-                          _AutomationCountChip(
-                            count: loading || unavailable ? null : paused,
-                            label: 'Paused',
-                          ),
-                        ],
-                      );
-                      final next = _AutomationNextCheck(label: nextLabel);
+                const SizedBox(height: AppSpacing.md),
+                // A hairline, not a nested bordered box. The summary used to
+                // sit inside a bordered container inside a bordered card, with
+                // two more bordered pills inside that — four frames around two
+                // numbers, and the single loudest block on the page.
+                const Divider(
+                  height: AppSpacing.lg,
+                  thickness: 1,
+                  color: AppColors.darkBorder,
+                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final routines = Text(
+                      loading || unavailable
+                          ? '—'
+                          : '$active active · $paused paused',
+                      style: AppTypography.labelSmall,
+                    );
+                    final next = _AutomationNextCheck(label: nextSentence);
 
-                      if (constraints.maxWidth >= 560) {
-                        return Row(
-                          children: [
-                            Expanded(child: counts),
-                            const SizedBox(width: AppSpacing.xl),
-                            next,
-                          ],
-                        );
-                      }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    if (constraints.maxWidth >= 420) {
+                      return Row(
                         children: [
-                          counts,
-                          const SizedBox(height: AppSpacing.md),
-                          next,
+                          routines,
+                          const Spacer(),
+                          Flexible(child: next),
                         ],
                       );
-                    },
-                  ),
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        routines,
+                        const SizedBox(height: AppSpacing.sm),
+                        next,
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -676,34 +781,9 @@ class _AutomationOverview extends StatelessWidget {
   }
 }
 
-class _AutomationCountChip extends StatelessWidget {
-  const _AutomationCountChip({required this.count, required this.label});
-
-  final int? count;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: AppRadius.fullAll,
-        border: Border.all(color: AppColors.darkBorder),
-      ),
-      child: Text(
-        '${count ?? '—'} $label',
-        style: AppTypography.labelSmall.copyWith(
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
+/// When the generator next runs — one line, because it is one fact. It was an
+/// 11px all-caps eyebrow stacked over a 14px value, which gave a scheduling
+/// detail the shape of a section heading.
 class _AutomationNextCheck extends StatelessWidget {
   const _AutomationNextCheck({required this.label});
 
@@ -711,36 +791,26 @@ class _AutomationNextCheck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 300),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'NEXT AUTOMATION CHECK',
-            style: AppTypography.caption.copyWith(letterSpacing: 0.6),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.schedule_rounded,
+          size: 14,
+          color: AppColors.textTertiary,
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              const Icon(
-                Icons.schedule_rounded,
-                size: 15,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: Text(
-                  label,
-                  style: AppTypography.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -772,7 +842,9 @@ class _ShiftToggle extends StatelessWidget {
                   curve: Curves.easeOut,
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
-                    color: value == f ? AppColors.primary : AppColors.transparent,
+                    color: value == f
+                        ? AppColors.primary
+                        : AppColors.transparent,
                     borderRadius: AppRadius.smAll,
                   ),
                   alignment: Alignment.center,
@@ -793,86 +865,52 @@ class _ShiftToggle extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.filter, required this.count});
+/// What the shift toggle currently resolves to, in words. The section's title
+/// and its "heaviest workload first" rule moved up into the shared header, so
+/// this line now says one thing — *who you are looking at* — instead of
+/// carrying a title, a count and a sort rule in 11px caps.
+class _TeamCount extends StatelessWidget {
+  const _TeamCount({required this.filter, required this.count});
   final ShiftFilter filter;
   final int count;
 
   @override
   Widget build(BuildContext context) {
+    final people = count == 1 ? '1 person' : '$count people';
     final text = filter == ShiftFilter.all
-        ? 'TEAM · $count'
-        : '${filter.label.toUpperCase()} · $count ON SHIFT';
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Text(text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(
-                  color: AppColors.textSecondary, letterSpacing: 0.6)),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        const Text('overload first', style: AppTypography.caption),
-      ],
+        ? '$people in this branch'
+        : '$people on the ${filter.label.toLowerCase()} shift';
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
     );
   }
 }
 
 // ─── Empty / error states ─────────────────────────────────────────────────────
 
+/// Nobody to show. Uses the shared empty surface (the same medallion every
+/// cleared list in the app draws) instead of a local icon-over-text stack, and
+/// names *which* nothing it is — an empty branch and an empty night shift are
+/// different facts with different answers.
 class _EmptyTeam extends StatelessWidget {
   const _EmptyTeam({required this.filter});
   final ShiftFilter filter;
 
   @override
-  Widget build(BuildContext context) {
-    final msg = filter == ShiftFilter.all
-        ? 'No active employees in this branch yet.'
-        : 'No one is on the ${filter.label.toLowerCase()} shift today.';
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xxl),
-      child: Column(
-        children: [
-          const Icon(Icons.groups_outlined,
-              color: AppColors.textTertiary, size: 36),
-          const SizedBox(height: AppSpacing.md),
-          Text(msg, style: AppTypography.body, textAlign: TextAlign.center),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                color: AppColors.textTertiary, size: 40),
-            const SizedBox(height: AppSpacing.md),
-            Text(message,
-                style: AppTypography.body, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.lg),
-            TextButton(
-              onPressed: onRetry,
-              child: Text('Retry',
-                  style: AppTypography.label
-                      .copyWith(color: AppColors.textPrimary)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.lg),
+    child: AppEmptyState(
+      icon: Icons.groups_outlined,
+      title: filter == ShiftFilter.all
+          ? 'No one in this branch yet'
+          : 'No one on the ${filter.label.toLowerCase()} shift',
+      message: filter == ShiftFilter.all
+          ? 'Employees assigned to this branch will appear here with their '
+                'workload.'
+          : 'Switch the shift lens above, or check this week\'s schedule.',
+    ),
+  );
 }

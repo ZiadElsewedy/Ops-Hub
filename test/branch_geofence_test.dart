@@ -64,4 +64,27 @@ void main() {
       expect(BranchModel.fromEntity(e).toMap().containsKey('geofence'), isFalse);
     });
   });
+
+  group('BranchModel manager clock persistence', () {
+    test('missing manager clock flag defaults to enabled for legacy branches', () {
+      final model = BranchModel.fromMap({'name': 'B1'}, id: 'b1');
+      expect(model.managersCanClock, isTrue);
+      expect(model.toEntity().managersCanClock, isTrue);
+    });
+
+    test('reads a disabled manager clock flag', () {
+      final model =
+          BranchModel.fromMap({'name': 'B1', 'managersCanClock': false}, id: 'b1');
+      expect(model.managersCanClock, isFalse);
+      expect(model.toEntity().managersCanClock, isFalse);
+    });
+
+    test('round-trips the manager clock flag through toMap', () {
+      final original = BranchModel.fromEntity(
+        const BranchEntity(id: 'b1', name: 'B1', managersCanClock: false),
+      );
+      final restored = BranchModel.fromMap(original.toMap(), id: original.id);
+      expect(restored.managersCanClock, isFalse);
+    });
+  });
 }

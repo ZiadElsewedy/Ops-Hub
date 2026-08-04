@@ -8,6 +8,7 @@ import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
 import 'package:drop/features/schedule/presentation/pages/schedule_final_view.dart';
+import 'package:drop/features/schedule/presentation/widgets/final_schedule_mobile_view.dart';
 import 'package:drop/features/schedule/presentation/widgets/final_schedule_sheet.dart';
 
 UserEntity _emp(String uid, String name, {String? position}) => UserEntity(
@@ -126,6 +127,29 @@ void main() {
       expect(find.byType(Draggable), findsNothing);
     });
 
+    testWidgets('lists only people actually on the schedule, not every member',
+        (tester) async {
+      await _pumpSheet(
+        tester,
+        FinalScheduleSheet(
+          // u1 works Sun morning / Mon night; u2 works Sun night. u3 belongs to
+          // the branch but is never assigned this week.
+          schedule: _richSchedule(),
+          members: [
+            _emp('u1', 'Salah Ahmed'),
+            _emp('u2', 'Mona Adel'),
+            _emp('u3', 'Unscheduled Person'),
+          ],
+          branch: _branch,
+        ),
+      );
+      // The scheduled people are on the sheet…
+      expect(find.text('Salah Ahmed'), findsOneWidget);
+      expect(find.text('Mona Adel'), findsOneWidget);
+      // …but a member with no shift this week is not a phantom row.
+      expect(find.text('Unscheduled Person'), findsNothing);
+    });
+
     testWidgets('empty notes → no notes row', (tester) async {
       await _pumpSheet(
         tester,
@@ -205,36 +229,54 @@ void main() {
       // as a roster row, so the name shows in both places).
       expect(find.text('MANAGER'), findsOneWidget);
       expect(find.text('Mona Adel'), findsWidgets);
-      // Navigation + export chrome (not captured in the PNG).
+      // Navigation + export chrome (not captured in the export file).
       expect(find.text('Back to schedule'), findsOneWidget);
       expect(find.text('Dashboard'), findsOneWidget);
-      expect(find.text('Save PNG'), findsOneWidget);
+      expect(find.text('Export'), findsOneWidget);
       // Still read-only.
       expect(find.byType(Draggable), findsNothing);
     });
 
-    testWidgets('scales to fit both a narrow tablet and a wide desktop',
+    testWidgets('desktop shows the print sheet; a phone shows the day list',
         (tester) async {
-      for (final window in const [Size(760, 1024), Size(1680, 1050)]) {
-        tester.view.physicalSize = window;
-        tester.view.devicePixelRatio = 1.0;
-        await tester.pumpWidget(
-          MaterialApp(
-            home: ScheduleFinalView(
-              schedule: _richSchedule(),
-              members: [_emp('u1', 'Salah Ahmed')],
-              branch: _branch,
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-        expect(find.text('Drop The Shop | Arkan'), findsOneWidget);
-      }
       addTearDown(() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
+      tester.view.devicePixelRatio = 1.0;
+
+      // Wide (desktop): the landscape print sheet is the on-screen view.
+      tester.view.physicalSize = const Size(1680, 1050);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScheduleFinalView(
+            schedule: _richSchedule(),
+            members: [_emp('u1', 'Salah Ahmed'), _mgr('u2', 'Mona Adel')],
+            branch: _branch,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(FinalScheduleSheet), findsOneWidget);
+      expect(find.byType(FinalScheduleMobileView), findsNothing);
+
+      // Narrow (phone): the readable day-by-day list shows instead, while the
+      // print sheet is still rendered off-screen for the PNG export.
+      tester.view.physicalSize = const Size(390, 844);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScheduleFinalView(
+            schedule: _richSchedule(),
+            members: [_emp('u1', 'Salah Ahmed'), _mgr('u2', 'Mona Adel')],
+            branch: _branch,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(FinalScheduleMobileView), findsOneWidget);
+      expect(find.byType(FinalScheduleSheet), findsOneWidget); // off-screen
     });
   });
 

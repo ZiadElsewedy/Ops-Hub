@@ -56,9 +56,18 @@ class BranchCubit extends Cubit<BranchState> {
     }
   }
 
-  Future<void> createBranch({required String name, String? location}) =>
+  Future<void> createBranch({
+    required String name,
+    String? location,
+    bool managersCanClock = true,
+  }) =>
       _mutate(() => _repository.createBranch(
-            BranchEntity(id: '', name: name, location: location),
+            BranchEntity(
+              id: '',
+              name: name,
+              location: location,
+              managersCanClock: managersCanClock,
+            ),
           ));
 
   Future<void> editBranch(BranchEntity branch) =>

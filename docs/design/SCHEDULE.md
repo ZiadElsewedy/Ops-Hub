@@ -81,7 +81,7 @@ Pulled from standing owner rulings — these are non-negotiable framing, not asp
 | 13/14 | Workload heatmaps + AI assignment suggestions | WMS analytics. Doubly settled — the lighter-weight version of this (Pillar 3 findings) was itself deleted 2026-07-15 as unwanted. | Explicit owner ask. |
 | 17 | Background isolates / "hundreds of employees" | Premature — not DROP's scale. | Profiler shows real jank on a real branch. |
 | 19 | Offline edit + pending-ops + conflict-resolution/merge | Distributed-systems complexity. Firestore offline persistence already covers reads. | Managers routinely edit on flaky connections AND lose edits. |
-| 20 | PDF / Print / CSV / Excel export | PNG already ships. Format sprawl. | A concrete "I need CSV for payroll" request. |
+| 20 | CSV / Excel export | PNG + **PDF** now ship (2026-08-04). Remaining format sprawl. | A concrete "I need CSV for payroll" request. |
 
 **All ❌ items live in Pillar 7 (Reserve). They are parked, not planned.**
 
@@ -197,9 +197,16 @@ Each pillar states **Goal · Architecture · UX · Logic · Risk · Out-of-scope
 - **UX:** pure presentation — no drag/inspector/health/analytics/suggestions/builder controls. Employee names lead; shift tokens are the scan target; whitespace carries the rest.
 - **Logic:** none new — reads `WeeklyScheduleEntity` / `UserEntity` / `ShiftHours` / `LeaveType` / `ScheduleWeek` / `AppDateFormatter` only.
 - **Risk:** LOW (presentation-only; frozen surfaces untouched).
-- **Out-of-scope (still ❌):** PDF/CSV/Excel + any export-engine work (#20) — **PNG only**, unchanged.
-- **Tests:** `schedule_final_view_test.dart` rewritten (7 — rendering, large roster, empty notes, export layout/landscape, page + responsiveness, filename). Suite **657 pass / 3 pre-existing fail**.
-- **Done:** roster reads as an export-quality sheet; PNG intact; read-only; responsive; tests green; docs updated.
+- **Out-of-scope (still ❌):** CSV/Excel + any export-engine work (#20) — PDF now ships (below); CSV/Excel unchanged.
+
+**Amended 2026-08-04 — mobile view, PDF, scheduled-only roster (owner-flagged from an iPhone):**
+- **Mobile is a different surface.** The 1600px landscape sheet is illegible shrunk to a phone, so on `!context.isDesktop` (<1024) the screen shows **`widgets/final_schedule_mobile_view.dart` (`FinalScheduleMobileView`)** — a day-by-day card list (Morning/Night, each person an **avatar · name · role** row via `UserAvatar`, hours + leave + day-notes inline), read top-to-bottom, no zoom. The toolbar carries a **"Final schedule" title** on mobile (Dashboard shortcut dropped there), and the header meta labels the manager with a colon (`Manager: Name`, not a mid-dot that blended into a doubled "Manager · Manager"). **macOS is untouched** — still the landscape sheet, `FittedBox`-scaled.
+- **Published roster = scheduled people only.** New `scheduledRoster()` in `schedule_helpers.dart` (anyone with ≥1 shift that week, orphans dropped) drives the sheet, the mobile view **and** the PDF — the sheet no longer prints the whole branch directory. The editor still assigns from everyone; only the output is filtered.
+- **Export is a chooser (PNG + PDF).** PNG unchanged (off-screen `RepaintBoundary`→`toImage`, now captured even on mobile where the sheet isn't shown). PDF is a new vector builder **`domain/reporting/schedule_final_pdf.dart` (`buildScheduleFinalPdf`)** — landscape A4, same token logic as the sheet, `pdf` package. Both write beside the other exports and open via `open_filex` on mobile (**ADR-019 delivery** → iOS share/preview → Save to Photos / Files / send), fixing the iOS bug where a PNG written to the nonexistent `getDownloadsDirectory()` landed unreachably in the sandbox. **No new dependencies.**
+- **Editor caching:** `ScheduleCubit.load` gained a **60s freshness window** — a same-(branch, week) revisit within it is a no-op, not a Firestore read on every open. Scope changes, Refresh, pull-to-refresh (`force`) and mutations still refetch.
+- **Mobile weekly editor (owner-approved from a clickable prototype):** the horizontally-scrolling coverage grid was **too tight to edit on a phone**, so on `!context.isDesktop` `ManagerScheduleView` now renders **`widgets/schedule_day_editor.dart` (`ScheduleDayEditor`)** — one day at a time: a day selector (coverage dot per day) + roomy **Morning / Night** cards (real `EmployeeRow` avatars) with move-to-other-shift, remove, an **Add** button (shared `showEmployeePicker` via `_openAssignPicker`), and a **Notes & leave** shortcut (`showDayDetailsSheet`). **Pure presentation** — every edit routes through the *same* validated handlers the desktop grid uses (`_moveChip` / `_removeChip` / `_openChipActions` / `cubit.assign`): move confirms leave clashes, remove warns on unstaffing, undo intact. Grid-only fact chips are dropped on mobile (coverage dots + "Open" tags carry the signal); pending swaps stay reachable. On mobile the controls block **leads the scroll** (`_mobileControls` is the first item of the content ListView, not a pinned header) so it scrolls up and away; desktop keeps its toolbar pinned, and the mobile empty/pick states keep controls pinned. The **All/Morning/Night shift filter is not shown on mobile** (the day editor always shows both shifts, so it was dead UI) — it remains on desktop where it narrows the grid. The **Final view button moved into the app bar** on mobile as an eye icon — `ScheduleFinalViewAction` (in `schedule_final_view.dart`) reads the loaded `ScheduleCubit` state and is added to `BranchScheduleScreen` / `ScheduleManagementScreen` actions when `!isDesktop` (admin: only on the Week tab); desktop keeps its toolbar button. **Desktop keeps the grid + inspector.** Test: `schedule_day_editor_test.dart`.
+- **Tests:** `schedule_final_view_test.dart` (mobile-vs-desktop swap, scheduled-only roster, filename) + toolbar overflow guard; `flutter analyze` clean.
+- **Done:** roster reads as an export-quality sheet; PNG + PDF; phone-native mobile layout; read-only; responsive; tests green; docs updated.
 
 ### Pillar 6 — Motion & Accessibility
 - **Goal:** subtle Apple-philosophy motion + a11y pass across the new surfaces.
@@ -245,4 +252,4 @@ Everything in §3 ❌. **Not built.** Each carries a revisit trigger in the tabl
 ## 7. Open questions to resolve at each pillar's kickoff
 - **P1:** Is Focus Mode global (all screens) or schedule-only? Recommend schedule-first, generalise if it lands well.
 - **P4:** Where do templates live — a dedicated `shift_templates` collection, or a field on branch settings? (Decide at P4 design.) Are templates global or per-branch?
-- **P5:** Is PDF actually wanted, or is PNG enough? (Default: PNG only unless asked.)
+- **P5:** ~~Is PDF actually wanted, or is PNG enough?~~ **Answered 2026-08-04: PDF shipped** alongside PNG (owner asked). CSV/Excel still deferred to #20.

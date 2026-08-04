@@ -145,11 +145,13 @@ class MetricTileRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(child: tiles[i]),
-                const SizedBox(width: AppSpacing.sm),
-                if (i + 1 < tiles.length)
-                  Expanded(child: tiles[i + 1])
-                else
-                  const Spacer(),
+                // An odd last tile spans the full width instead of sitting
+                // beside a `Spacer`. The hole read as a tile that had failed to
+                // load — the one shape on the page with nothing in it.
+                if (i + 1 < tiles.length) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: tiles[i + 1]),
+                ],
               ],
             ),
           ),

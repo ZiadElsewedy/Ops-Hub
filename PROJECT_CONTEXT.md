@@ -156,7 +156,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles | [AUTH](docs/design/AUTH.md) |
 | `profile` | View/edit profile, image uploads, contact & payment details | [AUTH](docs/design/AUTH.md) |
 | `task` | The operations task workflow: create → execute → review | [TASKS](docs/design/TASKS.md) |
-| `schedule` | Weekly roster, shift swaps, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
+| `schedule` | Admin Today coverage across branches, weekly roster, shift swaps, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `requests` | Employee → manager yes/no approvals | [REQUESTS](docs/design/REQUESTS.md) |
 | `cases` | Private employee ↔ manager/admin conversations | [CASES](docs/design/CASES.md) |
@@ -165,7 +165,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `notifications` | Notification inbox + deep-link resolver | [NOTIFICATIONS](docs/design/NOTIFICATIONS.md) |
 | `operations` | Branch Operations cockpit: workload, KPI drills | [TASKS](docs/design/TASKS.md) |
 | `admin` | User administration, Admin Home command center | [DESIGN_SYSTEM](docs/design/DESIGN_SYSTEM.md) |
-| `branch` | Branch CRUD, geofences, swap policy | [ATTENDANCE](docs/design/ATTENDANCE.md) |
+| `branch` | Branch CRUD, geofences, swap policy, manager clock policy | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `statistics` | Role-scoped counts powering all three dashboards | — |
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |

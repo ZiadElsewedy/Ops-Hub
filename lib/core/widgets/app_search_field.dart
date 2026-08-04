@@ -53,14 +53,25 @@ class _AppSearchFieldState extends State<AppSearchField> {
   void initState() {
     super.initState();
     _hasText = _controller.text.isNotEmpty;
+    // Track the controller, not just keystrokes. A caller-owned controller can
+    // be cleared from outside the field — an empty-state "Clear search" action,
+    // a reset button — and keying the clear glyph off `onChanged` alone left it
+    // sitting over an already-empty field until the next keypress.
+    _controller.addListener(_syncHasText);
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_syncHasText);
     _focusNode.removeListener(_onFocusChange);
     if (_ownsFocusNode) _focusNode.dispose();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
+  }
+
+  void _syncHasText() {
+    final has = _controller.text.isNotEmpty;
+    if (has != _hasText && mounted) setState(() => _hasText = has);
   }
 
   void _onFocusChange() {
@@ -70,8 +81,7 @@ class _AppSearchFieldState extends State<AppSearchField> {
   }
 
   void _onChanged(String v) {
-    final has = v.isNotEmpty;
-    if (has != _hasText) setState(() => _hasText = has);
+    _syncHasText();
     widget.onChanged(v);
   }
 

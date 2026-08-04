@@ -1,5 +1,8 @@
+import 'package:drop/core/enums/schedule_day.dart';
+import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
 
 /// Best display name for a user — their display name, falling back to email.
 String userDisplayName(UserEntity u) =>
@@ -61,3 +64,31 @@ List<String> validAssignments(List<String> uids, List<UserEntity> members) =>
 /// references to surface and resolve (never counted as coverage).
 List<String> orphanAssignments(List<String> uids, List<UserEntity> members) =>
     [for (final uid in uids) if (isOrphanAssignment(uid, members)) uid];
+
+/// The employees actually **on the schedule** for [schedule]'s week — anyone
+/// assigned to at least one morning/night slot across the seven days — sorted by
+/// display name.
+///
+/// This is the roster the Final view (and its PNG/PDF exports) publish: a
+/// "who's working this week" sheet, **not** a directory of every branch member.
+/// The editor still shows the whole team (you assign from everyone); the printed
+/// output shows only the people who ended up on it. Orphaned assignments (uids
+/// no longer in [members]) are dropped, exactly as everywhere else coverage is
+/// counted — a stale uid is a broken reference to resolve in the editor, never a
+/// phantom row on the published sheet.
+List<UserEntity> scheduledRoster(
+  WeeklyScheduleEntity schedule,
+  List<UserEntity> members,
+) {
+  final scheduled = <String>{
+    for (final day in ScheduleDay.values)
+      for (final shift in ScheduleShift.values)
+        ...schedule.employeesFor(day, shift),
+  };
+  return [
+    for (final m in members)
+      if (scheduled.contains(m.uid)) m,
+  ]..sort((a, b) => userDisplayName(a)
+      .toLowerCase()
+      .compareTo(userDisplayName(b).toLowerCase()));
+}

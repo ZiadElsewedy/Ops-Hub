@@ -310,6 +310,77 @@ test("implausible clocked-out records use the Dart thresholds", () => {
   );
 });
 
+// Manager attendance is presence tracking: no scheduled window by policy. These
+// mirror the Dart cases in `test/attendance_exception_test.dart` — if the two
+// halves disagree, the persisted ledger and the in-app report describe the same
+// day differently.
+test("a presence-only record with no schedule is not unscheduled work", () => {
+  const zeroTotals = {
+    workedMinutes: 480,
+    lateMinutes: 0,
+    earlyLeaveMinutes: 0,
+    overtimeMinutes: 0,
+    breakMinutes: 0,
+  };
+  assert.deepEqual(
+    classifyExceptions({
+      record: record({
+        presenceOnly: true,
+        scheduledStart: null,
+        scheduledEnd: null,
+        lateMinutes: 0,
+        overtimeMinutes: 0,
+      }),
+      totals: zeroTotals,
+      scheduledStartAtMs: null,
+      scheduledEndAtMs: null,
+    }),
+    [],
+  );
+});
+
+test("a schedule-less record that is NOT presence-only is unscheduled work", () => {
+  assert.deepEqual(
+    classifyExceptions({
+      record: record({
+        scheduledStart: null,
+        scheduledEnd: null,
+        lateMinutes: 0,
+        overtimeMinutes: 0,
+      }),
+      totals: {
+        workedMinutes: 480,
+        lateMinutes: 0,
+        earlyLeaveMinutes: 0,
+        overtimeMinutes: 0,
+        breakMinutes: 0,
+      },
+      scheduledStartAtMs: null,
+      scheduledEndAtMs: null,
+    }),
+    [EXCEPTION_CODES.unscheduledWork],
+  );
+});
+
+test("a short presence-only visit is never implausible against a roster slot", () => {
+  // The exact shape the implausible-record test above flags for an employee.
+  assert.deepEqual(
+    classifyExceptions({
+      record: record({ presenceOnly: true, workedMinutes: 14, lateMinutes: 0, overtimeMinutes: 0 }),
+      totals: {
+        workedMinutes: 14,
+        lateMinutes: 0,
+        earlyLeaveMinutes: 0,
+        overtimeMinutes: 0,
+        breakMinutes: 0,
+      },
+      scheduledStartAtMs: Date.parse("2026-07-30T05:30:00Z"),
+      scheduledEndAtMs: Date.parse("2026-07-30T13:30:00Z"),
+    }),
+    [],
+  );
+});
+
 test("pending corrections are included when the caller supplies open correction ids", () => {
   const rowId = "emp1_20260730_morning";
   const rows = buildExpectedShiftRows({

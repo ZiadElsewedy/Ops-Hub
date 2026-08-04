@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
+import 'package:drop/features/schedule/presentation/pages/schedule_final_view.dart';
 import 'package:drop/features/schedule/presentation/widgets/manager_schedule_view.dart';
 
 /// Manager schedule screen (Phase 7 redesign) — a single operations-control
@@ -37,6 +39,9 @@ class _BranchScheduleScreenState extends State<BranchScheduleScreen> {
       title: 'Schedule',
       constrainContent: false,
       actions: [
+        // On mobile the Final view lives here (app bar) instead of on the
+        // controls block; desktop keeps its toolbar button.
+        if (!context.isDesktop) const ScheduleFinalViewAction(),
         IconButton(
           icon: const Icon(Icons.refresh_rounded,
               color: AppColors.textSecondary),

@@ -29,6 +29,21 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   DateTime _weekStart = ScheduleWeek.currentWeekStart();
   Set<String> _previousSaturdayNight = const {};
 
+  /// When the data currently on screen was last fetched — the freshness clock
+  /// behind [_freshFor]. Null until the first successful load, and reset to null
+  /// on error so a retry always refetches.
+  DateTime? _loadedAt;
+
+  /// How long a just-loaded (branch, week) stays reusable without a refetch.
+  /// Re-opening the schedule within this window is **instant** — the roster
+  /// already on screen is shown as-is instead of firing a Firestore read on
+  /// every single visit (the "it loads every time I click" complaint). Any real
+  /// scope change (branch/week), an explicit [refresh] or pull-to-refresh, and
+  /// every roster mutation still refetch, so a stale window is at most this long
+  /// and only against edits made on another device. Short by design for an
+  /// operations tool.
+  static const Duration _freshFor = Duration(seconds: 60);
+
   ScheduleCubit(this._repository, this._getUsersByBranch, this._templates)
       : super(const ScheduleState.initial());
 
@@ -55,13 +70,26 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   /// current view on screen while refetching — no skeleton flash, the schedule
   /// never "disappears" on navigation. Only a real scope change (different
   /// branch or week) shows the loading state.
-  Future<void> load({required String branchId, DateTime? weekStart}) async {
+  ///
+  /// Re-requesting the scope already on screen while it is still fresh (see
+  /// [_freshFor]) is a **no-op** — the whole point of the freshness window: a
+  /// screen revisit reuses what we have instead of hitting the network on every
+  /// tap. Pass [force] (used by [refresh] and pull-to-refresh) to always
+  /// refetch regardless of freshness.
+  Future<void> load({
+    required String branchId,
+    DateTime? weekStart,
+    bool force = false,
+  }) async {
     final newWeek = ScheduleWeek.startOf(weekStart ?? _weekStart);
     // Silent only when the data already ON SCREEN is the requested scope.
     final showingSameScope = state.maybeWhen(
       loaded: (b, w, _, _, _) => b == branchId && w == newWeek,
       orElse: () => false,
     );
+    final fresh = _loadedAt != null &&
+        DateTime.now().difference(_loadedAt!) < _freshFor;
+    if (showingSameScope && fresh && !force) return;
     _branchId = branchId;
     _weekStart = newWeek;
     if (!showingSameScope) emit(const ScheduleState.loading());
@@ -77,7 +105,10 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   Future<void> selectBranch(String branchId) =>
       load(branchId: branchId, weekStart: _weekStart);
 
-  Future<void> refresh() => load(branchId: _branchId, weekStart: _weekStart);
+  /// User-driven refresh (toolbar button, pull-to-refresh) — always refetches,
+  /// bypassing the freshness window.
+  Future<void> refresh() =>
+      load(branchId: _branchId, weekStart: _weekStart, force: true);
 
   /// Creates an empty schedule for the current (branch, week). The branch's
   /// current shift templates are **snapshotted** onto the new week (Schedule V2
@@ -303,6 +334,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     try {
       if (_branchId.isEmpty) {
         _previousSaturdayNight = const {};
+        _loadedAt = DateTime.now();
         emit(ScheduleState.loaded(
           branchId: _branchId,
           weekStart: _weekStart,
@@ -320,6 +352,7 @@ class ScheduleCubit extends Cubit<ScheduleState> {
       final prevNight = _previousSaturdayNightCrew();
       final results = await Future.wait([schedule, members, prevNight]);
       _previousSaturdayNight = results[2]! as Set<String>;
+      _loadedAt = DateTime.now();
       emit(ScheduleState.loaded(
         branchId: _branchId,
         weekStart: _weekStart,
@@ -327,8 +360,10 @@ class ScheduleCubit extends Cubit<ScheduleState> {
         members: results[1]! as List<UserEntity>,
       ));
     } on Failure catch (e) {
+      _loadedAt = null;
       emit(ScheduleState.error(e.message));
     } catch (_) {
+      _loadedAt = null;
       emit(const ScheduleState.error('Failed to load the schedule.'));
     }
   }

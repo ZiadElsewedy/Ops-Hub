@@ -1,15 +1,15 @@
 import 'package:drop/core/enums/attendance_location_policy.dart';
 import 'package:drop/features/attendance/domain/attendance_config.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 
 /// The attendance module's **policy seam** — the single place that answers
 /// "*is attendance on for this user, and with what rules?*". Pure + framework-free.
 ///
-/// Today every branch runs the standing [AttendanceConfig.defaults] with the
-/// module enabled. This service is deliberately the one point that later reads a
-/// per-branch `branches/{id}/attendanceConfig` (grace windows, geofence, photo,
-/// unscheduled clock-in) into an [AttendanceConfig] — so turning attendance into
-/// branch-configurable data is a change *here*, with no call-site churn.
+/// Every branch runs the standing [AttendanceConfig.defaults], with the branch's
+/// [BranchEntity.managersCanClock] flag and manager schedule flexibility resolved
+/// here. This remains the one point that turns branch and per-role attendance
+/// settings into an [AttendanceConfig] without call-site policy duplication.
 ///
 /// It also owns the module **dark switch** ([isEnabledFor]): while a branch hasn't
 /// opted in, the clock surface is inert and the (future) task-start guard is a
@@ -18,12 +18,20 @@ import 'package:drop/features/auth/domain/entities/user_entity.dart';
 class AttendanceService {
   const AttendanceService();
 
-  /// The resolved attendance rules for [user]'s branch. The single config seam.
-  AttendanceConfig configFor(UserEntity user) =>
-      const AttendanceConfig(enabled: true);
+  /// The resolved attendance rules for [user]'s [branch]. Managers follow the
+  /// branch flag and use presence-style attendance without schedule constraints;
+  /// every other role remains enabled with schedule enforcement. A missing branch
+  /// fails open to preserve the working behaviour of legacy or not-yet-loaded
+  /// branches.
+  AttendanceConfig configFor(UserEntity user, {BranchEntity? branch}) =>
+      AttendanceConfig(
+        enabled: user.role.isManager ? branch?.managersCanClock ?? true : true,
+        enforceSchedule: !user.role.isManager,
+      );
 
   /// Whether the attendance module is live for [user] (the dark-switch gate).
-  bool isEnabledFor(UserEntity user) => configFor(user).enabled;
+  bool isEnabledFor(UserEntity user, {BranchEntity? branch}) =>
+      configFor(user, branch: branch).enabled;
 
   /// The **effective** location policy — the one thing that may gate a punch on
   /// GPS. Callers use this, never `config.locationPolicy` directly.

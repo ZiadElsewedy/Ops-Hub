@@ -55,7 +55,11 @@ class _FakeScheduleCubit extends Cubit<ScheduleState>
   Set<String> get previousSaturdayNight => const {};
 
   @override
-  Future<void> load({required String branchId, DateTime? weekStart}) async {
+  Future<void> load({
+    required String branchId,
+    DateTime? weekStart,
+    bool force = false,
+  }) async {
     emit(const ScheduleState.loading());
     emit(_view);
   }

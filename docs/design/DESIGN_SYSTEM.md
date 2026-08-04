@@ -24,8 +24,9 @@ Every module home is arranged as layers, top to bottom:
    inside a single living border — a fresh signal slides in as a row (`LiveListItem`,
    never the whole surface re-appearing), and cleared signals collapse to a quiet
    footer. `AttentionTile` remains the compact single-cell variant of the same idea.
-2. **L2 — Today's health.** Light supporting metrics (completed today · running ·
-   delayed · approval rate). No charts.
+2. **L2 — Today's health.** Supporting metrics are real `MetricTile` doors when
+   they open a task list (e.g. open · running · due today · done today); duplicate
+   triage figures stay in L1 and read-only context is a quiet caption. No charts.
 3. **L3 — Recent activity.** A clean vertical feed of what's happening.
 4. **L4 — Deep navigation.** Quick actions, module directory, pulses.
 

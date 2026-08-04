@@ -225,9 +225,12 @@ List<ExpectedShiftRow> unscheduledWorkRows({
       scheduledStart: record.scheduledStart,
       scheduledEnd: record.scheduledEnd,
     );
+    // The row still exists — presence work must be visible — but it is only
+    // *flagged* as unscheduled when nobody rostered a shift that was expected.
+    // A presence-only role has no roster to deviate from.
     final exceptions = <AttendanceExceptionCode>{
       ...baseExceptions,
-      AttendanceExceptionCode.unscheduledWork,
+      if (!record.presenceOnly) AttendanceExceptionCode.unscheduledWork,
     }.toList()..sort((a, b) => a.index.compareTo(b.index));
 
     rows.add(
