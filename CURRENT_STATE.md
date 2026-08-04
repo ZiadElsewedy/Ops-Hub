@@ -627,6 +627,12 @@ pass an unscheduled punch existed in Firestore and was invisible on every manage
 surface. Geofence resolution moved ahead of the schedule lookup so an unpublished
 week does not block the GPS gate for the wrong reason.
 
+**Manager attendance is presence-style (2026-08-04).** `AttendanceService` resolves
+`enforceSchedule: false` for managers, so roster presence and early clock-in timing
+do not refuse their punches. The branch `managersCanClock` toggle, active-account,
+leave, duplicate-punch, and GPS/geofence gates still apply. Employees retain the
+default schedule enforcement; `AttendanceCalculator` remains unchanged.
+
 ### Removed — do not re-add
 
 | Feature | Removed | Why |

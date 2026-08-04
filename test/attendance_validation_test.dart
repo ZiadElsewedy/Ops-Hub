@@ -17,6 +17,10 @@ import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 
 void main() {
   const enabled = AttendanceConfig(enabled: true);
+  const managerFlexible = AttendanceConfig(
+    enabled: true,
+    enforceSchedule: false,
+  );
   final start = DateTime(2026, 7, 11, 8, 30);
   final end = DateTime(2026, 7, 11, 16, 30);
 
@@ -124,6 +128,84 @@ void main() {
 
     test('no window enforced when now/scheduledStart are absent', () {
       expect(check(now: null, scheduledStart: null).allowed, isTrue);
+    });
+
+    // No manager-specific GPS test lives here on purpose: `checkGpsFix` takes no
+    // `AttendanceConfig`, so the geofence gate is role-independent by
+    // construction and a "manager" variant would be a byte-identical copy of the
+    // cases in the `checkGpsFix` group below.
+    group('manager presence-style attendance', () {
+      test('allows clock-in without a rostered shift when unscheduled is off',
+          () {
+        expect(
+          check(
+            shift: null,
+            config: managerFlexible.copyWith(allowUnscheduledClockIn: false),
+          ).allowed,
+          isTrue,
+        );
+      });
+
+      test('allows clock-in at arbitrary times outside the early window', () {
+        final scheduledStart = DateTime(2026, 7, 13, 12, 0);
+        for (final now in [
+          DateTime(2026, 7, 13, 5, 0),
+          DateTime(2026, 7, 13, 15, 0),
+          DateTime(2026, 7, 13, 22, 0),
+        ]) {
+          expect(
+            check(
+              now: now,
+              scheduledStart: scheduledStart,
+              config: managerFlexible,
+            ).allowed,
+            isTrue,
+            reason: 'manager clock-in at $now should not be schedule-gated',
+          );
+        }
+      });
+
+      test('keeps the enabled gate', () {
+        expect(
+          check(config: const AttendanceConfig(enforceSchedule: false)).reason,
+          AttendanceBlock.notEnabled,
+        );
+      });
+
+      test('keeps the open-session gate', () {
+        expect(
+          check(existing: record(clockIn: start), config: managerFlexible).reason,
+          AttendanceBlock.alreadyClockedIn,
+        );
+      });
+
+      test('keeps the completed-session gate', () {
+        expect(
+          check(
+            existing: record(
+              clockIn: start,
+              clockOut: end,
+              status: AttendanceStatus.completed,
+            ),
+            config: managerFlexible,
+          ).reason,
+          AttendanceBlock.alreadyClockedOut,
+        );
+      });
+
+      test('keeps the active-account gate', () {
+        expect(
+          check(userActive: false, config: managerFlexible).reason,
+          AttendanceBlock.userDisabled,
+        );
+      });
+
+      test('keeps the leave gate', () {
+        expect(
+          check(leave: LeaveType.sick, config: managerFlexible).reason,
+          AttendanceBlock.onLeave,
+        );
+      });
     });
   });
 
@@ -300,12 +382,26 @@ void main() {
       expect(service.configFor(manager, branch: clockEnabled).enabled, isTrue);
     });
 
+    test('manager does not enforce the schedule', () {
+      expect(
+        service.configFor(manager, branch: clockEnabled).enforceSchedule,
+        isFalse,
+      );
+    });
+
     test('manager fails open while the branch is unavailable', () {
       expect(service.configFor(manager).enabled, isTrue);
     });
 
     test('employee ignores the manager branch flag', () {
       expect(service.configFor(employee, branch: clockDisabled).enabled, isTrue);
+    });
+
+    test('employee enforces the schedule', () {
+      expect(
+        service.configFor(employee, branch: clockDisabled).enforceSchedule,
+        isTrue,
+      );
     });
   });
 
@@ -339,6 +435,13 @@ void main() {
 
     test('allowed for an open clocked-in session', () {
       expect(check(record(clockIn: start)).allowed, isTrue);
+    });
+
+    test('manager presence attendance can clock out normally', () {
+      expect(
+        check(record(clockIn: start), config: managerFlexible).allowed,
+        isTrue,
+      );
     });
   });
 }

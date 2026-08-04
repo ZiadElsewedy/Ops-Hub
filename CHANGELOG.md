@@ -14,6 +14,18 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Manager attendance is presence tracking (feature; LOW risk)
+
+- Managers may clock in at any time, with or without a rostered shift. The policy
+  is resolved solely through `AttendanceService.configFor` as
+  `AttendanceConfig.enforceSchedule: false`; employees keep the default schedule
+  requirement and early clock-in window unchanged.
+- All non-schedule gates remain shared: branch manager-clock toggle, active account,
+  leave, duplicate-punch protections, and GPS/geofence validation. Clock-out and
+  worked-minute calculation are unchanged.
+
+---
+
 ## 2026-08-04 — Branch-level manager clock policy (feature; MED risk)
 
 - Admins can choose whether managers at each branch may clock in/out. The new
