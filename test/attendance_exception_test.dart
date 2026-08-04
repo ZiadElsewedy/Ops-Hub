@@ -130,6 +130,89 @@ void main() {
       );
     });
 
+    // Presence-only records (managers) have no schedule *by policy*. They must
+    // never be filed as anomalies, or reporting drops them from present/absent
+    // counts and managers vanish from attendance stats.
+    group('presence-only records', () {
+      final date = DateTime(2026, 7, 26);
+
+      AttendanceEntity presence({
+        DateTime? clockIn,
+        DateTime? clockOut,
+        AttendanceStatus status = AttendanceStatus.completed,
+      }) =>
+          AttendanceEntity(
+            id: attendanceDocId(
+                uid: 'm1', date: date, shift: ScheduleShift.morning),
+            userId: 'm1',
+            branchId: 'b1',
+            shift: ScheduleShift.morning,
+            date: date,
+            presenceOnly: true,
+            clockIn: clockIn,
+            clockOut: clockOut,
+            status: status,
+          );
+
+      test('a schedule-less presence record is not unscheduled work', () {
+        final r = presence(
+          clockIn: DateTime(2026, 7, 26, 9, 0),
+          clockOut: DateTime(2026, 7, 26, 17, 0),
+        );
+        expect(
+          classifyExceptions(
+            record: r,
+            totals: AttendanceCalculator.forEntity(r, DateTime(2026, 7, 26, 18)),
+            scheduledStart: null,
+            scheduledEnd: null,
+          ),
+          isNot(contains(AttendanceExceptionCode.unscheduledWork)),
+        );
+      });
+
+      test('a schedule-less EMPLOYEE record is still unscheduled work', () {
+        final r = AttendanceEntity(
+          id: attendanceDocId(
+              uid: 'e1', date: date, shift: ScheduleShift.morning),
+          userId: 'e1',
+          branchId: 'b1',
+          shift: ScheduleShift.morning,
+          date: date,
+          clockIn: DateTime(2026, 7, 26, 9, 0),
+          clockOut: DateTime(2026, 7, 26, 17, 0),
+          status: AttendanceStatus.completed,
+        );
+        expect(
+          classifyExceptions(
+            record: r,
+            totals: AttendanceCalculator.forEntity(r, DateTime(2026, 7, 26, 18)),
+            scheduledStart: null,
+            scheduledEnd: null,
+          ),
+          contains(AttendanceExceptionCode.unscheduledWork),
+        );
+      });
+
+      test('a short presence visit is never implausible against a roster slot',
+          () {
+        // The same 1-minute-on-an-8-hour-slot shape the first test in this file
+        // flags for an employee.
+        final r = presence(
+          clockIn: DateTime(2026, 7, 26, 14, 14),
+          clockOut: DateTime(2026, 7, 26, 14, 15),
+        );
+        expect(
+          classifyExceptions(
+            record: r,
+            totals: AttendanceCalculator.forEntity(r, DateTime(2026, 7, 26, 18)),
+            scheduledStart: DateTime(2026, 7, 26, 8, 30),
+            scheduledEnd: DateTime(2026, 7, 26, 16, 30),
+          ),
+          isNot(contains(AttendanceExceptionCode.implausibleRecord)),
+        );
+      });
+    });
+
     test('blocksClose is true only for close-blocking exception codes', () {
       expect(AttendanceExceptionCode.missingPunch.blocksClose, isTrue);
       expect(AttendanceExceptionCode.implausibleRecord.blocksClose, isTrue);

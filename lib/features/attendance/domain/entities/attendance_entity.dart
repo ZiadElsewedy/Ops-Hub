@@ -45,9 +45,23 @@ class AttendanceEntity with _$AttendanceEntity {
 
     /// The scheduled start / end **instants**, snapshotted at clock-in from the
     /// resolved `ShiftHours` so history stays stable even if the roster is later
-    /// edited. Null for an unscheduled clock-in.
+    /// edited. Null for an unscheduled clock-in, and always null when
+    /// [presenceOnly].
     DateTime? scheduledStart,
     DateTime? scheduledEnd,
+
+    /// **Presence tracking, by policy** — this record is not measured against a
+    /// roster at all. Set for managers, whose attendance answers "were they
+    /// here" rather than "did they work their shift": worked minutes run
+    /// clock-in → clock-out, and late / early-leave / overtime are meaningless
+    /// and stay 0.
+    ///
+    /// This exists because a missing [scheduledStart] alone is ambiguous. It
+    /// otherwise reads as `unscheduledWork` — an **exception**, meaning someone
+    /// worked a shift nobody rostered — which reporting excludes from
+    /// present/absent counts. Without this flag every manager day would be
+    /// filed as an anomaly and managers would vanish from attendance stats.
+    @Default(false) bool presenceOnly,
     DateTime? clockIn,
     DateTime? clockOut,
 
@@ -120,7 +134,10 @@ class AttendanceEntity with _$AttendanceEntity {
 
   /// True when this record was created without a rostered shift (the scheduled
   /// window is unknown) — surfaces an "unscheduled" hint.
-  bool get isUnscheduled => scheduledStart == null;
+  ///
+  /// A [presenceOnly] record is **not** unscheduled: it has no schedule by
+  /// policy, not by accident, so it is never an anomaly to explain.
+  bool get isUnscheduled => scheduledStart == null && !presenceOnly;
 
   // ── GPS verification (Phase 3) ──
   bool get isClockInVerified => clockInVerification?.verified ?? false;

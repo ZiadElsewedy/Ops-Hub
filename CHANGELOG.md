@@ -14,6 +14,35 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-04 — Manager records carry no schedule at all (feature; MED risk)
+
+- A manager's attendance record is now created with **no `scheduledStart` /
+  `scheduledEnd`**, even when they are on the roster. Worked hours run clock-in →
+  clock-out and late / early-leave / overtime stay 0. `AttendanceCalculator`
+  needed no change: it already measures from `clockIn` when there is no
+  scheduled window, which is exactly presence tracking.
+- New `AttendanceEntity.presenceOnly` (default false, absent = false for every
+  existing record). **A missing `scheduledStart` alone was not enough**: it reads
+  as `unscheduledWork` — an *exception* meaning "worked a shift nobody rostered"
+  — and reporting drops unscheduled rows from present/absent counts. Without the
+  flag every manager day would have been filed as an anomaly and managers would
+  have vanished from attendance stats.
+- Reporting now treats presence rows as real work that is **not roster
+  adherence**: they keep their row and contribute worked minutes, but sit out of
+  both sides of the show-up rate. Counting them present without a matching
+  expectation would push that rate above 100%; counting them expected would
+  invent a shift nobody scheduled.
+- The roster-length implausibility check ("long shift, almost no work") is
+  skipped for presence records — the question has no meaning without a roster.
+
+⚠️ **The ledger has a server half.** `functions/attendance_expectation.js`
+mirrors the same classification, and both sides now check `presenceOnly`. They
+must stay in agreement or the persisted ledger and the in-app report describe
+the same day differently. **Not deployed** — `firebase deploy --only functions`
+is still pending for this change.
+
+---
+
 ## 2026-08-04 — Manager attendance is presence tracking (feature; LOW risk)
 
 - Managers may clock in at any time, with or without a rostered shift. The policy

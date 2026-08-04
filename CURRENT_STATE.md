@@ -627,6 +627,18 @@ pass an unscheduled punch existed in Firestore and was invisible on every manage
 surface. Geofence resolution moved ahead of the schedule lookup so an unpublished
 week does not block the GPS gate for the wrong reason.
 
+**Manager records carry no schedule (2026-08-04).** A manager's record is written with
+`scheduledStart`/`scheduledEnd` **null** even when they are rostered, plus
+`presenceOnly: true`. Worked hours are clock-in → clock-out; late/early/overtime stay 0
+(`AttendanceCalculator` was already correct for a null window — it needed no change).
+⚠️ **`presenceOnly` is load-bearing, not decorative:** a null `scheduledStart` alone reads
+as `unscheduledWork`, an *exception*, and reporting excludes unscheduled rows from
+present/absent — so without the flag every manager day is an anomaly and managers vanish
+from the stats. Presence rows contribute worked minutes but stay out of both sides of the
+show-up rate (counting them present-without-expected pushes it over 100%). ⚠️ **The ledger
+has a server half** — `functions/attendance_expectation.js` mirrors the same rule and the
+two must agree; **not yet deployed**.
+
 **Manager attendance is presence-style (2026-08-04).** `AttendanceService` resolves
 `enforceSchedule: false` for managers, so roster presence and early clock-in timing
 do not refuse their punches. The branch `managersCanClock` toggle, active-account,

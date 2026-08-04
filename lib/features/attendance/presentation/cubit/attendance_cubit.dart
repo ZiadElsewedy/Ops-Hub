@@ -404,6 +404,11 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
     _setBusy(true);
     try {
+      // Presence-style roles (managers) never carry a scheduled window, even
+      // when they happen to be on the roster — their attendance answers "were
+      // they here", so a schedule would only re-introduce the early/late
+      // semantics the flexible mode exists to remove.
+      final presenceOnly = !_config.enforceSchedule;
       final record = AttendanceEntity(
         id: id,
         userId: user.uid,
@@ -411,8 +416,9 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         branchId: user.branchId,
         shift: shift,
         date: ctx.todayDate,
-        scheduledStart: ctx.scheduledStart,
-        scheduledEnd: ctx.scheduledEnd,
+        scheduledStart: presenceOnly ? null : ctx.scheduledStart,
+        scheduledEnd: presenceOnly ? null : ctx.scheduledEnd,
+        presenceOnly: presenceOnly,
         // A placeholder — the datasource overrides it with a server timestamp.
         clockIn: _now(),
         clockInVerification: gps.verification,
@@ -506,9 +512,11 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         shift: shift,
         date: ctx.todayDate,
         // No scheduled window — this is what marks the shift unscheduled
-        // everywhere downstream.
+        // everywhere downstream. For a presence-style role it is not an
+        // anomaly at all, so the flag rides along to say so.
         scheduledStart: null,
         scheduledEnd: null,
+        presenceOnly: !_config.enforceSchedule,
         clockIn: now, // placeholder; the datasource writes a server timestamp
         clockInVerification: gps.verification,
         notes: trimmed,

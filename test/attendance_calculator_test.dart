@@ -153,4 +153,61 @@ void main() {
     final direct = run(clockIn: start, clockOut: end);
     expect(direct.workedMinutes, 480);
   });
+
+  // Manager attendance is presence tracking: the record carries no scheduled
+  // window at all, so the calculator needs no special case — worked time is
+  // simply clock-in → clock-out and every schedule-derived number stays 0.
+  group('presence-style records (no scheduled window)', () {
+    AttendanceTotals presence({
+      required DateTime clockIn,
+      DateTime? clockOut,
+      DateTime? now,
+    }) =>
+        AttendanceCalculator.compute(
+          scheduledStart: null,
+          scheduledEnd: null,
+          clockIn: clockIn,
+          clockOut: clockOut,
+          breaks: const [],
+          now: now ?? clockOut ?? DateTime(2026, 7, 11, 23, 59),
+        );
+
+    test('worked time runs clock-in → clock-out with no clamp', () {
+      final t = presence(
+        clockIn: DateTime(2026, 7, 11, 6, 0),
+        clockOut: DateTime(2026, 7, 11, 11, 30),
+      );
+      expect(t.workedMinutes, 330);
+    });
+
+    test('an arrival hours before any shift is neither clamped nor late', () {
+      // The same instants that would clamp to 08:30 and read as early for a
+      // rostered employee.
+      final t = presence(
+        clockIn: DateTime(2026, 7, 11, 5, 0),
+        clockOut: DateTime(2026, 7, 11, 9, 0),
+      );
+      expect(t.workedMinutes, 240, reason: 'measured from the real clock-in');
+      expect(t.lateMinutes, 0);
+    });
+
+    test('a late-evening session carries no early-leave or overtime', () {
+      final t = presence(
+        clockIn: DateTime(2026, 7, 11, 20, 0),
+        clockOut: DateTime(2026, 7, 11, 23, 0),
+      );
+      expect(t.workedMinutes, 180);
+      expect(t.lateMinutes, 0);
+      expect(t.earlyLeaveMinutes, 0);
+      expect(t.overtimeMinutes, 0);
+    });
+
+    test('an open session still measures live to now', () {
+      final t = presence(
+        clockIn: DateTime(2026, 7, 11, 9, 0),
+        now: DateTime(2026, 7, 11, 12, 0),
+      );
+      expect(t.workedMinutes, 180);
+    });
+  });
 }
