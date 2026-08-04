@@ -244,4 +244,35 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 400));
   });
+
+  testWidgets('Admin Home is the phone\'s only door to attendance', (
+    tester,
+  ) async {
+    // Phone WIDTH (so this is the mobile layout, where the row matters) but a
+    // tall viewport, so the whole page builds. Operations sits near the foot of
+    // a ListView, which doesn't build children that far off-screen — and
+    // scrolling there with a fling leaves a ballistic simulation pending that
+    // the test can't drain.
+    tester.view.physicalSize = const Size(390, 2600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final taskCubit = _FakeTaskCubit(const []);
+    addTearDown(taskCubit.close);
+
+    await tester.pumpWidget(_host(taskCubit));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // `/attendance/reports` is the root of the whole attendance module (the
+    // workspace, the review ledger, the weekly/monthly reports all hang off
+    // it). For an admin it is otherwise reachable ONLY from the desktop
+    // sidebar, and the phone's bottom nav is Home · Tasks · Schedule · Chat —
+    // so deleting this row silently strands the entire module on mobile.
+    expect(find.text('Attendance & reports'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 400));
+  });
 }

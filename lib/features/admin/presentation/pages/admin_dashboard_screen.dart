@@ -527,6 +527,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       accent: AppColors.textSecondary,
                       onTap: () => context.push(RouteNames.adminSchedule),
                     ),
+                    // A door, not a figure — attendance is a longitudinal
+                    // record across every branch, so there is no honest single
+                    // number to print beside it (same reasoning as the
+                    // manager's entry).
+                    //
+                    // This is the ONLY way into attendance on a phone. The
+                    // whole module — the workspace, the review ledger, the
+                    // weekly/monthly reports — hangs off `/attendance/reports`,
+                    // and that route was otherwise reachable for an admin only
+                    // from the DESKTOP sidebar. The manager has had this entry
+                    // since their home was rebuilt; the admin never did.
+                    DigestEntry(
+                      icon: Icons.fingerprint_rounded,
+                      label: 'Attendance & reports',
+                      onTap: () => context.push(RouteNames.attendanceReports),
+                    ),
                   ],
                 );
               },
