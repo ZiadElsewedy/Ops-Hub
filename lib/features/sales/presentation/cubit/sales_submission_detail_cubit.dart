@@ -7,6 +7,7 @@ import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dar
 import 'package:drop/features/sales/domain/usecases/edit_approved_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/request_sales_correction.dart';
+import 'package:drop/features/sales/domain/usecases/reopen_sales_submission.dart';
 
 sealed class SalesSubmissionDetailState {
   const SalesSubmissionDetailState();
@@ -44,6 +45,7 @@ class SalesSubmissionDetailCubit extends Cubit<SalesSubmissionDetailState> {
     required this._reject,
     required this._requestCorrection,
     required this._editApproved,
+    required this._reopen,
     DailySalesSubmissionEntity? seed,
   }) : _id = submissionId,
        super(
@@ -70,6 +72,7 @@ class SalesSubmissionDetailCubit extends Cubit<SalesSubmissionDetailState> {
   final RejectSalesSubmission _reject;
   final RequestSalesCorrection _requestCorrection;
   final EditApprovedSalesSubmission _editApproved;
+  final ReopenSalesSubmission _reopen;
   StreamSubscription<DailySalesSubmissionEntity?>? _sub;
   bool _busy = false;
   Future<void> _run(Future<void> Function() work, String success) async {
@@ -123,6 +126,10 @@ class SalesSubmissionDetailCubit extends Cubit<SalesSubmissionDetailState> {
       expectedRevision: revision,
     ),
     'Approved amount updated.',
+  );
+  Future<void> reopen(String reason) => _run(
+    () => _reopen(submissionId: _id, reason: reason),
+    'Sales submission reopened.',
   );
   @override
   Future<void> close() async {

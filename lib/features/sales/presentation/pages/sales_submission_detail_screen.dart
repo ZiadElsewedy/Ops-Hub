@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/theme/app_spacing.dart';
+import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
@@ -136,6 +137,20 @@ class SalesSubmissionDetailScreen extends StatelessWidget {
                         }
                       },
                 child: const Text('Edit amount'),
+              ),
+            if (context.isAdmin && sale.isTerminal)
+              TextButton(
+                onPressed: loaded.busy
+                    ? null
+                    : () async {
+                        final reason = await showSalesReasonSheet(
+                          context,
+                          title: 'Reopen sales submission',
+                          confirmLabel: 'Reopen',
+                        );
+                        if (reason != null) cubit.reopen(reason);
+                      },
+                child: const Text('Reopen'),
               ),
           ],
         );

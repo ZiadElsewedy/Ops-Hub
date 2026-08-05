@@ -74,6 +74,7 @@ class RouteNames {
   static const String requestsCreate = '/requests/create';
   static const String salesSubmit = '/sales/submit';
   static const String salesManage = '/sales';
+  static const String salesAdminOverview = '/sales/admin';
   static const String salesHistory = '/sales/history';
   static const String salesSubmissionDetailPattern = '/sales/submission/:submissionId';
   static String salesSubmissionDetail(String submissionId) => '/sales/submission/$submissionId';

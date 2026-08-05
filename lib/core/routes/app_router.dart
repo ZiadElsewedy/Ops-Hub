@@ -52,6 +52,7 @@ import 'package:drop/features/sales/presentation/pages/sales_submission_screen.d
 import 'package:drop/features/sales/presentation/pages/sales_manager_dashboard_screen.dart';
 import 'package:drop/features/sales/presentation/pages/sales_history_screen.dart';
 import 'package:drop/features/sales/presentation/pages/sales_submission_detail_screen.dart';
+import 'package:drop/features/sales/presentation/pages/sales_admin_overview_screen.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
@@ -137,7 +138,11 @@ GoRouter createRouter(
             pageBuilder: (context, state) =>
                 _fadeTransition(state, const ManagerShell()),
           ),
-          GoRoute(path: RouteNames.salesManage, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(authCubit.state.maybeWhen(authenticated: (user) => user.branchId ?? '', orElse: () => '')), child: const SalesManagerDashboardScreen()))),
+          GoRoute(path: RouteNames.salesManage, pageBuilder: (context, state) {
+            final branchId = state.uri.queryParameters['branchId'] ?? authCubit.state.maybeWhen(authenticated: (user) => user.branchId, orElse: () => null) ?? '';
+            return _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(branchId), child: SalesManagerDashboardScreen(branchId: branchId)));
+          }),
+          GoRoute(path: RouteNames.salesAdminOverview, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesAdminOverviewCubit(), child: const SalesAdminOverviewScreen()))),
           GoRoute(path: RouteNames.salesHistory, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(authCubit.state.maybeWhen(authenticated: (user) => user.branchId ?? '', orElse: () => '')), child: const SalesHistoryScreen()))),
           GoRoute(path: RouteNames.salesSubmissionDetailPattern, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesSubmissionDetailCubit(state.pathParameters['submissionId'] ?? ''), child: SalesSubmissionDetailScreen(submissionId: state.pathParameters['submissionId'] ?? '')))),
           // ─── Tasks (Phase 3) ───────────────────────────────────────
@@ -507,6 +512,7 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
     // areas admit admins too. The employee home (/) is employee-only.
     // Shared routes (/profile, /settings) stay open to all roles.
     if (_isAdminArea(loc) && !user.role.isAdmin) return roleHome;
+    if (loc == RouteNames.salesAdminOverview && !user.role.isAdmin) return roleHome;
     if (_isManagerArea(loc) && !(user.role.isManager || user.role.isAdmin)) {
       return roleHome;
     }

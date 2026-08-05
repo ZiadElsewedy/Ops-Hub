@@ -57,6 +57,7 @@ import 'package:drop/features/sales/domain/usecases/reopen_sales_submission.dart
 import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_submission_detail_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_admin_overview_cubit.dart';
 import 'package:drop/features/admin/data/datasources/user_admin_remote_datasource.dart';
 import 'package:drop/features/admin/data/repositories/user_admin_repository_impl.dart';
 import 'package:drop/features/admin/domain/repositories/user_admin_repository.dart';
@@ -482,8 +483,11 @@ class AppDependencies {
   static SalesManagerDashboardCubit createSalesManagerDashboardCubit(String branchId) =>
       SalesManagerDashboardCubit(repository: salesRepository, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, setTarget: setBranchMonthlyTarget);
 
+  static SalesAdminOverviewCubit createSalesAdminOverviewCubit() =>
+      SalesAdminOverviewCubit(repository: salesRepository);
+
   static SalesSubmissionDetailCubit createSalesSubmissionDetailCubit(String submissionId) =>
-      SalesSubmissionDetailCubit(submissionId: submissionId, repository: salesRepository, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission);
+      SalesSubmissionDetailCubit(submissionId: submissionId, repository: salesRepository, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, reopen: reopenSalesSubmission);
 
   /// Builds a fresh Attendance History ledger cubit — the employee's own history
   /// ([AttendanceHistoryMode.self]) or a manager/admin branch review

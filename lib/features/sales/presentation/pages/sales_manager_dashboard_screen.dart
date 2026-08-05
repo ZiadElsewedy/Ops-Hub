@@ -20,7 +20,8 @@ import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.d
 import 'package:drop/features/sales/presentation/widgets/sales_target_editor_sheet.dart';
 
 class SalesManagerDashboardScreen extends StatefulWidget {
-  const SalesManagerDashboardScreen({super.key});
+  const SalesManagerDashboardScreen({super.key, this.branchId});
+  final String? branchId;
   @override
   State<SalesManagerDashboardScreen> createState() =>
       _SalesManagerDashboardScreenState();
@@ -28,7 +29,7 @@ class SalesManagerDashboardScreen extends StatefulWidget {
 
 class _SalesManagerDashboardScreenState
     extends State<SalesManagerDashboardScreen> {
-  String? get _branchId => context.currentUser?.branchId;
+  String? get _branchId => widget.branchId ?? context.currentUser?.branchId;
   void _load() {
     final id = _branchId;
     if (id != null && id.isNotEmpty) {
