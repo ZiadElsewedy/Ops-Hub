@@ -154,6 +154,12 @@ class _FakeSalesMonthCubit extends Cubit<SalesMonthState>
     bool force = false,
   }) async {}
   @override
+  Future<void> loadForBranch({
+    required String branchId,
+    DateTime? now,
+    bool force = false,
+  }) async {}
+  @override
   Future<void> submitToday({
     required int amountPiastres,
     required UserEntity user,

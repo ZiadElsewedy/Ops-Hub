@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_typography.dart';
@@ -10,23 +7,24 @@ import 'package:drop/core/widgets/branch_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:drop/features/schedule/domain/reporting/final_schedule_grid.dart';
 import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
 
-/// The **printable final schedule** (Schedule V2 · Pillar 4) — a premium,
-/// read-only, export-ready roster styled like a modern spreadsheet (Apple
-/// Numbers / Notion tables) in DROP's monochrome language.
+/// The **printable final schedule** (Schedule V2 · Pillar 5) — a premium,
+/// read-only, export-ready roster styled like a modern spreadsheet in DROP's
+/// monochrome language.
 ///
-/// This is **not** an editor: no drag/drop, no inspector, no health, no
-/// analytics, no builder controls. One employee per row, one day per column, a
-/// single scannable token per cell (`M` · `N` · `OFF` · `LEAVE` · `VAC`).
-/// Typography and whitespace carry the hierarchy — employee names lead, shift
-/// tokens are the scan target. Presentation only: it reads the existing schedule
-/// models and derives nothing new.
+/// Owner-directed layout (2026-08-05): **shifts down the side, days across the
+/// top, people named inside each cell** — the shape a manager already keeps in a
+/// spreadsheet. Three rows carry the week: **Morning · Night · Off**, each day a
+/// column, each cell the list of names on that slot. Not an editor: no
+/// drag/drop, inspector, health or analytics. Content comes from the single
+/// pure [buildFinalScheduleGrid], so this sheet, the PDF and the Excel export
+/// never disagree.
 ///
 /// Designed at a fixed [width] (a landscape document) with a natural height that
-/// grows with the roster, so it exports cleanly to PNG / print / PDF at a
-/// consistent proportion regardless of screen.
+/// grows with the busiest column, so it exports cleanly to PNG / print / PDF at
+/// a consistent proportion regardless of screen.
 class FinalScheduleSheet extends StatelessWidget {
   const FinalScheduleSheet({
     super.key,
@@ -54,17 +52,13 @@ class FinalScheduleSheet extends StatelessWidget {
   static const _paper = Color(0xFF0B0B0D);
   static const _hairline = Color(0x14FFFFFF);
   static const _zebra = Color(0x05FFFFFF);
-  static const _employeeFlex = 26;
-  static const _dayFlex = 11;
+  static const _shiftFlex = 15;
+  static const _dayFlex = 12;
 
   @override
   Widget build(BuildContext context) {
     final gen = generatedAt ?? DateTime.now();
-    // Only the people actually on the schedule this week — the published sheet
-    // is a "who's working" roster, not the whole branch directory.
-    final roster = scheduledRoster(schedule, members);
-    final hasNotes =
-        ScheduleDay.values.any((d) => schedule.noteFor(d) != null);
+    final grid = buildFinalScheduleGrid(schedule, members);
 
     return Container(
       width: width,
@@ -76,9 +70,9 @@ class FinalScheduleSheet extends StatelessWidget {
         children: [
           _header(gen),
           const SizedBox(height: 26),
-          _table(roster, hasNotes),
+          _table(grid),
           const SizedBox(height: 26),
-          _legend(),
+          _legend(grid),
           const SizedBox(height: 22),
           _footer(gen),
         ],
@@ -175,7 +169,7 @@ class FinalScheduleSheet extends StatelessWidget {
   }
 
   // ── The table ──────────────────────────────────────────────────
-  Widget _table(List<UserEntity> roster, bool hasNotes) {
+  Widget _table(FinalScheduleGrid grid) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: AppRadius.cardAll,
@@ -185,19 +179,42 @@ class FinalScheduleSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _headerRow(),
-          if (roster.isEmpty)
+          _headerRow(grid),
+          if (grid.isEmpty)
             _emptyRow()
-          else
-            for (var i = 0; i < roster.length; i++)
-              _employeeRow(roster[i], zebra: i.isOdd),
-          if (hasNotes) _notesRow(),
+          else ...[
+            _shiftRow(
+              grid,
+              label: 'Morning',
+              hours: grid.morningHours.format(),
+              cellsOf: (d) => d.morning,
+            ),
+            _shiftRow(
+              grid,
+              label: 'Night',
+              hours: _nightHoursLabel(grid),
+              cellsOf: (d) => d.night,
+              zebra: true,
+            ),
+            if (grid.hasOff)
+              _shiftRow(
+                grid,
+                label: 'Off',
+                hours: null,
+                muted: true,
+                cellsOf: (d) => [
+                  for (final p in d.off)
+                    p.tag.isEmpty ? p.name : '${p.name} (${p.tag})',
+                ],
+              ),
+          ],
+          if (grid.hasNotes) _notesRow(grid),
         ],
       ),
     );
   }
 
-  Widget _headerRow() {
+  Widget _headerRow(FinalScheduleGrid grid) {
     return Container(
       decoration: const BoxDecoration(
         color: _zebra,
@@ -208,13 +225,13 @@ class FinalScheduleSheet extends StatelessWidget {
         child: Row(
           children: [
             _cell(
-              flex: _employeeFlex,
+              flex: _shiftFlex,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('EMPLOYEE', style: _colHeadStyle),
+                child: Text('SHIFT', style: _colHeadStyle),
               ),
             ),
-            for (final day in ScheduleDay.values)
+            for (final d in grid.days)
               _cell(
                 flex: _dayFlex,
                 divided: true,
@@ -222,10 +239,10 @@ class FinalScheduleSheet extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(day.shortLabel.toUpperCase(), style: _colHeadStyle),
+                    Text(d.day.shortLabel.toUpperCase(), style: _colHeadStyle),
                     const SizedBox(height: 2),
                     Text(
-                      '${schedule.weekStart.add(Duration(days: day.index)).day}',
+                      '${d.date.day}',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.textTertiary,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -240,19 +257,28 @@ class FinalScheduleSheet extends StatelessWidget {
     );
   }
 
-  Widget _employeeRow(UserEntity member, {required bool zebra}) {
-    final position = member.position?.trim();
+  /// One shift row: a label + hours on the left, then the people on that slot
+  /// named inside each day cell. Height grows with the busiest column.
+  Widget _shiftRow(
+    FinalScheduleGrid grid, {
+    required String label,
+    required String? hours,
+    required List<String> Function(FinalScheduleDay) cellsOf,
+    bool zebra = false,
+    bool muted = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: zebra ? _zebra : null,
         border: const Border(top: BorderSide(color: _hairline)),
       ),
-      child: SizedBox(
-        height: 56,
+      constraints: const BoxConstraints(minHeight: 64),
+      child: IntrinsicHeight(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _cell(
-              flex: _employeeFlex,
+              flex: _shiftFlex,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Column(
@@ -260,33 +286,45 @@ class FinalScheduleSheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      userDisplayName(member),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.label.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            label,
+                            style: AppTypography.label.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          if (hours != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              hours,
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textTertiary,
+                                height: 1.3,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    if (position != null && position.isNotEmpty)
-                      Text(
-                        position,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption
-                            .copyWith(color: AppColors.textTertiary),
-                      ),
                   ],
                 ),
               ),
             ),
-            for (final day in ScheduleDay.values)
+            for (final d in grid.days)
               _cell(
                 flex: _dayFlex,
                 divided: true,
-                child: _token(_cellFor(member.uid, day)),
+                child: _namesCell(cellsOf(d), muted: muted),
               ),
           ],
         ),
@@ -294,7 +332,49 @@ class FinalScheduleSheet extends StatelessWidget {
     );
   }
 
-  Widget _notesRow() {
+  /// The people in a single (shift, day) cell — one name per line, centred. An
+  /// empty cell reads as a quiet dash so the grid stays legible.
+  Widget _namesCell(List<String> names, {required bool muted}) {
+    if (names.isEmpty) {
+      return Center(
+        child: Text(
+          '—',
+          style: AppTypography.body.copyWith(color: AppColors.textTertiary),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < names.length; i++) ...[
+            if (i > 0) const SizedBox(height: 5),
+            Text(
+              names[i],
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: muted
+                  ? AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                      fontSize: 12.5,
+                    )
+                  : AppTypography.label.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      height: 1.2,
+                    ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _notesRow(FinalScheduleGrid grid) {
     return Container(
       decoration: const BoxDecoration(
         color: _zebra,
@@ -305,7 +385,7 @@ class FinalScheduleSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _cell(
-              flex: _employeeFlex,
+              flex: _shiftFlex,
               child: Align(
                 alignment: Alignment.topLeft,
                 child: Padding(
@@ -314,7 +394,7 @@ class FinalScheduleSheet extends StatelessWidget {
                 ),
               ),
             ),
-            for (final day in ScheduleDay.values)
+            for (final d in grid.days)
               _cell(
                 flex: _dayFlex,
                 divided: true,
@@ -323,7 +403,7 @@ class FinalScheduleSheet extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Text(
-                      (schedule.noteLinesFor(day)).join(' · '),
+                      d.notes.join(' · '),
                       textAlign: TextAlign.center,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -373,56 +453,24 @@ class FinalScheduleSheet extends StatelessWidget {
     );
   }
 
-  // ── Cell token ─────────────────────────────────────────────────
-  _Token _cellFor(String uid, ScheduleDay day) {
-    final shifts = schedule.shiftsFor(uid, day);
-    if (shifts.isNotEmpty) {
-      if (shifts.length >= 2) return const _Token(_TokenKind.shift, 'M/N');
-      return _Token(_TokenKind.shift,
-          shifts.first == ScheduleShift.morning ? 'M' : 'N');
-    }
-    final leave = schedule.leaveTypeOf(uid, day);
-    return switch (leave) {
-      LeaveType.annual => const _Token(_TokenKind.vacation, 'VAC'),
-      LeaveType.sick || LeaveType.pending => const _Token(_TokenKind.leave, 'LEAVE'),
-      _ => const _Token(_TokenKind.off, 'OFF'),
-    };
-  }
-
-  Widget _token(_Token token) {
-    final (color, weight, size, spacing) = switch (token.kind) {
-      _TokenKind.shift => (AppColors.textPrimary, FontWeight.w700, 15.0, 0.0),
-      _TokenKind.vacation => (AppColors.textSecondary, FontWeight.w700, 11.0, 0.6),
-      _TokenKind.leave => (AppColors.textSecondary, FontWeight.w700, 11.0, 0.6),
-      _TokenKind.off => (AppColors.textTertiary, FontWeight.w500, 11.0, 0.4),
-    };
-    return Center(
-      child: Text(
-        token.label,
-        style: TextStyle(
-          fontFamily: AppTypography.fontFamily,
-          color: color,
-          fontWeight: weight,
-          fontSize: size,
-          letterSpacing: spacing,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-      ),
-    );
-  }
+  /// The Night hours label — weekday hours, plus the weekend range when the
+  /// operational weekend runs later.
+  String _nightHoursLabel(FinalScheduleGrid grid) => grid.weekendNightDiffers
+      ? '${grid.nightHours.format()}\nWknd ${grid.weekendNightHours.format()}'
+      : grid.nightHours.format();
 
   // ── Legend ─────────────────────────────────────────────────────
-  Widget _legend() {
+  Widget _legend(FinalScheduleGrid grid) {
     return Wrap(
       spacing: 22,
       runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
-      children: const [
-        _LegendItem(_Token(_TokenKind.shift, 'M'), 'Morning'),
-        _LegendItem(_Token(_TokenKind.shift, 'N'), 'Night'),
-        _LegendItem(_Token(_TokenKind.off, 'OFF'), 'Off'),
-        _LegendItem(_Token(_TokenKind.leave, 'LEAVE'), 'Leave'),
-        _LegendItem(_Token(_TokenKind.vacation, 'VAC'), 'Vacation'),
+      children: [
+        _LegendItem('Morning', grid.morningHours.format()),
+        _LegendItem('Night', _nightHoursLabel(grid).replaceAll('\n', ' · ')),
+        if (grid.hasOff) const _LegendItem('Off', 'Marked off / on leave'),
+        const _LegendItem('(V)', 'On vacation'),
+        const _LegendItem('(L)', 'On leave'),
       ],
     );
   }
@@ -455,24 +503,15 @@ class FinalScheduleSheet extends StatelessWidget {
   );
 }
 
-enum _TokenKind { shift, vacation, leave, off }
-
-class _Token {
-  const _Token(this.kind, this.label);
-  final _TokenKind kind;
-  final String label;
-}
-
-/// A legend swatch — the token as it appears in a cell, next to its meaning.
+/// A legend entry — a label chip next to its meaning.
 class _LegendItem extends StatelessWidget {
-  const _LegendItem(this.token, this.label);
+  const _LegendItem(this.label, this.meaning);
 
-  final _Token token;
   final String label;
+  final String meaning;
 
   @override
   Widget build(BuildContext context) {
-    final isShift = token.kind == _TokenKind.shift;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -485,20 +524,20 @@ class _LegendItem extends StatelessWidget {
             border: Border.all(color: const Color(0x14FFFFFF)),
           ),
           child: Text(
-            token.label,
+            label,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: AppTypography.fontFamily,
-              color: isShift ? AppColors.textPrimary : AppColors.textSecondary,
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.w700,
-              fontSize: isShift ? 13 : 10,
+              fontSize: 12,
               letterSpacing: 0.4,
             ),
           ),
         ),
         const SizedBox(width: 9),
         Text(
-          label,
+          meaning,
           style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
         ),
       ],

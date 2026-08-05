@@ -1825,7 +1825,15 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
       : kind === "overdue"
         ? "Task Late"
         : "Task Reminder";
-    const dueLabel = kind === "overdue" ? "is late" : "is due soon";
+    // Each rung says how far off the wall actually is. "is due soon" used to
+    // cover both the 24h-out and the 1h-out rung, so a task ending tomorrow read
+    // as if it were due any minute — the one thing a reminder must get right.
+    const dueLabel =
+      kind === "overdue"
+        ? "is late"
+        : kind === "due1h"
+          ? "is due within the hour"
+          : "is due within 24 hours";
     const body = isRework
       ? `${t.title || "A task"} was sent back and ${dueLabel}`
       : `${t.title || "A task"} ${dueLabel}`;

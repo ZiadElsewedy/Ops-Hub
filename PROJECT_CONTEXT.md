@@ -17,6 +17,7 @@ Each document has **one** responsibility. A fact lives in exactly one of them.
 | [docs/design/](docs/design/) | How does *this feature* work? | Touching that feature |
 | [docs/decisions/](docs/decisions/) | Why, and don't re-litigate | Proposing a change that reverses something |
 | [docs/QA.md](docs/QA.md) | How do we verify a release? | Before shipping |
+| [docs/RELEASE_V1.md](docs/RELEASE_V1.md) | What still blocks v1, in what order? | Planning or doing release work. **Temporary — delete when v1 ships** |
 
 **If code and docs disagree, the code wins.** Verify against the code, then fix the
 doc in the same task. Never leave a doc contradicting the code — that is how the
@@ -117,8 +118,8 @@ features/<feature>/
 └── presentation/    # Cubits, pages, widgets. Sees entities only.
 ```
 
-`domain/` depends on nothing. This is why ~880 tests run in ~16 seconds with no
-Firebase and no widget tree — business rules are pure functions.
+`domain/` depends on nothing. This is why the full 1665-test suite runs in ~40
+seconds with no Firebase and no live backend — business rules are pure functions.
 
 Full rationale and costs: [ADR-003](docs/decisions/ADR-003-clean-architecture.md).
 
@@ -132,8 +133,10 @@ wires every datasource, repository, use case, and cubit **by hand** — no DI pa
   `todayCoverage` · `shiftSwap` · `branchOperations` · `broadcast` ·
   `broadcastTemplate` · `broadcastSchedule` · `notification` · `caseList` ·
   `chatList` · `requestsList` · `attendance` · `attendanceAdmin` · `salesMonth`
-  (Employee Home + both employee sales screens share it, so opening a sales page
-  costs no extra reads and the surfaces cannot disagree about "today").
+  (Employee Home, both employee sales screens **and Manager Home** share it, so
+  opening a sales page costs no extra reads and the surfaces cannot disagree
+  about "today"; managers enter through `loadForBranch`, which drops the
+  own-submissions stream).
 - **Per-entity cubits** are built on demand by `AppDependencies.create*` —
   `createCaseConversationCubit`, `createRequestDetailCubit`.
 
@@ -195,7 +198,7 @@ features' cubits.
 | `network/` | `ApiClient` — the single authenticated HTTP seam for the NestJS chat API (+ `NetworkConfig`). Consumed only by `features/chat/` |
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
-| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (55 routes) · `app_page_route.dart` (the back-navigation contract) |
+| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (59 routes) · `app_page_route.dart` (the back-navigation contract) |
 | `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |

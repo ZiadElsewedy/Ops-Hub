@@ -81,7 +81,7 @@ Pulled from standing owner rulings — these are non-negotiable framing, not asp
 | 13/14 | Workload heatmaps + AI assignment suggestions | WMS analytics. Doubly settled — the lighter-weight version of this (Pillar 3 findings) was itself deleted 2026-07-15 as unwanted. | Explicit owner ask. |
 | 17 | Background isolates / "hundreds of employees" | Premature — not DROP's scale. | Profiler shows real jank on a real branch. |
 | 19 | Offline edit + pending-ops + conflict-resolution/merge | Distributed-systems complexity. Firestore offline persistence already covers reads. | Managers routinely edit on flaky connections AND lose edits. |
-| 20 | CSV / Excel export | PNG + **PDF** now ship (2026-08-04). Remaining format sprawl. | A concrete "I need CSV for payroll" request. |
+| 20 | ~~Excel export~~ / CSV export | ✅ **Excel (`.xlsx`) shipped 2026-08-05** (owner ask) alongside PNG + PDF. **CSV** stays out — no concrete request. | A concrete "I need CSV for payroll" request. |
 
 **All ❌ items live in Pillar 7 (Reserve). They are parked, not planned.**
 
@@ -207,6 +207,44 @@ Each pillar states **Goal · Architecture · UX · Logic · Risk · Out-of-scope
 - **Mobile weekly editor (owner-approved from a clickable prototype):** the horizontally-scrolling coverage grid was **too tight to edit on a phone**, so on `!context.isDesktop` `ManagerScheduleView` now renders **`widgets/schedule_day_editor.dart` (`ScheduleDayEditor`)** — one day at a time: a day selector (coverage dot per day) + roomy **Morning / Night** cards (real `EmployeeRow` avatars) with move-to-other-shift, remove, an **Add** button (shared `showEmployeePicker` via `_openAssignPicker`), and a **Notes & leave** shortcut (`showDayDetailsSheet`). **Pure presentation** — every edit routes through the *same* validated handlers the desktop grid uses (`_moveChip` / `_removeChip` / `_openChipActions` / `cubit.assign`): move confirms leave clashes, remove warns on unstaffing, undo intact. Grid-only fact chips are dropped on mobile (coverage dots + "Open" tags carry the signal); pending swaps stay reachable. On mobile the controls block **leads the scroll** (`_mobileControls` is the first item of the content ListView, not a pinned header) so it scrolls up and away; desktop keeps its toolbar pinned, and the mobile empty/pick states keep controls pinned. The **All/Morning/Night shift filter is not shown on mobile** (the day editor always shows both shifts, so it was dead UI) — it remains on desktop where it narrows the grid. The **Final view button moved into the app bar** on mobile as an eye icon — `ScheduleFinalViewAction` (in `schedule_final_view.dart`) reads the loaded `ScheduleCubit` state and is added to `BranchScheduleScreen` / `ScheduleManagementScreen` actions when `!isDesktop` (admin: only on the Week tab); desktop keeps its toolbar button. **Desktop keeps the grid + inspector.** Test: `schedule_day_editor_test.dart`.
 - **Tests:** `schedule_final_view_test.dart` (mobile-vs-desktop swap, scheduled-only roster, filename) + toolbar overflow guard; `flutter analyze` clean.
 - **Done:** roster reads as an export-quality sheet; PNG + PDF; phone-native mobile layout; read-only; responsive; tests green; docs updated.
+
+**Amended 2026-08-05 — shift-row layout + Excel export (owner ask, from a spreadsheet the owner keeps):**
+- **The published grid was transposed.** The owner's own weekly spreadsheet is
+  **shifts down the side, days across the top, people named inside each cell** —
+  the reverse of the employee-per-row / `M`·`N` token grid shipped 2026-07-09. All
+  three outputs now render that shape: rows **Morning · Night · Off**, seven day
+  columns, the people on each slot named in the cell (sorted), and an **Off row**
+  that lists only people **explicitly** marked off/on-leave that day (from the
+  leave record — designated day off, sick, pending or annual; `(V)` vacation /
+  `(L)` leave tagged inline). It deliberately does **not** dump every member who
+  simply isn't rostered — that made the row swallow the sheet — and the whole row
+  (with its legend entry) is **omitted** in an all-working week. Shift-hour labels
+  come from the resolved
+  `WeeklyScheduleEntity.hoursFor`, so a weekend-late night surfaces as
+  "· Wknd 16:00–00:00" rather than a hardcoded time.
+- **One pure source for all three outputs.** New `domain/reporting/final_schedule_grid.dart`
+  (`buildFinalScheduleGrid`) reduces a week + members to the grid (names resolved
+  and sorted once, orphans dropped, roster = scheduled-only). The on-screen
+  `FinalScheduleSheet`, the vector PDF (`schedule_final_pdf.dart`) and the new
+  Excel export all read it, so the screen, the PDF and the workbook can never
+  disagree about who is on when. The mobile day cards gained a matching **Off**
+  line.
+- **Excel (`.xlsx`) export shipped** — the third choice in the export chooser
+  (image · PDF · Excel), delivered through the same ADR-019 write-beside +
+  `open_filex` path. There is no pure-Dart xlsx writer we can use (the `excel`
+  package pins `archive ^3`, which conflicts with `lottie`'s `archive ^4`), so
+  `domain/reporting/schedule_final_xlsx.dart` hand-writes the OOXML
+  (SpreadsheetML) parts and zips them with `archive` — the same dependency-light
+  path the PDF took over `printing`. A minimal but valid single-sheet workbook:
+  inline strings, bold/bordered/filled headers, merged title rows, wrapped
+  multi-name cells, XML-escaped. One new dependency (`archive`, already
+  transitive via `lottie`).
+- **Tests:** `final_schedule_grid_test.dart` (7 — cell names, sorted, off-row
+  tagging, roster filtering, weekend-hours detection), `schedule_final_xlsx_test.dart`
+  (5 — valid unzippable package, grid content lands in the right shift row, XML
+  escaping, filename), and the rewritten `schedule_final_view_test.dart` for the
+  new sheet shape. The `.xlsx` was verified round-trip through a real XML parser
+  (well-formed parts, correct names in cells).
 
 ### Pillar 6 — Motion & Accessibility
 - **Goal:** subtle Apple-philosophy motion + a11y pass across the new surfaces.

@@ -5,24 +5,36 @@
 >
 > **Last verified against the code:** 2026-08-05.
 
-> 🚨 **AUTOMATION P0 — FIXED IN CODE, NOT DEPLOYED (2026-08-05).** Daily
-> recurring routines have generated **nothing** since the 2026-07-31 functions
-> deploy. `generateShiftTaskInstances`'s "temporary UTC-key transition guard"
-> probed a legacy-keyed id before creating; at the pinned 01:00 Africa/Cairo tick
-> the UTC date is always *yesterday*, and both key conventions share one id
-> format — so it was reading **yesterday's ordinary instance**, finding it, and
-> recording `skipped / alreadyExists`. Every run looked healthy: clean
-> `automationRuns` row, `failureCount` 0, Automation Center saying "Already
-> generated". Weekly routines were unaffected. The guard is deleted and the id
-> convention now has one source (`recurringInstanceId`), pinned by tests.
-> ⚠️ **Nothing changes in production until
-> `firebase deploy --only functions:generateShiftTaskInstances,functions:runTaskReminders`
-> runs — this is the highest-priority deploy in the repo.** Verify with
-> `gcloud functions describe`, not the CLI's word (see the 2026-08-05 swap
-> entry for why). Days already missed cannot be backfilled: generation is
-> per-business-day and there is no catch-up path.
+> 🚦 **V1 RELEASE GATE — [docs/RELEASE_V1.md](docs/RELEASE_V1.md).** The full
+> release runbook, audited against code *and* live production on 2026-08-05.
+> Read it before planning any release work; it is the authority on what blocks
+> v1 and in what order. Short version: every automated gate is green, both
+> platforms build a release artifact, and **the rules + functions deploy is now
+> done and verified** — what still blocks v1 is the Android application ID
+> (`com.example.*`, Play-rejected) and debug signing, the missing APNs
+> credential, **no Firestore backups/PITR at all**, no production crash
+> reporting, and QA that has never run on real hardware.
+
+> ✅ **AUTOMATION P0 — FIXED *AND* DEPLOYED (2026-08-05).** Daily recurring
+> routines had generated **nothing** since the 2026-07-31 functions deploy.
+> `generateShiftTaskInstances`'s "temporary UTC-key transition guard" probed a
+> legacy-keyed id before creating; at the pinned 01:00 Africa/Cairo tick the UTC
+> date is always *yesterday*, and both key conventions share one id format — so
+> it was reading **yesterday's ordinary instance**, finding it, and recording
+> `skipped / alreadyExists`. Every run looked healthy: clean `automationRuns`
+> row, `failureCount` 0, Automation Center saying "Already generated". Weekly
+> routines were unaffected. The guard is deleted and the id convention now has
+> one source (`recurringInstanceId`), pinned by tests.
+> **The deploy landed 2026-08-05 13:16 UTC** — `generateShiftTaskInstances`
+> (`00014-rob`), `runTaskReminders` (`00021-ges`) and
+> `autoEndRecurringShiftTasks` (`00010-sab`) are all `ACTIVE`, verified via
+> `gcloud functions describe`; the fix commit (`71792e7`) is 02:38 UTC, so the
+> deployed source carries it.
+> ⚠️ **Never observed working in production.** Watch one 01:00 Africa/Cairo tick
+> end to end before calling it closed. Days missed before the deploy cannot be
+> backfilled: generation is per-business-day and there is no catch-up path.
 >
-> **Automated shift tasks now get reminders (2026-08-05, undeployed):**
+> **Automated shift tasks now get reminders (2026-08-05, deployed 13:16 UTC):**
 > `runTaskReminders` skipped every task with an empty `assigneeIds` — which is
 > every generated shift task — so the most important task class had one 01:00
 > notification and nothing after. It now resolves the rostered crew via the
@@ -30,9 +42,9 @@
 > hours moved from UTC to Africa/Cairo (the 22→07 default was silencing
 > 00:00–09:00 Cairo, i.e. the 08:30 morning-shift start) and fail **open**. The
 > unbounded 30-minute scan is floored at 7 days and paged at 500. Notification
-> ids are deterministic. Functions tests: **98 pass** (was 86).
+> ids are deterministic.
 >
-> **Rejected shift instances now close (2026-08-05, undeployed, owner-ruled):**
+> **Rejected shift instances now close (2026-08-05, deployed 13:16 UTC, owner-ruled):**
 > They previously reached no terminal at all — Late forever, never out of the
 > active window, still surfacing for later days' crews, and absent from
 > Approved ÷ (Approved + Missed), which made rejection score better than a miss.
@@ -43,7 +55,7 @@
 > instance is the sole exception to "rejected is reminder-ineligible" — it gets a
 > **Rework Needed** nudge on the existing ladder, because closing work
 > automatically against an unsent message is not acceptable. Spec §3.7 + §9.5.
-> No index change. Functions tests: **105 pass**.
+> No index change.
 >
 > ⚠️ **Still open from the same audit, not fixed** (reported 2026-08-05): the
 > **auto-end sweep can starve**: one
@@ -172,13 +184,36 @@
 > the **branch**, so every role's destination is "Branch Sales" and the employee
 > page reads "TEAM TARGET".
 >
-> Gates green: `flutter analyze` clean · `flutter test` **1641 pass** (was 1606) ·
+> Gates green: `flutter analyze` clean · `flutter test` **1670 pass** (1641 when the feature landed) ·
 > `functions` node --test **112** · `firestore-tests` **68**.
-> ⚠️ **Before users see it:** the 5 sales functions were deployed 2026-08-05, but
-> the audit **added a `firestore.rules` branch gate and a `setBranchSalesTarget`
-> precondition — rules + functions must be redeployed**, then the client build
-> shipped, then on-device QA. Deploy order: functions → rules + indexes → verify
-> revisions → release client.
+> ✅ **The server half is DEPLOYED and verified (2026-08-05).** Rules released
+> **18:32:57 UTC** and re-read from the Rules API as **byte-identical to
+> `firestore.rules`** (so the `branchRunsSalesTargets()` gate is live); all 5
+> sales callables rolled to revision `…-00002-*`, `ACTIVE`, **18:34 UTC**, after
+> the audit commit. The 4 `branch_sales_submissions` composite indexes were
+> already live and `READY`. **What remains is shipping the client build, then
+> on-device QA** — production carries the server contract already.
+> ⚠️ **Production branch state:** `Drop The shop | Arkan` has
+> `salesTargetEnabled: true`; `Marassi` and `LMD` are opted out **and inactive**.
+> So today the feature exists for exactly one branch.
+> **Manager Home now states the month (2026-08-05, NOT device-verified):**
+> Employee Home and Admin Home both carried the figures while the one role
+> accountable for them — the manager sets the target and approves every close —
+> got a *Branch sales* digest row with **no amount**. Manager Home now renders
+> the same `SalesTargetCard` (target · achieved · remaining) under *On shift
+> today*, on mobile and desktop, opening `/sales`. The digest row is **deleted**:
+> it was duplicated navigation, and it was the one sales surface that never
+> consulted `salesTargetEnabled`, so an opted-out manager was offered a door onto
+> the Disabled screen. The card gates itself **and its spacing** — an opted-out
+> branch shows nothing, not even a gap.
+> Fed by the new `SalesMonthCubit.loadForBranch` — `loadForEmployee` minus the
+> own-submissions stream, since a manager never closes a day, so Home costs two
+> listeners rather than three. ⚠️ The submission getters on `SalesMonthLoaded`
+> are **meaningless in branch mode**: `canSubmitToday` reads `true` off the
+> target alone because it is asking about an employee the cubit does not have.
+> Home renders `snapshot` only; never drive a submit CTA off a branch-mode
+> state. Pinned by `test/features/sales/presentation/sales_month_cubit_test.dart`
+> and `test/manager_home_test.dart`.
 > ⚠️ **Known divergence:** the Dart client hand-rolls Cairo DST (last Friday of
 > April/October) while the callables use `Intl` with real tzdata, which also
 > suspends DST during Ramadan. The two can disagree on the civil date for a few
@@ -232,6 +267,44 @@
 > Android/Linux use the valid identifier `com.example.dropoperation`; iOS/macOS
 > continue to use `com.ziad.drop`. The Android Firebase registration/configuration
 > must be regenerated for the new identifier before a Firebase-enabled release.
+
+> **Today coverage: skeleton-hang fixed + inactive branches skipped (2026-08-05,
+> bug + perf):** The admin Schedule *Today* board could sit on its loading
+> skeletons **forever** (reported as "it loads too much the first time"). It was
+> a regression from the same-day read-caching change: `_load()` moved to
+> `BranchCubit.loadIfNeeded()`, but coverage fires only from the branch
+> `BlocListener`, which reacts to a state *change* — so when the directory was
+> already loaded (admin opened another screen first), nothing emitted, the
+> listener never fired, and coverage stayed `Initial`. `_load()` now triggers
+> coverage directly when branches are already present. Same pass: the board now
+> filters to `isActive` branches before loading (inactive branches aren't
+> operating today), cutting first-entry reads. The Week editor still sees the
+> full directory and can edit any branch. Pinned by
+> `test/admin_today_coverage_screen_test.dart`.
+
+> **Final schedule reshaped to the owner's spreadsheet + Excel export
+> (2026-08-05, NOT device-verified):** The published Final view was transposed to
+> **Morning · Night · Off rows down the side, days across the top, people named
+> inside each cell** (previously employee-per-row with `M`/`N`/`OFF` tokens) —
+> owner-approved, matching the spreadsheet they already keep. All three outputs
+> now share one pure source, `schedule/domain/reporting/final_schedule_grid.dart`
+> (`buildFinalScheduleGrid`): the on-screen `FinalScheduleSheet`, the PDF, and a
+> new **Excel (`.xlsx`)** export (third choice in the export chooser). The Off
+> row lists only people **explicitly** marked off/on-leave that day (from the
+> leave record), tagging `(V)` vacation / `(L)` leave — it does not dump everyone
+> not rostered, and is omitted entirely in an all-working week. **On macOS all
+> three exports now open after saving** (Excel/Numbers · Preview) via the same
+> `open` path chat uses — the desktop code previously saved to Downloads but
+> never opened the file, so the export looked inert. The `.xlsx` is
+> hand-written OOXML zipped with `archive` (the `excel` package pins an `archive`
+> major that conflicts with `lottie`), delivered through the ADR-019
+> write-beside + `open_filex` path. One new dependency (`archive`, already
+> transitive). Closes Schedule V2 brief #20 (Excel half; CSV still out). Verified
+> well-formed through a real XML parser; **needs on-device QA of the actual file
+> opening in Numbers/Excel and the share sheet.** Pinned by
+> `test/features/schedule/final_schedule_grid_test.dart`,
+> `test/features/schedule/schedule_final_xlsx_test.dart`, and the rewritten
+> `test/schedule_final_view_test.dart`.
 
 > **Schedule — mobile Final view, exports, caching, roster fix (2026-08-04):**
 > The Final view splits by width: **macOS keeps the landscape print sheet**
@@ -336,9 +409,9 @@
 | | |
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
-| **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-05** after the premium mobile role-home bar pass |
-| **Tests** | **1587 pass · 1 fail** (~73s) — re-run **2026-08-05** after the premium mobile role-home bar pass; the new narrow-manager chrome case passes. ✅ **`splash_visual_centering_test.dart` is now GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **105 pass** (`cd functions && node --test`) — re-run **2026-08-05** after the automation P0, reminder and rejected-instance fixes (+19 tests); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
-| **Blocking release** | 🚨 **Functions deploy for the automation P0 + reminder fixes (2026-08-05) — daily routines generate nothing in production until it runs.** Then: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
+| **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-05**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
+| **Tests** | **1684 pass · 0 fail** (~40s) — re-run **2026-08-05** (+14: the final-schedule shift-row grid + Excel export, and the Today-coverage skeleton-hang fix + active-branch filter). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
 DROP is **feature-complete for its intended scope** and now gated on QA, not on
@@ -421,7 +494,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | Feature | Notes |
 | --- | --- |
 | **Auth** | Admin-provisioned email/password. No registration/Google/OTP/approval. First-login gate: force password change → profile completion → (employees) Welcome → role home |
-| **Roles & routing** | 49 routes, role-guarded. admin ⊇ manager |
+| **Roles & routing** | 59 routes, role-guarded. admin ⊇ manager |
 | **Profile** | View/edit, avatar/cover upload, contact + payment (payment in a private subdoc; hidden for admin) |
 | **Tasks** | Full workflow: create → execute (checklist · notes · proof) → review. Multi-assignee, recurrence, activity timeline, templates, shift assignment, work-type framework, Scheduling V2 (start/due windows + quick deadline presets). Upcoming tasks are visible immediately but `Start Task` / `Start Rework` stays disabled until `startsAt` (client gate + Firestore rules; no rework exception). Generated recurring shift tasks now persist their resolved weekly window and unfinished `pending`/`started` instances automatically close as server-owned **Missed** at shift end; the status is closed, visible, and excluded from active/overdue queues. **Automation business-day fix** (2026-07-30, uncommitted): recurring-shift generation keys and windows now use the Egypt business civil day, the generator is pinned to 01:00 Africa/Cairo, the client refuses to materialize a shift instance after its deadline, and per-task recurrence rolls successors forward until their deadline is future. **Requires a functions deploy for the server path.** **Cancelled** (2026-07-28, uncommitted) is the third terminal outcome — a manager/admin business decision taken from `pending`/`started` only, carrying a mandatory picklist reason, excluded from every count. The recurring-shift Automation Center is productionized: skeleton loading, premium header, slim tap-through cards, and a safe-area per-routine details sheet with a pinned Close action, compact schedule/outcome summary, collapsed technical details, last-task navigation, pause/resume and confirmed delete. |
 | **Schedule** | Weekly roster, shift swaps, leave, day notes, configurable shift hours, shift templates, Final View + PNG export |
@@ -1026,9 +1099,10 @@ and works against either server; the fallback must stay until the deploy lands.
 The remaining `use_null_aware_elements` info is the pre-existing test-style lint
 in `task_submission_gate_test.dart`. It is not an Automation Center finding.
 
-### Failing tests — none (2026-08-03)
+### Failing tests — none (re-verified 2026-08-05)
 
-**`flutter test` is fully green for the first time in weeks: 1501 pass, 0 fail.**
+**`flutter test` is fully green: 1670 pass, 0 fail** (~40s). It first went green
+on 2026-08-03 at 1501 pass and has stayed green since.
 
 > The three `notification_tap_flow_probe_test.dart` failures were **fixed
 > 2026-07-25** by deleting the temporary `debug_auth_probe.dart` and its two
@@ -1178,9 +1252,26 @@ handled as a separate backend/security task before the rules deploy.
 
 ### 🚨 Deploy (the critical path)
 
-Nothing below works in production until it is deployed. The missing live
-`shift_templates` rule was confirmed on 2026-07-18; treat the remaining targets as
-**believed-pending and worth verifying against the console** before assuming.
+> **Deploy state verified read-only against `bazic-d9ad7` on 2026-08-05** — live
+> ruleset diffed against `firestore.rules`, live indexes listed via the Firestore
+> Admin API, every function's revision read with `gcloud functions describe`.
+> This replaces the older "believed-pending, worth verifying" guidance below;
+> the four rows are now known, not assumed.
+>
+> | Target | State |
+> | --- | --- |
+> | `functions` | **Mixed.** The automation P0 trio is deployed (13:16 UTC). The **5 sales functions are stale** — deployed 10:28 UTC, audit commit `2cf7e13` is 12:29 UTC. Everything else rolled 2026-08-04 13:15–13:16 UTC. |
+> | `firestore:rules` | ❌ **STALE.** Live ruleset released 10:28:51 UTC; it is missing `branchRunsSalesTargets()` and the `branch_sales_submissions` create gate. |
+> | `firestore:indexes` | ✅ **IN SYNC.** 19 live composites = 19 in the repo, all `READY`. |
+> | `storage` | ✅ **IN SYNC.** Live ruleset byte-identical to `storage.rules`. |
+>
+> ⚠️ **Also missing at the project level: Firestore has no backup schedule, PITR
+> is disabled, and delete protection is off.** On a database whose attendance
+> minutes feed pay, that is a v1 blocker in its own right — see
+> [RELEASE_V1 §B8](docs/RELEASE_V1.md).
+
+The table below records what each target *carries*, and remains accurate as the
+inventory of what a deploy delivers.
 
 | Target | Carries | Blocks |
 | --- | --- | --- |
@@ -1223,7 +1314,7 @@ either way.
 ### Then
 
 1. **On-device attendance QA** — GPS clock in/out on real hardware, both platforms.
-2. **Fix or delete `splash_centering_test.dart`** so the suite is green.
+2. ~~**Fix or delete `splash_centering_test.dart`**~~ — done 2026-08-03; green.
 3. **Supply the iOS APNs credential** — app-side Push/Background-Modes configuration is complete.
 4. **Merge `feature/attendance-management`** once deployed and QA'd.
 5. **Prune ~15 stale branches.**
@@ -1261,10 +1352,13 @@ unknowingly reversed:
 
 ## Current priorities
 
-1. **Deploy.** Everything else is downstream of it. A growing share of the app is
-   inert in production and fails at runtime rather than at compile time.
-2. **Close out attendance** — on-device QA, then merge.
-3. **Get the suite green** — 2 failures is 2 too many to notice a third.
+0. **Ship v1.** [docs/RELEASE_V1.md](docs/RELEASE_V1.md) is the sequenced runbook
+   and supersedes the ordering below for release work.
+1. **Finish the deploy.** `firestore:rules` and the 5 sales functions are stale
+   in production (verified); indexes and storage rules are in sync.
+2. **Turn on Firestore backups + PITR + delete protection.** There are none.
+3. **Close out attendance** — on-device GPS QA, then merge.
+4. ~~**Get the suite green**~~ — done: 1670 pass, 0 fail.
 4. **Recurring shift deadline close — implemented (2026-07-19).** Generator and
    client materializer persist the resolved weekly shift window; the new
    server-authoritative 15-minute sweep changes only unfinished generated shift
@@ -1292,12 +1386,15 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1501 pass, 0 fail — GREEN; any red is a real regression
-(cd functions && node --test)            # expect: 83 pass
-(cd firestore-tests && npm test)         # expect: 61 pass — needs the Firebase CLI + a JDK
-grep -c "static const String" lib/core/routes/route_names.dart   # expect: 53
-ls lib/features | wc -l                  # expect: 18
+flutter test                             # expect: 1670 pass, 0 fail — GREEN; any red is a real regression
+(cd functions && node --test)            # expect: 112 pass
+(cd firestore-tests && npm test)         # expect: 68 pass — needs the Firebase CLI + a JDK
+grep -c "static const String" lib/core/routes/route_names.dart   # expect: 59
+ls lib/features | wc -l                  # expect: 19
 ```
+
+All six re-verified 2026-08-05. To re-check the **deploy** state rather than the
+code, see [docs/RELEASE_V1.md §0](docs/RELEASE_V1.md).
 
 Routes live in [route_names.dart](lib/core/routes/route_names.dart) — read them
 there rather than duplicating the table here. Firestore/Storage schema lives in

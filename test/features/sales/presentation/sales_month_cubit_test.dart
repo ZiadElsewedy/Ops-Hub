@@ -19,6 +19,7 @@ class _FakeSalesRepo implements SalesRepository {
   final own = StreamController<List<DailySalesSubmissionEntity>>.broadcast();
   final calls = <String>[];
   var monthListens = 0;
+  var ownListens = 0;
 
   @override
   Stream<BranchSalesMonthEntity?> watchMonth(String b, String m) {
@@ -37,7 +38,10 @@ class _FakeSalesRepo implements SalesRepository {
     String b,
     String m,
     String uid,
-  ) => own.stream;
+  ) {
+    ownListens++;
+    return own.stream;
+  }
 
   @override
   Future<void> submitDailySales({
@@ -238,6 +242,59 @@ void main() {
     // this the error state was permanent for the life of the cubit.
     await cubit.loadForEmployee(branchId: 'b1', uid: 'u1', force: true);
     expect(repo.monthListens, 2);
+    await cubit.close();
+  });
+
+  // ── Branch mode: the manager Home card ──────────────────────────────
+  test('loadForBranch opens no own-submissions stream', () async {
+    final repo = _FakeSalesRepo();
+    final cubit = _build(repo);
+
+    await cubit.loadForBranch(branchId: 'b1');
+
+    // A manager never closes a day, so that third listener could only ever be
+    // empty — it would be a read per Home visit that answers nothing.
+    expect(repo.monthListens, 1);
+    expect(repo.ownListens, 0);
+    await cubit.close();
+  });
+
+  test('loadForBranch states the branch month without an own stream', () async {
+    final repo = _FakeSalesRepo();
+    final cubit = _build(repo);
+    await cubit.loadForBranch(branchId: 'b1');
+
+    repo.month.add(_target);
+    repo.approved.add([
+      _sub('20260813', SalesSubmissionStatus.approved),
+      _sub('20260814', SalesSubmissionStatus.approved, amount: 1500),
+    ]);
+    await Future<void>.delayed(Duration.zero);
+
+    final state = cubit.state as SalesMonthLoaded;
+    expect(state.snapshot.target?.targetPiastres, 100000);
+    expect(state.snapshot.approvedTotalPiastres, 6500);
+    expect(state.snapshot.remainingPiastres, 93500);
+    expect(state.ownSubmissions, isEmpty);
+    expect(state.todaySubmission, isNull);
+    // Pinning the trap, not endorsing it: with no employee behind the cubit,
+    // `canSubmitToday` still reads true off the target alone. The manager card
+    // renders `snapshot` only — a submit CTA must never be driven off this.
+    expect(state.canSubmitToday, isTrue);
+    await cubit.close();
+  });
+
+  test('loadForBranch on an opted-out branch reads nothing', () async {
+    final repo = _FakeSalesRepo();
+    final cubit = _build(repo, branches: _FakeBranchRepo(enabled: false));
+
+    await cubit.loadForBranch(branchId: 'b1');
+
+    // Manager Home renders nothing at all for this state — not a disabled
+    // card, and not the gap where one would sit.
+    expect(cubit.state, isA<SalesMonthDisabled>());
+    expect(repo.monthListens, 0);
+    expect(repo.ownListens, 0);
     await cubit.close();
   });
 

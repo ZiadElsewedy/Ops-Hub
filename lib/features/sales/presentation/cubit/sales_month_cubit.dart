@@ -12,8 +12,19 @@ import 'package:drop/features/sales/domain/usecases/resubmit_corrected_sales.dar
 import 'package:drop/features/sales/domain/usecases/submit_daily_sales.dart';
 import 'sales_month_state.dart';
 
-/// The employee's own view of their branch's sales month: the branch target and
-/// approved total, plus their own daily records and the actions they may take.
+/// The branch's sales month as a **Home-surface** read: the target and the
+/// approved total, plus — for an employee — their own daily records and the
+/// actions they may take.
+///
+/// Two entry points, one subscription set:
+///
+/// * [loadForEmployee] adds the employee's own records (every status), because
+///   an employee's Home has to know whether *they* still owe today's close.
+/// * [loadForBranch] omits that stream. A manager never closes a day, so
+///   subscribing to their own submissions would open a third listener that can
+///   only ever be empty. Everything a manager acts on — the review queue, the
+///   filtered ledgers, target editing — lives on `SalesManagerDashboardCubit`
+///   behind `/sales`; this is the figure on Home, nothing more.
 class SalesMonthCubit extends Cubit<SalesMonthState> {
   SalesMonthCubit({
     required this._repository,
@@ -54,6 +65,34 @@ class SalesMonthCubit extends Cubit<SalesMonthState> {
   Future<void> loadForEmployee({
     required String branchId,
     required String uid,
+    DateTime? now,
+    bool force = false,
+  }) => _subscribe(branchId: branchId, uid: uid, now: now, force: force);
+
+  /// The manager/branch view: target + approved total, **no own-submissions
+  /// stream**. Same guards, same opt-in resolution, same month rollover as
+  /// [loadForEmployee] — the only difference is the third listener.
+  ///
+  /// ⚠️ `ownSubmissions` stays empty, so the submission-flow getters on
+  /// `SalesMonthLoaded` are **not meaningful in this mode** — `canSubmitToday`
+  /// in particular reads `true` whenever a target exists, because it is asking
+  /// "does this employee still owe today?" of a cubit holding no employee. The
+  /// manager card renders `snapshot` only. Never drive a submit CTA off a
+  /// branch-mode state; the manager's actions live on
+  /// `SalesManagerDashboardCubit`.
+  Future<void> loadForBranch({
+    required String branchId,
+    DateTime? now,
+    bool force = false,
+  }) => _subscribe(branchId: branchId, uid: null, now: now, force: force);
+
+  /// The one subscription path both entry points share. A null [uid] is branch
+  /// mode. It participates in the `unchanged` guard, so a role that somehow
+  /// switched modes on the same branch and month still re-subscribes rather
+  /// than keeping the wrong stream set.
+  Future<void> _subscribe({
+    required String branchId,
+    required String? uid,
     DateTime? now,
     bool force = false,
   }) async {
@@ -115,12 +154,15 @@ class SalesMonthCubit extends Cubit<SalesMonthState> {
           _approved = value;
           _emitLoaded();
         }, onError: _onError);
-    _ownSub = _repository
-        .watchOwnSubmissions(branchId, monthKey, uid)
-        .listen((value) {
-          _own = value;
-          _emitLoaded();
-        }, onError: _onError);
+    // Branch mode (a manager) has no own-submissions stream — see the class doc.
+    if (uid != null) {
+      _ownSub = _repository
+          .watchOwnSubmissions(branchId, monthKey, uid)
+          .listen((value) {
+            _own = value;
+            _emitLoaded();
+          }, onError: _onError);
+    }
   }
 
   void _emitLoaded([String? message]) => emit(

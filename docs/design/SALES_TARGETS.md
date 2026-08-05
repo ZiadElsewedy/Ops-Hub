@@ -160,8 +160,11 @@ Vertical slice `lib/features/sales/` mirroring `requests/` and `branch/`.
   (`NetworkGuard` before every write, `Exception → Failure`, model → entity).
 - **Cubits** (mirror `RequestsListCubit`/`RequestDetailCubit`: freezed unions, busy
   guard, action discriminator, preserve loaded content through a mutation, cancel
-  subscriptions in `close()`): `SalesMonthCubit` (role-scoped current branch/month,
-  app-wide only if Employee Home + shell reuse it) · `SalesManagerDashboardCubit` ·
+  subscriptions in `close()`): `SalesMonthCubit` (app-wide; current branch/month,
+  with two entry points — `loadForEmployee` adds the employee's own records,
+  `loadForBranch` is the manager Home read and omits that stream. ⚠️ Its
+  submission getters — `canSubmitToday` above all — are meaningless in branch
+  mode and must never drive a CTA there) · `SalesManagerDashboardCubit` ·
   `SalesSubmissionDetailCubit` (per submission) · `SalesTargetEditorCubit` (per sheet)
   · `SalesAdminOverviewCubit` (page-owned). Wire all datasource/repo/use case/cubit
   additions into `core/di/injection.dart`.
@@ -179,6 +182,7 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
 | **Employee Home card** | One compact `GlassContainer`: **target · achieved · remaining** and a tap into the branch sales page. Nothing else — no bar, no percentage, no badge. An opted-out branch renders **nothing, including its spacing** |
 | **Employee sales page** (`/sales/mine`) | The team month (`SalesMoneyRow`) → **Needed per day**, toned by today → today's close and its status → the one CTA. A day sent back for correction keeps a single actionable row; there is no month-history table |
 | **Submission screen** | `PageHero`, piastres-safe EGP field, Cairo business-date confirmation, one `AppButton`. Dual mode: new close, or a correction seeded with the amount under review and the manager's reason. Already-closed / no-target / teammate-closed each render their own panel instead of a dead CTA |
+| **Manager Home card** | The same `SalesTargetCard` as Employee Home — **target · achieved · remaining**, one tap into `/sales` — sitting under *On shift today*. Fed by `SalesMonthCubit.loadForBranch`, which is `loadForEmployee` minus the own-submissions stream: a manager never closes a day. Gates itself **and its spacing**; an opted-out branch renders nothing. It replaced a *Branch sales* `DigestEntry` that carried no figure and — alone among the sales surfaces — never consulted `salesTargetEnabled`, so it offered an opted-out manager a door onto the Disabled screen |
 | **Manager dashboard** | The branch month (**"Set target"** until one exists, **"Edit target"** after) → **Needed per day** → the review queue with inline approve/reject → four `MetricTile`s, each opening a **different** filtered ledger |
 | **Approval / detail** | Evidence block (amount · day · submitter · decision provenance · revision). Actions render only for a manager or admin; reopen only for an admin on a terminal record. One primary action per state |
 | **Admin overview** | One row per **opted-in** branch: name + **target · achieved · remaining**. Opted-out branches are absent, not greyed — `salesEnabledBranches` is the single scope rule, shared with Admin Home |

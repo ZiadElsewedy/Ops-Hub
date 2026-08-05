@@ -14,6 +14,214 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Task reminder wording: the 24h rung no longer says "due soon" (copy; LOW risk)
+
+A task ending **tomorrow** hits the `due24h` reminder rung on the next 30-minute
+`runTaskReminders` sweep. Its notification body said **"… is due soon"** — the
+same phrase used for the `due1h` rung — so a task a full day away read as if it
+were due any minute. The body now states the actual distance per rung: `due24h`
+→ "is due within 24 hours", `due1h` → "is due within the hour", `overdue` → "is
+late" (unchanged). Server-side only (`functions/index.js`); the pure
+escalation logic (`task_reminders.js` / `reminder_rules.dart`) and the ledger are
+untouched. **Needs a functions redeploy of `runTaskReminders` to take effect.**
+Functions tests still 112 pass.
+
+## 2026-08-05 — Today coverage: fix skeleton hang + skip inactive branches (bug + perf; LOW risk)
+
+The admin Schedule **Today** board could sit on its **loading skeletons forever**
+(reported as "it loads too much the first time"). Root cause was a regression
+from the 2026-08-05 read-caching change: `_load()` was switched from
+`BranchCubit.load()` to `loadIfNeeded()`, but coverage is triggered **only** by
+the branch `BlocListener`, which reacts to a state *change*. When the directory
+was already loaded (the admin opened Dashboard/Branches first this session),
+`loadIfNeeded()` emitted nothing, the listener never fired, and
+`TodayCoverageCubit` stayed `Initial` → permanent skeleton. `_load()` now kicks
+off coverage directly when branches are already present (the freshness window
+keeps the double-trigger a no-op).
+
+Same pass: the board loaded coverage for **every** branch, inactive included —
+each an uncached schedule + roster read, plus a "nobody on" row nobody acts on.
+It now filters to `isActive` branches before loading, cutting first-entry reads.
+The full directory still drives the Week editor, which can edit any branch.
+`schedule_management_screen.dart` `_load` / `_loadCoverage`; pinned by
+`admin_today_coverage_screen_test.dart`.
+
+## 2026-08-05 — Final schedule: shift-row layout + Excel export (feature; MED risk)
+
+The published Final view was **transposed** to match the spreadsheet the owner
+already keeps, and gained an **Excel (`.xlsx`)** export. Previously the sheet was
+one employee per row with an `M`/`N`/`OFF` token per day; the owner's reference
+is the opposite — **Morning · Night · Off rows down the side, days across the
+top, people named inside each cell**. Owner-approved both the layout swap and the
+inclusion of an Off row before any code.
+
+- **One pure source, three outputs.** New `schedule/domain/reporting/final_schedule_grid.dart`
+  (`buildFinalScheduleGrid`) reduces a week + members to the grid — names resolved
+  and sorted once, orphans dropped, roster = scheduled-only. The **Off row** lists
+  only people explicitly marked off/on-leave that day (leave record), tagging
+  `(V)` vacation / `(L)` leave — not everyone who simply isn't rostered — and is
+  omitted in an all-working week. The on-screen `FinalScheduleSheet`, the vector PDF
+  and the new Excel export all render from it, so screen / PDF / workbook can never
+  disagree. Shift-hour labels come from `WeeklyScheduleEntity.hoursFor`, so a
+  later weekend night shows "· Wknd 16:00–00:00" instead of a hardcoded time. The
+  mobile day cards gained a matching **Off** line.
+- **Excel export shipped** — third choice in the export chooser (image · PDF ·
+  Excel), delivered through the ADR-019 write-beside + `open_filex` path. No
+  pure-Dart xlsx writer works here (`excel` pins `archive ^3`, conflicting with
+  `lottie`'s `archive ^4`), so `schedule_final_xlsx.dart` hand-writes the OOXML
+  and zips it with `archive` — the same dependency-light path the PDF took over
+  `printing`. Minimal-but-valid single sheet: inline strings, bold/bordered/filled
+  headers, merged title rows, wrapped multi-name cells, XML-escaped. One new dep
+  (`archive`, already transitive via `lottie`). This closes Schedule V2 brief #20
+  (Excel half); CSV stays out.
+- **Exports now open on macOS too.** The desktop export saved the file to
+  Downloads but never opened it (`_open` ran only on iOS/Android), so all three
+  exports looked like they did nothing on the Mac. Desktop now opens the saved
+  file in its default app (Excel/Numbers · Preview) via the same
+  `open`/`start`/`xdg-open` path chat uses for a downloaded document. Save was
+  already working (the `downloads.read-write` entitlement is present); the
+  missing half was the open. Best-effort — a viewer that won't launch is not a
+  save failure.
+- **A real bug the round-trip caught:** the Morning row initially wrote its label
+  but no day cells (a missing `days:` argument), so morning names silently
+  vanished from the workbook. Fixed, `days` made a required parameter, and pinned
+  by an ordering regression guard.
+- **Design:** [SCHEDULE.md](docs/design/SCHEDULE.md) Pillar 5 (amended 2026-08-05).
+- **Tests:** +12 (`final_schedule_grid_test.dart` 7, `schedule_final_xlsx_test.dart`
+  5) and the rewritten `schedule_final_view_test.dart`; the `.xlsx` verified
+  well-formed through a real XML parser. `flutter analyze` clean; **1681 pass**.
+
+## 2026-08-05 — Manager Home states the branch month (feature; LOW risk)
+
+Manager Home rendered **no sales figure at all**. Employee Home carried
+`SalesTargetCard` and Admin Home carried `AdminBranchSalesSummary`, while the one
+role accountable for the number — a manager sets the target and approves every
+close that moves it — got a `DigestEntry` reading *Branch sales*, with no amount,
+at the foot of the Operations digest. Reported as "why doesn't monthly sales
+appear on the manager screen": the feature was working and the branch **was**
+opted in (`Drop The shop | Arkan`, `salesTargetEnabled: true`); the surface had
+simply never been built.
+
+- **The same `SalesTargetCard` now sits under *On shift today*** on mobile and
+  desktop — target · achieved · remaining, one tap into `/sales`. No new widget,
+  no second way of drawing the same three figures.
+- **The digest row is deleted.** It was duplicated navigation once the card
+  exists, and it was the **one sales surface that never consulted
+  `salesTargetEnabled`** — an opted-out manager was offered a door onto the
+  Disabled screen. The card gates itself *and its spacing*, so an opted-out
+  branch shows nothing, not even a gap. Same rule Employee Home already followed.
+- **New `SalesMonthCubit.loadForBranch`** — `loadForEmployee` minus the
+  own-submissions stream, since a manager never closes a day, so Home opens two
+  listeners rather than three. Both entry points share one `_subscribe`, so the
+  opt-in resolution, the month-rollover re-subscribe and the `force` retry path
+  cannot drift apart. The cubit stays app-wide and shared.
+
+⚠️ **The submission getters on `SalesMonthLoaded` are meaningless in branch
+mode.** `canSubmitToday` reads `true` off the target alone, because it asks
+whether *this employee* still owes today of a cubit holding no employee. Home
+renders `snapshot` only — never drive a submit CTA off a branch-mode state. The
+trap is pinned by a test rather than left to be rediscovered.
+
+`flutter analyze` clean (1 pre-existing info) · `flutter test` **1670 pass · 0
+fail** (was 1665). **Not device-verified.**
+
+## 2026-08-05 — rules + all 24 functions deployed and verified (deploy; MED risk)
+
+The two stale-production-deploy blockers from the v1 audit (`RELEASE_V1` B3, B4)
+are **closed**, each verified by reading production rather than trusting the CLI.
+
+- **Firestore rules** released **18:32:57 UTC**. Re-fetched from the Rules API
+  and diffed: **byte-identical to `firestore.rules`**. The
+  `branchRunsSalesTargets()` helper and the `branch_sales_submissions` create
+  gate are live, so the rules layer now refuses a submission for an opted-out
+  branch instead of leaning on the client and the callables.
+- **All 24 functions** updated **18:34 UTC**, including the 5 sales callables
+  (`setBranchSalesTarget` · `decideDailySalesSubmission` ·
+  `editApprovedDailySalesSubmission` · `resubmitCorrectedSales` ·
+  `onDailySalesSubmissionCreated`), all at revision `…-00002-*`, `ACTIVE`, and
+  all **after** the audit commit `2cf7e13`.
+- **Indexes needed nothing** — the 4 `branch_sales_submissions` composites were
+  already live and `READY`. `--only firestore:rules` does not deploy indexes, so
+  this was checked rather than assumed.
+
+**`runBroadcastSchedules` failed that batch and was redeployed alone** →
+`runbroadcastschedules-00018-nud`, `ACTIVE`, **18:40:27 UTC**; its Cloud
+Scheduler job is `ENABLED`, `every 5 minutes`, and firing. The error —
+`Failed to make request to https://cloudscheduler.googleapis.com/v1/.../jobs/firebase-schedule-runBroadcastSchedules-us-central1`
+— was neither code nor permissions: `gcloud` showed the container had **already**
+rolled at 18:34 and the job was still enabled and running, so what failed was the
+trailing job-upsert HTTP call. Recorded in the runbook because the failure mode
+is misleading: a batch deploy ending in *"Deploys failed. Skipping deletes"* for
+exactly one scheduled function needs that function redeployed, not the batch.
+The verification step for scheduled functions now also checks the job, since a
+green container can sit behind a stale schedule.
+
+⚠️ **H3 did not ride this deploy.** `recurringTaskTemplates` still allows any
+manager to read every branch's automation templates
+([firestore.rules:437](firestore.rules)); the runbook had it folded into B3 and
+it was not. It needs its own rules change, `firestore-tests/` case, and deploy.
+
+⚠️ **Sales is server-ready but not client-shipped.** Production carries the
+contract; the app build carrying the audited client does not exist yet, and
+on-device QA has not run. In production only `Drop The shop | Arkan` has
+`salesTargetEnabled: true` — `Marassi` and `LMD` are opted out and inactive.
+
+## 2026-08-05 — v1 release audit + runbook (docs; LOW risk)
+
+Audited the repository against **live production**, not against the docs, and
+wrote [docs/RELEASE_V1.md](docs/RELEASE_V1.md) — the sequenced v1 gate (8
+blockers, 8 should-fixes, 4 phases, exit criteria). It dies when v1 ships.
+
+**Every automated gate re-run and green:** `flutter analyze` 1 pre-existing info ·
+`flutter test` **1665 pass / 0 fail** · `functions` node --test **112** ·
+`firestore-tests` **68**. Both release artifacts build: iOS `Runner.app` 87.4 MB
+(`--no-codesign`), Android `app-release.aab` 93.1 MB.
+
+**Live state read from `bazic-d9ad7`** (rules diffed against the Rules API,
+indexes listed via the Firestore Admin API, revisions via `gcloud functions
+describe`) — three doc claims were wrong and are corrected:
+
+- 🚨 → ✅ **The automation P0 IS deployed.** CURRENT_STATE led with a banner
+  saying daily routines generate nothing until a functions deploy runs. That
+  deploy landed **2026-08-05 13:16 UTC** (`generateshifttaskinstances-00014-rob`,
+  `runtaskreminders-00021-ges`, `autoendrecurringshifttasks-00010-sab`, all
+  `ACTIVE`); the fix commit `71792e7` is 02:38 UTC, so the deployed source
+  carries it. It has still never been *observed* generating in production.
+- ❌ **`firestore:rules` is genuinely stale**, and now proven rather than
+  suspected: the live ruleset (released 10:28:51 UTC) is missing
+  `branchRunsSalesTargets()` and the `branch_sales_submissions` create gate.
+- ❌ **The 5 sales functions are stale** — deployed 10:28 UTC, audit commit
+  `2cf7e13` is 12:29 UTC. `firestore:indexes` (19 = 19, all `READY`) and
+  `storage.rules` (byte-identical) are ✅ **in sync**, which the docs had listed
+  as merely believed.
+
+**New findings that block v1**, none of them previously recorded:
+
+- **Android `applicationId` is `com.example.dropoperation`** and release builds
+  are signed with the **debug keystore** — Play rejects both. Changing the ID
+  cascades into a new Firebase Android app + `google-services.json` + SHA certs,
+  and it is permanent after the first upload.
+- **Firestore has no backups at all** — PITR disabled, zero backup schedules,
+  delete protection off, on a database whose attendance minutes feed pay.
+- **No production crash reporting.** `CrashReporter` persists to a local
+  `last_crash.log` nobody will ever read; Crashlytics is not integrated.
+- **The version string is hardcoded** in `settings_page.dart:422` (`'1.0.0 (1)'`)
+  and `about_page.dart:368` — both lie from 1.0.1 onward.
+- **iOS `Info.plist` carries dev-only and dead config**: a Google Sign-In URL
+  scheme for an auth method DROP does not have, a localhost ATS exemption, and a
+  **missing `NSPhotoLibraryAddUsageDescription`** — the export share sheet offers
+  *Save Image*, which crashes without it.
+- **5,825 `node_modules/` files are tracked in git**, plus
+  `.firebase/hosting.*.cache`.
+- The documented **`recurringTaskTemplates` cross-branch read** gap
+  (`firestore.rules:437`) is confirmed still open.
+
+Docs corrected in the same pass: the automation banner, the At-a-glance
+build/test/blocking rows, the deploy section (now a verified table), Current
+priorities, the self-verification block (1501→1665, 83→112, 61→68, routes
+53→**59**, features 18→**19**), `PROJECT_CONTEXT` route count 55→59, and QA.md's
+stale splash-failure limitation.
+
 ## 2026-08-05 — Professional README (docs; LOW risk)
 
 Rewrote `README.md` into a polished project front page: logo header, status badges,

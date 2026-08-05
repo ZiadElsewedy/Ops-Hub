@@ -86,10 +86,28 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
   void _load() {
     context.read<BranchCubit>().loadIfNeeded();
     context.read<ShiftSwapCubit>().loadAll();
+    // If the branch directory is **already** loaded (common — the admin opened
+    // Dashboard/Branches first this session), `loadIfNeeded()` is a no-op and
+    // emits nothing, so the branch listener — which reacts to a state *change* —
+    // never fires and Today coverage would sit on its skeletons forever. Kick
+    // coverage off here for that case. When the directory isn't loaded yet,
+    // `loadIfNeeded()` emits `loaded` and the listener takes it; the coverage
+    // cubit's freshness window makes the double-trigger a no-op either way.
+    context.read<BranchCubit>().state.maybeWhen(
+      loaded: (branches, _) => _loadCoverage(branches),
+      orElse: () {},
+    );
   }
 
+  /// Today's coverage is only meaningful for branches that are **operating**.
+  /// An inactive branch (e.g. a closed or paused location) has no shift to
+  /// cover today, so loading it is pure first-entry cost — one schedule + one
+  /// roster read each — and an extra "nobody on" row nobody acts on. The full
+  /// directory (inactive included) still drives the Week editor, which can edit
+  /// any branch.
   void _loadCoverage(List<BranchEntity> branches, {bool force = false}) {
-    context.read<TodayCoverageCubit>().load(branches, force: force);
+    final active = [for (final b in branches) if (b.isActive) b];
+    context.read<TodayCoverageCubit>().load(active, force: force);
   }
 
   /// The explicit Refresh action — everything refetches, freshness windows and

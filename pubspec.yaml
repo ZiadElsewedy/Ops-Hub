@@ -99,6 +99,13 @@ dependencies:
   # is written beside the Schedule PNG export and opened with `open_filex`,
   # exactly like a chat document.
   pdf: ^3.11.1
+  # Weekly schedule Excel (.xlsx) export. There is no pure-Dart xlsx writer we
+  # can use — the `excel` package pins `archive ^3`, which conflicts with
+  # `lottie`'s `archive ^4` — so the OOXML (SpreadsheetML) is hand-rolled and
+  # zipped with `archive` directly, the same dependency-light path the
+  # attendance/schedule PDF took over `printing`. See
+  # `schedule/domain/reporting/schedule_final_xlsx.dart`.
+  archive: ^4.0.0
   # Hands a mailto: / https: link to the OS so Support on the About page can
   # open the mail client or WhatsApp. `open_filex` cannot do this — it opens a
   # local file, not a URL.

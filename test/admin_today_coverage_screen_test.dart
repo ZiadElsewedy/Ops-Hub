@@ -65,7 +65,97 @@ class _FakeCoverage extends Cubit<TodayCoverageState> implements TodayCoverageCu
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Captures the branches handed to [load] so a test can assert the Today board
+/// never asks coverage for an inactive branch.
+class _CapturingCoverage extends Cubit<TodayCoverageState>
+    implements TodayCoverageCubit {
+  _CapturingCoverage() : super(const TodayCoverageLoaded([]));
+  List<BranchEntity>? lastBranches;
+  @override
+  Future<void> load(List<BranchEntity> branches, {bool force = false}) async {
+    lastBranches = branches;
+  }
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Already-loaded directory whose `loadIfNeeded` is a genuine no-op (emits
+/// nothing) — the case that used to leave Today coverage stuck on skeletons
+/// because the branch listener only reacts to a state *change*.
+class _PreloadedBranchCubit extends Cubit<BranchState> implements BranchCubit {
+  _PreloadedBranchCubit()
+      : super(const BranchState.loaded([
+          _branch, // active
+          BranchEntity(id: 'lmd', name: 'LMD', isActive: false),
+        ]));
+  @override Future<void> load({bool forceRefresh = false}) async {}
+  @override Future<void> loadIfNeeded() async {} // already loaded → no emit
+  @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _TwoBranchBranchCubit extends Cubit<BranchState> implements BranchCubit {
+  // Starts empty and resolves on entry, exactly like a fresh session — this is
+  // the path that fires the screen's branch listener (a `BlocListener` reacts to
+  // a state *change*, not the initial state), so coverage is actually loaded.
+  _TwoBranchBranchCubit() : super(const BranchState.loading());
+  static const _branches = [
+    _branch, // active (default isActive: true)
+    BranchEntity(id: 'lmd', name: 'LMD', isActive: false),
+  ];
+  @override Future<void> load({bool forceRefresh = false}) async {
+    emit(const BranchState.loaded(_branches));
+  }
+  @override Future<void> loadIfNeeded() async {
+    emit(const BranchState.loaded(_branches));
+  }
+  @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
+  testWidgets('Today coverage loads active branches only, not inactive ones',
+      (tester) async {
+    final coverage = _CapturingCoverage();
+    await tester.pumpWidget(MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthCubit>(create: (_) => _FakeAuthCubit()),
+        BlocProvider<BranchCubit>(create: (_) => _TwoBranchBranchCubit()),
+        BlocProvider<ScheduleCubit>(create: (_) => _FakeScheduleCubit()),
+        BlocProvider<ShiftSwapCubit>(create: (_) => _FakeSwaps()),
+        BlocProvider<TodayCoverageCubit>.value(value: coverage),
+      ],
+      child: MaterialApp(theme: AppTheme.dark, home: const ScheduleManagementScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    // The branch listener fired coverage with the active branch only — the
+    // inactive LMD is not operating today, so it costs no first-entry read.
+    expect(coverage.lastBranches, isNotNull);
+    expect(coverage.lastBranches!.map((b) => b.id), ['arkan']);
+    expect(coverage.lastBranches!.map((b) => b.id), isNot(contains('lmd')));
+  });
+
+  testWidgets(
+      'Today coverage loads even when the branch directory is already loaded '
+      '(no skeleton hang)', (tester) async {
+    final coverage = _CapturingCoverage();
+    await tester.pumpWidget(MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthCubit>(create: (_) => _FakeAuthCubit()),
+        BlocProvider<BranchCubit>(create: (_) => _PreloadedBranchCubit()),
+        BlocProvider<ScheduleCubit>(create: (_) => _FakeScheduleCubit()),
+        BlocProvider<ShiftSwapCubit>(create: (_) => _FakeSwaps()),
+        BlocProvider<TodayCoverageCubit>.value(value: coverage),
+      ],
+      child: MaterialApp(theme: AppTheme.dark, home: const ScheduleManagementScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    // Screen entry kicked off coverage from the already-loaded directory (the
+    // listener never fires without a state change) — active branches only.
+    expect(coverage.lastBranches, isNotNull);
+    expect(coverage.lastBranches!.map((b) => b.id), ['arkan']);
+  });
+
   testWidgets('surfaces uncovered coverage and opens the existing roster sheet', (tester) async {
     final member = const UserEntity(uid: 'u1', email: 'u1@drop.test', authProvider: 'password', role: UserRole.employee, branchId: 'arkan');
     final schedule = WeeklyScheduleEntity(

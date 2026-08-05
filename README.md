@@ -8,7 +8,7 @@
 Task assignment with proof · GPS attendance · weekly scheduling & shift swaps · approvals · branch administration · live operations dashboards.
 
 <!-- Badges reflect the repo, not pub.dev — this is a private package. -->
-`iOS · Android · macOS`&nbsp;&nbsp;`Flutter · Dart ^3.12`&nbsp;&nbsp;`flutter_bloc (Cubits)`&nbsp;&nbsp;`Firebase`&nbsp;&nbsp;`Clean · feature-sliced`&nbsp;&nbsp;`Monochrome · dark`&nbsp;&nbsp;`~880 tests · ~16s`
+`iOS · Android · macOS`&nbsp;&nbsp;`Flutter · Dart ^3.12`&nbsp;&nbsp;`flutter_bloc (Cubits)`&nbsp;&nbsp;`Firebase`&nbsp;&nbsp;`Clean · feature-sliced`&nbsp;&nbsp;`Monochrome · dark`&nbsp;&nbsp;`1665 tests · ~40s`
 
 </div>
 
@@ -89,8 +89,8 @@ lib/
     └── presentation/     # Cubits · pages · widgets (sees entities only)
 ```
 
-`domain/` depends on nothing, which is why the ~880 unit tests run in ~16s with no
-Firebase and no widget tree. Dependencies are wired **by hand** in
+`domain/` depends on nothing, which is why the full 1665-test suite runs in ~40s
+with no Firebase and no live backend. Dependencies are wired **by hand** in
 [`lib/core/di/injection.dart`](lib/core/di/injection.dart) — no DI package.
 
 Full rationale lives in the [Architecture Decision Records](docs/decisions/).
@@ -116,14 +116,20 @@ dart run build_runner build --delete-conflicting-outputs
 
 ```bash
 flutter analyze     # expect: 1 pre-existing info
-flutter test        # expect: ~878 pass, 2 known fail — see CURRENT_STATE.md
+flutter test        # expect: 1665 pass, 0 fail — any red is a real regression
 ```
 
 If you touch `firestore.rules`, also run the rules suite (the Dart tests never
 evaluate a rule):
 
 ```bash
-cd firestore-tests && npm test
+cd firestore-tests && npm test   # expect: 68 pass — needs the Firebase CLI + a JDK
+```
+
+And after any change under `functions/`:
+
+```bash
+cd functions && node --test      # expect: 112 pass
 ```
 
 ---

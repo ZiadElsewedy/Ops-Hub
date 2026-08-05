@@ -22,6 +22,7 @@ import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
 import 'package:drop/features/schedule/domain/reporting/schedule_final_pdf.dart';
+import 'package:drop/features/schedule/domain/reporting/schedule_final_xlsx.dart';
 import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/schedule_state.dart';
 import 'package:drop/features/schedule/presentation/widgets/final_schedule_mobile_view.dart';
@@ -188,13 +189,30 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
     return file;
   }
 
-  /// On a phone the file lands in the sandbox where nobody could reach it, so we
-  /// hand it to the OS: the share/preview sheet is what lets a manager Save to
-  /// Photos, save to Files, or send it on. Desktop already writes to a visible
-  /// Downloads folder, so a viewer there would be noise.
+  /// Hands the freshly-saved file to the OS so the export visibly *lands*
+  /// somewhere the manager can use it.
+  ///
+  /// - **Phone:** the file is in the app sandbox where nobody could reach it, so
+  ///   `open_filex` raises the share/preview sheet (Save to Photos / Files / send).
+  /// - **Desktop:** it is already saved to the visible Downloads folder; we open
+  ///   it in its default app (Excel/Numbers for `.xlsx`, Preview for PDF/PNG) so
+  ///   the export doesn't look like it did nothing — the same `open` / `start` /
+  ///   `xdg-open` path chat uses for a downloaded document. Best-effort: the file
+  ///   is already saved, so a failure to launch a viewer is not a save failure.
   Future<void> _open(File file) async {
     if (Platform.isAndroid || Platform.isIOS) {
       await OpenFilex.open(file.path);
+      return;
+    }
+    try {
+      final (cmd, args) = Platform.isMacOS
+          ? ('open', [file.path])
+          : Platform.isWindows
+              ? ('cmd', ['/c', 'start', '', file.path])
+              : ('xdg-open', [file.path]);
+      await Process.run(cmd, args);
+    } catch (_) {
+      // The file is saved; opening a viewer is a convenience, not the contract.
     }
   }
 
@@ -255,6 +273,34 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
     } catch (_) {
       if (mounted) {
         AppSnackbar.error(context, 'Could not create the schedule PDF.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _exportXlsx() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final bytes = buildScheduleFinalXlsx(
+        schedule: widget.schedule,
+        members: widget.members,
+        branchName: widget.branch?.name ?? 'Branch',
+        managerName: _managerName(),
+      );
+      final file = await _writeExport(
+        scheduleFinalXlsxFilename(
+          widget.branch?.name ?? 'branch',
+          widget.schedule.weekStart,
+        ),
+        (f) => f.writeAsBytes(bytes, flush: true),
+      );
+      if (mounted) _exportDone(file, 'Excel');
+      await _open(file);
+    } catch (_) {
+      if (mounted) {
+        AppSnackbar.error(context, 'Could not create the schedule Excel file.');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -330,6 +376,21 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _exportPdf();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.grid_on_outlined,
+                  color: AppColors.textPrimary),
+              title: const Text('Save as Excel (XLSX)'),
+              subtitle: Text(
+                Platform.isIOS || Platform.isAndroid
+                    ? 'Open in Numbers/Excel, or send'
+                    : 'An editable spreadsheet workbook',
+                style: AppTypography.caption,
+              ),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _exportXlsx();
               },
             ),
             const SizedBox(height: AppSpacing.sm),
