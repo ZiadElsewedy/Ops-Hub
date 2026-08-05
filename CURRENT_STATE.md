@@ -83,14 +83,26 @@
 > planned feature is fully designed in
 > [docs/design/SALES_TARGETS.md](docs/design/SALES_TARGETS.md) +
 > [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md): per-branch monthly
-> targets, daily employee sales submissions, manager/admin approval, derived-on-read
-> progress. Architecture: a **derived ledger** (deterministic month/day docs, approved
-> total re-summed on read, no stored accumulation, no rollup — stays inside
-> ADR-009/010), **server-authoritative** callables for every monetary transition
-> (ADR-005), **`Africa/Cairo`** keys (ADR-015), piastres money, reused audit +
-> notification seams. **No `lib/features/sales/` code exists yet** — P0 is blocked on
-> owner sign-off of two policy questions (peer visibility of approved amounts;
-> back-date window). Do not start P1 before those are ruled.
+> targets, daily employee submissions, manager/admin approval, derived-on-read progress,
+> admin all-branches management, notification routing, and derived KPIs. A **derived
+> ledger** — deterministic `branch_sales_months` / `branch_sales_submissions` docs,
+> approved total re-summed on read, no stored accumulation (stays inside ADR-009/010);
+> **server-authoritative** callables for every monetary transition (ADR-005),
+> **`Africa/Cairo`** keys, piastres money, reused audit + notification seams. Owner
+> sign-off (P0): peer visibility = **approved-only**; employee back-date =
+> **current + 3 Cairo days**. Gates green: `flutter analyze` clean · `flutter test`
+> **1606 pass / 1 known-fail** (pre-existing splash) · `functions` node --test **93** ·
+> `firestore-tests` **66**.
+> ✅ **Backend DEPLOYED to `bazic-d9ad7` 2026-08-05.** The 5 sales functions were
+> **created** (v2, us-central1, nodejs22) — `setBranchSalesTarget`,
+> `decideDailySalesSubmission`, `editApprovedDailySalesSubmission`,
+> `resubmitCorrectedSales`, `onDailySalesSubmissionCreated` — verified via
+> `firebase functions:list`; the other 24 functions were left untouched (scoped
+> `--only functions:<names>` deploy). `firestore.rules` released (compiled clean) and
+> `firestore.indexes.json` deployed (additive, no deletions). ⚠️ **Remaining before
+> users see it: merge `feature/branch-sales-target`, ship the client build, and do
+> on-device QA.** The functions are live but nothing calls them yet (the sales client
+> UI is not in any released build) — the safe functions-before-client ordering.
 
 > **Swap workflow reliability + history (2026-08-05):** The manager/admin swap
 > sheet captures its height before opening, avoiding the deactivated-context

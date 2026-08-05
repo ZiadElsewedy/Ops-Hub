@@ -48,6 +48,13 @@ import 'package:drop/features/chat/presentation/pages/new_chat_screen.dart';
 import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/presentation/pages/attendance_screen.dart';
+import 'package:drop/features/sales/presentation/pages/sales_submission_screen.dart';
+import 'package:drop/features/sales/presentation/pages/sales_manager_dashboard_screen.dart';
+import 'package:drop/features/sales/presentation/pages/sales_history_screen.dart';
+import 'package:drop/features/sales/presentation/pages/sales_submission_detail_screen.dart';
+import 'package:drop/features/sales/presentation/pages/sales_admin_overview_screen.dart';
+import 'package:drop/core/di/injection.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_screen.dart';
@@ -131,6 +138,13 @@ GoRouter createRouter(
             pageBuilder: (context, state) =>
                 _fadeTransition(state, const ManagerShell()),
           ),
+          GoRoute(path: RouteNames.salesManage, pageBuilder: (context, state) {
+            final branchId = state.uri.queryParameters['branchId'] ?? authCubit.state.maybeWhen(authenticated: (user) => user.branchId, orElse: () => null) ?? '';
+            return _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(branchId), child: SalesManagerDashboardScreen(branchId: branchId)));
+          }),
+          GoRoute(path: RouteNames.salesAdminOverview, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesAdminOverviewCubit(), child: const SalesAdminOverviewScreen()))),
+          GoRoute(path: RouteNames.salesHistory, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(authCubit.state.maybeWhen(authenticated: (user) => user.branchId ?? '', orElse: () => '')), child: const SalesHistoryScreen()))),
+          GoRoute(path: RouteNames.salesSubmissionDetailPattern, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesSubmissionDetailCubit(state.pathParameters['submissionId'] ?? ''), child: SalesSubmissionDetailScreen(submissionId: state.pathParameters['submissionId'] ?? '')))),
           // ─── Tasks (Phase 3) ───────────────────────────────────────
           // Guarded like the rest: /admin/tasks is admin-only, /manager/tasks admits
           // manager + admin; /my-tasks is self-scoped.
@@ -393,6 +407,11 @@ GoRouter createRouter(
             pageBuilder: (context, state) =>
                 _slideTransition(state, const AttendanceScreen()),
           ),
+          GoRoute(
+            path: RouteNames.salesSubmit,
+            pageBuilder: (context, state) =>
+                _slideTransition(state, const SalesSubmissionScreen()),
+          ),
           // Attendance History — the employee's own ledger (role-shared).
           GoRoute(
             path: RouteNames.attendanceHistory,
@@ -493,6 +512,7 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
     // areas admit admins too. The employee home (/) is employee-only.
     // Shared routes (/profile, /settings) stay open to all roles.
     if (_isAdminArea(loc) && !user.role.isAdmin) return roleHome;
+    if (loc == RouteNames.salesAdminOverview && !user.role.isAdmin) return roleHome;
     if (_isManagerArea(loc) && !(user.role.isManager || user.role.isAdmin)) {
       return roleHome;
     }
@@ -510,6 +530,7 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
     if (_isAttendanceReportsArea(loc) && user.role.isEmployee) {
       return roleHome;
     }
+    if (loc == RouteNames.salesSubmit && !user.role.isEmployee) return roleHome;
     if (loc == RouteNames.home && !user.role.isEmployee) {
       return roleHome;
     }
@@ -621,7 +642,9 @@ bool _isAdminArea(String loc) =>
 /// True when [loc] is anywhere inside the manager area (`/manager` or `/manager/...`).
 bool _isManagerArea(String loc) =>
     loc == RouteNames.managerHome ||
-    loc.startsWith('${RouteNames.managerHome}/');
+    loc.startsWith('${RouteNames.managerHome}/') ||
+    loc == RouteNames.salesManage ||
+    loc.startsWith('${RouteNames.salesManage}/');
 
 /// True when [loc] is anywhere inside the Communications Center
 /// (`/communications` or `/communications/...`) — admin + manager only.

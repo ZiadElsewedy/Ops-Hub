@@ -72,6 +72,12 @@ class RouteNames {
   // so these sit outside the role-area guards.
   static const String requests = '/requests';
   static const String requestsCreate = '/requests/create';
+  static const String salesSubmit = '/sales/submit';
+  static const String salesManage = '/sales';
+  static const String salesAdminOverview = '/sales/admin';
+  static const String salesHistory = '/sales/history';
+  static const String salesSubmissionDetailPattern = '/sales/submission/:submissionId';
+  static String salesSubmissionDetail(String submissionId) => '/sales/submission/$submissionId';
 
   /// Employee GPS clock-in/out surface (also reachable by managers who clock).
   static const String attendance = '/attendance';

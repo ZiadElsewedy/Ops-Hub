@@ -129,6 +129,16 @@ enum AuditEventType {
   profileUpdated('profile.updated', AuditEntityType.profile, 'Profile updated'),
   broadcastSent('broadcast.sent', AuditEntityType.broadcast, 'Broadcast sent'),
 
+  // ── Branch sales ledger (server-authoritative) ─────────────────
+  salesSubmitted('sales.submitted', AuditEntityType.dailySalesSubmission, 'Sales submitted'),
+  salesApproved('sales.approved', AuditEntityType.dailySalesSubmission, 'Sales approved'),
+  salesRejected('sales.rejected', AuditEntityType.dailySalesSubmission, 'Sales rejected'),
+  salesCorrectionRequested('sales.correction_requested', AuditEntityType.dailySalesSubmission, 'Sales correction requested'),
+  salesResubmitted('sales.resubmitted', AuditEntityType.dailySalesSubmission, 'Sales resubmitted'),
+  salesApprovedAmountEdited('sales.approved_amount_edited', AuditEntityType.dailySalesSubmission, 'Approved sales amount edited'),
+  salesTargetChanged('sales.target_changed', AuditEntityType.salesMonth, 'Sales target changed'),
+  salesReopened('sales.reopened', AuditEntityType.dailySalesSubmission, 'Sales reopened'),
+
   /// Forward-compatible fallback for an id written by a newer client build.
   unknown('unknown', AuditEntityType.other, 'Unknown event');
 

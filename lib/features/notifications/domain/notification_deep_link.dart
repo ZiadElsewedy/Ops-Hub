@@ -16,6 +16,7 @@ class NotificationRoute {
   static const String schedule = 'schedule';
   static const String caseThread = 'case_details';
   static const String request = 'request_details';
+  static const String salesSubmission = 'sales_submission';
 
   /// Direct chat messages. Written by the NestJS chat backend (the one route
   /// not produced by `functions/index.js`) with a `conversationId`.
@@ -80,6 +81,17 @@ String? resolveNotificationRoute({
       return requestId != null
           ? RouteNames.requestDetail(requestId)
           : RouteNames.requests;
+
+    case NotificationRoute.salesSubmission:
+      final submissionId = _id(payload, 'salesSubmissionId');
+      if (submissionId != null) {
+        return RouteNames.salesSubmissionDetail(submissionId);
+      }
+      return switch (role) {
+        UserRole.admin || UserRole.manager => RouteNames.salesManage,
+        UserRole.employee => RouteNames.home,
+        null => null,
+      };
 
     case NotificationRoute.chat:
       final conversationId = _id(payload, 'conversationId');

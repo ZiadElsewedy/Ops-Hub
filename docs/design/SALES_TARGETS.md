@@ -5,13 +5,17 @@ sales at the end of a working day; a manager approves or rejects it; **only appr
 sales count** toward the branch's monthly progress. Remaining, progress %, and
 forecast are **derived on read — never stored**.
 
-> **Status: designed, not yet built.** This is the locked design for a planned
-> feature; no `lib/features/sales/` code exists yet. Read
+> **Status: implemented (P1–P6) on `feature/branch-sales-target` — not merged, not
+> deployed.** The full vertical slice is built under `lib/features/sales/`: domain +
+> data reads, server callables + `firestore.rules` + indexes, the client write path,
+> employee submit + Home card, manager dashboard / approval / history, admin
+> management + notification routing, and derived KPIs. Read
 > **[ADR-022](../decisions/ADR-022-branch-sales-monthly-ledger.md) before changing
-> anything here** — the ledger shape, the derive-don't-store rule, and the
-> server-authoritative boundary are settled there. When the feature is built, its
-> live collections move into [DATA_MODEL.md](DATA_MODEL.md) and this doc becomes the
-> behaviour reference (the shape of Requests/Attendance docs).
+> anything here.** ⚠️ **Before it ships, deploy in order — Cloud Functions →
+> `firestore.rules` + `firestore.indexes.json` → verify the deployed revisions → the
+> client build that calls them** (the standing deploy-lag hazard: a client shipped
+> ahead of its functions/rules is broken). This doc is the behaviour reference; the
+> live collections are summarised in [DATA_MODEL.md](DATA_MODEL.md).
 
 ## Rules of the shape
 
@@ -238,13 +242,17 @@ ADR decision, not a default (ADR-009/010, ADR-022).
 | Missing target | employee sees "Target not set"; cannot submit until set |
 | Resubmission after correction | must be `correctionRequested` + expected revision; increments and returns to `pending` |
 
-## Open decisions (rule at P0 sign-off, before any code)
+## Locked decisions (owner sign-off 2026-08-05)
 
-1. **Peer visibility.** May an employee read peers' **approved** daily amounts for
-   their own branch/month (needed for the Home "achieved" number)? *Recommended: yes
-   for approved only; never others' pending/rejected.*
-2. **Back-date window.** *Recommended: employee may submit for the current + previous
-   three completed Cairo days; managers/admins may reopen/correct older with a reason.*
+1. **Peer visibility — approved only.** An employee MAY read own-branch **approved**
+   daily records (so Home shows the live achieved total), and NEVER other employees'
+   `pending` / `rejected` / `correctionRequested` records. This is the read rule P2
+   enforces.
+2. **Back-date window — current + previous 3 Cairo days.** An employee may submit a
+   close for the current business day or any of the previous three completed Africa/
+   Cairo days. Older records are entered/changed only by a manager/admin, always with
+   a reason. This is the create-window validation P2 enforces (callable-side; rules are
+   defense-in-depth).
 
 ## Implementation plan
 

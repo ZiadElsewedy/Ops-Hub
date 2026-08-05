@@ -543,6 +543,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       label: 'Attendance & reports',
                       onTap: () => context.push(RouteNames.attendanceReports),
                     ),
+                    DigestEntry(
+                      icon: Icons.payments_outlined,
+                      label: 'Branch sales',
+                      onTap: () => context.push(RouteNames.salesAdminOverview),
+                    ),
                   ],
                 );
               },

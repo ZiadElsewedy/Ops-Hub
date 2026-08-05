@@ -25,6 +25,7 @@ import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/auth/presentation/pages/splash_page.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
 import 'package:drop/features/notifications/domain/notification_deep_link.dart';
 import 'package:drop/firebase_options.dart';
 
@@ -416,6 +417,9 @@ class App extends StatelessWidget {
         BlocProvider.value(value: AppDependencies.requestsListCubit),
         BlocProvider.value(value: AppDependencies.attendanceCubit),
         BlocProvider.value(value: AppDependencies.attendanceAdminCubit),
+        BlocProvider<SalesMonthCubit>.value(
+          value: AppDependencies.salesMonthCubit,
+        ),
       ],
       // Register / clear the FCM token as the auth session changes.
       child: BlocListener<AuthCubit, AuthState>(

@@ -28,6 +28,35 @@ service cloud.firestore {
       return isAdmin() || (isManager() && branch == selfBranch());
     }
 
+    // Branch Sales targets and decisions are Admin-SDK/callable owned. Cairo
+    // back-date eligibility cannot be derived from request.time in rules, so the
+    // callable boundary validates it; this rule is ownership-only defense in depth.
+    function isActiveEmployee() {
+      return isSignedIn() && selfRole() == 'employee'
+        && selfDoc().get('isActive', false) == true;
+    }
+    function isSalesSubmissionCreate(submissionId) {
+      return isActiveEmployee()
+        && request.resource.data.get('branchId', '') == selfBranch()
+        && request.resource.data.get('submittedById', '') == request.auth.uid
+        && request.resource.data.get('status', '') == 'pending'
+        && request.resource.data.get('id', '') == submissionId
+        && request.resource.data.get('businessTimeZone', '') == 'Africa/Cairo'
+        && request.resource.data.get('amountPiastres', -1) is int
+        && request.resource.data.get('amountPiastres', -1) >= 0
+        && request.resource.data.get('businessDateKey', '').matches('^[0-9]{8}$')
+        && request.resource.data.get('monthKey', '').matches('^[0-9]{6}$')
+        && request.resource.data.get('businessDateKey', '').matches('^' + request.resource.data.get('monthKey', '') + '[0-9]{2}$')
+        && submissionId == request.resource.data.get('branchId', '')
+             + '_' + request.resource.data.get('businessDateKey', '')
+        && exists(/databases/$(database)/documents/branch_sales_months/$(request.resource.data.get('branchId', '') + '_' + request.resource.data.get('monthKey', '')))
+        && request.resource.data.keys().hasOnly([
+          'id', 'branchId', 'monthKey', 'businessDateKey', 'businessTimeZone',
+          'amountPiastres', 'status', 'submittedById', 'submittedByName',
+          'submittedAt', 'createdAt', 'updatedAt', 'schemaVersion'
+        ]);
+    }
+
     // Case Management: the reporter's uid is NOT on the case doc (privacy split
     // — it lives in the private `cases/{id}/reporter/identity` subdoc, readable
     // only by the reporter + an admin). This resolves whether the caller is the
@@ -659,6 +688,24 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['readAt', 'archivedAt', 'pinnedAt']);
       allow delete: if isOwner(resource.data.get('recipientUid', '')) || isAdmin();
+    }
+
+    // ── Branch monthly sales target + daily ledger ─────────────────
+    match /branch_sales_months/{monthId} {
+      allow read: if canReachBranch(resource.data.get('branchId', ''))
+        || (isSignedIn() && selfRole() == 'employee'
+            && resource.data.get('branchId', '') == selfBranch());
+      allow create, update, delete: if false;
+    }
+
+    match /branch_sales_submissions/{submissionId} {
+      allow read: if canReachBranch(resource.data.get('branchId', ''))
+        || (isSignedIn() && selfRole() == 'employee'
+            && (resource.data.get('submittedById', '') == request.auth.uid
+                || resource.data.get('branchId', '') == selfBranch()
+                   && resource.data.get('status', '') == 'approved'));
+      allow create: if isSalesSubmissionCreate(submissionId);
+      allow update, delete: if false;
     }
 
     // ── Case Management (private conversation until resolution) ────

@@ -15,6 +15,8 @@ enum AuditEntityType {
   event,
   user,
   profile,
+  salesMonth,
+  dailySalesSubmission,
 
   /// A recurring-task automation (`recurringTaskTemplates/{id}`) — the
   /// [entityId] is the template id. Used by the Cloud Function's automation
@@ -28,8 +30,6 @@ enum AuditEntityType {
   /// Forward-compatible fallback for a value written by a newer client.
   other;
 
-  String get value => name;
-
   String get label => switch (this) {
         AuditEntityType.task => 'Task',
         AuditEntityType.shiftSwap => 'Shift swap',
@@ -39,15 +39,23 @@ enum AuditEntityType {
         AuditEntityType.event => 'Event',
         AuditEntityType.user => 'User',
         AuditEntityType.profile => 'Profile',
+        AuditEntityType.salesMonth => 'Sales month',
+        AuditEntityType.dailySalesSubmission => 'Daily sales submission',
         AuditEntityType.automation => 'Automation',
         AuditEntityType.session => 'Session',
         AuditEntityType.other => 'Other',
       };
 
   /// Parses the stored string; unknown / missing → [other] (forward-compatible).
+  String get value => switch (this) {
+        AuditEntityType.salesMonth => 'sales_month',
+        AuditEntityType.dailySalesSubmission => 'daily_sales_submission',
+        _ => name,
+      };
+
   static AuditEntityType fromString(String? raw) {
     for (final t in AuditEntityType.values) {
-      if (t.name == raw) return t;
+      if (t.value == raw) return t;
     }
     return AuditEntityType.other;
   }
