@@ -18,9 +18,17 @@
 > sign-off (P0): peer visibility = **approved-only**; employee back-date =
 > **current + 3 Cairo days**. Gates green: `flutter analyze` clean · `flutter test`
 > **1606 pass / 1 known-fail** (pre-existing splash) · `functions` node --test **93** ·
-> `firestore-tests` **66**. ⚠️ **Remaining before it ships: merge decision, then deploy
-> in order — Cloud Functions → `firestore.rules` + `firestore.indexes.json` → verify
-> revisions → the client build — then on-device QA.** Not device-verified.
+> `firestore-tests` **66**.
+> ✅ **Backend DEPLOYED to `bazic-d9ad7` 2026-08-05.** The 5 sales functions were
+> **created** (v2, us-central1, nodejs22) — `setBranchSalesTarget`,
+> `decideDailySalesSubmission`, `editApprovedDailySalesSubmission`,
+> `resubmitCorrectedSales`, `onDailySalesSubmissionCreated` — verified via
+> `firebase functions:list`; the other 24 functions were left untouched (scoped
+> `--only functions:<names>` deploy). `firestore.rules` released (compiled clean) and
+> `firestore.indexes.json` deployed (additive, no deletions). ⚠️ **Remaining before
+> users see it: merge `feature/branch-sales-target`, ship the client build, and do
+> on-device QA.** The functions are live but nothing calls them yet (the sales client
+> UI is not in any released build) — the safe functions-before-client ordering.
 
 > **Swap workflow reliability + history (2026-08-05):** The manager/admin swap
 > sheet captures its height before opening, avoiding the deactivated-context
