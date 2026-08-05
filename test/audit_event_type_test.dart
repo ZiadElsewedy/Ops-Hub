@@ -44,6 +44,8 @@ void main() {
           AuditEntityType.shiftSwap);
       expect(AuditEventType.authLogin.defaultEntityType,
           AuditEntityType.session);
+      expect(AuditEventType.salesTargetChanged.defaultEntityType,
+          AuditEntityType.salesMonth);
     });
 
     test('namespace is the segment before the dot', () {
@@ -55,11 +57,14 @@ void main() {
   });
 
   group('AuditEntityType', () {
-    test('parses by name; unknown / missing → other', () {
+    test('parses stored values; unknown / missing → other', () {
       expect(AuditEntityType.fromString('task'), AuditEntityType.task);
       expect(AuditEntityType.fromString('session'), AuditEntityType.session);
       expect(AuditEntityType.fromString('galaxy'), AuditEntityType.other);
       expect(AuditEntityType.fromString(null), AuditEntityType.other);
+      expect(AuditEntityType.fromString('sales_month'), AuditEntityType.salesMonth);
+      expect(AuditEntityType.fromString('daily_sales_submission'),
+          AuditEntityType.dailySalesSubmission);
     });
 
     test('every value round-trips', () {

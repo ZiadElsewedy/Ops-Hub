@@ -23,6 +23,9 @@ import 'package:drop/features/attendance/presentation/cubit/attendance_state.dar
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
+import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
 
 /// **Employee Home — the stat strip** and the empty bordered bar it used to
 /// leave behind.
@@ -134,6 +137,34 @@ class _FakeChatListCubit extends Cubit<ChatListState> implements ChatListCubit {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _FakeSalesMonthCubit extends Cubit<SalesMonthState>
+    implements SalesMonthCubit {
+  _FakeSalesMonthCubit()
+    : super(
+        const SalesMonthState.loaded(
+          snapshot: SalesMonthSnapshot(),
+          todayDateKey: '20260815',
+        ),
+      );
+  @override
+  Future<void> loadForEmployee({
+    required String branchId,
+    required String uid,
+    DateTime? now,
+    bool force = false,
+  }) async {}
+  @override
+  Future<void> submitToday({
+    required int amountPiastres,
+    required UserEntity user,
+  }) async {}
+  @override
+  Future<void> resubmitCorrection({
+    required String submissionId,
+    required int amountPiastres,
+  }) async {}
+}
+
 Widget _homeHost(_FakeTaskCubit taskCubit) => MultiBlocProvider(
   providers: [
     BlocProvider<AuthCubit>(create: (_) => _FakeAuthCubit()),
@@ -142,6 +173,7 @@ Widget _homeHost(_FakeTaskCubit taskCubit) => MultiBlocProvider(
     BlocProvider<ShiftSwapCubit>(create: (_) => _FakeShiftSwapCubit()),
     BlocProvider<AttendanceCubit>(create: (_) => _FakeAttendanceCubit()),
     BlocProvider<ChatListCubit>(create: (_) => _FakeChatListCubit()),
+    BlocProvider<SalesMonthCubit>(create: (_) => _FakeSalesMonthCubit()),
   ],
   child: MaterialApp(
     theme: AppTheme.dark,

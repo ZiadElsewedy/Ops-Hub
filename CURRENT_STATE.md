@@ -79,18 +79,52 @@
 > enters with the shared restrained stagger motion. All existing routes/actions
 > are unchanged.
 
-> **Branch Monthly Sales Target — design locked, not built (2026-08-05):** A new
-> planned feature is fully designed in
-> [docs/design/SALES_TARGETS.md](docs/design/SALES_TARGETS.md) +
-> [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md): per-branch monthly
-> targets, daily employee sales submissions, manager/admin approval, derived-on-read
-> progress. Architecture: a **derived ledger** (deterministic month/day docs, approved
-> total re-summed on read, no stored accumulation, no rollup — stays inside
-> ADR-009/010), **server-authoritative** callables for every monetary transition
-> (ADR-005), **`Africa/Cairo`** keys (ADR-015), piastres money, reused audit +
-> notification seams. **No `lib/features/sales/` code exists yet** — P0 is blocked on
-> owner sign-off of two policy questions (peer visibility of approved amounts;
-> back-date window). Do not start P1 before those are ruled.
+> **Branch Monthly Sales Target — built, audited, awaiting redeploy + QA (2026-08-05):**
+> Per-branch monthly targets, daily employee closes, manager/admin approval,
+> derived-on-read progress, admin all-branches management, notification routing and
+> derived pace KPIs. Design: [SALES_TARGETS](docs/design/SALES_TARGETS.md) +
+> [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md). A **derived
+> ledger** — deterministic `branch_sales_months` / `branch_sales_submissions` docs,
+> approved total re-summed on read, no stored accumulation; **server-authoritative**
+> callables for every monetary transition; **`Africa/Cairo`** keys; piastres money;
+> reused audit + notification seams.
+>
+> **A post-implementation audit on 2026-08-05 fixed nine real defects** — see the
+> CHANGELOG entry for the full list. The load-bearing ones:
+> - `isManagerArea` matched `/sales` by **prefix**, so `/sales/submit`,
+>   `/sales/mine`, `/sales/history` and `/sales/submission/:id` were all
+>   manager-only. **Every employee was bounced to Home** from their own submit
+>   screen, their own records, and the sales notification deep link. The whole
+>   employee half of the feature was unreachable.
+> - **Resubmit-after-correction had no caller.** `ResubmitCorrectedSales` was wired
+>   into DI but no cubit or screen used it, so `correctionRequested` was a dead end.
+> - **"Needed per day" read `0 EGP` on the last day of every month** while the
+>   branch was still short (exclusive day count), and **"Average per day" divided by
+>   elapsed calendar days**, understating pace daily because approvals lag.
+>
+> **New: per-branch opt-in.** `branches/{id}.salesTargetEnabled` (**admin-only,
+> default `false`**). Off ⇒ the feature does not exist for that branch: no Home
+> card (and no gap where it was), no sales pages, no target management, no
+> submissions. Enforced in the client, in `firestore.rules`, and in
+> `setBranchSalesTarget`. Deciding **already-open** records stays allowed when a
+> branch is switched off, so nothing is stranded.
+>
+> Owner sign-off (P0) stands: peer visibility = **approved-only**; employee
+> back-date = **current + 3 Cairo days**.
+>
+> Gates green: `flutter analyze` clean · `flutter test` **1630 pass** (was 1606;
+> +24 new sales/route/branch-gate tests) · `functions` node --test **112** ·
+> `firestore-tests` **68**.
+> ⚠️ **Before users see it:** the 5 sales functions were deployed 2026-08-05, but
+> the audit **added a `firestore.rules` branch gate and a `setBranchSalesTarget`
+> precondition — rules + functions must be redeployed**, then the client build
+> shipped, then on-device QA. Deploy order: functions → rules + indexes → verify
+> revisions → release client.
+> ⚠️ **Known divergence:** the Dart client hand-rolls Cairo DST (last Friday of
+> April/October) while the callables use `Intl` with real tzdata, which also
+> suspends DST during Ramadan. The two can disagree on the civil date for a few
+> hours a year. The server is authoritative for validation; a shared tz source is
+> the open recommendation.
 
 > **Swap workflow reliability + history (2026-08-05):** The manager/admin swap
 > sheet captures its height before opening, avoiding the deactivated-context
@@ -244,7 +278,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-05** after the premium mobile role-home bar pass |
-| **Tests** | **1587 pass · 1 fail** (~73s) — re-run **2026-08-05** after the premium mobile role-home bar pass; the new narrow-manager chrome case passes. ⚠️ **The one failure is `splash_visual_centering_test.dart`, pre-existing and unrelated to the bar**: it `base64Decode`s the Lottie's embedded WebP frames and throws `FormatException: Invalid character (at character 65630)` — the data URI carries trailing whitespace after its padding, which strict `base64Decode` rejects. It regressed with the branding/asset churn in `b260c39`/`b76cbac`, not with this presentation change. Cloud Functions: **105 pass** (`cd functions && node --test`) — re-run **2026-08-05** after the automation P0, reminder and rejected-instance fixes (+19 tests); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1587 pass · 1 fail** (~73s) — re-run **2026-08-05** after the premium mobile role-home bar pass; the new narrow-manager chrome case passes. ✅ **`splash_visual_centering_test.dart` is now GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **105 pass** (`cd functions && node --test`) — re-run **2026-08-05** after the automation P0, reminder and rejected-instance fixes (+19 tests); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚨 **Functions deploy for the automation P0 + reminder fixes (2026-08-05) — daily routines generate nothing in production until it runs.** Then: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -382,7 +416,7 @@ Optional dev-only LAN override: `--dart-define=DEV_API_BASE_URL=http://<lan-ip>:
 | P3 — cubits | Done, **uncommitted**. `ChatListCubit` (app-wide singleton, mirrors `CaseListCubit`) + per-thread `ChatConversationCubit`; DI-wired |
 | P4 — Conversation List UI | Done, **uncommitted** (2026-07-22). `/chat` inbox (`ChatScreen` + `ChatConversationTile`): loading/empty/error/loaded, pull-to-refresh, scroll-driven cursor pagination, transient-error snackbar |
 | P5 — Conversation (thread) UI | Done, **uncommitted** (2026-07-22). `ChatConversationScreen` (per-thread cubit via DI factory) → shared `ChatConversationView`: `ChatMessageList` (bottom-anchored bubbles, date separators, relative timestamps, tombstone/attachment-chip rendering, "New messages" jump pill, top scroll-back pagination with preserved offset, post-frame visible→mark-read) + text-only `ChatComposer` (send spinner, clear-on-success-only, desktop autofocus + Enter-to-send). REST only |
-| P6 — Realtime (Socket.IO) | Done, **uncommitted** (2026-07-22). Protocol read from the `drop-api` gateway (namespace `/chat`, handshake `auth.token` = Firebase ID token, `conversation:join`/`leave` with `{ok,error?}` acks, server events `message:new`/`read`/`deleted`/`deleted-for-me`, auth reject = `connection:error` + disconnect). New `ChatRealtime` domain port + `ChatSocketService` (`socket_io_client ^3.1.6`, the only file importing it): refcounted connect (first join) / teardown (last leave), **self-owned reconnect** (rebuilt socket + fresh token each attempt, exp. backoff ≤30s, force-refresh after auth reject), room re-join on reconnect. `ChatConversationCubit` (additive `realtime:` param): live `message:new` inserted by `seq` + deduped, `message:read` → status READ, reconnect → newest-page REST reconcile. **REST stays the only write path & source of truth** |
+| P6 — Realtime (Socket.IO) | Done, **uncommitted** (2026-07-22). Protocol read from the `drop-api` gateway (namespace `/chat`, handshake `auth.token` = Firebase ID token, `conversation:join`/`leave` with `{ok,error?}` acks, server events `message:new`/`read`/`deleted`/`deleted-for-me`, auth reject = `connection:error` + disconnect). New `ChatRealtime` domain port + `ChatSocketService` (`socket_io_client ^3.1.6`, the only file importing it): refcounted connect (first join) / teardown (last leave), **self-owned reconnect** (rebuilt socket + fresh token each attempt, exp. backoff ≤30s, force-refresh after auth reject), room re-join on reconnect. A raw transport connect is **not** treated as an authenticated session (the gateway allows connect, then rejects a bad token via `connection:error` + disconnect): the connection is promoted to healthy — backoff reset, `ChatRealtimeConnected` emitted, rooms re-joined — only after an 800 ms grace window with no rejection, so a bad token backs off quietly instead of a ~1/s reconnect+401+crash loop (fix 2026-08-05; `WebSocketConnectionClosed` from the socket-close path is a non-fatal breadcrumb, not a crash). `ChatConversationCubit` (additive `realtime:` param): live `message:new` inserted by `seq` + deduped, `message:read` → status READ, reconnect → newest-page REST reconcile. **REST stays the only write path & source of truth** |
 | P7 — Message deletion UI | Done, **uncommitted** (2026-07-22). Long-press → bottom-sheet menu (`chat_message_actions.dart`) → Cases-style confirm → the existing use cases. **Delete for me** always offered; **Delete for everyone** offered only on own non-deleted messages (identity fact — the real rules, sender-only + 1h window, stay server-enforced; a 403 surfaces the server's message). In-flight delete dims the bubble (`deletingMessageId`, one at a time). Live `message:deleted` now tombstones in place (client mirrors the backend placeholder constant) and `message:deleted-for-me` removes cross-session |
 | P8 — Inbox realtime | Done, **uncommitted** (2026-07-22). Same shared socket (no second service): `ChatRealtime` gains `attachInbox`/`detachInbox` — inbox interest that keeps the connection alive with **no room join** (the personal `user:{id}` room already delivers `message:new` for every conversation). `ChatListCubit` (additive `realtime` seam, attached on first load) bumps the row to top with fresh activity, seeds its unread map from the server-computed `unreadCount` in `GET /conversations`, then applies socket deltas; opening a conversation clears that count via `clearUnread`. It dedupes by per-conversation `seq`, refreshes on an unknown-conversation message or a reconnect, and tombstones a previewed line on live delete-for-everyone. Loaded state carries `previews`/`unreadCounts` maps into the Phase-4 tile slots. **REST stays the source of truth**; pagination unchanged |
 | P9 — New-conversation flow | Done, **uncommitted** (2026-07-22; directory scope superseded by P12). Inbox FAB (always) + empty-state "Start Chat" CTA → `/chat/new` teammate picker (`NewChatScreen`/`NewChatView` + `NewChatCubit` over `GetChatDirectory`): every active user except the current user, search, avatar · name · role. Selecting one calls `StartConversation` and `pushReplacement`s to the thread (Back → inbox); server get-or-create means an existing pair opens the same thread, no duplicate. **Backend contract change (`drop-api`):** `POST /conversations` `targetUserId` is now the teammate's **Firebase uid** (external subject), resolved server-side to the internal participant via the existing identity resolver (get-or-create — provisions a teammate who's never opened chat); clients never hold other users' internal UUIDs. Self-start rejected 400 |

@@ -43,6 +43,21 @@ import 'package:drop/features/branch/data/datasources/branch_remote_datasource.d
 import 'package:drop/features/branch/data/repositories/branch_repository_impl.dart';
 import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:drop/features/sales/data/datasources/sales_remote_datasource.dart';
+import 'package:drop/features/sales/data/repositories/sales_repository_impl.dart';
+import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
+import 'package:drop/features/sales/domain/usecases/submit_daily_sales.dart';
+import 'package:drop/features/sales/domain/usecases/set_branch_monthly_target.dart';
+import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dart';
+import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
+import 'package:drop/features/sales/domain/usecases/request_sales_correction.dart';
+import 'package:drop/features/sales/domain/usecases/resubmit_corrected_sales.dart';
+import 'package:drop/features/sales/domain/usecases/edit_approved_sales_submission.dart';
+import 'package:drop/features/sales/domain/usecases/reopen_sales_submission.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_submission_detail_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_admin_overview_cubit.dart';
 import 'package:drop/features/admin/data/datasources/user_admin_remote_datasource.dart';
 import 'package:drop/features/admin/data/repositories/user_admin_repository_impl.dart';
 import 'package:drop/features/admin/domain/repositories/user_admin_repository.dart';
@@ -450,6 +465,30 @@ class AppDependencies {
   static late final ScheduleRepository _scheduleRepositoryRef;
   static late final BranchRepository _branchRepositoryRef;
 
+  /// Branch Sales Target — read-only ledger seam (P1). P3 constructs the sales
+  /// cubits and read use cases from this once presentation consumers exist.
+  static late final SalesRepository salesRepository;
+  /// P3 — the employee Home sales card + submission screen consume this app-wide.
+  static late final SalesMonthCubit salesMonthCubit;
+  // P3 presentation consumes these write actions when its sales cubits land.
+  static late final SubmitDailySales submitDailySales;
+  static late final SetBranchMonthlyTarget setBranchMonthlyTarget;
+  static late final ApproveSalesSubmission approveSalesSubmission;
+  static late final RejectSalesSubmission rejectSalesSubmission;
+  static late final RequestSalesCorrection requestSalesCorrection;
+  static late final ResubmitCorrectedSales resubmitCorrectedSales;
+  static late final EditApprovedSalesSubmission editApprovedSalesSubmission;
+  static late final ReopenSalesSubmission reopenSalesSubmission;
+
+  static SalesManagerDashboardCubit createSalesManagerDashboardCubit() =>
+      SalesManagerDashboardCubit(repository: salesRepository, branchRepository: _branchRepositoryRef, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, setTarget: setBranchMonthlyTarget);
+
+  static SalesAdminOverviewCubit createSalesAdminOverviewCubit() =>
+      SalesAdminOverviewCubit(repository: salesRepository);
+
+  static SalesSubmissionDetailCubit createSalesSubmissionDetailCubit(String submissionId) =>
+      SalesSubmissionDetailCubit(submissionId: submissionId, repository: salesRepository, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, reopen: reopenSalesSubmission);
+
   /// Builds a fresh Attendance History ledger cubit — the employee's own history
   /// ([AttendanceHistoryMode.self]) or a manager/admin branch review
   /// ([AttendanceHistoryMode.review]). Owned + disposed by its `BlocProvider`.
@@ -619,6 +658,25 @@ class AppDependencies {
         FirebaseFirestore.instance, FirebaseStorage.instance);
     final BranchRepository branchRepository =
         BranchRepositoryImpl(branchRemoteDataSource);
+
+    // Branch Sales Target — P3 cubits consume this stable read/write seam.
+    salesRepository = SalesRepositoryImpl(
+      SalesRemoteDataSourceImpl(FirebaseFirestore.instance, FirebaseFunctions.instance),
+    );
+    submitDailySales = SubmitDailySales(salesRepository);
+    setBranchMonthlyTarget = SetBranchMonthlyTarget(salesRepository);
+    approveSalesSubmission = ApproveSalesSubmission(salesRepository);
+    rejectSalesSubmission = RejectSalesSubmission(salesRepository);
+    requestSalesCorrection = RequestSalesCorrection(salesRepository);
+    resubmitCorrectedSales = ResubmitCorrectedSales(salesRepository);
+    editApprovedSalesSubmission = EditApprovedSalesSubmission(salesRepository);
+    reopenSalesSubmission = ReopenSalesSubmission(salesRepository);
+    salesMonthCubit = SalesMonthCubit(
+      repository: salesRepository,
+      branchRepository: branchRepository,
+      submitDailySales: submitDailySales,
+      resubmitCorrectedSales: resubmitCorrectedSales,
+    );
 
     // Notification repository is built early — the TaskCubit needs the
     // NotifyTaskEvent use case for its automatic task-event notifications.

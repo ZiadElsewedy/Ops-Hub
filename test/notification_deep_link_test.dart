@@ -185,6 +185,48 @@ void main() {
     });
   });
 
+  group('resolveNotificationRoute — sales submission', () {
+    test('with a salesSubmissionId opens the exact submission', () {
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesSubmission,
+          payload: const {'salesSubmissionId': 'b1_20260805'},
+          role: UserRole.employee,
+        ),
+        RouteNames.salesSubmissionDetail('b1_20260805'),
+      );
+    });
+
+    test('without an id falls back to the role sales area', () {
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesSubmission,
+          payload: const {},
+          role: UserRole.admin,
+        ),
+        RouteNames.salesManage,
+      );
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesSubmission,
+          payload: const {},
+          role: UserRole.manager,
+        ),
+        RouteNames.salesManage,
+      );
+      // The employee's own sales page — NOT Home. An employee has a sales area
+      // of their own now, and `/sales/mine` is where their records live.
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesSubmission,
+          payload: const {},
+          role: UserRole.employee,
+        ),
+        RouteNames.salesMine,
+      );
+    });
+  });
+
   group('resolveNotificationRoute — attendance', () {
     // Regression: `writeAttendanceNotifications` has always stamped
     // `route: "attendance"`, but the resolver had no case for it — so every

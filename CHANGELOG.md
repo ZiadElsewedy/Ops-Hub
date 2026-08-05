@@ -14,6 +14,142 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Branch Sales audit: 9 fixes + per-branch opt-in (bug/feature; MED risk)
+
+A full audit of the just-built Branch Monthly Sales Target feature, before it ever
+reached users. What was already right: the ledger shape, the server-authoritative
+callables, the deterministic ids, `NetworkGuard` on every write, the audit and
+notification taxonomy, approved-only accumulation, and the money/date primitives.
+What was broken:
+
+1. **Routing (severe).** `isManagerArea` matched `/sales` by **prefix**, and it runs
+   before the employee guards — so `/sales/submit`, `/sales/mine`, `/sales/history`
+   and `/sales/submission/:id` were all manager-only. Every employee was bounced to
+   Home from their own submit screen, their own records, and the sales deep link.
+   **The entire employee half of the feature was unreachable.** Now matched exactly,
+   with `sales_route_access_test.dart` as the regression guard.
+2. **Resubmit-after-correction had no caller.** `ResubmitCorrectedSales` was wired
+   into DI but no cubit or screen invoked it, so `correctionRequested` was a dead
+   end. Added to `SalesMonthCubit` + a correction mode on the submit screen.
+3. **Metrics.** "Needed per day" read `0 EGP` on the last day of every month while
+   the branch was short (day count excluded today). "Average per day" divided by
+   elapsed **calendar** days, so lagging approvals understated pace daily and pulled
+   the forecast down. Now: days-left includes today; the average divides by distinct
+   **approved days**; the forecast only projects days with no record at all.
+   `completionDateEstimate` **removed** — it printed "On track by <today>" whenever
+   the target was met — replaced by a `salesPace` verdict sentence.
+4. **Wording.** The manager dashboard said "Edit monthly target" on a branch-month
+   with no target. Now "Set monthly target" until one exists.
+5. **Dead controls.** `AttentionSignal.onTap` was `() {}`; Approved / Rejected /
+   History all pushed the same unfiltered ledger. All now open the ledger filtered,
+   and the history screen gained status chips and a working month picker.
+6. **Permissions.** "Edit amount" rendered on any approved record for **any** viewer
+   including the submitting employee (the callable refused — it read as a broken
+   button). Decision actions are now manager/admin-only, reopen admin-only, and a
+   manager can no longer steer `/sales?branchId=` off their own branch.
+7. **Employee Home.** The card's no-target state was a 180px `DropEmptyState`
+   medallion — the "oversized icon" — and "today submitted" was computed from the
+   **device** date, not Cairo, and always read "pending" regardless of actual status.
+   Now compact (today · achieved · remaining · bar), Cairo-correct, showing the real
+   status, and tappable into a new employee sales page.
+8. **New `/sales/mine`.** Today's close and status, month achieved/target/remaining,
+   progress, days left, own history, and the submit CTA when eligible.
+9. **Retry did nothing.** Both cubits' load guards early-returned after a failure, so
+   the error state could never clear. Added `force:`; a month rollover now also
+   re-subscribes on its own.
+
+**New capability — per-branch opt-in.** `branches/{id}.salesTargetEnabled`
+(admin-only, **default `false`**, toggled in the branch form). Off ⇒ the feature
+does not exist for that branch: no Home card (and no leftover spacing), no sales
+pages, no target management, no submissions. Enforced in the client, in
+`firestore.rules` (a new `branchRunsSalesTargets` gate on submission create), and in
+`setBranchSalesTarget`. Deciding **already-open** records stays allowed so switching
+a branch off never strands a submission an employee is waiting on.
+
+Also: **Branch Sales was missing from the macOS sidebar entirely** — added for all
+three roles (admin → all-branches overview, manager → own branch, employee → My
+Sales). Raw `yyyyMMdd` keys ("20260805") no longer leak into the UI. One stream
+failing no longer discards content the other delivered.
+
+Gates: `flutter analyze` clean · `flutter test` **1630 pass** (was 1606) ·
+`functions` node --test **112** · `firestore-tests` **68** (was 66).
+⚠️ **Rules + functions must be redeployed before this client ships** — the opt-in
+added a rule and a callable precondition.
+
+---
+
+## 2026-08-05 — Restore the clean splash Lottie (corrupt asset revert; LOW risk)
+
+**This is the actual "why the launch animation looks wrong" answer.** On 2026-08-05
+commit `b260c39` ("Change the name fbro") re-exported `assets/0704.json` and
+corrupted **5 of its 102 embedded WebP frames** (39, 47, 55, 68, 69): each got a
+stray `-`, which is invalid in standard base64. Strict `base64Decode` — the path
+the `lottie` runtime *and* `splash_visual_centering_test` both use — rejects
+those frames, so the cold-start intro can't decode them and misrenders. The
+export was otherwise the **same animation** (identical header, 102 frames,
+`op:155`, identical first-frame data); only those 5 frames were mis-encoded, and
+the stray `-` can't be stripped cleanly (it leaves invalid base64 lengths).
+
+**Fix:** `git checkout 44d2d21 -- assets/0704.json` — restored the pre-`b260c39`
+blob `7bd8d6a`, which is 100% valid (all 102 frames strict-decode to `RIFF…WEBP`).
+The only thing dropped is the cosmetic "name" edit; the animation is unchanged.
+The long-standing `splash_visual_centering_test` failure (`FormatException` at
+char 65630) that CURRENT_STATE tracked as "pre-existing" is now **green** — it was
+this corruption all along.
+
+## 2026-08-05 — Cold-start bootstrap can no longer hang the splash (bug; LOW risk)
+
+The desktop launch screen plays a one-shot 5 s Lottie intro, then **holds its
+final frame** until `LaunchApp`'s rendezvous is satisfied — both the intro *and*
+`_initializeRuntime` must finish (`main.dart` `_canEnterApp`). But
+`_initializeRuntime` awaited `Firebase.initializeApp`, `restoreSession`, and the
+home-critical warm-up (`statistics`/`task`/`branch` loads) with **no timeout**,
+so a slow or unreachable backend (e.g. the dev API misbehaving, cf. the same-day
+chat-socket note) left the splash frozen on that static final frame indefinitely
+— which reads as "the animated logo stopped animating." Nothing in the splash or
+the Lottie asset actually changed (git: the asset's only Aug-5 touch was a
+one-line name field); the regression was purely bootstrap latency with no
+ceiling.
+
+**Fix:** each bootstrap phase is now bounded. `Firebase.initializeApp`
+(20 s) is the one hard precondition — a timeout throws and surfaces the existing
+retryable startup-error screen. `restoreSession` (10 s) and the warm-up (8 s)
+**degrade** instead: on timeout the app enters anyway (worst case the router
+lands on login and the auth-stream `refreshListenable` re-routes to the correct
+home once the session resolves; warm-up scopes keep loading lazily). The warm-up
+future is `ignore()`d alongside its timeout so a late failure can't become an
+unobserved async error. Touches `main.dart` only; `flutter analyze` clean, splash
++ chat suites green. **Note:** this stops the *hang*; if the dev backend itself is
+down, that's still an environment fix.
+
+## 2026-08-05 — Chat socket: a rejected token no longer crash-loops (bug; LOW risk)
+
+A rejected/expired Firebase token on the chat socket turned into a ~1/second
+reconnect + REST-401 + 🔴 CRASH storm. Root cause was in how the client *handled*
+the rejection, not the token itself: the `drop-api` gateway **allows** the socket
+to connect and only then rejects a bad token via `connection:error` + a
+server-side disconnect. `ChatSocketService.onConnect` treated that raw transport
+connect as an authenticated session — it reset the exponential backoff to zero
+(so retries never grew past 1s) and emitted `ChatRealtimeConnected`, which made
+`ChatListCubit` re-pull `GET /conversations` → **401** every cycle. Each cycle's
+server disconnect also let `socket_io_client` throw an **uncaught**
+`WebSocketConnectionClosed` from a library microtask into the zone funnel, logged
+as a full crash.
+
+**Fix (client resilience only):** a raw connect is no longer proof of auth — the
+connection is promoted to healthy (backoff reset, `ChatRealtimeConnected` emitted,
+rooms re-joined) only after an 800 ms grace window elapses with **no**
+`connection:error`. A rejection now keeps the backoff growing (1→2→4→…→30 s cap)
+and emits nothing, so the REST inbox is never falsely refreshed. `CrashReporter`
+downgrades `WebSocketConnectionClosed` from the socket-close path to a
+non-fatal breadcrumb (matched by type name; no new dependency). Net: an
+unreachable/rejecting chat backend degrades to a quiet, backed-off "will retry"
+instead of a crash storm. Touches `chat_socket_service.dart` +
+`crash_reporter.dart`; realtime event consumers unchanged. `flutter analyze`
+clean; chat realtime + connectivity suites green. **Note:** the *cause* of the
+401 (dev backend rejecting the token — cf. the 2026-07-22 migration-gap note in
+CURRENT_STATE) is an environment matter, out of scope for this client fix.
+
 ## 2026-08-05 — Rejected shift tasks close at the wall (bug + product ruling; MED risk)
 
 A generated shift instance sent back for rework never reached a terminal:

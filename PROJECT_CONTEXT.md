@@ -129,9 +129,11 @@ wires every datasource, repository, use case, and cubit **by hand** — no DI pa
 
 - **App-wide cubits** are provided in `main.dart` via `MultiBlocProvider`:
   `auth` · `profile` · `task` · `branch` · `adminUsers` · `statistics` · `schedule` ·
-  `shiftSwap` · `branchOperations` · `broadcast` · `broadcastTemplate` ·
-  `broadcastSchedule` · `notification` · `caseList` · `chatList` ·
-  `requestsList` · `attendance` · `attendanceAdmin`.
+  `todayCoverage` · `shiftSwap` · `branchOperations` · `broadcast` ·
+  `broadcastTemplate` · `broadcastSchedule` · `notification` · `caseList` ·
+  `chatList` · `requestsList` · `attendance` · `attendanceAdmin` · `salesMonth`
+  (Employee Home + both employee sales screens share it, so opening a sales page
+  costs no extra reads and the surfaces cannot disagree about "today").
 - **Per-entity cubits** are built on demand by `AppDependencies.create*` —
   `createCaseConversationCubit`, `createRequestDetailCubit`.
 
@@ -153,7 +155,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 
 ## 4. Module map
 
-18 features in `lib/features/`. Detail lives in the linked design doc — not here.
+19 features in `lib/features/`. Detail lives in the linked design doc — not here.
 
 | Module | Owns | Design doc |
 | --- | --- | --- |
@@ -169,7 +171,8 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `notifications` | Notification inbox + deep-link resolver | [NOTIFICATIONS](docs/design/NOTIFICATIONS.md) |
 | `operations` | Branch Operations cockpit: workload, KPI drills | [TASKS](docs/design/TASKS.md) |
 | `admin` | User administration, Admin Home command center | [DESIGN_SYSTEM](docs/design/DESIGN_SYSTEM.md) |
-| `branch` | Branch CRUD, geofences, swap policy, manager clock policy | [ATTENDANCE](docs/design/ATTENDANCE.md) |
+| `branch` | Branch CRUD, geofences, swap policy, manager clock policy, **sales-target opt-in** | [ATTENDANCE](docs/design/ATTENDANCE.md) |
+| `sales` | Per-branch monthly sales target, daily employee closes, manager approval, derived pace KPIs. Opt-in per branch (`branches/{id}.salesTargetEnabled`) | [SALES_TARGETS](docs/design/SALES_TARGETS.md) |
 | `statistics` | Role-scoped counts powering all three dashboards | — |
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |
@@ -192,7 +195,7 @@ features' cubits.
 | `network/` | `ApiClient` — the single authenticated HTTP seam for the NestJS chat API (+ `NetworkConfig`). Consumed only by `features/chat/` |
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
-| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (49 routes) |
+| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (55 routes) |
 | `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |

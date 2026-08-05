@@ -43,6 +43,19 @@ class BranchRepositoryImpl implements BranchRepository {
     return list;
   }
 
+  @override
+  Future<BranchEntity?> getBranch(
+    String branchId, {
+    bool forceRefresh = false,
+  }) async {
+    if (branchId.isEmpty) return null;
+    final branches = await getBranches(forceRefresh: forceRefresh);
+    for (final branch in branches) {
+      if (branch.id == branchId) return branch;
+    }
+    return null;
+  }
+
   Future<List<BranchEntity>> _fetchBranches({
     required bool includeDeleted,
   }) async {

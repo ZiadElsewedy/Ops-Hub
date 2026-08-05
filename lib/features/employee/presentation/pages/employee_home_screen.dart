@@ -25,6 +25,9 @@ import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/attendance/domain/attendance_calculator.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_state.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_target_card.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
@@ -97,6 +100,15 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   void _load({bool force = false}) {
     final user = context.currentUser;
     if (user != null) {
+      final branchId = user.branchId;
+      if (branchId != null && branchId.isNotEmpty) {
+        unawaited(
+          context.read<SalesMonthCubit>().loadForEmployee(
+            branchId: branchId,
+            uid: user.uid,
+          ),
+        );
+      }
       unawaited(_loadSeen(user.uid));
       context.read<StatisticsCubit>().load(user, forceRefresh: force);
       context.read<TaskCubit>().load(user, forceRefresh: force);
@@ -228,6 +240,48 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                 },
               ),
             ),
+
+            if (user?.branchId != null)
+              BlocBuilder<SalesMonthCubit, SalesMonthState>(
+                builder: (context, state) {
+                  // A branch that does not run monthly targets shows nothing at
+                  // all — the feature must not exist for those employees. The
+                  // module gates its own spacing too, so an opted-out Home has
+                  // no unexplained gap where the card would have been.
+                  if (state is SalesMonthDisabled ||
+                      state is SalesMonthInitial) {
+                    return const SizedBox.shrink();
+                  }
+                  final Widget card;
+                  if (state is SalesMonthError) {
+                    card = SalesTargetCard.error(
+                      errorMessage: state.message,
+                      onRetry: () =>
+                          context.read<SalesMonthCubit>().loadForEmployee(
+                            branchId: user!.branchId!,
+                            uid: user.uid,
+                            force: true,
+                          ),
+                    );
+                  } else if (state is SalesMonthLoaded) {
+                    card = SalesTargetCard(
+                      state: state,
+                      onOpen: () => context.push(RouteNames.salesMine),
+                    );
+                  } else {
+                    card = const SalesTargetCard.loading();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.xl,
+                      AppSpacing.pagePadding,
+                      0,
+                    ),
+                    child: card,
+                  );
+                },
+              ),
 
             Padding(
               padding: const EdgeInsets.fromLTRB(

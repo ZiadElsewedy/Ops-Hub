@@ -570,6 +570,11 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   label: 'Branch attendance',
                   onTap: () => context.push(RouteNames.attendanceReports),
                 ),
+                DigestEntry(
+                  icon: Icons.payments_outlined,
+                  label: 'Branch sales',
+                  onTap: () => context.push(RouteNames.salesManage),
+                ),
               ],
             );
           },
