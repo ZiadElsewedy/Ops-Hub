@@ -20,6 +20,24 @@
       ]
     },
     {
+      "collectionGroup": "branch_sales_submissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "branchId", "order": "ASCENDING" },
+        { "fieldPath": "monthKey", "order": "ASCENDING" },
+        { "fieldPath": "submittedById", "order": "ASCENDING" },
+        { "fieldPath": "businessDateKey", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "branch_sales_submissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "monthKey", "order": "ASCENDING" },
+        { "fieldPath": "businessDateKey", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
