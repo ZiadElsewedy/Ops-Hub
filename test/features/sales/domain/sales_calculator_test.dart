@@ -1,6 +1,10 @@
 import 'package:drop/core/enums/sales_submission_status.dart';
 import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
 import 'package:drop/features/sales/domain/sales_calculator.dart';
+import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:drop/features/sales/domain/entities/sales_kpis.dart';
+import 'package:drop/features/sales/domain/sales_kpis_calculator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 DailySalesSubmissionEntity _submission(
@@ -16,6 +20,18 @@ DailySalesSubmissionEntity _submission(
 );
 
 void main() {
+  SalesMonthSnapshot snapshot({
+    BranchSalesMonthEntity? target,
+    List<DailySalesSubmissionEntity> submissions = const [],
+  }) => SalesMonthSnapshot(target: target, submissions: submissions);
+
+  final target = BranchSalesMonthEntity(
+    id: 'b1_202608',
+    branchId: 'b1',
+    monthKey: '202608',
+    targetPiastres: 31000,
+  );
+
   test('derives totals, remaining, and raw versus capped progress', () {
     expect(
       sumApprovedPiastres([
@@ -55,5 +71,48 @@ void main() {
       ),
       isNull,
     );
+  });
+
+  test('composes mid-month KPIs from the approved ledger', () {
+    final kpis = computeSalesKpis(
+      snapshot(
+        target: target,
+        submissions: [_submission(15000, SalesSubmissionStatus.approved)],
+      ),
+      now: DateTime.utc(2026, 8, 10, 10),
+    );
+
+    expect(kpis.daysRemaining, 21);
+    expect(kpis.averageApprovedDailyPiastres, 1500);
+    expect(kpis.requiredDailyRunRatePiastres, 762);
+    expect(kpis.monthEndForecastPiastres, 46500);
+    expect(kpis.completionDateEstimate, DateTime(2026, 8, 21));
+  });
+
+  test('returns safe KPI defaults without a target or elapsed time', () {
+    expect(
+      computeSalesKpis(snapshot(), now: DateTime.utc(2026, 8, 10)),
+      const SalesKpis(),
+    );
+    final kpis = computeSalesKpis(
+      snapshot(target: target),
+      now: DateTime.utc(2026, 8, 1),
+    );
+    expect(kpis.averageApprovedDailyPiastres, 0);
+    expect(kpis.requiredDailyRunRatePiastres, 1034);
+    expect(kpis.completionDateEstimate, isNull);
+  });
+
+  test('handles an already-met target at month end', () {
+    final kpis = computeSalesKpis(
+      snapshot(
+        target: target,
+        submissions: [_submission(32000, SalesSubmissionStatus.approved)],
+      ),
+      now: DateTime.utc(2026, 8, 31, 10),
+    );
+    expect(kpis.daysRemaining, 0);
+    expect(kpis.requiredDailyRunRatePiastres, 0);
+    expect(kpis.completionDateEstimate, DateTime(2026, 8, 31));
   });
 }

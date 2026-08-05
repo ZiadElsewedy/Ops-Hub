@@ -13,7 +13,10 @@ import 'package:drop/core/widgets/list_skeleton.dart';
 import 'package:drop/core/widgets/metric_tile.dart';
 import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
+import 'package:drop/features/sales/domain/sales_kpis_calculator.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_kpi_strip.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_recent_approved_trend.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_progress_strip.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_reason_sheet.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.dart';
@@ -100,6 +103,16 @@ class _SalesManagerDashboardScreenState
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
+            if (snapshot.hasTarget) ...[
+              SalesKpiStrip(
+                snapshot: snapshot,
+                kpis: computeSalesKpis(snapshot, now: DateTime.now()),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
+            SalesRecentApprovedTrend(snapshot: snapshot),
+            if (snapshot.approved.isNotEmpty)
+              const SizedBox(height: AppSpacing.xl),
             AttentionPanel(
               signals: [
                 AttentionSignal(

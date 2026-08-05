@@ -45,7 +45,9 @@ DateTime? completionDateEstimate({
   required int averageDailyPiastres,
   required DateTime today,
 }) {
-  if (targetPiastres <= 0 || approvedPiastres >= targetPiastres) return today;
+  if (targetPiastres <= 0 || approvedPiastres >= targetPiastres) {
+    return DateTime(today.year, today.month, today.day);
+  }
   if (averageDailyPiastres <= 0) return null;
   final days =
       (targetPiastres - approvedPiastres + averageDailyPiastres - 1) ~/
