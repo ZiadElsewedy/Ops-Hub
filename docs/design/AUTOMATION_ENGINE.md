@@ -112,6 +112,14 @@ Cloud-Function-owned (like `version`/`createdAt`), so a client edit can't regres
 them. Template read failures render an error/retry state; they are not treated as
 an empty branch.
 
+Routine details use the same single-modal loop, but the details-only route opts
+into the device safe area. A pinned header provides a labelled 44px Close action;
+the scroll body initially shows schedule + next check, latest generation outcome
+and the last generated task. Priority, checklist, assignment, shift-window notes
+and the Missed policy are deliberately collapsed under **More details**. Failure
+state stays visible above that disclosure. Pause/resume and confirmed delete
+remain in the primary scroll flow and use the existing `TaskCubit` mutations.
+
 The presentation is deliberately honest about the boundary between a template and
 one generated occurrence:
 
@@ -310,11 +318,22 @@ resurrected" ([spec §4.4](AUTOMATED_TASKS_PRODUCT_SPEC.md)), and that explicitl
 includes repair, so a cancelled/missed/approved instance is left exactly as it is
 (the guard is the pure `isTerminalTaskStatus` in `functions/recurring_task_deadline.js`).
 Generation for a day is spent the moment that day's instance exists in **any**
-state. During the UTC-key → business-date-key transition, the generator also
-checks the legacy UTC-derived id before creating; if found, it records the run as
-the existing `alreadyExists` skip and does not create or notify. That guard is
-temporary and can be deleted once no live UTC-keyed instance can remain. Pure
-record-shape logic is extracted to `functions/automation_run.js`.
+state.
+
+> ⚠️ **Never add a "legacy date key" pre-check before the `create()`.** One
+> existed for the UTC-key → business-date-key transition and it silently
+> disabled every **daily** routine (fixed 2026-08-05). The generator is pinned to
+> 01:00 Africa/Cairo, where the UTC date is *always* the previous day (UTC+2 and
+> UTC+3 alike), and both conventions share one id format
+> (`rt_{templateId}_{yyyy-MM-dd}`) — so the "legacy id" it probed was simply
+> **yesterday's ordinary instance**. It existed, so every run recorded
+> `skipped / alreadyExists` and no task was created. The premise was wrong from
+> the start: the pre-fix generator ran at a UTC-anchored hour where the UTC and
+> Cairo dates agreed, so one occurrence was never written under two keys. The
+> deterministic id now has one source, `recurringInstanceId`, and the invariant is
+> pinned in `functions/test/recurring_task_deadline.test.js`.
+
+Pure record-shape logic is extracted to `functions/automation_run.js`.
 
 **`autoEndRecurringShiftTasks`** — every 15 minutes, queries the indexed due
 generated shift tasks and transactionally revalidates each one. A task is due
@@ -322,14 +341,70 @@ only once its deadline is at least the **30-minute grace period** in the past
 ([ADR-013](../decisions/ADR-013-task-grace-period.md)); the query cutoff and the
 transaction's re-check use the same rule, so the sweep's own cadence can never
 become the effective policy — which is precisely the defect grace replaced. It
-changes only a
-live source-template `pending`/`started` instance to `missed`, stamps `missedAt`,
-appends the system timeline entry, bumps `version`, and emits `task.auto_missed`.
-A manager cancel and this sweep can race; **the first terminal to land wins and
-the other is a no-op** (spec §5.7) — the transaction re-reads the status, so an
-already-`cancelled` instance is skipped rather than rewritten to `missed`.
-It does not send a notification or touch completed/review states. The pure window
-and eligibility policy is in `functions/recurring_task_deadline.js`.
+changes only a live source-template instance in `AUTO_END_ELIGIBLE_STATUSES` —
+**`pending` · `started` · `rejected`** — to `missed`, stamps `missedAt`, appends
+the system timeline entry, bumps `version`, and emits `task.auto_missed` carrying
+`fromStatus`, so the audit records whether this was work never done or rework
+never returned. A manager cancel and this sweep can race; **the first terminal to
+land wins and the other is a no-op** (spec §5.7) — the transaction re-reads the
+status, so an already-`cancelled` instance is skipped rather than rewritten to
+`missed`. It does not send a notification. The pure window and eligibility policy
+is in `functions/recurring_task_deadline.js`.
+
+**`rejected` joined that set on 2026-08-05** (owner-ruled). It had been excluded
+on the principle that the *reviewer* owns the next move on a rejected task — true
+for manual work, wrong here. A rejected instance never reached a terminal at all,
+so it read Late forever, stayed inside `isTaskInActiveWindow` forever, kept
+surfacing for later days' crews (the shift task stream has no date filter), and —
+decisively — fell out of **Approved ÷ (Approved + Missed)** entirely, so
+rejecting work quietly *improved* a branch's completion rate versus letting the
+same work be missed. §10.1 requires that rate to be ungameable. Rework inside the
+window is unaffected: a task rejected at 14:00 against a 16:30 wall is not
+evaluated until 17:00, and resubmitting moves it to `waitingReview`.
+`waitingReview` and `completed` stay **out** on purpose — auto-failing there would
+record an employee failure for a reviewer's delay.
+
+> ⚠️ **The sweep's Firestore query filters on the same
+> `AUTO_END_ELIGIBLE_STATUSES` constant.** A status the predicate accepts but the
+> query never fetches is simply never closed — that is the exact shape of the
+> `rejected` leak. Keep them one constant. No index change: the existing
+> `(assignmentType, status, deadline)` composite serves the widened `in`.
+
+**`runTaskReminders`** — every 30 minutes, escalates `due24h → due1h → overdue`
+per task through the `taskReminders/{taskId}` ledger. Three rules matter for
+automation (all fixed 2026-08-05):
+
+- **A rejected shift instance is reminded** (2026-08-05), the one exception to
+  the standing "rejected is reminder-ineligible" ruling in `task_reminders.js`.
+  That ruling holds wherever the reviewer owns the next move; it does not hold
+  for an instance a machine will close at the wall. Silence there means losing a
+  task to Missed without ever being told rework was owed. The nudge is its own
+  message (**Rework Needed** · "… was sent back and is due soon"), and the
+  exception is narrow: `shouldRemindTask` widens *only* `rejected`, and *only*
+  for a generated shift instance — a terminal is never revived into the sweep.
+- **Generated shift tasks are reminded.** They carry `assigneeIds: []` by
+  construction (a shift broadcast), and the sweep used to `continue` on an empty
+  assignee list — so the most important task class in the app had *no* reminder
+  coverage at all: one 01:00 notification, then silence until the manager was
+  told it was Missed. Recipients now resolve through the same
+  `eligibleRecipients` the generator uses (rostered · not on leave · active),
+  against the week of the task's **own occurrence** (`instanceDate`), never
+  "today" — a reminder just after midnight for a night shift would otherwise
+  resolve the wrong day's crew. Weekly-schedule reads are memoized per sweep.
+- **Quiet hours are the staff's wall clock.** They were evaluated with
+  `getUTCHours()`, putting the default 22→07 window at **00:00–09:00 Cairo** — it
+  muted the 08:30 morning-shift start and allowed a 23:30 ping. Resolved with
+  `businessHourOf` (Africa/Cairo, per ADR-015); an unresolvable hour fails
+  **open**, never into a silent estate-wide mute.
+- **The scan is bounded.** It was `deadline <= now + 24h` with no floor, no limit
+  and no status filter, re-reading every task ever written with a past deadline
+  48×/day — a runtime that only grew, until it would exceed the timeout and take
+  reminders down with it. Now floored at `REMINDER_LOOKBACK_DAYS` (7) and paged
+  at `BATCH_LIMIT`, both on the same auto-indexed `deadline` field (no composite
+  index). Notification ids are deterministic
+  (`taskreminder_{taskId}_{kind}_{uid}`), so a retried sweep converges instead of
+  stacking duplicates. Decisions are pure and unit-tested in
+  `functions/task_reminders.js`.
 
 **`onRecurringTemplateWritten`** (ADR-011) — server-derived lifecycle audit
 (created / paused / resumed / config_changed / deleted) from the definition's
@@ -353,6 +428,11 @@ before/after diff; idempotent (audit id from the CloudEvent id) and non-looping
   age-prune covers it — `automationRunRetentionDays`, default 90).
 
 ## 11. Deploy checklist (owner's machine)
+
+> 🚨 **`generateShiftTaskInstances` and `runTaskReminders` carry the 2026-08-05
+> fixes and are UNDEPLOYED.** Until step 1 runs, daily routines generate nothing
+> and shift tasks get no reminders. This is the highest-priority deploy in the
+> repository.
 
 1. `firebase deploy --only functions:generateShiftTaskInstances,functions:autoEndRecurringShiftTasks,functions:onRecurringTemplateWritten,functions:runTaskReminders,functions:taskHousekeeping`
 2. `firebase deploy --only firestore:rules` (including the server-owned missed lock)

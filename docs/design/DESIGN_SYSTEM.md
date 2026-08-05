@@ -111,6 +111,15 @@ These were private classes inside `admin_dashboard_screen.dart` until Manager
 Home became a second caller. They are the **whole** dashboard language — a role
 home should compose them and derive its own counts, never re-draw them.
 
+The mobile role-home frame is owned by `RoleScaffold`: a 72px toolbar with the
+DROP mark, restrained monochrome depth + bottom hairline, one flat
+`GlassContainer` command capsule for role-specific daily actions, and a separate
+account avatar control. The role word stays accessible but visually hidden (it
+previously truncated on the manager's crowded bar). Each command is a labelled
+≥44px target; unread notification count and account identity are included in
+semantics. Keep all manager controls visible at 320px. Desktop continues to use
+`AppShell`/`AppSidebar`, not this bar.
+
 - **`PrimaryCta`** — a hero's one filled monochrome action (hover-lift,
   press-scale, key-light shadow). At most **one** per screen.
 - **`HeroMood`** + `dashboardMood(needsAttention:)` (`core/utils/`) — the hero's

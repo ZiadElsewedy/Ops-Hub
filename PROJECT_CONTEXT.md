@@ -159,7 +159,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | --- | --- | --- |
 | `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles | [AUTH](docs/design/AUTH.md) |
 | `profile` | View/edit profile, image uploads, contact & payment details | [AUTH](docs/design/AUTH.md) |
-| `task` | The operations task workflow: create → execute → review | [TASKS](docs/design/TASKS.md) |
+| `task` | Operations tasks: create → execute → review, templates and recurring automation | [TASKS](docs/design/TASKS.md) · [AUTOMATION](docs/design/AUTOMATION_ENGINE.md) |
 | `schedule` | Admin Today coverage across branches, weekly roster, attributed swap approval/history, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `requests` | Employee → manager yes/no approvals | [REQUESTS](docs/design/REQUESTS.md) |
@@ -174,7 +174,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |
 | `employee` | EmployeeShell + employee home | — |
-| `settings` | Settings + change password (presentation-only) | — |
+| `settings` | Premium account hub, profile/security/workspace links, sign-out, About + change password (presentation-only) | — |
 
 `manager`, `employee`, and `settings` are **presentation-only** — they reuse other
 features' cubits.
@@ -407,7 +407,10 @@ New surfaces compose the Design System V2 primitives — see
 
 ### Adaptive shell
 
-- **Mobile/tablet:** AppBar + `AppBottomNav` via `RoleScaffold`.
+- **Mobile/tablet:** `RoleScaffold` owns the role-home AppBar (DROP mark + one
+  glass role-action capsule + separate account avatar) and `AppBottomNav`.
+  Actions remain role-scoped; the manager's five-control worst case must fit at
+  320px with every target ≥44px.
 - **Desktop:** persistent role-aware `AppSidebar` via `AppShell` (a `ShellRoute`),
   ⌘1–⌘9 jump to destinations, ⌘K opens the command palette.
 - Pages use `AdaptiveScaffold` (mobile AppBar ⇄ desktop page header).

@@ -63,7 +63,7 @@ outcome — it is unavailable once a task reaches Waiting Review.
 | **Started** | Employee is working on it | Employee | No |
 | **Waiting Review** | Employee submitted; awaiting decision | Employee | No |
 | **Approved** | Work accepted | Manager/Admin | **Yes** |
-| **Rejected** | Sent back for rework → returns to Started | Manager/Admin | No (loops) |
+| **Rejected** | Sent back for rework → returns to Started. On a generated shift task it is still **unfinished work against the shift wall** and is auto-Missed there (§3.7) | Manager/Admin | No (loops) |
 | **Missed** | Shift window closed on unfinished work, and the 30-minute grace expired (§3.6) | System (automatic) | **Yes** |
 | **Cancelled** | Business decision: will not be done | Manager/Admin | **Yes** |
 
@@ -73,7 +73,8 @@ outcome — it is unavailable once a task reaches Waiting Review.
 - `Started → Waiting Review` (employee)
 - `Waiting Review → Approved | Rejected` (manager/admin)
 - `Rejected → Started` (rework)
-- `Pending → Missed`, `Started → Missed` (system, shift tasks only, at shift end **+ 30 min grace**)
+- `Pending → Missed`, `Started → Missed`, `Rejected → Missed` (system, shift tasks
+  only, at shift end **+ 30 min grace** — see §3.7 for why Rejected is in this list)
 - `Pending → Cancelled`, `Started → Cancelled` (manager/admin, reason required)
 - `Approved | Missed | Cancelled → Pending` **admin-only correction** (§6.4)
 
@@ -138,6 +139,34 @@ outcome — it is unavailable once a task reaches Waiting Review.
    finished at grace+1 minute is still Missed. And completion rates computed
    after this rule are **not comparable** to figures from before it; the change
    is a baseline reset, not an improvement.
+
+7. **A Rejected generated shift task is auto-Missed at the wall, like any other
+   unfinished work** (ruled 2026-08-05). Rejection starts a rework loop; it does
+   not pause the shift. The states that auto-close are **Pending · Started ·
+   Rejected**.
+
+   *Justification:* rejection was previously excluded on the principle that the
+   *reviewer* owns the next move — which is right for manual work and wrong here.
+   A rejected instance reached no terminal at all, so it read Late forever, never
+   left the active window, kept appearing for later days' rostered crews, and —
+   decisively — **fell out of the completion rate entirely**. That made rejection
+   a laundering path: sending work back scored better than letting it be missed,
+   which §10.1 forbids. Naming it Missed is also simply the truth — the shift
+   ended and the work was not done to standard.
+
+   The boundaries:
+
+   - **Rework inside the window is untouched.** A task rejected at 14:00 against a
+     16:30 wall is not evaluated until 17:00, and resubmitting moves it to Waiting
+     Review, which is never auto-closed.
+   - **Waiting Review and Completed are never auto-closed.** The employee has done
+     their part; auto-failing there would record an *employee* failure for a
+     *reviewer's* delay.
+   - **The employee is told.** A rejected shift instance is the one exception to
+     the "no reminder on rejected" rule (§9.5) — closing work automatically
+     against a message you chose not to send is not acceptable.
+   - **Manual and per-task recurring tasks are unaffected**, per §3.2: Missed is
+     exclusive to Automated Shift Tasks.
 
 ---
 
@@ -270,6 +299,12 @@ Four categories, kept **independent**. No report may ever merge any two.
    notification.
 4. **No notification on Late.** It is a passive visual; alerting on every deadline
    crossing is noise.
+5. **Rework on a generated shift task is nudged** (ruled 2026-08-05). Rejected work
+   is otherwise deliberately silent — the reviewer owns the next move — but a shift
+   instance is closed automatically at the wall (§3.7), so silence would let an
+   employee lose a task to automation without ever being told rework was owed. The
+   nudge rides the existing reminder ladder and escalation cap; it is **not** a new
+   channel. Rejected manual, individual and team work stays silent.
 
 ---
 
