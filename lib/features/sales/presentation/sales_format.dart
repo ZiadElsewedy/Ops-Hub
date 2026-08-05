@@ -5,13 +5,25 @@ String formatEgp(int piastres, {bool withSuffix = false}) {
   final value = piastres.abs();
   final whole = value ~/ 100;
   final fraction = value % 100;
-  final grouped = whole.toString().replaceAllMapped(
-    RegExp(r'(?=(\d{3})+(?!\d))'),
-    (_) => ',',
-  );
   final amount =
-      '${negative ? '-' : ''}$grouped${fraction == 0 ? '' : '.${fraction.toString().padLeft(2, '0')}'}';
+      '${negative ? '-' : ''}${_groupThousands(whole)}${fraction == 0 ? '' : '.${fraction.toString().padLeft(2, '0')}'}';
   return withSuffix ? '$amount EGP' : amount;
+}
+
+/// Groups digits in threes from the RIGHT.
+///
+/// The previous lookahead (`(?=(\d{3})+(?!\d))`) also matched at index 0 whenever
+/// the digit count was an exact multiple of three, so every such amount rendered
+/// with a leading comma — `945000` became `,945,000`. Counting from the right
+/// cannot produce a separator before the first digit.
+String _groupThousands(int value) {
+  final digits = value.toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(digits[i]);
+  }
+  return buffer.toString();
 }
 
 int? parseEgpToPiastres(String input) {

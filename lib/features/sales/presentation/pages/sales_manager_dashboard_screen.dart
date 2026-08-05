@@ -10,22 +10,26 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/attention_panel.dart';
+import 'package:drop/core/widgets/brand_watermark.dart';
 import 'package:drop/core/widgets/drop_empty_state.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
 import 'package:drop/core/widgets/metric_tile.dart';
-import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
 import 'package:drop/features/sales/domain/sales_kpis_calculator.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_kpi_strip.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_recent_approved_trend.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_progress_strip.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_money_row.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_needed_per_day.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_reason_sheet.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_target_editor_sheet.dart';
 
+/// The branch sales dashboard: the month's three money facts, what today needs,
+/// the queue to act on, and four doors into the ledger.
+///
+/// The progress bar, the percentage, the four-figure Pace strip and the "Recent
+/// approved days" list were all removed — they restated the same month from four
+/// angles and buried the only thing a manager comes here to do: approve.
 class SalesManagerDashboardScreen extends StatefulWidget {
   const SalesManagerDashboardScreen({super.key, this.branchId});
   final String? branchId;
@@ -54,9 +58,7 @@ class _SalesManagerDashboardScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  /// Set and Edit are the same server action; only the wording changes. The
-  /// screen used to say "Edit monthly target" on a branch-month that had no
-  /// target at all.
+  /// Set and Edit are the same server action; only the wording changes.
   Future<void> _editTarget(
     SalesManagerDashboardCubit cubit,
     int? currentPiastres,
@@ -126,92 +128,89 @@ class _SalesManagerDashboardScreenState
         final cubit = context.read<SalesManagerDashboardCubit>();
         final target = snapshot.target;
         final branchId = _branchId ?? '';
+        final kpis = computeSalesKpis(snapshot, now: DateTime.now());
         final queue = [...snapshot.pending, ...snapshot.correctionRequested]
           ..sort((a, b) => b.businessDateKey.compareTo(a.businessDateKey));
 
         return ListView(
-          padding: const EdgeInsets.all(AppSpacing.pagePadding),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding,
+            AppSpacing.lg,
+            AppSpacing.pagePadding,
+            AppSpacing.xxl,
+          ),
           children: [
-            PageHero(
-              eyebrow: loaded.branchName ?? 'Branch ledger',
-              title: 'Branch sales',
-              subtitle: 'Approve daily closes and track the monthly target.',
-              trailing: [
-                TextButton(
-                  onPressed: loaded.isBusyAnywhere
-                      ? null
-                      : () => _editTarget(
-                          cubit,
-                          target?.targetPiastres,
-                          target?.targetRevision,
+            // ── The month ──────────────────────────────────────────────
+            GlassContainer(
+              child: BrandWatermark(
+                opacity: 0.05,
+                assetLogo: true,
+                assetHeight: 52,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${(loaded.branchName ?? 'Branch').toUpperCase()} · '
+                            '${formatBusinessMonth(loaded.monthKey).toUpperCase()}',
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textTertiary,
+                              letterSpacing: 1,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                  child: Text(
-                    target == null ? 'Set monthly target' : 'Edit monthly target',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            if (target == null)
-              const DropEmptyState(
-                title: 'No target for this month',
-                message:
-                    'Set the monthly target to open daily sales submissions for '
-                    'this branch.',
-              )
-            else ...[
-              GlassContainer(
-                child: SalesProgressStrip(
-                  ratioCapped: snapshot.progressRatioCapped,
-                  ratioRaw: snapshot.progressRatioRaw,
-                  remainingPiastres: snapshot.remainingPiastres,
+                        TextButton(
+                          onPressed: loaded.isBusyAnywhere
+                              ? null
+                              : () => _editTarget(
+                                  cubit,
+                                  target?.targetPiastres,
+                                  target?.targetRevision,
+                                ),
+                          child: Text(
+                            target == null ? 'Set target' : 'Edit target',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (target == null)
+                      Text(
+                        'No target for this month. Set one to open daily sales '
+                        'submissions for this branch.',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      )
+                    else
+                      SalesMoneyRow(
+                        targetPiastres: target.targetPiastres,
+                        achievedPiastres: snapshot.approvedTotalPiastres,
+                        remainingPiastres: snapshot.remainingPiastres,
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.xl),
-              SalesKpiStrip(
-                snapshot: snapshot,
-                kpis: computeSalesKpis(snapshot, now: DateTime.now()),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-            ],
-            SalesRecentApprovedTrend(snapshot: snapshot),
-            if (snapshot.approved.isNotEmpty)
-              const SizedBox(height: AppSpacing.xl),
-            AttentionPanel(
-              signals: [
-                AttentionSignal(
-                  id: 'pending',
-                  count: snapshot.pending.length,
-                  accent: AppColors.primary,
-                  icon: Icons.pending_actions_rounded,
-                  label: 'Pending sales',
-                  sublabel: 'Awaiting your approval',
-                  onTap: () => context.push(
-                    RouteNames.salesHistoryFor(
-                      branchId: branchId,
-                      status: SalesSubmissionStatus.pending.name,
-                    ),
-                  ),
-                ),
-                AttentionSignal(
-                  id: 'correction',
-                  count: snapshot.correctionRequested.length,
-                  accent: AppColors.error,
-                  icon: Icons.edit_note_rounded,
-                  label: 'Corrections requested',
-                  sublabel: 'Awaiting resubmission',
-                  onTap: () => context.push(
-                    RouteNames.salesHistoryFor(
-                      branchId: branchId,
-                      status: SalesSubmissionStatus.correctionRequested.name,
-                    ),
-                  ),
-                ),
-              ],
             ),
-            if (queue.isNotEmpty) ...[
+
+            // ── What today needs ───────────────────────────────────────
+            if (target != null) ...[
               const SizedBox(height: AppSpacing.lg),
-              Text('Review queue', style: AppTypography.labelLarge),
+              SalesNeededPerDay(
+                neededPerDayPiastres: kpis.neededPerDayPiastres,
+                todayPiastres: loaded.todayPiastres,
+                daysRemaining: kpis.daysRemaining,
+              ),
+            ],
+
+            // ── Act on these ───────────────────────────────────────────
+            if (queue.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xl),
+              Text('Waiting on you', style: AppTypography.labelLarge),
               const SizedBox(height: AppSpacing.md),
               for (final item in queue)
                 Padding(
@@ -237,9 +236,22 @@ class _SalesManagerDashboardScreenState
                   ),
                 ),
             ],
+
+            // ── Four doors, four different lists ───────────────────────
             const SizedBox(height: AppSpacing.xl),
             MetricTileRow(
               tiles: [
+                MetricTile(
+                  value: snapshot.pending.length,
+                  label: 'Pending',
+                  icon: Icons.pending_actions_rounded,
+                  onTap: () => context.push(
+                    RouteNames.salesHistoryFor(
+                      branchId: branchId,
+                      status: SalesSubmissionStatus.pending.name,
+                    ),
+                  ),
+                ),
                 MetricTile(
                   value: snapshot.approved.length,
                   label: 'Approved',

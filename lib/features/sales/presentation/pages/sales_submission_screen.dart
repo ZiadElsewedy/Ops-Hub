@@ -178,7 +178,7 @@ class _SalesSubmissionScreenState extends State<SalesSubmissionScreen> {
                   title: 'Today is already closed',
                   message: existing != null
                       ? 'You submitted ${formatEgp(existing.amountPiastres, withSuffix: true)} '
-                            'for today. Open it from My sales to see where it stands.'
+                            'for today. Open Branch sales to see where it stands.'
                       : 'A teammate already recorded today’s sales for this branch.',
                 ),
               ] else if (!state.snapshot.hasTarget) ...[

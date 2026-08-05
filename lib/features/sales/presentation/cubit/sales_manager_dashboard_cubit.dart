@@ -36,6 +36,7 @@ class SalesManagerDashboardLoaded extends SalesManagerDashboardState {
   const SalesManagerDashboardLoaded({
     required this.snapshot,
     required this.monthKey,
+    required this.todayDateKey,
     this.branchName,
     this.busyId,
     this.message,
@@ -44,6 +45,14 @@ class SalesManagerDashboardLoaded extends SalesManagerDashboardState {
 
   /// The Cairo month this view is showing — the history screen drives it.
   final String monthKey;
+
+  /// Today's Cairo business day. Resolved by the cubit, never by the widget:
+  /// the device's local date is a different day near midnight and across DST.
+  final String todayDateKey;
+
+  /// The branch's close for today, whatever its status — the figure the
+  /// needed-per-day tone is judged against. Null until the day is submitted.
+  int? get todayPiastres => snapshot.submissionFor(todayDateKey)?.amountPiastres;
   final String? branchName;
   final String? busyId;
   final String? message;
@@ -161,6 +170,7 @@ class SalesManagerDashboardCubit extends Cubit<SalesManagerDashboardState> {
     SalesManagerDashboardLoaded(
       snapshot: SalesMonthSnapshot(target: _target, submissions: _submissions),
       monthKey: _monthKey ?? businessMonthKey(_now()),
+      todayDateKey: businessDateKey(_now()),
       branchName: _branchName,
       busyId: _busyId,
       message: message,

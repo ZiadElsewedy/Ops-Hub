@@ -126,6 +126,23 @@ void main() {
     await cubit.close();
   });
 
+  test('a branch lookup failure surfaces as an error, never as "off"', () async {
+    final repo = _FakeSalesRepo();
+    final cubit = _build(
+      repo,
+      branches: _FakeBranchRepo(failure: const ServerFailure('Branch offline')),
+    );
+
+    await cubit.loadForEmployee(branchId: 'b1', uid: 'u1');
+
+    // Failing open would hide a working feature; failing to "disabled" would be
+    // indistinguishable from a real opt-out and offer no retry.
+    expect(cubit.state, isA<SalesMonthError>());
+    expect((cubit.state as SalesMonthError).message, 'Branch offline');
+    expect(repo.monthListens, 0);
+    await cubit.close();
+  });
+
   test('an opted-in branch loads the month and this employee’s own days', () async {
     final repo = _FakeSalesRepo();
     final cubit = _build(repo);

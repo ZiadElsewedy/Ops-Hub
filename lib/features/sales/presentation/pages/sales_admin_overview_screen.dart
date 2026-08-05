@@ -10,18 +10,20 @@ import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/drop_empty_state.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/core/widgets/page_hero.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:drop/features/sales/domain/sales_branch_scope.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_admin_overview_cubit.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_progress_strip.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_money_row.dart';
 
-/// Every branch's monthly sales at a glance. Branches that have not opted in are
-/// listed but visibly off, so an admin can see the whole estate and knows the
-/// switch lives in branch settings rather than here.
+/// Every branch that runs a monthly target, showing **target · achieved ·
+/// remaining** and nothing else.
+///
+/// Branches that have not opted in are not listed at all — an admin who wants to
+/// turn one on goes to Branches, and a page of greyed-out rows was noise on the
+/// way to the branches that are actually selling.
 class SalesAdminOverviewScreen extends StatefulWidget {
   const SalesAdminOverviewScreen({super.key});
 
@@ -82,49 +84,33 @@ class _SalesAdminOverviewScreenState extends State<SalesAdminOverviewScreen> {
               }
               final snapshots =
                   (salesState as SalesAdminOverviewLoaded).snapshotsByBranchId;
-              if (branches.isEmpty) {
+              final enabled = salesEnabledBranches(branches);
+
+              if (enabled.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(AppSpacing.pagePadding),
                   child: DropEmptyState(
-                    title: 'No branches yet',
-                    message: 'Create a branch to start tracking monthly sales.',
+                    title: 'No branch runs a sales target',
+                    message:
+                        'Turn on the monthly sales target in a branch’s settings '
+                        'to start tracking it here.',
                   ),
                 );
               }
 
-              // Opted-in branches first: those are the ones that need attention.
-              final ordered = [...branches]
-                ..sort((a, b) {
-                  if (a.salesTargetEnabled == b.salesTargetEnabled) {
-                    return a.name.compareTo(b.name);
-                  }
-                  return a.salesTargetEnabled ? -1 : 1;
-                });
-              final enabledCount = ordered
-                  .where((branch) => branch.salesTargetEnabled)
-                  .length;
-
-              return ListView(
-                padding: const EdgeInsets.all(AppSpacing.pagePadding),
-                children: [
-                  PageHero(
-                    eyebrow: 'Branch ledger',
-                    title: 'Branch sales',
-                    subtitle:
-                        '$enabledCount of ${ordered.length} '
-                        '${ordered.length == 1 ? 'branch runs' : 'branches run'} '
-                        'a monthly target. Turn a branch on or off in its branch '
-                        'settings.',
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  for (final branch in ordered) ...[
-                    _BranchSalesRow(
-                      branch: branch,
-                      snapshot: snapshots[branch.id],
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                  ],
-                ],
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pagePadding,
+                  AppSpacing.lg,
+                  AppSpacing.pagePadding,
+                  AppSpacing.xxl,
+                ),
+                itemCount: enabled.length,
+                separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, index) => _BranchSalesRow(
+                  branch: enabled[index],
+                  snapshot: snapshots[enabled[index].id],
+                ),
               );
             },
           ),
@@ -140,20 +126,14 @@ class _BranchSalesRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = branch.salesTargetEnabled;
     final month = snapshot;
-    final hasTarget = month?.target != null;
-    final pending = month?.pending.length ?? 0;
+    final target = month?.target;
 
     return Semantics(
-      button: enabled,
-      label: enabled
-          ? '${branch.name} branch sales'
-          : '${branch.name}, monthly target off',
+      button: true,
+      label: '${branch.name} branch sales',
       child: GlassContainer(
-        onTap: enabled
-            ? () => context.push(RouteNames.salesManageFor(branch.id))
-            : null,
+        onTap: () => context.push(RouteNames.salesManageFor(branch.id)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -162,52 +142,32 @@ class _BranchSalesRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     branch.name,
-                    style: AppTypography.h3.copyWith(
-                      color: enabled
-                          ? AppColors.textPrimary
-                          : AppColors.textTertiary,
-                    ),
+                    style: AppTypography.labelLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (enabled)
-                  const Icon(
-                    Icons.arrow_outward_rounded,
-                    color: AppColors.textTertiary,
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (!enabled)
-              Text(
-                'Monthly target off — no sales workflow for this branch.',
-                style: AppTypography.bodySmall.copyWith(
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
                   color: AppColors.textTertiary,
                 ),
-              )
-            else if (hasTarget) ...[
-              SalesProgressStrip(
-                ratioCapped: month!.progressRatioCapped,
-                ratioRaw: month.progressRatioRaw,
-                remainingPiastres: month.remainingPiastres,
-              ),
-              const SizedBox(height: AppSpacing.sm),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (target == null)
               Text(
-                pending == 0
-                    ? '${formatEgp(month.approvedTotalPiastres, withSuffix: true)} approved · nothing waiting'
-                    : '${formatEgp(month.approvedTotalPiastres, withSuffix: true)} approved · '
-                          '$pending ${pending == 1 ? 'day' : 'days'} awaiting review',
-                style: AppTypography.caption.copyWith(
-                  color: pending == 0
-                      ? AppColors.textTertiary
-                      : AppColors.textSecondary,
-                ),
-              ),
-            ] else
-              Text(
-                'No target set for this month — open the branch to set one.',
+                'No target set for this month.',
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondary,
                 ),
+              )
+            else
+              SalesMoneyRow(
+                targetPiastres: target.targetPiastres,
+                achievedPiastres: month!.approvedTotalPiastres,
+                remainingPiastres: month.remainingPiastres,
+                compact: true,
               ),
           ],
         ),

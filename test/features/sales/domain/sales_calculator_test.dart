@@ -85,45 +85,6 @@ void main() {
     expect(monthEndForecastPiastres(100, 0, 10), 100);
   });
 
-  test('pace names the one decision the figures support', () {
-    expect(
-      salesPace(
-        targetPiastres: 100,
-        approvedPiastres: 100,
-        expectedMonthEndPiastres: 100,
-        approvedDayCount: 3,
-      ),
-      SalesPace.achieved,
-    );
-    expect(
-      salesPace(
-        targetPiastres: 100,
-        approvedPiastres: 0,
-        expectedMonthEndPiastres: 0,
-        approvedDayCount: 0,
-      ),
-      SalesPace.noData,
-    );
-    expect(
-      salesPace(
-        targetPiastres: 100,
-        approvedPiastres: 40,
-        expectedMonthEndPiastres: 120,
-        approvedDayCount: 2,
-      ),
-      SalesPace.onTrack,
-    );
-    expect(
-      salesPace(
-        targetPiastres: 100,
-        approvedPiastres: 40,
-        expectedMonthEndPiastres: 60,
-        approvedDayCount: 2,
-      ),
-      SalesPace.behind,
-    );
-  });
-
   test('composes mid-month KPIs from the approved ledger', () {
     final kpis = computeSalesKpis(
       snapshot(
@@ -189,15 +150,60 @@ void main() {
       now: DateTime.utc(2026, 8, 31, 10),
     );
     expect(kpis.daysRemaining, 1);
+    // Nothing left to ask for once the target is met.
     expect(kpis.neededPerDayPiastres, 0);
-    expect(
-      salesPace(
-        targetPiastres: target.targetPiastres,
-        approvedPiastres: 32000,
-        expectedMonthEndPiastres: kpis.expectedMonthEndPiastres,
-        approvedDayCount: kpis.approvedDayCount,
-      ),
-      SalesPace.achieved,
-    );
+  });
+
+  group('today\u2019s pace \u2014 the one coloured signal', () {
+    test('meeting or beating what today needed reads green', () {
+      expect(
+        salesDayPace(neededPerDayPiastres: 1000, todayPiastres: 1000),
+        SalesDayPace.onPace,
+      );
+      expect(
+        salesDayPace(neededPerDayPiastres: 1000, todayPiastres: 5000),
+        SalesDayPace.onPace,
+      );
+    });
+
+    test('half or more, but short, reads amber', () {
+      expect(
+        salesDayPace(neededPerDayPiastres: 1000, todayPiastres: 500),
+        SalesDayPace.close,
+      );
+      expect(
+        salesDayPace(neededPerDayPiastres: 1000, todayPiastres: 999),
+        SalesDayPace.close,
+      );
+      // An odd requirement must not round a genuine half into the red.
+      expect(
+        salesDayPace(neededPerDayPiastres: 999, todayPiastres: 500),
+        SalesDayPace.close,
+      );
+    });
+
+    test('under half reads red', () {
+      expect(
+        salesDayPace(neededPerDayPiastres: 1000, todayPiastres: 499),
+        SalesDayPace.behind,
+      );
+      expect(
+        salesDayPace(neededPerDayPiastres: 1000, todayPiastres: 0),
+        SalesDayPace.behind,
+      );
+    });
+
+    test('nothing to judge is neutral, never a failure', () {
+      // Day not submitted yet.
+      expect(
+        salesDayPace(neededPerDayPiastres: 1000, todayPiastres: null),
+        SalesDayPace.none,
+      );
+      // Target already met — asking for 0 more must not render red.
+      expect(
+        salesDayPace(neededPerDayPiastres: 0, todayPiastres: 0),
+        SalesDayPace.none,
+      );
+    });
   });
 }

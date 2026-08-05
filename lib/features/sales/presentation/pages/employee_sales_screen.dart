@@ -9,22 +9,33 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
+import 'package:drop/core/widgets/brand_watermark.dart';
 import 'package:drop/core/widgets/drop_empty_state.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/core/widgets/page_hero.dart';
-import 'package:drop/core/widgets/primary_cta.dart';
-import 'package:drop/core/widgets/stat_strip.dart';
+import 'package:drop/features/auth/presentation/widgets/app_button.dart';
 import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/sales_business_time.dart';
-import 'package:drop/features/sales/domain/sales_calculator.dart';
+import 'package:drop/features/sales/domain/sales_kpis_calculator.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_progress_strip.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_money_row.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_needed_per_day.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.dart';
 
-/// The employee's own sales page: today, the month, and their own history.
+/// The employee's view of **the branch's** sales month. Five things and nothing
+/// else: the team's **target · achieved · remaining**, what today needs, today's
+/// close, and the one action.
+///
+/// The target is a **branch** number, never a personal one — every teammate's
+/// approved day counts toward the same total, and "achieved" is the branch's
+/// achieved. Nothing on this page is framed as the viewer's own score.
+///
+/// The month-history list was removed here — every record it showed is already
+/// on the branch ledger a manager reviews, and it made this page a table. The
+/// one exception is a day the manager sent back: that keeps a visible row,
+/// because without it `correctionRequested` is a dead end with no way back to
+/// `pending`.
 ///
 /// Reads the app-wide [SalesMonthCubit] that Home already drives, so opening
 /// this page costs no extra Firestore reads and the two surfaces can never
@@ -45,7 +56,7 @@ class EmployeeSalesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AdaptiveScaffold(
-    title: 'My sales',
+    title: 'Branch sales',
     body: BlocConsumer<SalesMonthCubit, SalesMonthState>(
       listenWhen: (previous, current) =>
           current is SalesMonthLoaded && current.message != null,
@@ -84,115 +95,97 @@ class EmployeeSalesScreen extends StatelessWidget {
 
         final snapshot = state.snapshot;
         final today = state.todaySubmission;
-        final daysLeft = sellingDaysRemaining(
-          calendarDaysInMonth(DateTime.now()),
-          calendarDaysElapsed(DateTime.now()),
-        );
-        final history = [...state.ownSubmissions]
-          ..sort((a, b) => b.businessDateKey.compareTo(a.businessDateKey));
+        final kpis = computeSalesKpis(snapshot, now: DateTime.now());
+        final correction = state.needsCorrection.firstOrNull;
 
         return ListView(
-          padding: const EdgeInsets.all(AppSpacing.pagePadding),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding,
+            AppSpacing.lg,
+            AppSpacing.pagePadding,
+            AppSpacing.xxl,
+          ),
           children: [
-            PageHero(
-              eyebrow: formatBusinessMonth(state.todayDateKey.substring(0, 6)),
-              title: 'My sales',
-              subtitle: snapshot.hasTarget
-                  ? 'Only approved days count toward the branch target.'
-                  : 'Your manager sets this month’s target before sales can be '
-                        'submitted.',
-              trailing: [
-                if (state.canSubmitToday)
-                  PrimaryCta(
-                    icon: Icons.add_chart_rounded,
-                    label: 'Submit today’s sales',
-                    onTap: () => context.push(RouteNames.salesSubmit),
-                  ),
-              ],
+            // ── The month ──────────────────────────────────────────────
+            GlassContainer(
+              child: BrandWatermark(
+                opacity: 0.05,
+                assetLogo: true,
+                assetHeight: 46,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TEAM TARGET · '
+                      '${formatBusinessMonth(state.todayDateKey.substring(0, 6)).toUpperCase()}',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textTertiary,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (snapshot.hasTarget)
+                      SalesMoneyRow(
+                        targetPiastres: snapshot.target!.targetPiastres,
+                        achievedPiastres: snapshot.approvedTotalPiastres,
+                        remainingPiastres: snapshot.remainingPiastres,
+                      )
+                    else
+                      Text(
+                        'Your manager sets the branch’s target for this month '
+                        'before sales can be submitted.',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: AppSpacing.xl),
+
+            // ── What today needs ───────────────────────────────────────
+            if (snapshot.hasTarget) ...[
+              const SizedBox(height: AppSpacing.lg),
+              SalesNeededPerDay(
+                neededPerDayPiastres: kpis.neededPerDayPiastres,
+                todayPiastres: today?.amountPiastres,
+                daysRemaining: kpis.daysRemaining,
+              ),
+            ],
+
+            // ── Today ──────────────────────────────────────────────────
+            const SizedBox(height: AppSpacing.lg),
             _TodayCard(
               submission: today,
               closedByTeammate: state.todayClosedByTeammate,
               dateKey: state.todayDateKey,
-              hasTarget: snapshot.hasTarget,
             ),
-            if (snapshot.hasTarget) ...[
+
+            // ── The one action ─────────────────────────────────────────
+            if (state.canSubmitToday) ...[
               const SizedBox(height: AppSpacing.xl),
-              GlassContainer(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    StatStrip(
-                      stats: [
-                        Stat(
-                          label: 'Target',
-                          value: formatEgp(
-                            snapshot.target!.targetPiastres,
-                            withSuffix: true,
-                          ),
-                          tone: AppColors.textSecondary,
-                        ),
-                        Stat(
-                          label: 'Achieved',
-                          value: formatEgp(
-                            snapshot.approvedTotalPiastres,
-                            withSuffix: true,
-                          ),
-                        ),
-                        Stat(
-                          label: 'Remaining',
-                          value: formatEgp(
-                            snapshot.remainingPiastres,
-                            withSuffix: true,
-                          ),
-                          tone: AppColors.textSecondary,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    SalesProgressStrip(
-                      ratioCapped: snapshot.progressRatioCapped,
-                      ratioRaw: snapshot.progressRatioRaw,
-                      remainingPiastres: snapshot.remainingPiastres,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      '$daysLeft ${daysLeft == 1 ? 'day' : 'days'} left in the month',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
+              AppButton(
+                label: 'Submit today’s sales',
+                onPressed: () => context.push(RouteNames.salesSubmit),
+              ),
+            ],
+
+            // A day sent back for correction keeps its way home.
+            if (correction != null) ...[
+              const SizedBox(height: AppSpacing.xl),
+              Text('Needs your correction', style: AppTypography.labelLarge),
+              const SizedBox(height: AppSpacing.md),
+              SalesSubmissionTile(
+                submission: correction,
+                showSubmitter: false,
+                onTap: () => context.push(
+                  RouteNames.salesSubmissionDetail(correction.id),
+                ),
+                onCorrect: () => context.push(
+                  '${RouteNames.salesSubmit}?correct=${Uri.encodeQueryComponent(correction.id)}',
                 ),
               ),
             ],
-            const SizedBox(height: AppSpacing.xl),
-            Text('My submissions', style: AppTypography.labelLarge),
-            const SizedBox(height: AppSpacing.md),
-            if (history.isEmpty)
-              const DropEmptyState(
-                title: 'Nothing submitted yet',
-                message:
-                    'Your daily closes for this month will be listed here once '
-                    'you submit one.',
-              ),
-            for (final submission in history)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: SalesSubmissionTile(
-                  submission: submission,
-                  showSubmitter: false,
-                  onTap: () => context.push(
-                    RouteNames.salesSubmissionDetail(submission.id),
-                  ),
-                  onCorrect: submission.needsCorrection
-                      ? () => context.push(
-                          '${RouteNames.salesSubmit}?correct=${Uri.encodeQueryComponent(submission.id)}',
-                        )
-                      : null,
-                ),
-              ),
           ],
         );
       },
@@ -206,13 +199,11 @@ class _TodayCard extends StatelessWidget {
     required this.submission,
     required this.closedByTeammate,
     required this.dateKey,
-    required this.hasTarget,
   });
 
   final DailySalesSubmissionEntity? submission;
   final bool closedByTeammate;
   final String dateKey;
-  final bool hasTarget;
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +212,7 @@ class _TodayCard extends StatelessWidget {
     final String detail;
     if (sale != null) {
       headline = formatEgp(sale.amountPiastres, withSuffix: true);
-      detail = switch (sale.status) {
+      detail = switch (sale) {
         _ when sale.isApproved => 'Approved — counted toward the branch target.',
         _ when sale.isRejected =>
           sale.decisionReason == null
@@ -236,9 +227,6 @@ class _TodayCard extends StatelessWidget {
     } else if (closedByTeammate) {
       headline = 'Closed by a teammate';
       detail = 'Today is already recorded for this branch.';
-    } else if (!hasTarget) {
-      headline = 'Not submitted';
-      detail = 'Submitting opens once this month’s target is set.';
     } else {
       headline = 'Not submitted';
       detail = 'Close the day to send today’s sales for approval.';
@@ -253,7 +241,7 @@ class _TodayCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'TODAY · ${formatBusinessDate(dateKey)}',
-                  style: AppTypography.labelSmall.copyWith(
+                  style: AppTypography.caption.copyWith(
                     color: AppColors.textTertiary,
                     letterSpacing: 1,
                   ),
@@ -263,7 +251,7 @@ class _TodayCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Text(headline, style: AppTypography.h3),
+          Text(headline, style: AppTypography.h2),
           const SizedBox(height: AppSpacing.xs),
           Text(
             detail,

@@ -63,31 +63,38 @@ int monthEndForecastPiastres(
     math.max(0, approvedTotal) +
     math.max(0, averagePerApprovedDay) * math.max(0, unrecordedDaysRemaining);
 
-/// The single plain-language verdict the pace figures exist to support.
-enum SalesPace {
-  /// The target is already met — nothing left to decide.
-  achieved,
+/// How today's close measures against what today needed to bring in.
+///
+/// This is the one signal the sales surfaces colour. It is deliberately about
+/// **today**, not the month: a month can be behind while today was a good day,
+/// and that is exactly the distinction a branch acts on.
+enum SalesDayPace {
+  /// Today met or beat what the remaining days each need. Green.
+  onPace,
 
-  /// No approved day yet, so there is no pace to judge.
-  noData,
+  /// Today landed at 50–99% of what it needed. Amber.
+  close,
 
-  /// Projected to finish the month at or above target.
-  onTrack,
-
-  /// Projected to finish short — this is the day to intervene.
+  /// Today landed under half of what it needed. Red.
   behind,
+
+  /// Nothing to judge — no target, target already met, or no close submitted
+  /// yet today. Rendered neutral, never as a failure.
+  none,
 }
 
-SalesPace salesPace({
-  required int targetPiastres,
-  required int approvedPiastres,
-  required int expectedMonthEndPiastres,
-  required int approvedDayCount,
+SalesDayPace salesDayPace({
+  required int neededPerDayPiastres,
+  required int? todayPiastres,
 }) {
-  if (targetPiastres <= 0) return SalesPace.noData;
-  if (approvedPiastres >= targetPiastres) return SalesPace.achieved;
-  if (approvedDayCount <= 0) return SalesPace.noData;
-  return expectedMonthEndPiastres >= targetPiastres
-      ? SalesPace.onTrack
-      : SalesPace.behind;
+  // Nothing needed today (no target, or the month is already won) is not a
+  // failure and must never render red.
+  if (neededPerDayPiastres <= 0) return SalesDayPace.none;
+  if (todayPiastres == null) return SalesDayPace.none;
+  if (todayPiastres >= neededPerDayPiastres) return SalesDayPace.onPace;
+  // Halve the requirement rather than scaling the day, so integer piastres
+  // never round a genuine 50% down into the red band.
+  return todayPiastres * 2 >= neededPerDayPiastres
+      ? SalesDayPace.close
+      : SalesDayPace.behind;
 }

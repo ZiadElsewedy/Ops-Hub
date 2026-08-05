@@ -106,10 +106,14 @@ class AppShell extends StatefulWidget {
       label: 'Branch Sales',
       route: RouteNames.salesManage,
     );
+    // "Branch Sales" for every role on purpose: the monthly target belongs to
+    // the BRANCH, not to the person looking at it. An employee contributes a
+    // daily close toward a number the whole team shares, so labelling their
+    // destination "My Sales" mis-stated what the feature measures.
     const salesEmployee = SidebarItem(
       icon: Icons.trending_up_outlined,
       activeIcon: Icons.trending_up_rounded,
-      label: 'My Sales',
+      label: 'Branch Sales',
       route: RouteNames.salesMine,
     );
 

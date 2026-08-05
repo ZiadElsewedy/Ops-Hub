@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
+import 'package:drop/core/widgets/drop_logo.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/core/widgets/status_badge.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'sales_progress_strip.dart';
+import 'sales_money_row.dart';
 
-/// The employee Home sales module: a compact row of the three figures that
-/// matter, a progress bar, and a tap into the full sales page.
+/// The employee Home sales module: the **branch's** target · achieved ·
+/// remaining, and a tap into the full page. Nothing else.
 ///
-/// Deliberately **not** an empty state with a medallion. A Home module is one
-/// row in a dashboard, not a page — the old "Target not set" branch rendered a
-/// 180px box built around a large glyph, which is why this card dominated Home
-/// while saying almost nothing. Every state here is one or two lines tall.
+/// Labelled "branch" deliberately — the monthly target is a team number every
+/// colleague's approved day feeds, not a personal quota.
+///
+/// No progress bar, no percentage, no pace figures, no status badge — a Home
+/// module is one row in a dashboard, and every extra it carried was available
+/// one tap away on `/sales/mine`. The DROP mark sits in the corner at low
+/// opacity as a quiet owner of the surface, not as decoration.
 class SalesTargetCard extends StatelessWidget {
   const SalesTargetCard.loading({super.key})
     : state = null,
@@ -32,12 +33,9 @@ class SalesTargetCard extends StatelessWidget {
   }) : state = null,
        onOpen = null;
 
-  const SalesTargetCard({
-    super.key,
-    required this.state,
-    required this.onOpen,
-  }) : errorMessage = null,
-       onRetry = null;
+  const SalesTargetCard({super.key, required this.state, required this.onOpen})
+    : errorMessage = null,
+      onRetry = null;
 
   final SalesMonthLoaded? state;
   final String? errorMessage;
@@ -60,22 +58,17 @@ class SalesTargetCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Skeleton(height: 12, width: 110),
-            SizedBox(height: AppSpacing.md),
-            Skeleton(height: 44),
+            SizedBox(height: AppSpacing.lg),
+            Skeleton(height: 40),
           ],
         ),
       );
     }
 
     final snapshot = loaded.snapshot;
-    final today = loaded.todaySubmission;
-    final semantics = snapshot.hasTarget
-        ? 'Monthly sales, ${(snapshot.progressRatioRaw * 100).round()} percent of target'
-        : 'Monthly sales, target not set';
-
     return Semantics(
       button: true,
-      label: semantics,
+      label: 'Branch monthly sales',
       child: GlassContainer(
         onTap: onOpen,
         child: Column(
@@ -85,15 +78,18 @@ class SalesTargetCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'MONTHLY SALES',
+                    'BRANCH MONTHLY SALES',
                     style: AppTypography.labelSmall.copyWith(
                       color: AppColors.textTertiary,
                       letterSpacing: 1,
                     ),
                   ),
                 ),
-                if (today != null) _TodayBadge(status: today.status),
-                const SizedBox(width: AppSpacing.xs),
+                Opacity(
+                  opacity: 0.18,
+                  child: DropLogo(height: 13, color: AppColors.textPrimary),
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 const Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
@@ -101,109 +97,24 @@ class SalesTargetCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
             if (!snapshot.hasTarget)
               Text(
-                'No target for this month yet. Your manager sets it before daily '
-                'sales can be submitted.',
+                'No branch target set for this month yet.',
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondary,
                 ),
               )
-            else ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _Figure(
-                      label: 'Today',
-                      value: today == null
-                          ? 'Not submitted'
-                          : formatEgp(today.amountPiastres, withSuffix: true),
-                      muted: today == null,
-                    ),
-                  ),
-                  Expanded(
-                    child: _Figure(
-                      label: 'Achieved',
-                      value: formatEgp(
-                        snapshot.approvedTotalPiastres,
-                        withSuffix: true,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: _Figure(
-                      label: 'Remaining',
-                      value: formatEgp(
-                        snapshot.remainingPiastres,
-                        withSuffix: true,
-                      ),
-                      muted: true,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SalesProgressStrip(
-                ratioCapped: snapshot.progressRatioCapped,
-                ratioRaw: snapshot.progressRatioRaw,
+            else
+              SalesMoneyRow(
+                targetPiastres: snapshot.target!.targetPiastres,
+                achievedPiastres: snapshot.approvedTotalPiastres,
                 remainingPiastres: snapshot.remainingPiastres,
+                compact: true,
               ),
-            ],
           ],
         ),
       ),
     );
   }
-}
-
-/// Today's real state — the card used to say "submitted · pending" for a day
-/// that had already been approved or rejected.
-class _TodayBadge extends StatelessWidget {
-  const _TodayBadge({required this.status});
-  final SalesSubmissionStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = switch (status) {
-      SalesSubmissionStatus.pending => ('Awaiting review', AppColors.warning),
-      SalesSubmissionStatus.approved => ('Approved', AppColors.success),
-      SalesSubmissionStatus.rejected => ('Rejected', AppColors.error),
-      SalesSubmissionStatus.correctionRequested => (
-        'Needs correction',
-        AppColors.error,
-      ),
-    };
-    return StatusBadge(label: label, color: color, compact: true);
-  }
-}
-
-class _Figure extends StatelessWidget {
-  const _Figure({
-    required this.label,
-    required this.value,
-    this.muted = false,
-  });
-  final String label;
-  final String value;
-  final bool muted;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        value,
-        style: AppTypography.label.copyWith(
-          color: muted ? AppColors.textSecondary : AppColors.textPrimary,
-        ),
-      ),
-    ],
-  );
 }
