@@ -62,6 +62,8 @@ const COUNTERS = "counters";
 const ATTENDANCE = "attendance";
 const ATTENDANCE_CORRECTIONS = "attendance_corrections";
 const ATTENDANCE_EXPECTATIONS = "attendance_expectations";
+const BRANCH_SALES_MONTHS = "branch_sales_months";
+const BRANCH_SALES_SUBMISSIONS = "branch_sales_submissions";
 
 // Auto-close grace — mirrors AttendanceConfig.defaults.autoCloseGraceMinutes on
 // the client (the single knob until per-branch attendance config lands).
@@ -105,6 +107,10 @@ const {
 const { isReminderEligibleStatus } = require("./task_reminders");
 const { isRetryableBroadcastPushError, resolveSendsPush } = require("./broadcast_delivery");
 const { canClaimScheduledBroadcast } = require("./broadcast_schedule");
+const {
+  BUSINESS_TIME_ZONE: SALES_TIME_ZONE, businessMonthKey, isMonthKey, isValidMoney,
+  nextStatus, targetAchievedCrossing, canDecideSubmission,
+} = require("./sales_target");
 const {
   correctionTargetsOwnRecord,
   correctionMatchesExistingRecordOwner,
@@ -1011,6 +1017,146 @@ exports.approveSwap = onCall(async (request) => {
   }
 
   return { success: true };
+});
+
+// ── Branch monthly sales ledger (server-authoritative decisions) ──────────
+function salesActor(user, uid) {
+  return { id: uid, name: String(user.displayName || user.fullName || user.email || "User").trim(), role: String(user.role || "employee") };
+}
+async function requireSalesManager(request, branchId) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Please sign in.");
+  const snap = await db.collection(USERS).doc(request.auth.uid).get();
+  if (!snap.exists) throw new HttpsError("permission-denied", "Your account profile was not found.");
+  const user = snap.data() || {};
+  const role = String(user.role || "employee");
+  if (user.isActive === false || !(role === "admin" || (role === "manager" && user.branchId === branchId))) {
+    throw new HttpsError("permission-denied", "Only the branch manager or an admin can make this change.");
+  }
+  return salesActor(user, request.auth.uid);
+}
+function salesReason(value, required = true) {
+  const reason = typeof value === "string" ? value.trim() : "";
+  if (required && !reason) throw new HttpsError("invalid-argument", "A reason is required.");
+  return reason;
+}
+async function writeSalesAudit({ eventType, entityType, entityId, actor, branchId, metadata }) {
+  const ref = db.collection(AUDIT_LOGS).doc();
+  await ref.set({ eventType, entityType, entityId, actorId: actor.id,
+    actorName: actor.name, actorRole: actor.role, branchId, metadata, schemaVersion: 1,
+    isDeleted: false, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+}
+async function salesRecipients(branchId, { managersOnly = false, adminsFallback = false } = {}) {
+  const snap = await db.collection(USERS).where("branchId", "==", branchId).where("isActive", "==", true).get();
+  let ids = snap.docs.filter((d) => !managersOnly || d.data().role === "manager").map((d) => d.id);
+  if (!ids.length && adminsFallback) {
+    const admins = await db.collection(USERS).where("role", "==", "admin").where("isActive", "==", true).get();
+    ids = admins.docs.map((d) => d.id);
+  }
+  return ids;
+}
+async function writeSalesNotifications(recipientUids, { title, body, submissionId = null, monthKey = null }) {
+  const ids = [...new Set(recipientUids.filter(Boolean))];
+  if (!ids.length) return;
+  const batch = db.batch();
+  for (const recipientUid of ids) {
+    const ref = db.collection(NOTIFICATIONS).doc();
+    batch.set(ref, { id: ref.id, recipientUid, senderUid: "", type: "salesSubmission",
+      title: String(title).slice(0, 120), body: String(body).slice(0, 500), readAt: null,
+      payload: { route: "sales_submission", ...(submissionId ? { salesSubmissionId: submissionId } : {}), ...(monthKey ? { monthKey } : {}) },
+      createdAt: admin.firestore.FieldValue.serverTimestamp() });
+  }
+  await batch.commit();
+}
+async function approvedTotal(tx, branchId, monthKey) {
+  const snap = await tx.get(db.collection(BRANCH_SALES_SUBMISSIONS)
+    .where("branchId", "==", branchId).where("monthKey", "==", monthKey).where("status", "==", "approved"));
+  return snap.docs.reduce((sum, doc) => sum + (Number(doc.data().amountPiastres) || 0), 0);
+}
+
+exports.setBranchSalesTarget = onCall(async (request) => {
+  const data = request.data || {};
+  const branchId = String(data.branchId || "").trim();
+  const monthKey = String(data.monthKey || "").trim();
+  if (!branchId || !isMonthKey(monthKey) || monthKey !== businessMonthKey(`${monthKey.slice(0, 4)}-${monthKey.slice(4, 6)}-15T12:00:00Z`) || !isValidMoney(data.targetPiastres)) {
+    throw new HttpsError("invalid-argument", "Invalid branch, Cairo month, or target amount.");
+  }
+  const reason = salesReason(data.reason);
+  const actor = await requireSalesManager(request, branchId);
+  const ref = db.collection(BRANCH_SALES_MONTHS).doc(`${branchId}_${monthKey}`);
+  let result;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref); const now = admin.firestore.FieldValue.serverTimestamp();
+    if (!snap.exists) {
+      result = { oldTarget: null, targetRevision: 1 };
+      tx.create(ref, { id: ref.id, branchId, monthKey, timeZone: SALES_TIME_ZONE, targetPiastres: data.targetPiastres, targetRevision: 1,
+        createdAt: now, updatedAt: now, createdById: actor.id, createdByName: actor.name, createdByRole: actor.role,
+        updatedById: actor.id, updatedByName: actor.name, updatedByRole: actor.role, lastChangeReason: reason, schemaVersion: 1 });
+    } else {
+      const old = snap.data() || {}; const currentRevision = Number(old.targetRevision) || 1;
+      if (data.expectedTargetRevision != null && data.expectedTargetRevision !== currentRevision) throw new HttpsError("failed-precondition", "Target revision is stale.");
+      result = { oldTarget: old.targetPiastres, targetRevision: currentRevision + 1 };
+      tx.update(ref, { targetPiastres: data.targetPiastres, targetRevision: currentRevision + 1, updatedAt: now,
+        updatedById: actor.id, updatedByName: actor.name, updatedByRole: actor.role, lastChangeReason: reason });
+    }
+  });
+  try { await writeSalesAudit({ eventType: "sales.target_changed", entityType: "sales_month", entityId: ref.id, actor, branchId, metadata: { branchId, monthKey, targetId: ref.id, oldTargetPiastres: result.oldTarget, newTargetPiastres: data.targetPiastres, targetRevision: result.targetRevision, reason, schemaVersion: 1 } });
+    await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target updated", body: "Your branch monthly sales target was updated.", monthKey });
+  } catch (err) { logger.warn("failed to write sales target side effects", { error: String(err), branchId, monthKey }); }
+  return { success: true, targetRevision: result.targetRevision };
+});
+
+exports.decideDailySalesSubmission = onCall(async (request) => {
+  const data = request.data || {}; const submissionId = String(data.submissionId || "").trim();
+  const action = String(data.action || "");
+  if (!submissionId || !["approve", "reject", "requestCorrection", "reopen"].includes(action)) throw new HttpsError("invalid-argument", "Invalid sales decision.");
+  const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
+  if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+  const branchId = String((initial.data() || {}).branchId || ""); const actor = await requireSalesManager(request, branchId);
+  const reason = salesReason(data.reason, ["reject", "requestCorrection", "reopen"].includes(action)); let result;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+    const sub = snap.data() || {}; if (String(sub.branchId || "") !== branchId) throw new HttpsError("failed-precondition", "Submission branch changed.");
+    if (!canDecideSubmission(actor.id, sub.submittedById)) throw new HttpsError("failed-precondition", "You cannot approve your own sales submission.");
+    const transition = nextStatus(String(sub.status || ""), action, actor.role);
+    if (transition.error) throw new HttpsError("failed-precondition", "This sales submission cannot take that action now.");
+    const revision = Number(sub.revision) || 1; const update = { status: transition.status, decisionById: actor.id, decisionByName: actor.name, decisionByRole: actor.role, decisionAt: admin.firestore.FieldValue.serverTimestamp(), decisionReason: reason || null, updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+    if (action === "approve") update.approvedRevision = revision;
+    let crossing = false;
+    if (action === "approve") { const month = await tx.get(db.collection(BRANCH_SALES_MONTHS).doc(`${branchId}_${sub.monthKey}`)); const total = await approvedTotal(tx, branchId, sub.monthKey); crossing = month.exists && targetAchievedCrossing(total, total + sub.amountPiastres, Number((month.data() || {}).targetPiastres)); }
+    tx.update(ref, update); result = { sub, nextStatus: transition.status, revision, crossing };
+  });
+  const event = { approve: "sales.approved", reject: "sales.rejected", requestCorrection: "sales.correction_requested", reopen: "sales.reopened" }[action];
+  try { await writeSalesAudit({ eventType: event, entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldStatus: result.sub.status, newStatus: result.nextStatus, revision: result.revision, reason: reason || null, schemaVersion: 1 } });
+    await writeSalesNotifications([result.sub.submittedById], { title: "Sales submission updated", body: `Your sales submission was ${result.nextStatus}.`, submissionId });
+    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
+  } catch (err) { logger.warn("failed to write sales decision side effects", { error: String(err), submissionId }); }
+  return { success: true, status: result.nextStatus };
+});
+
+exports.editApprovedDailySalesSubmission = onCall(async (request) => {
+  const data = request.data || {}; const submissionId = String(data.submissionId || "").trim();
+  if (!submissionId || !isValidMoney(data.amountPiastres) || !Number.isInteger(data.expectedRevision)) throw new HttpsError("invalid-argument", "Invalid sales edit.");
+  const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
+  if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+  const branchId = String((initial.data() || {}).branchId || ""); const actor = await requireSalesManager(request, branchId); const reason = salesReason(data.reason); let result;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists."); const sub = snap.data() || {};
+    const revision = Number(sub.revision) || 1; if (sub.status !== "approved" || revision !== data.expectedRevision) throw new HttpsError("failed-precondition", "Sales submission revision is stale or not approved.");
+    const month = await tx.get(db.collection(BRANCH_SALES_MONTHS).doc(`${branchId}_${sub.monthKey}`)); const totalAfter = await approvedTotal(tx, branchId, sub.monthKey); const before = totalAfter; const after = before - Number(sub.amountPiastres || 0) + data.amountPiastres;
+    const crossing = month.exists && targetAchievedCrossing(before, after, Number((month.data() || {}).targetPiastres));
+    tx.update(ref, { amountPiastres: data.amountPiastres, revision: revision + 1, lastEditedById: actor.id, lastEditedByName: actor.name, lastEditedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    result = { sub, oldAmount: sub.amountPiastres, revision: revision + 1, crossing };
+  });
+  try { await writeSalesAudit({ eventType: "sales.approved_amount_edited", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.oldAmount, newAmountPiastres: data.amountPiastres, revision: result.revision, reason, schemaVersion: 1 } });
+    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
+  } catch (err) { logger.warn("failed to write sales edit side effects", { error: String(err), submissionId }); }
+  return { success: true, revision: result.revision };
+});
+
+exports.onDailySalesSubmissionCreated = onDocumentCreated(`${BRANCH_SALES_SUBMISSIONS}/{submissionId}`, async (event) => {
+  const sub = event.data && event.data.data(); if (!sub || sub.status !== "pending") return;
+  try { await writeSalesNotifications(await salesRecipients(String(sub.branchId || ""), { managersOnly: true, adminsFallback: true }), { title: "New sales submission", body: "A daily sales submission is ready for review.", submissionId: event.params.submissionId, monthKey: sub.monthKey }); }
+  catch (err) { logger.warn("failed to write new sales submission notification", { error: String(err), submissionId: event.params.submissionId }); }
 });
 
 /**
