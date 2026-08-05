@@ -226,7 +226,7 @@ Reuse these. Do not re-implement or duplicate them.
 | Task visibility | `task/domain/task_access.dart` (`canUserAccessTask`) |
 | Notification routing | `notifications/domain/notification_deep_link.dart` |
 | Sidebar + command palette | `AppShell.sectionsForRole` |
-| How a screen is pushed / how the user gets back | `core/routes/app_page_route.dart` (`appPageRoute` · `showsBackChevron`) |
+| How a screen is pushed / how the user gets back | `core/routes/app_page_route.dart` (`appPageRoute`) |
 
 ---
 
@@ -239,7 +239,7 @@ Reuse these. Do not re-implement or duplicate them.
 | A new action in any feature | `domain/usecases/` → repository contract + impl → datasource → cubit → **`core/di/injection.dart`** |
 | Any entity or state shape | the `freezed` file, **then run codegen** |
 | Routes / navigation guards | `core/routes/app_router.dart` + `route_names.dart` |
-| **Any imperative `Navigator.push` of a page** | `appPageRoute` (`core/routes/app_page_route.dart`) — a raw `PageRouteBuilder` has no iOS back gesture, and iOS has no back chevron, so the screen becomes a dead end |
+| **Any imperative `Navigator.push` of a page** | `appPageRoute` (`core/routes/app_page_route.dart`) — a raw `PageRouteBuilder` silently has no iOS swipe-back |
 | Role chrome (bottom nav) | `core/widgets/role_scaffold.dart` + `app_bottom_nav.dart` |
 | Desktop chrome (sidebar, ⌘K) | `core/widgets/app_shell.dart` + `app_sidebar.dart` + `command_palette.dart` |
 | Colours / type / spacing / radius | `core/theme/` — never inline a `Color(...)` or `TextStyle(...)` |
@@ -422,24 +422,21 @@ New surfaces compose the Design System V2 primitives — see
 
 ### Going back is platform-native
 
-**iOS has no back chevron.** The way back is the native interactive left-edge
-swipe, exactly as in Apple's apps. Android keeps its app-bar back button, system
-back gesture and Material transition; desktop keeps the in-header back control.
-The whole decision lives in `core/routes/app_page_route.dart`.
+**Every screen keeps its back button.** On iOS the native interactive left-edge
+swipe-back works **in addition to** it, exactly as in Apple's own apps — never
+instead of it. Android keeps its Material transition and system back gesture;
+desktop keeps `AdaptiveScaffold`'s in-header control. The decision lives in
+`core/routes/app_page_route.dart`.
 
-Both halves must hold together, or a screen becomes a **dead end on iOS**:
+The gesture is the half that rots silently, because nothing *looks* broken
+without it: it exists only on Cupertino routes. So **push every page through
+`appPageRoute`**, or route it in `app_router.dart` (iOS gets `CupertinoPage`).
+Never hand-roll a `PageRouteBuilder` for a page — that screen loses the swipe
+while every other screen keeps it.
 
-- **Chrome** — `showsBackChevron(context)` gates the automatic leading. An
-  explicit `leading` is *always* honoured: it is in-page navigation (a
-  drill-down level-up, a search dismiss), not route back.
-- **Route** — the pushed route must actually carry the gesture. Push through
-  `appPageRoute`, or route it in `app_router.dart` (iOS gets `CupertinoPage`).
-  Never hand-roll a `PageRouteBuilder` for a page.
-
-Exceptions keep a visible control, because iOS itself gives them no gesture: a
-`fullscreenDialog`, a media viewer (a zoomed `InteractiveViewer` competes with
-the edge drag), and anything blocking pop with `PopScope(canPop: false)` — which
-must then supply its own `leading`.
+iOS itself gives no gesture to a `fullscreenDialog`, a media viewer (a zoomed
+`InteractiveViewer` competes with the edge drag), or a screen blocking pop with
+`PopScope(canPop: false)`. Those rely on their button alone, which is correct.
 
 > ⚠️ The platform branch is on **`TargetPlatform`, never on window width**. A
 > `Page` subtype is part of route identity; flipping it at runtime (an iPad

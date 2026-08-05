@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/routes/app_page_route.dart';
 import 'package:drop/core/theme/app_colors.dart';
 
 /// Responsive chrome for the standalone auth/onboarding pages that live
@@ -40,17 +39,13 @@ class AuthScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!context.isDesktop) {
-      // Forgot Password is reached with `context.push`, so on iOS the native
-      // edge swipe returns to Login and the chevron is dropped like everywhere
-      // else in the app. Android keeps it.
-      final showChevron = showBack && showsBackChevron(context);
       return Scaffold(
         backgroundColor: AppColors.darkBg,
         appBar: AppBar(
           backgroundColor: AppColors.darkBg,
           elevation: 0,
-          automaticallyImplyLeading: showChevron,
-          leading: showChevron
+          automaticallyImplyLeading: showBack,
+          leading: showBack
               ? const BackButton(color: AppColors.textPrimary)
               : null,
           actions: actions,

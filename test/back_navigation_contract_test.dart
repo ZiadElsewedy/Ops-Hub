@@ -7,14 +7,13 @@ import 'package:drop/core/widgets/adaptive_scaffold.dart';
 
 /// **The back-navigation contract** (`core/routes/app_page_route.dart`).
 ///
-/// iOS navigates back by the native left-edge swipe alone — the app bar draws
-/// no chevron there. That is only safe while both halves hold together, so both
-/// halves are pinned here:
+/// On iOS a pushed page carries the native interactive left-edge swipe-back
+/// **in addition to** the app bar's back button — both affordances, always,
+/// exactly as in Apple's own apps. Every platform keeps its back button.
 ///
-/// 1. the chrome hides the chevron on iOS and keeps it on Android, and
-/// 2. a pushed page still *carries* the gesture on iOS.
-///
-/// A regression in either one strands the user on a screen with no way back.
+/// The half that silently rots is the gesture: it exists only on Cupertino
+/// routes, so a screen pushed on a hand-rolled `PageRouteBuilder` loses it
+/// without anything looking broken. Both halves are pinned here.
 void main() {
   const phone = Size(390, 844);
   final iOS = TargetPlatformVariant.only(TargetPlatform.iOS);
@@ -56,7 +55,7 @@ void main() {
 
   group('the chrome', () {
     testWidgets(
-      'iOS: a pushed AdaptiveScaffold shows no back chevron',
+      'iOS: a pushed AdaptiveScaffold keeps its back button',
       (tester) async {
         await pushPage(
           tester,
@@ -64,13 +63,13 @@ void main() {
         );
 
         expect(find.text('Detail'), findsOneWidget);
-        expect(find.byType(BackButton), findsNothing);
+        expect(find.byType(BackButton), findsOneWidget);
       },
       variant: iOS,
     );
 
     testWidgets(
-      'Android: the same screen keeps its back button',
+      'Android: the same screen keeps its back button too',
       (tester) async {
         await pushPage(
           tester,
@@ -83,7 +82,7 @@ void main() {
     );
 
     testWidgets(
-      'iOS: an explicit leading is in-page navigation, so it stays',
+      'iOS: an explicit leading still overrides the automatic button',
       (tester) async {
         await pushPage(
           tester,
@@ -126,7 +125,9 @@ void main() {
           const AdaptiveScaffold(title: 'Detail', body: SizedBox.shrink()),
         );
 
-        // Dragging from the left edge pops the route — the only way back now.
+        // Dragging from the left edge pops the route — the affordance the app
+        // bar's button cannot provide, and the one that silently disappears if
+        // a page is ever pushed on a plain PageRouteBuilder.
         await tester.dragFrom(const Offset(2, 400), const Offset(340, 0));
         await tester.pumpAndSettle();
 
@@ -177,10 +178,10 @@ void main() {
   });
 
   group('the platform split', () {
-    test('only iOS trades the chevron for the gesture', () {
+    test('only iOS carries the edge-swipe gesture', () {
       expect(isGestureBackPlatform(TargetPlatform.iOS), isTrue);
       expect(isGestureBackPlatform(TargetPlatform.android), isFalse);
-      // Desktop keeps AdaptiveScaffold's in-header back control.
+      // Desktop navigates back with AdaptiveScaffold's in-header control.
       expect(isGestureBackPlatform(TargetPlatform.macOS), isFalse);
     });
 

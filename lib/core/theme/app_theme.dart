@@ -255,11 +255,12 @@ class AppTheme {
       });
 
   /// iOS pushes use the Cupertino transition because it is the **only** builder
-  /// that carries the interactive left-edge swipe-back — the sole way back on
-  /// iOS now that the app bar draws no chevron (`core/routes/app_page_route.dart`).
-  /// A `ZoomPageTransitionsBuilder` here would leave every `MaterialPageRoute`
-  /// push with no button and no gesture. Android is untouched: the zoom
-  /// transition, the app-bar back button and the system back gesture stay.
+  /// that carries the interactive left-edge swipe-back (see
+  /// `core/routes/app_page_route.dart`). The previous
+  /// `ZoomPageTransitionsBuilder` was overriding Flutter's own iOS default and
+  /// left every `MaterialPageRoute` push gesture-less — the app bar's back
+  /// button was the only way out, which is not how an iOS app behaves. Android
+  /// is untouched: the zoom transition and the system back gesture stay.
   static const PageTransitionsTheme _pageTransitions = PageTransitionsTheme(
     builders: {
       TargetPlatform.android: ZoomPageTransitionsBuilder(),

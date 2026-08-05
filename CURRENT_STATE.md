@@ -54,19 +54,53 @@
 > config-diff audit fully supports it. The ADR-011 execution record is **written
 > daily and read by no screen**.
 >
-> **iOS back navigation is now gesture-only (2026-08-05, presentation only,
-> NOT device-verified):** On iOS the app bar draws no back chevron; the way back
-> is the native interactive left-edge swipe. Android and desktop are unchanged.
-> One seam owns it — `core/routes/app_page_route.dart` (`showsBackChevron` for
-> chrome, `appPageRoute` for imperative pushes) — plus `CupertinoPage` for every
-> go_router push and `CupertinoPageTransitionsBuilder` for iOS in the theme.
-> ⚠️ **The invariant to protect:** a screen may only drop its chevron if its
-> route actually carries the gesture. A new page pushed on a plain
-> `PageRouteBuilder`, or one that blocks pop with `PopScope(canPop: false)`
-> without supplying its own `leading`, is a **dead end on iOS**.
-> `test/back_navigation_contract_test.dart` pins both halves.
+> **iOS swipe-back added; every back button kept (2026-08-05, NOT
+> device-verified):** A pushed screen on iOS now carries the native interactive
+> left-edge swipe **in addition to** its app-bar back button — both, always, as
+> in Apple's own apps. The theme had been overriding Flutter's iOS default with
+> `ZoomPageTransitionsBuilder`, which carries no gesture, and the 85 go_router
+> pushes used `CustomTransitionPage`, which cannot. Seam:
+> `core/routes/app_page_route.dart` (`appPageRoute`) + `CupertinoPage` in the
+> router. Android and desktop unchanged.
+> ⚠️ **What rots silently:** the gesture exists only on Cupertino routes, so a
+> page pushed on a hand-rolled `PageRouteBuilder` loses it while every other
+> screen keeps it — nothing *looks* broken. Pinned by
+> `test/back_navigation_contract_test.dart`.
 > Needs on-device QA: the edge swipe over horizontally scrolling content
 > (`SegmentedTabBar` tabs, the schedule week strip) and inside the chat thread.
+
+> **Notification taps: dead end, cold-start crash, silent drop — all fixed
+> (2026-08-05, NOT device-verified):** Three reported symptoms, one root area —
+> navigating a router that has no stack yet.
+> - **"It opens the notifications page and I can't get Home."** The unresolved-tap
+>   fallback was `go('/notifications')`, which replaces the whole stack. The inbox
+>   carries no bottom nav (only the three role shells do) and could not pop, so no
+>   back button was drawn on any platform. Every tap now goes through
+>   `openNotificationDeepLink` — `go(home)` **then** `push(target)`.
+> - **"Sometimes it errors."** `router.state` throws `Bad state: No element` on an
+>   empty match list. Both tap paths read it, so the handler died mid-way.
+> - **"Sometimes it doesn't open at all."** A cold start resolves the tap before
+>   the routed app mounts (the splash intro is ~2s), and `push` onto an unattached
+>   router is dropped — while `go` works, which is why the dead-end fallback was
+>   the one path that landed.
+> New `core/routes/router_extensions.dart`: `currentLocationOrNull` (never
+> throws) + `whenReady` (defers the tap until the router has a stack, bounded at
+> 120 frames). `openChatDeepLink` had the same two faults and is fixed with it.
+> Pinned by `test/notification_tap_navigation_test.dart`.
+
+> **Schedule stops re-reading on every visit (2026-08-05):** The admin Today
+> board fired one **uncached roster query per branch** on every entry, behind a
+> skeleton that blanked it each time, and screen entry called
+> `BranchCubit.load()` unconditionally — emitting `loading()`, which blanked
+> every branch-identity surface in the app. Entry now uses `loadIfNeeded()`;
+> `TodayCoverageCubit` has a 5-minute window keyed on the branch set **and** the
+> day, and a forced refresh no longer blanks the board it is refreshing.
+> `ScheduleCubit._freshFor` 60s → 5 min (a minute is shorter than one trip
+> through the app, so every return still paid for a full reload). Refresh,
+> pull-to-refresh, a scope change, any local mutation, and `SwapRosterSync` on an
+> approved swap all still bypass the windows. Returning to the Today tab after
+> editing forces a re-derive, deliberately. Pinned by
+> `test/schedule_read_caching_test.dart`.
 
 > **Premium mobile role-home bar (2026-08-05, presentation only):** The shared
 > admin/manager/employee `RoleScaffold` header now uses a restrained gradient +

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/routes/app_page_route.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
@@ -8,10 +7,9 @@ import 'package:drop/core/widgets/drop_logo.dart';
 
 /// A scaffold that adapts its chrome to the platform width.
 ///
-/// * **Mobile / tablet** → the familiar [AppBar] (title + actions). The
-///   automatic back button follows the platform: Android keeps it, **iOS does
-///   not** — there the user comes back with the native left-edge swipe (see
-///   `core/routes/app_page_route.dart`).
+/// * **Mobile / tablet** → the familiar [AppBar] (title + actions + automatic
+///   back button). On iOS the native left-edge swipe-back works **in addition**
+///   to the button (see `core/routes/app_page_route.dart`).
 /// * **Desktop / macOS** → no mobile app bar. Instead a calm, generously-spaced
 ///   in-body **page header** (large title, optional subtitle, right-aligned
 ///   actions, hairline divider) sits beside the persistent [AppShell] sidebar,
@@ -49,12 +47,9 @@ class AdaptiveScaffold extends StatelessWidget {
   final Widget body;
   final List<Widget> actions;
 
-  /// Optional custom leading control (e.g. a sub-view back toggle, a search
-  /// dismiss). **Always honoured on every platform** — it is in-page navigation,
-  /// not route back, so the iOS swipe does not replace it.
-  ///
-  /// When null, the desktop header auto-shows a back button if the route can
-  /// pop; the mobile app bar auto-shows one on Android but not on iOS.
+  /// Optional custom leading control (e.g. a sub-view back toggle). When null,
+  /// the desktop header auto-shows a back button if the route can pop, and the
+  /// mobile app bar uses its automatic back button.
   final Widget? leading;
   final Widget? floatingActionButton;
 
@@ -90,16 +85,11 @@ class AdaptiveScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!context.isDesktop) {
-      // iOS goes back by the interactive edge swipe alone, so the automatic
-      // chevron is suppressed there. A full-screen modal is the exception on
-      // iOS itself — it has no back gesture, so it keeps its implied Close.
-      final isModal = ModalRoute.of(context)?.fullscreenDialog ?? false;
       return Scaffold(
         backgroundColor: AppColors.darkBg,
         appBar: AppBar(
           backgroundColor: AppColors.darkBg,
           elevation: 0,
-          automaticallyImplyLeading: showsBackChevron(context) || isModal,
           title: titleWidget ?? Text(title, style: AppTypography.h3),
           leading: leading,
           actions: [...actions, if (showBrandMark) const _AppBarBrandMark()],

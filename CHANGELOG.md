@@ -23,50 +23,75 @@ sections, and the documentation index. No code, no doc-set responsibility change
 still links out to the design docs rather than restating them, and defers deploy
 status to CURRENT_STATE.
 
-## 2026-08-05 — iOS navigates back by gesture, not by chevron (polish; MED risk)
+## 2026-08-05 — Notification taps, Schedule re-reads, iOS swipe-back (bug/polish; MED risk)
 
-**On iOS the app bar no longer draws a back button.** Coming back is the native
-interactive left-edge swipe, as in Apple's own apps. **Android is untouched** —
-its back button, system back gesture and zoom transition all stay. Desktop keeps
-`AdaptiveScaffold`'s in-header back control.
+### Notification taps could dead-end, throw, or silently do nothing
 
-The risky half of this is not hiding the chevron, it is guaranteeing the gesture
-exists on **every** screen that lost one. Three route families had to be fixed
-together, or the removal would have stranded users:
+Three reported symptoms, one root area: **navigating a router that has no stack
+yet.**
 
-- **The theme was suppressing the gesture app-wide.** `pageTransitionsTheme`
-  pinned iOS to `ZoomPageTransitionsBuilder`, overriding Flutter's own iOS
-  default. `CupertinoPageTransitionsBuilder` is the *only* builder that inserts
-  the back-gesture detector, so every one of the ~12 `MaterialPageRoute` pushes
-  had neither a chevron nor a swipe. Restored to Cupertino for iOS only.
-- **go_router's pushed pages had no gesture at all.** All 85 `context.push`
-  destinations were `CustomTransitionPage`, which cannot carry one. iOS now gets
-  `CupertinoPage` (`_pushPage`); Android/desktop keep the existing slide/fade
-  verbatim. The branch is on **platform, never window width** — the `Page`
-  subtype is part of route identity, so flipping it on an iPad resize would tear
-  the route down mid-gesture. Role homes are `CupertinoPage` on iOS too, so the
-  screen underneath does the native parallax instead of sitting still.
-- **`TaskDetailsScreen` was pushed from four hand-rolled `PageRouteBuilder`s.**
-  Three were byte-identical. All four now go through the new
-  `appPageRoute` seam; Employee Home keeps its own rise-and-fade on non-iOS.
+- **"It opens the notifications page and I can't get Home."** The unresolved-tap
+  fallback was `go('/notifications')` — `go` replaces the whole stack, so the
+  inbox became the only route. It carries no bottom nav (only the three role
+  shells do) and could not pop, so no back button was drawn on any platform.
+  A hard dead end until the app was killed.
+- **"Sometimes it errors."** `GoRouter.state` reads `.last` of the match list and
+  throws `Bad state: No element` while that list is empty. Both tap paths read it,
+  so the handler died before navigating.
+- **"Sometimes it doesn't open at all."** A cold start resolves the tap *before*
+  the routed app mounts — DROP holds it behind the bootstrap **and** the ~2s
+  splash intro, while `getInitialMessage()` returns in milliseconds. `push` onto
+  an unattached router is dropped; `go` still works, which is exactly why the
+  dead-end fallback was the one path that ever landed.
 
-New seam: **`core/routes/app_page_route.dart`** — one file owns the decision,
-`showsBackChevron` for chrome and `appPageRoute` for imperative pushes.
+New `openNotificationDeepLink` (`notifications/presentation/`) is the single
+navigator for every tap surface: `go(home)` **then** `push(target)`, so Back —
+or the iOS swipe — always reaches Home. Unresolved taps open the inbox *on top
+of* Home instead of instead of it. Two quieter faults went with it: tapping
+several notifications from the background stacked one page per tap, and
+re-tapping the notification for the page already open pushed a duplicate.
 
-Chrome updated: `AdaptiveScaffold` (56 screens), `AuthScaffold`, and the two
-chat detail pages that own their app bar. **An explicit `leading` is always
-honoured** on every platform — the pending-review drill-down, the new-request
-type picker and the chat search dismiss are in-page navigation, not route back.
+New `core/routes/router_extensions.dart` — `currentLocationOrNull` (never throws)
+and `whenReady` (defers a tap until the router has a stack, bounded at 120
+frames). `openChatDeepLink` had both faults too and now shares the fix.
 
-Deliberately keeping their controls, all matching iOS itself: full-screen modals
-(`fullscreenDialog` — no back gesture on iOS either), the image and attachment
-viewers (a zoomed `InteractiveViewer` competes with the edge drag), the Final
-Schedule preview's own toolbar, and any screen blocking pop via `PopScope`
-(pending review's drill-down, task details mid-submission).
+### Opening Schedule re-read everything, every time
 
-Gates: `flutter analyze` clean · `flutter test` **1651 pass** (was 1641) — 10 new
-in `back_navigation_contract_test.dart`, which pins both halves of the contract
-on both platforms. Not yet verified on device.
+The admin Today board fired **one uncached roster query per branch** on every
+entry, behind a skeleton that blanked it each time — and screen entry called
+`BranchCubit.load()` unconditionally, whose `loading()` emit blanked every
+branch-identity surface in the app. Entry now uses `loadIfNeeded()`;
+`TodayCoverageCubit` gained a 5-minute window keyed on the branch set **and** the
+day, and a forced refresh keeps the board visible while it re-derives.
+`ScheduleCubit._freshFor` went 60s → 5 min: a minute is shorter than a single
+trip through the app, so in practice every return still paid for three reads.
+
+Nothing that actually changes a roster depends on a window expiring — a scope
+change, any local mutation, Refresh, pull-to-refresh, and `SwapRosterSync` on an
+approved swap all bypass them. Returning to the Today tab after editing forces a
+re-derive, deliberately.
+
+### iOS pushes carry the native swipe-back (in addition to the back button)
+
+**Every screen keeps its app-bar back button.** What was missing was the gesture:
+`pageTransitionsTheme` pinned iOS to `ZoomPageTransitionsBuilder`, overriding
+Flutter's own iOS default, so none of the ~12 `MaterialPageRoute` pushes had one;
+all 85 `context.push` destinations were `CustomTransitionPage`, which cannot
+carry one; and `TaskDetailsScreen` was pushed from four hand-rolled
+`PageRouteBuilder`s (three byte-identical).
+
+Now: `CupertinoPageTransitionsBuilder` for iOS in the theme, `CupertinoPage` for
+every routed push (`_pushPage`), and the new `appPageRoute` seam
+(`core/routes/app_page_route.dart`) for imperative pushes. Role homes are
+`CupertinoPage` on iOS too, so the screen underneath does the native parallax.
+Android and desktop motion are unchanged; Employee Home keeps its own
+rise-and-fade off-iOS. The branch is on **platform, never window width** — a
+`Page` subtype is part of route identity, so flipping it on an iPad resize would
+tear the route down mid-gesture.
+
+Gates: `flutter analyze` clean · `flutter test` **1665 pass** (was 1641) — new
+`back_navigation_contract_test.dart`, `notification_tap_navigation_test.dart`,
+`schedule_read_caching_test.dart`. Not yet verified on device.
 
 ## 2026-08-05 — Branch Sales UX pass: one card, one statistic, one colour (polish/bug; LOW risk)
 

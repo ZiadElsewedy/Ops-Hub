@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/routes/app_page_route.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
@@ -123,9 +122,6 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
         backgroundColor: AppColors.darkBg,
-        // iOS returns to the thread with the edge swipe; Android keeps the
-        // chevron. Same contract as [AdaptiveScaffold].
-        automaticallyImplyLeading: showsBackChevron(context),
         title: Text('Conversation info', style: AppTypography.h3),
       ),
       body: ListView(

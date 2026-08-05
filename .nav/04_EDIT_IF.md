@@ -142,8 +142,8 @@ For chat (the only external API):
 ```
 
 ⚠️ Pushing a page **imperatively** instead? Use `appPageRoute` (`lib/core/routes/app_page_route.dart`),
-never a raw `PageRouteBuilder`. iOS has no app-bar back chevron — only a Cupertino route carries the
-edge-swipe, so a plain `PageRouteBuilder` leaves the screen with no way back. See DANGER §8.
+never a raw `PageRouteBuilder` — only a Cupertino route carries the iOS edge-swipe back, so a plain
+`PageRouteBuilder` silently loses it while every other screen keeps it. See DANGER §8.
 
 ## ➕ Add a new WORK TYPE (task polymorphism — the cheapest extension in the app 🧩)
 
