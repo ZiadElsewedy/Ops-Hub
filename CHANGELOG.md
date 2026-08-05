@@ -14,6 +14,14 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Project identity aligned to Drop Operation (refactor; MED risk)
+
+Renamed the repository folder from its legacy name to **`Drop-operations`** and
+removed the legacy identifier from source, project metadata, documentation, and
+platform test settings. Android/Linux now use `com.example.dropoperation`; iOS/macOS
+keep the already-correct `com.ziad.drop`. The Android Firebase app must be registered
+under its new identifier and `google-services.json` regenerated before release.
+
 ## 2026-08-05 — Dashboard "All clear" empty state centred (fix; LOW risk)
 
 The Recent activity **"All clear"** empty state (`_AllClear` in
@@ -1094,7 +1102,7 @@ APNs keys were uploaded, yet iOS still could not have received a push. The cause
 was not the credential — it was identity.
 
 **Xcode builds `com.ziad.drop`. Both `lib/firebase_options.dart` and
-`ios/Runner/GoogleService-Info.plist` described `com.example.fbro`** — a
+`ios/Runner/GoogleService-Info.plist` described a legacy `com.example` identifier** — a
 *different* Firebase iOS app (`…f1d3167839a737155a0bc0`). The project has three
 registered iOS apps, which is how this went unnoticed. Because `main.dart`
 initializes with `DefaultFirebaseOptions.currentPlatform`, the Dart values win
@@ -4006,7 +4014,8 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 Summarized. Detail is in git.
 
 ### 2026-06-30
-- ✓ Full rebrand: Dart package `fbro` → `drop` (repo folder + iOS bundle id still `fbro`).
+- ✓ Full rebrand: legacy Dart package → `drop` (the remaining platform identifiers were
+  later aligned with Drop Operation).
 - ✓ Desktop-first UI — `ShellRoute` + persistent role-aware sidebar. *(Its indigo accent was reverted the next day.)*
 - ✓ Premium macOS desktop foundation + polish (schedule grid, task ticket, comms command-center).
 - ✓ Fixed macOS login "No internet connection" (sandbox networking).

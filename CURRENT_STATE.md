@@ -3,7 +3,13 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-04.
+> **Last verified against the code:** 2026-08-05.
+
+> **Project identity alignment (2026-08-05):** The repository folder is
+> **`Drop-operations`** and the user-facing product name is **Drop Operation**.
+> Android/Linux use the valid identifier `com.example.dropoperation`; iOS/macOS
+> continue to use `com.ziad.drop`. The Android Firebase registration/configuration
+> must be regenerated for the new identifier before a Firebase-enabled release.
 
 > **Schedule — mobile Final view, exports, caching, roster fix (2026-08-04):**
 > The Final view splits by width: **macOS keeps the landscape print sheet**

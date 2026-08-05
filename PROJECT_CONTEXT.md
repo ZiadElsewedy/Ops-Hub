@@ -26,9 +26,13 @@ previous documentation set grew to 11,000 lines of partly-false claims.
 
 ## 1. What DROP is
 
-**DROP — Operations Management System.** An internal, role-based operations tool for
+**Drop Operation — Operations Management System.** An internal, role-based operations tool for
 **DROP THE SHOP**: branches, shifts, tasks, attendance, approvals, and employee
 activity. Three roles — **admin · manager · employee**.
+
+The repository folder is **`Drop-operations`**. The Dart package remains `drop`
+(valid package identifiers cannot contain a hyphen); platform-safe identifiers use
+`dropoperation` where needed.
 
 It is **not** a social network, an ERP, an analytics engine, or a SaaS product. It
 has no buyers, only users: a small, known set of people across a handful of

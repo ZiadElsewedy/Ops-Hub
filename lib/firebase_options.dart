@@ -62,7 +62,7 @@ class DefaultFirebaseOptions {
   // id Xcode actually builds (`com.ziad.drop`, see ios/…/project.pbxproj and
   // macos/Runner/Configs/AppInfo.xcconfig).
   //
-  // They previously pointed at `com.example.fbro`
+  // They previously pointed at a legacy `com.example` identifier
   // (appId …f1d3167839a737155a0bc0) — a DIFFERENT Firebase iOS app. Because
   // `main.dart` initializes with `DefaultFirebaseOptions.currentPlatform`, these
   // values win over `GoogleService-Info.plist`, so the app registered itself as

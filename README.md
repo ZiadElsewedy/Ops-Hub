@@ -8,9 +8,10 @@ administration, and live operations dashboards.
 iOS · Android · macOS. Flutter + Firebase.
 
 > The Dart package identifier is `drop` (every import is `package:drop/…`) and all
-> platform display names read **DROP** / **DROP OPERATIONS**. The repo folder and the
-> Firebase-registered bundle id `com.example.fbro` are intentionally retained —
-> changing the bundle id requires re-registering the apps in the Firebase console.
+> platform display names read **Drop Operation**. The platform identifiers are
+> `com.ziad.drop` on iOS/macOS and `com.example.dropoperation` on Android/Linux.
+> Register the Android/Linux identifier in Firebase and regenerate its configuration
+> before shipping a new Firebase-enabled build.
 
 ## Documentation
 

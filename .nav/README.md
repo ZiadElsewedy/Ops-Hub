@@ -5,7 +5,8 @@
 > Optimized for instant lookup by humans **and** AI agents (Claude, Cursor, ChatGPT).
 
 **Product:** DROP — role-based Operations Management System (Flutter + Firebase + one external NestJS chat API).
-Dart package id is `drop`; the repo folder / iOS bundle keep the legacy name `fbro`.
+Dart package id is `drop`; the project folder is `Drop-operations`, and the user-facing
+product name is **Drop Operation**.
 
 ---
 
