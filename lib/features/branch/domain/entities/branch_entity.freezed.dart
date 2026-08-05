@@ -51,6 +51,15 @@ mixin _$BranchEntity {
   /// nested map under `geofence`.
   BranchGeofence? get geofence => throw _privateConstructorUsedError;
 
+  /// Whether this branch runs the **monthly sales target** workflow. Not every
+  /// branch sells: when this is false the feature behaves as if it does not
+  /// exist — no Home card, no sales pages, no target management, no
+  /// submissions. Admin-only to toggle (branch writes are admin-only).
+  ///
+  /// Defaults to **false** so a branch is opted in deliberately rather than
+  /// inheriting a workflow it does not run.
+  bool get salesTargetEnabled => throw _privateConstructorUsedError;
+
   /// Create a copy of BranchEntity
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -78,6 +87,7 @@ abstract class $BranchEntityCopyWith<$Res> {
     SwapPolicy? swapPolicy,
     bool managersCanClock,
     BranchGeofence? geofence,
+    bool salesTargetEnabled,
   });
 }
 
@@ -108,6 +118,7 @@ class _$BranchEntityCopyWithImpl<$Res, $Val extends BranchEntity>
     Object? swapPolicy = freezed,
     Object? managersCanClock = null,
     Object? geofence = freezed,
+    Object? salesTargetEnabled = null,
   }) {
     return _then(
       _value.copyWith(
@@ -159,6 +170,10 @@ class _$BranchEntityCopyWithImpl<$Res, $Val extends BranchEntity>
                 ? _value.geofence
                 : geofence // ignore: cast_nullable_to_non_nullable
                       as BranchGeofence?,
+            salesTargetEnabled: null == salesTargetEnabled
+                ? _value.salesTargetEnabled
+                : salesTargetEnabled // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -187,6 +202,7 @@ abstract class _$$BranchEntityImplCopyWith<$Res>
     SwapPolicy? swapPolicy,
     bool managersCanClock,
     BranchGeofence? geofence,
+    bool salesTargetEnabled,
   });
 }
 
@@ -216,6 +232,7 @@ class __$$BranchEntityImplCopyWithImpl<$Res>
     Object? swapPolicy = freezed,
     Object? managersCanClock = null,
     Object? geofence = freezed,
+    Object? salesTargetEnabled = null,
   }) {
     return _then(
       _$BranchEntityImpl(
@@ -267,6 +284,10 @@ class __$$BranchEntityImplCopyWithImpl<$Res>
             ? _value.geofence
             : geofence // ignore: cast_nullable_to_non_nullable
                   as BranchGeofence?,
+        salesTargetEnabled: null == salesTargetEnabled
+            ? _value.salesTargetEnabled
+            : salesTargetEnabled // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -288,6 +309,7 @@ class _$BranchEntityImpl extends _BranchEntity {
     this.swapPolicy,
     this.managersCanClock = true,
     this.geofence,
+    this.salesTargetEnabled = false,
   }) : super._();
 
   @override
@@ -338,9 +360,20 @@ class _$BranchEntityImpl extends _BranchEntity {
   @override
   final BranchGeofence? geofence;
 
+  /// Whether this branch runs the **monthly sales target** workflow. Not every
+  /// branch sells: when this is false the feature behaves as if it does not
+  /// exist — no Home card, no sales pages, no target management, no
+  /// submissions. Admin-only to toggle (branch writes are admin-only).
+  ///
+  /// Defaults to **false** so a branch is opted in deliberately rather than
+  /// inheriting a workflow it does not run.
+  @override
+  @JsonKey()
+  final bool salesTargetEnabled;
+
   @override
   String toString() {
-    return 'BranchEntity(id: $id, name: $name, location: $location, isActive: $isActive, logoUrl: $logoUrl, coverUrl: $coverUrl, createdAt: $createdAt, updatedAt: $updatedAt, deletedAt: $deletedAt, swapPolicy: $swapPolicy, managersCanClock: $managersCanClock, geofence: $geofence)';
+    return 'BranchEntity(id: $id, name: $name, location: $location, isActive: $isActive, logoUrl: $logoUrl, coverUrl: $coverUrl, createdAt: $createdAt, updatedAt: $updatedAt, deletedAt: $deletedAt, swapPolicy: $swapPolicy, managersCanClock: $managersCanClock, geofence: $geofence, salesTargetEnabled: $salesTargetEnabled)';
   }
 
   @override
@@ -368,7 +401,9 @@ class _$BranchEntityImpl extends _BranchEntity {
             (identical(other.managersCanClock, managersCanClock) ||
                 other.managersCanClock == managersCanClock) &&
             (identical(other.geofence, geofence) ||
-                other.geofence == geofence));
+                other.geofence == geofence) &&
+            (identical(other.salesTargetEnabled, salesTargetEnabled) ||
+                other.salesTargetEnabled == salesTargetEnabled));
   }
 
   @override
@@ -386,6 +421,7 @@ class _$BranchEntityImpl extends _BranchEntity {
     swapPolicy,
     managersCanClock,
     geofence,
+    salesTargetEnabled,
   );
 
   /// Create a copy of BranchEntity
@@ -411,6 +447,7 @@ abstract class _BranchEntity extends BranchEntity {
     final SwapPolicy? swapPolicy,
     final bool managersCanClock,
     final BranchGeofence? geofence,
+    final bool salesTargetEnabled,
   }) = _$BranchEntityImpl;
   const _BranchEntity._() : super._();
 
@@ -459,6 +496,16 @@ abstract class _BranchEntity extends BranchEntity {
   /// nested map under `geofence`.
   @override
   BranchGeofence? get geofence;
+
+  /// Whether this branch runs the **monthly sales target** workflow. Not every
+  /// branch sells: when this is false the feature behaves as if it does not
+  /// exist — no Home card, no sales pages, no target management, no
+  /// submissions. Admin-only to toggle (branch writes are admin-only).
+  ///
+  /// Defaults to **false** so a branch is opted in deliberately rather than
+  /// inheriting a workflow it does not run.
+  @override
+  bool get salesTargetEnabled;
 
   /// Create a copy of BranchEntity
   /// with the given fields replaced by the non-null parameter values.

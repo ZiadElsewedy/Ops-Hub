@@ -15,7 +15,9 @@ void main() {
     final now = DateTime.utc(2026, 8, 15, 9);
     expect(calendarDaysInMonth(now), 31);
     expect(calendarDaysElapsed(now), 15);
-    expect(calendarDaysRemainingInMonth(now), 16);
+    // Days AFTER today. The dashboard shows selling days INCLUDING today —
+    // see `sellingDaysRemaining` in sales_calculator.dart.
+    expect(calendarDaysAfterToday(now), 16);
   });
 
   test('submission window accepts today and prior three Cairo days only', () {

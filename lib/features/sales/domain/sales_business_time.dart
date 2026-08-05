@@ -67,7 +67,12 @@ int calendarDaysElapsed(
   String timeZone = salesBusinessTimeZone,
 }) => cairoCivilTime(now, timeZone: timeZone).day;
 
-int calendarDaysRemainingInMonth(
+/// Calendar days after today, **excluding** today.
+///
+/// Not what the dashboard shows: a branch can still sell today, so the KPI
+/// surface uses `sellingDaysRemaining` (inclusive) instead. Kept only for
+/// callers that genuinely mean "days after today".
+int calendarDaysAfterToday(
   DateTime now, {
   String timeZone = salesBusinessTimeZone,
 }) =>

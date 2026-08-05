@@ -72,12 +72,35 @@ class RouteNames {
   // so these sit outside the role-area guards.
   static const String requests = '/requests';
   static const String requestsCreate = '/requests/create';
+  // Branch sales. `/sales` is the manager/admin branch dashboard and is the ONLY
+  // sales path inside the manager area — the rest are role-shared or
+  // employee-owned, so they must never be matched by a `/sales/` prefix guard
+  // (that once bounced every employee off their own submit screen).
   static const String salesSubmit = '/sales/submit';
+  static const String salesMine = '/sales/mine';
   static const String salesManage = '/sales';
   static const String salesAdminOverview = '/sales/admin';
   static const String salesHistory = '/sales/history';
   static const String salesSubmissionDetailPattern = '/sales/submission/:submissionId';
   static String salesSubmissionDetail(String submissionId) => '/sales/submission/$submissionId';
+
+  /// The branch sales ledger, optionally pre-filtered. `status` is a
+  /// [SalesSubmissionStatus] name or `all`; `branchId` is honoured for admins
+  /// only (a manager is always pinned to their own branch).
+  static String salesHistoryFor({String? branchId, String? status}) {
+    final query = <String>[
+      if (branchId != null && branchId.isNotEmpty)
+        'branchId=${Uri.encodeQueryComponent(branchId)}',
+      if (status != null && status.isNotEmpty)
+        'status=${Uri.encodeQueryComponent(status)}',
+    ];
+    return query.isEmpty ? salesHistory : '$salesHistory?${query.join('&')}';
+  }
+
+  /// The manager/admin branch sales dashboard for a specific branch.
+  static String salesManageFor(String branchId) => branchId.isEmpty
+      ? salesManage
+      : '$salesManage?branchId=${Uri.encodeQueryComponent(branchId)}';
 
   /// Employee GPS clock-in/out surface (also reachable by managers who clock).
   static const String attendance = '/attendance';

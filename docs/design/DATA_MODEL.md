@@ -21,7 +21,7 @@ pinned → `us-central1`).
 users/{uid}                              identity + profile + role/branch (admin-provisioned)
   └── private/compensation               salary + paymentNumber (owner + admin ONLY)
 
-branches/{branchId}                      branch record (+ swapPolicy, + geofence)
+branches/{branchId}                      branch record (+ swapPolicy, + geofence, + salesTargetEnabled)
 
 branch_sales_months/{branchId}_{yyyyMM}  per-branch monthly sales target (Cairo month) — callable/Admin-SDK writes ONLY. See SALES_TARGETS.md
 branch_sales_submissions/{branchId}_{yyyyMMdd}  one daily sales close; client-created `pending`, server-decided; approved total re-summed on read (no stored accumulation)

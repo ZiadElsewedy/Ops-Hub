@@ -1,3 +1,5 @@
+import 'package:drop/core/utils/app_date_formatter.dart';
+
 String formatEgp(int piastres, {bool withSuffix = false}) {
   final negative = piastres < 0;
   final value = piastres.abs();
@@ -21,4 +23,39 @@ int? parseEgpToPiastres(String input) {
   final decimals = (match.group(2) ?? '').padRight(2, '0');
   final fraction = decimals.isEmpty ? 0 : int.parse(decimals);
   return whole * 100 + fraction;
+}
+
+/// A `yyyyMMdd` business key as a date a human reads. Never show the raw key:
+/// "20260805" appeared verbatim on tiles, history rows and the detail screen.
+String formatBusinessDate(String businessDateKey) {
+  final date = businessDateFromKey(businessDateKey);
+  return date == null
+      ? businessDateKey
+      : AppDateFormatter.dayMonthYear(date);
+}
+
+/// A `yyyyMM` month key as a readable month.
+String formatBusinessMonth(String monthKey) {
+  final date = businessMonthFromKey(monthKey);
+  return date == null ? monthKey : AppDateFormatter.monthYear(date);
+}
+
+/// Parses a `yyyyMMdd` business key into a local [DateTime] for display only.
+/// Null when the key is malformed — callers fall back to the raw string.
+DateTime? businessDateFromKey(String businessDateKey) {
+  if (!RegExp(r'^\d{8}$').hasMatch(businessDateKey)) return null;
+  return DateTime(
+    int.parse(businessDateKey.substring(0, 4)),
+    int.parse(businessDateKey.substring(4, 6)),
+    int.parse(businessDateKey.substring(6, 8)),
+  );
+}
+
+/// Parses a `yyyyMM` month key into a local [DateTime] for display only.
+DateTime? businessMonthFromKey(String monthKey) {
+  if (!RegExp(r'^\d{6}$').hasMatch(monthKey)) return null;
+  return DateTime(
+    int.parse(monthKey.substring(0, 4)),
+    int.parse(monthKey.substring(4, 6)),
+  );
 }

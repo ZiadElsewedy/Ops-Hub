@@ -140,17 +140,28 @@ class _FakeChatListCubit extends Cubit<ChatListState> implements ChatListCubit {
 class _FakeSalesMonthCubit extends Cubit<SalesMonthState>
     implements SalesMonthCubit {
   _FakeSalesMonthCubit()
-    : super(const SalesMonthState.loaded(snapshot: SalesMonthSnapshot()));
+    : super(
+        const SalesMonthState.loaded(
+          snapshot: SalesMonthSnapshot(),
+          todayDateKey: '20260815',
+        ),
+      );
   @override
   Future<void> loadForEmployee({
     required String branchId,
     required String uid,
     DateTime? now,
+    bool force = false,
   }) async {}
   @override
   Future<void> submitToday({
     required int amountPiastres,
     required UserEntity user,
+  }) async {}
+  @override
+  Future<void> resubmitCorrection({
+    required String submissionId,
+    required int amountPiastres,
   }) async {}
 }
 

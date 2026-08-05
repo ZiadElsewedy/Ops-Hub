@@ -1041,6 +1041,19 @@ async function requireSalesManager(request, branchId) {
   }
   return salesActor(user, request.auth.uid);
 }
+// A branch opts in to the monthly sales target workflow. When the flag is off
+// the feature must not exist for that branch, so NEW work is refused here at the
+// server boundary as well as hidden in the client. Decisions on records that
+// already exist stay allowed — switching a branch off must not strand a pending
+// submission an employee is waiting on.
+async function requireSalesEnabledBranch(branchId) {
+  const snap = await db.collection(BRANCHES).doc(String(branchId || "")).get();
+  const branch = snap.exists ? (snap.data() || {}) : null;
+  if (!branch || branch.salesTargetEnabled !== true) {
+    throw new HttpsError("failed-precondition", "This branch does not use monthly sales targets.");
+  }
+  return branch;
+}
 function salesReason(value, required = true) {
   const reason = typeof value === "string" ? value.trim() : "";
   if (required && !reason) throw new HttpsError("invalid-argument", "A reason is required.");
@@ -1089,6 +1102,7 @@ exports.setBranchSalesTarget = onCall(async (request) => {
   }
   const reason = salesReason(data.reason);
   const actor = await requireSalesManager(request, branchId);
+  await requireSalesEnabledBranch(branchId);
   const ref = db.collection(BRANCH_SALES_MONTHS).doc(`${branchId}_${monthKey}`);
   let result;
   await db.runTransaction(async (tx) => {

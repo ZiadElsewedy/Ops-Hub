@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drop/core/enums/sales_submission_status.dart';
+import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
 import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
 import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
 import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
@@ -56,6 +58,24 @@ class _FakeSalesRepo implements SalesRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// The branch's opt-in is resolved before the ledger is read, so every
+/// dashboard test needs a branch that runs targets.
+class _FakeBranchRepo implements BranchRepository {
+  _FakeBranchRepo({this.salesTargetEnabled = true});
+  final bool salesTargetEnabled;
+
+  @override
+  Future<BranchEntity?> getBranch(String branchId, {bool forceRefresh = false}) async =>
+      BranchEntity(
+        id: branchId,
+        name: 'Branch $branchId',
+        salesTargetEnabled: salesTargetEnabled,
+      );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 DailySalesSubmissionEntity _sub(String id, SalesSubmissionStatus status, int amount) =>
     DailySalesSubmissionEntity(
       id: id,
@@ -66,8 +86,12 @@ DailySalesSubmissionEntity _sub(String id, SalesSubmissionStatus status, int amo
       amountPiastres: amount,
     );
 
-SalesManagerDashboardCubit _build(_FakeSalesRepo repo) => SalesManagerDashboardCubit(
+SalesManagerDashboardCubit _build(
+  _FakeSalesRepo repo, {
+  bool salesTargetEnabled = true,
+}) => SalesManagerDashboardCubit(
   repository: repo,
+  branchRepository: _FakeBranchRepo(salesTargetEnabled: salesTargetEnabled),
   approve: ApproveSalesSubmission(repo),
   reject: RejectSalesSubmission(repo),
   requestCorrection: RequestSalesCorrection(repo),

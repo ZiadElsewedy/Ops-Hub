@@ -50,4 +50,18 @@ class SalesMonthSnapshot with _$SalesMonthSnapshot {
   List<DailySalesSubmissionEntity> get correctionRequested => submissions
       .where((s) => s.status == SalesSubmissionStatus.correctionRequested)
       .toList();
+
+  /// The record for one business day, or null when the day is not closed yet.
+  /// A branch closes once per day (deterministic doc id), so at most one matches.
+  DailySalesSubmissionEntity? submissionFor(String businessDateKey) {
+    for (final submission in submissions) {
+      if (submission.businessDateKey == businessDateKey) return submission;
+    }
+    return null;
+  }
+
+  /// Newest business day first — the order every sales list renders in.
+  List<DailySalesSubmissionEntity> get newestFirst =>
+      [...submissions]
+        ..sort((a, b) => b.businessDateKey.compareTo(a.businessDateKey));
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:drop/features/sales/domain/entities/sales_kpis.dart';
 import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
 import 'package:drop/features/sales/domain/sales_business_time.dart';
@@ -7,33 +9,40 @@ import 'package:drop/features/sales/domain/sales_calculator.dart';
 ///
 /// [now] is injected so Cairo calendar calculations stay deterministic and this
 /// domain function remains independent of Flutter and Firebase.
-SalesKpis computeSalesKpis(SalesMonthSnapshot snapshot, {required DateTime now}) {
+SalesKpis computeSalesKpis(
+  SalesMonthSnapshot snapshot, {
+  required DateTime now,
+}) {
   if (!snapshot.hasTarget) return const SalesKpis();
 
   final approvedTotal = snapshot.approvedTotalPiastres;
+  final daysInMonth = calendarDaysInMonth(now);
   final elapsedDays = calendarDaysElapsed(now);
-  final daysRemaining = calendarDaysRemainingInMonth(now);
-  final averageDaily = averageApprovedDailyPiastres(approvedTotal, elapsedDays);
-  final requiredRunRate = requiredDailyRunRatePiastres(
-    snapshot.remainingPiastres,
-    daysRemaining,
-  );
-  final forecast = monthEndForecastPiastres(
+  final daysRemaining = sellingDaysRemaining(daysInMonth, elapsedDays);
+
+  final approvedDayCount = distinctBusinessDays(snapshot.approved);
+  final average = averagePerApprovedDayPiastres(
     approvedTotal,
-    averageDaily,
-    daysRemaining,
+    approvedDayCount,
   );
+
+  // Days the branch has not closed at all yet — the only days a projection may
+  // invent takings for. Days already recorded count at their real value.
+  final recordedDayCount = distinctBusinessDays(snapshot.submissions);
+  final unrecordedDays = math.max(0, daysInMonth - recordedDayCount);
 
   return SalesKpis(
     daysRemaining: daysRemaining,
-    averageApprovedDailyPiastres: averageDaily,
-    requiredDailyRunRatePiastres: requiredRunRate,
-    monthEndForecastPiastres: forecast,
-    completionDateEstimate: completionDateEstimate(
-      targetPiastres: snapshot.target!.targetPiastres,
-      approvedPiastres: approvedTotal,
-      averageDailyPiastres: averageDaily,
-      today: cairoCivilTime(now),
+    approvedDayCount: approvedDayCount,
+    averagePerApprovedDayPiastres: average,
+    neededPerDayPiastres: requiredDailyRunRatePiastres(
+      snapshot.remainingPiastres,
+      daysRemaining,
+    ),
+    expectedMonthEndPiastres: monthEndForecastPiastres(
+      approvedTotal,
+      average,
+      unrecordedDays,
     ),
   );
 }

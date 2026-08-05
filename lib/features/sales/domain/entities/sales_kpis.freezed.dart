@@ -17,11 +17,20 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$SalesKpis {
+  /// Selling days left this month, **including today**.
   int get daysRemaining => throw _privateConstructorUsedError;
-  int get averageApprovedDailyPiastres => throw _privateConstructorUsedError;
-  int get requiredDailyRunRatePiastres => throw _privateConstructorUsedError;
-  int get monthEndForecastPiastres => throw _privateConstructorUsedError;
-  DateTime? get completionDateEstimate => throw _privateConstructorUsedError;
+
+  /// Distinct business days that already have an approved close.
+  int get approvedDayCount => throw _privateConstructorUsedError;
+
+  /// Average takings of an approved day — the branch's real pace.
+  int get averagePerApprovedDayPiastres => throw _privateConstructorUsedError;
+
+  /// What each remaining day must bring in to land on target.
+  int get neededPerDayPiastres => throw _privateConstructorUsedError;
+
+  /// Where the month lands if unrecorded days perform like an average day.
+  int get expectedMonthEndPiastres => throw _privateConstructorUsedError;
 
   /// Create a copy of SalesKpis
   /// with the given fields replaced by the non-null parameter values.
@@ -37,10 +46,10 @@ abstract class $SalesKpisCopyWith<$Res> {
   @useResult
   $Res call({
     int daysRemaining,
-    int averageApprovedDailyPiastres,
-    int requiredDailyRunRatePiastres,
-    int monthEndForecastPiastres,
-    DateTime? completionDateEstimate,
+    int approvedDayCount,
+    int averagePerApprovedDayPiastres,
+    int neededPerDayPiastres,
+    int expectedMonthEndPiastres,
   });
 }
 
@@ -60,10 +69,10 @@ class _$SalesKpisCopyWithImpl<$Res, $Val extends SalesKpis>
   @override
   $Res call({
     Object? daysRemaining = null,
-    Object? averageApprovedDailyPiastres = null,
-    Object? requiredDailyRunRatePiastres = null,
-    Object? monthEndForecastPiastres = null,
-    Object? completionDateEstimate = freezed,
+    Object? approvedDayCount = null,
+    Object? averagePerApprovedDayPiastres = null,
+    Object? neededPerDayPiastres = null,
+    Object? expectedMonthEndPiastres = null,
   }) {
     return _then(
       _value.copyWith(
@@ -71,22 +80,22 @@ class _$SalesKpisCopyWithImpl<$Res, $Val extends SalesKpis>
                 ? _value.daysRemaining
                 : daysRemaining // ignore: cast_nullable_to_non_nullable
                       as int,
-            averageApprovedDailyPiastres: null == averageApprovedDailyPiastres
-                ? _value.averageApprovedDailyPiastres
-                : averageApprovedDailyPiastres // ignore: cast_nullable_to_non_nullable
+            approvedDayCount: null == approvedDayCount
+                ? _value.approvedDayCount
+                : approvedDayCount // ignore: cast_nullable_to_non_nullable
                       as int,
-            requiredDailyRunRatePiastres: null == requiredDailyRunRatePiastres
-                ? _value.requiredDailyRunRatePiastres
-                : requiredDailyRunRatePiastres // ignore: cast_nullable_to_non_nullable
+            averagePerApprovedDayPiastres: null == averagePerApprovedDayPiastres
+                ? _value.averagePerApprovedDayPiastres
+                : averagePerApprovedDayPiastres // ignore: cast_nullable_to_non_nullable
                       as int,
-            monthEndForecastPiastres: null == monthEndForecastPiastres
-                ? _value.monthEndForecastPiastres
-                : monthEndForecastPiastres // ignore: cast_nullable_to_non_nullable
+            neededPerDayPiastres: null == neededPerDayPiastres
+                ? _value.neededPerDayPiastres
+                : neededPerDayPiastres // ignore: cast_nullable_to_non_nullable
                       as int,
-            completionDateEstimate: freezed == completionDateEstimate
-                ? _value.completionDateEstimate
-                : completionDateEstimate // ignore: cast_nullable_to_non_nullable
-                      as DateTime?,
+            expectedMonthEndPiastres: null == expectedMonthEndPiastres
+                ? _value.expectedMonthEndPiastres
+                : expectedMonthEndPiastres // ignore: cast_nullable_to_non_nullable
+                      as int,
           )
           as $Val,
     );
@@ -104,10 +113,10 @@ abstract class _$$SalesKpisImplCopyWith<$Res>
   @useResult
   $Res call({
     int daysRemaining,
-    int averageApprovedDailyPiastres,
-    int requiredDailyRunRatePiastres,
-    int monthEndForecastPiastres,
-    DateTime? completionDateEstimate,
+    int approvedDayCount,
+    int averagePerApprovedDayPiastres,
+    int neededPerDayPiastres,
+    int expectedMonthEndPiastres,
   });
 }
 
@@ -126,10 +135,10 @@ class __$$SalesKpisImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? daysRemaining = null,
-    Object? averageApprovedDailyPiastres = null,
-    Object? requiredDailyRunRatePiastres = null,
-    Object? monthEndForecastPiastres = null,
-    Object? completionDateEstimate = freezed,
+    Object? approvedDayCount = null,
+    Object? averagePerApprovedDayPiastres = null,
+    Object? neededPerDayPiastres = null,
+    Object? expectedMonthEndPiastres = null,
   }) {
     return _then(
       _$SalesKpisImpl(
@@ -137,22 +146,22 @@ class __$$SalesKpisImplCopyWithImpl<$Res>
             ? _value.daysRemaining
             : daysRemaining // ignore: cast_nullable_to_non_nullable
                   as int,
-        averageApprovedDailyPiastres: null == averageApprovedDailyPiastres
-            ? _value.averageApprovedDailyPiastres
-            : averageApprovedDailyPiastres // ignore: cast_nullable_to_non_nullable
+        approvedDayCount: null == approvedDayCount
+            ? _value.approvedDayCount
+            : approvedDayCount // ignore: cast_nullable_to_non_nullable
                   as int,
-        requiredDailyRunRatePiastres: null == requiredDailyRunRatePiastres
-            ? _value.requiredDailyRunRatePiastres
-            : requiredDailyRunRatePiastres // ignore: cast_nullable_to_non_nullable
+        averagePerApprovedDayPiastres: null == averagePerApprovedDayPiastres
+            ? _value.averagePerApprovedDayPiastres
+            : averagePerApprovedDayPiastres // ignore: cast_nullable_to_non_nullable
                   as int,
-        monthEndForecastPiastres: null == monthEndForecastPiastres
-            ? _value.monthEndForecastPiastres
-            : monthEndForecastPiastres // ignore: cast_nullable_to_non_nullable
+        neededPerDayPiastres: null == neededPerDayPiastres
+            ? _value.neededPerDayPiastres
+            : neededPerDayPiastres // ignore: cast_nullable_to_non_nullable
                   as int,
-        completionDateEstimate: freezed == completionDateEstimate
-            ? _value.completionDateEstimate
-            : completionDateEstimate // ignore: cast_nullable_to_non_nullable
-                  as DateTime?,
+        expectedMonthEndPiastres: null == expectedMonthEndPiastres
+            ? _value.expectedMonthEndPiastres
+            : expectedMonthEndPiastres // ignore: cast_nullable_to_non_nullable
+                  as int,
       ),
     );
   }
@@ -163,30 +172,40 @@ class __$$SalesKpisImplCopyWithImpl<$Res>
 class _$SalesKpisImpl extends _SalesKpis {
   const _$SalesKpisImpl({
     this.daysRemaining = 0,
-    this.averageApprovedDailyPiastres = 0,
-    this.requiredDailyRunRatePiastres = 0,
-    this.monthEndForecastPiastres = 0,
-    this.completionDateEstimate,
+    this.approvedDayCount = 0,
+    this.averagePerApprovedDayPiastres = 0,
+    this.neededPerDayPiastres = 0,
+    this.expectedMonthEndPiastres = 0,
   }) : super._();
 
+  /// Selling days left this month, **including today**.
   @override
   @JsonKey()
   final int daysRemaining;
+
+  /// Distinct business days that already have an approved close.
   @override
   @JsonKey()
-  final int averageApprovedDailyPiastres;
+  final int approvedDayCount;
+
+  /// Average takings of an approved day — the branch's real pace.
   @override
   @JsonKey()
-  final int requiredDailyRunRatePiastres;
+  final int averagePerApprovedDayPiastres;
+
+  /// What each remaining day must bring in to land on target.
   @override
   @JsonKey()
-  final int monthEndForecastPiastres;
+  final int neededPerDayPiastres;
+
+  /// Where the month lands if unrecorded days perform like an average day.
   @override
-  final DateTime? completionDateEstimate;
+  @JsonKey()
+  final int expectedMonthEndPiastres;
 
   @override
   String toString() {
-    return 'SalesKpis(daysRemaining: $daysRemaining, averageApprovedDailyPiastres: $averageApprovedDailyPiastres, requiredDailyRunRatePiastres: $requiredDailyRunRatePiastres, monthEndForecastPiastres: $monthEndForecastPiastres, completionDateEstimate: $completionDateEstimate)';
+    return 'SalesKpis(daysRemaining: $daysRemaining, approvedDayCount: $approvedDayCount, averagePerApprovedDayPiastres: $averagePerApprovedDayPiastres, neededPerDayPiastres: $neededPerDayPiastres, expectedMonthEndPiastres: $expectedMonthEndPiastres)';
   }
 
   @override
@@ -196,35 +215,31 @@ class _$SalesKpisImpl extends _SalesKpis {
             other is _$SalesKpisImpl &&
             (identical(other.daysRemaining, daysRemaining) ||
                 other.daysRemaining == daysRemaining) &&
+            (identical(other.approvedDayCount, approvedDayCount) ||
+                other.approvedDayCount == approvedDayCount) &&
             (identical(
-                  other.averageApprovedDailyPiastres,
-                  averageApprovedDailyPiastres,
+                  other.averagePerApprovedDayPiastres,
+                  averagePerApprovedDayPiastres,
                 ) ||
-                other.averageApprovedDailyPiastres ==
-                    averageApprovedDailyPiastres) &&
+                other.averagePerApprovedDayPiastres ==
+                    averagePerApprovedDayPiastres) &&
+            (identical(other.neededPerDayPiastres, neededPerDayPiastres) ||
+                other.neededPerDayPiastres == neededPerDayPiastres) &&
             (identical(
-                  other.requiredDailyRunRatePiastres,
-                  requiredDailyRunRatePiastres,
+                  other.expectedMonthEndPiastres,
+                  expectedMonthEndPiastres,
                 ) ||
-                other.requiredDailyRunRatePiastres ==
-                    requiredDailyRunRatePiastres) &&
-            (identical(
-                  other.monthEndForecastPiastres,
-                  monthEndForecastPiastres,
-                ) ||
-                other.monthEndForecastPiastres == monthEndForecastPiastres) &&
-            (identical(other.completionDateEstimate, completionDateEstimate) ||
-                other.completionDateEstimate == completionDateEstimate));
+                other.expectedMonthEndPiastres == expectedMonthEndPiastres));
   }
 
   @override
   int get hashCode => Object.hash(
     runtimeType,
     daysRemaining,
-    averageApprovedDailyPiastres,
-    requiredDailyRunRatePiastres,
-    monthEndForecastPiastres,
-    completionDateEstimate,
+    approvedDayCount,
+    averagePerApprovedDayPiastres,
+    neededPerDayPiastres,
+    expectedMonthEndPiastres,
   );
 
   /// Create a copy of SalesKpis
@@ -239,23 +254,32 @@ class _$SalesKpisImpl extends _SalesKpis {
 abstract class _SalesKpis extends SalesKpis {
   const factory _SalesKpis({
     final int daysRemaining,
-    final int averageApprovedDailyPiastres,
-    final int requiredDailyRunRatePiastres,
-    final int monthEndForecastPiastres,
-    final DateTime? completionDateEstimate,
+    final int approvedDayCount,
+    final int averagePerApprovedDayPiastres,
+    final int neededPerDayPiastres,
+    final int expectedMonthEndPiastres,
   }) = _$SalesKpisImpl;
   const _SalesKpis._() : super._();
 
+  /// Selling days left this month, **including today**.
   @override
   int get daysRemaining;
+
+  /// Distinct business days that already have an approved close.
   @override
-  int get averageApprovedDailyPiastres;
+  int get approvedDayCount;
+
+  /// Average takings of an approved day — the branch's real pace.
   @override
-  int get requiredDailyRunRatePiastres;
+  int get averagePerApprovedDayPiastres;
+
+  /// What each remaining day must bring in to land on target.
   @override
-  int get monthEndForecastPiastres;
+  int get neededPerDayPiastres;
+
+  /// Where the month lands if unrecorded days perform like an average day.
   @override
-  DateTime? get completionDateEstimate;
+  int get expectedMonthEndPiastres;
 
   /// Create a copy of SalesKpis
   /// with the given fields replaced by the non-null parameter values.

@@ -214,13 +214,15 @@ void main() {
         ),
         RouteNames.salesManage,
       );
+      // The employee's own sales page — NOT Home. An employee has a sales area
+      // of their own now, and `/sales/mine` is where their records live.
       expect(
         resolveNotificationRoute(
           route: NotificationRoute.salesSubmission,
           payload: const {},
           role: UserRole.employee,
         ),
-        RouteNames.home,
+        RouteNames.salesMine,
       );
     });
   });

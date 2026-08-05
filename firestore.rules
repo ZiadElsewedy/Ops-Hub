@@ -35,9 +35,19 @@ service cloud.firestore {
       return isSignedIn() && selfRole() == 'employee'
         && selfDoc().get('isActive', false) == true;
     }
+    // A branch opts in to monthly sales targets (`branches/{id}.salesTargetEnabled`).
+    // A branch that has not opted in has no sales workflow at all, so it must not
+    // accept daily submissions either — enforced here as well as in the client and
+    // the callables.
+    function branchRunsSalesTargets(branchId) {
+      return exists(/databases/$(database)/documents/branches/$(branchId))
+        && get(/databases/$(database)/documents/branches/$(branchId))
+             .data.get('salesTargetEnabled', false) == true;
+    }
     function isSalesSubmissionCreate(submissionId) {
       return isActiveEmployee()
         && request.resource.data.get('branchId', '') == selfBranch()
+        && branchRunsSalesTargets(request.resource.data.get('branchId', ''))
         && request.resource.data.get('submittedById', '') == request.auth.uid
         && request.resource.data.get('status', '') == 'pending'
         && request.resource.data.get('id', '') == submissionId

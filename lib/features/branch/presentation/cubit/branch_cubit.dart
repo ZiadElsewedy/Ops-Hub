@@ -60,6 +60,7 @@ class BranchCubit extends Cubit<BranchState> {
     required String name,
     String? location,
     bool managersCanClock = true,
+    bool salesTargetEnabled = false,
   }) =>
       _mutate(() => _repository.createBranch(
             BranchEntity(
@@ -67,6 +68,7 @@ class BranchCubit extends Cubit<BranchState> {
               name: name,
               location: location,
               managersCanClock: managersCanClock,
+              salesTargetEnabled: salesTargetEnabled,
             ),
           ));
 

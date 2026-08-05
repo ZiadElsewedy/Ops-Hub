@@ -90,6 +90,28 @@ class AppShell extends StatefulWidget {
       label: 'Attendance',
       route: RouteNames.attendance,
     );
+    // Branch Sales. Admin lands on the all-branches overview, a manager on
+    // their own branch dashboard, an employee on their own sales page. Branches
+    // that have targets switched off render an explicit "off" state rather than
+    // an empty ledger, so the destination is safe for every role to see.
+    const salesAdmin = SidebarItem(
+      icon: Icons.trending_up_outlined,
+      activeIcon: Icons.trending_up_rounded,
+      label: 'Branch Sales',
+      route: RouteNames.salesAdminOverview,
+    );
+    const salesManager = SidebarItem(
+      icon: Icons.trending_up_outlined,
+      activeIcon: Icons.trending_up_rounded,
+      label: 'Branch Sales',
+      route: RouteNames.salesManage,
+    );
+    const salesEmployee = SidebarItem(
+      icon: Icons.trending_up_outlined,
+      activeIcon: Icons.trending_up_rounded,
+      label: 'My Sales',
+      route: RouteNames.salesMine,
+    );
 
     switch (role) {
       case UserRole.admin:
@@ -142,6 +164,7 @@ class AppShell extends StatefulWidget {
                 label: 'Branches',
                 route: RouteNames.adminBranches,
               ),
+              salesAdmin,
               SidebarItem(
                 icon: Icons.badge_outlined,
                 activeIcon: Icons.badge_rounded,
@@ -185,6 +208,7 @@ class AppShell extends StatefulWidget {
                 label: 'Attendance & Reports',
                 route: RouteNames.attendanceReports,
               ),
+              salesManager,
               communications,
               chat,
               cases,
@@ -216,6 +240,7 @@ class AppShell extends StatefulWidget {
                 route: RouteNames.mySchedule,
               ),
               attendance,
+              salesEmployee,
               chat,
               cases,
               requests,

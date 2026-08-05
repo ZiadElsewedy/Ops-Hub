@@ -66,6 +66,14 @@ class _FakeBranchRepository implements BranchRepository {
   }) async => branches;
 
   @override
+  Future<BranchEntity?> getBranch(String branchId, {bool forceRefresh = false}) async {
+    for (final branch in branches) {
+      if (branch.id == branchId) return branch;
+    }
+    return null;
+  }
+
+  @override
   Future<BranchEntity> createBranch(BranchEntity branch) async => branch;
 
   @override

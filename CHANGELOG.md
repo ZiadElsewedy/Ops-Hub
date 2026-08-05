@@ -14,6 +14,70 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Branch Sales audit: 9 fixes + per-branch opt-in (bug/feature; MED risk)
+
+A full audit of the just-built Branch Monthly Sales Target feature, before it ever
+reached users. What was already right: the ledger shape, the server-authoritative
+callables, the deterministic ids, `NetworkGuard` on every write, the audit and
+notification taxonomy, approved-only accumulation, and the money/date primitives.
+What was broken:
+
+1. **Routing (severe).** `isManagerArea` matched `/sales` by **prefix**, and it runs
+   before the employee guards — so `/sales/submit`, `/sales/mine`, `/sales/history`
+   and `/sales/submission/:id` were all manager-only. Every employee was bounced to
+   Home from their own submit screen, their own records, and the sales deep link.
+   **The entire employee half of the feature was unreachable.** Now matched exactly,
+   with `sales_route_access_test.dart` as the regression guard.
+2. **Resubmit-after-correction had no caller.** `ResubmitCorrectedSales` was wired
+   into DI but no cubit or screen invoked it, so `correctionRequested` was a dead
+   end. Added to `SalesMonthCubit` + a correction mode on the submit screen.
+3. **Metrics.** "Needed per day" read `0 EGP` on the last day of every month while
+   the branch was short (day count excluded today). "Average per day" divided by
+   elapsed **calendar** days, so lagging approvals understated pace daily and pulled
+   the forecast down. Now: days-left includes today; the average divides by distinct
+   **approved days**; the forecast only projects days with no record at all.
+   `completionDateEstimate` **removed** — it printed "On track by <today>" whenever
+   the target was met — replaced by a `salesPace` verdict sentence.
+4. **Wording.** The manager dashboard said "Edit monthly target" on a branch-month
+   with no target. Now "Set monthly target" until one exists.
+5. **Dead controls.** `AttentionSignal.onTap` was `() {}`; Approved / Rejected /
+   History all pushed the same unfiltered ledger. All now open the ledger filtered,
+   and the history screen gained status chips and a working month picker.
+6. **Permissions.** "Edit amount" rendered on any approved record for **any** viewer
+   including the submitting employee (the callable refused — it read as a broken
+   button). Decision actions are now manager/admin-only, reopen admin-only, and a
+   manager can no longer steer `/sales?branchId=` off their own branch.
+7. **Employee Home.** The card's no-target state was a 180px `DropEmptyState`
+   medallion — the "oversized icon" — and "today submitted" was computed from the
+   **device** date, not Cairo, and always read "pending" regardless of actual status.
+   Now compact (today · achieved · remaining · bar), Cairo-correct, showing the real
+   status, and tappable into a new employee sales page.
+8. **New `/sales/mine`.** Today's close and status, month achieved/target/remaining,
+   progress, days left, own history, and the submit CTA when eligible.
+9. **Retry did nothing.** Both cubits' load guards early-returned after a failure, so
+   the error state could never clear. Added `force:`; a month rollover now also
+   re-subscribes on its own.
+
+**New capability — per-branch opt-in.** `branches/{id}.salesTargetEnabled`
+(admin-only, **default `false`**, toggled in the branch form). Off ⇒ the feature
+does not exist for that branch: no Home card (and no leftover spacing), no sales
+pages, no target management, no submissions. Enforced in the client, in
+`firestore.rules` (a new `branchRunsSalesTargets` gate on submission create), and in
+`setBranchSalesTarget`. Deciding **already-open** records stays allowed so switching
+a branch off never strands a submission an employee is waiting on.
+
+Also: **Branch Sales was missing from the macOS sidebar entirely** — added for all
+three roles (admin → all-branches overview, manager → own branch, employee → My
+Sales). Raw `yyyyMMdd` keys ("20260805") no longer leak into the UI. One stream
+failing no longer discards content the other delivered.
+
+Gates: `flutter analyze` clean · `flutter test` **1630 pass** (was 1606) ·
+`functions` node --test **112** · `firestore-tests` **68** (was 66).
+⚠️ **Rules + functions must be redeployed before this client ships** — the opt-in
+added a rule and a callable precondition.
+
+---
+
 ## 2026-08-05 — Restore the clean splash Lottie (corrupt asset revert; LOW risk)
 
 **This is the actual "why the launch animation looks wrong" answer.** On 2026-08-05

@@ -89,7 +89,7 @@ String? resolveNotificationRoute({
       }
       return switch (role) {
         UserRole.admin || UserRole.manager => RouteNames.salesManage,
-        UserRole.employee => RouteNames.home,
+        UserRole.employee => RouteNames.salesMine,
         null => null,
       };
 

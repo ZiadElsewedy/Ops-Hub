@@ -480,8 +480,8 @@ class AppDependencies {
   static late final EditApprovedSalesSubmission editApprovedSalesSubmission;
   static late final ReopenSalesSubmission reopenSalesSubmission;
 
-  static SalesManagerDashboardCubit createSalesManagerDashboardCubit(String branchId) =>
-      SalesManagerDashboardCubit(repository: salesRepository, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, setTarget: setBranchMonthlyTarget);
+  static SalesManagerDashboardCubit createSalesManagerDashboardCubit() =>
+      SalesManagerDashboardCubit(repository: salesRepository, branchRepository: _branchRepositoryRef, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, setTarget: setBranchMonthlyTarget);
 
   static SalesAdminOverviewCubit createSalesAdminOverviewCubit() =>
       SalesAdminOverviewCubit(repository: salesRepository);
@@ -673,7 +673,9 @@ class AppDependencies {
     reopenSalesSubmission = ReopenSalesSubmission(salesRepository);
     salesMonthCubit = SalesMonthCubit(
       repository: salesRepository,
+      branchRepository: branchRepository,
       submitDailySales: submitDailySales,
+      resubmitCorrectedSales: resubmitCorrectedSales,
     );
 
     // Notification repository is built early — the TaskCubit needs the

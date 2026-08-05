@@ -19,38 +19,75 @@ double progressRatioRaw(int target, int achieved) =>
 double progressRatioCapped(int target, int achieved) =>
     progressRatioRaw(target, achieved).clamp(0, 1).toDouble();
 
-int averageApprovedDailyPiastres(int approvedTotal, int elapsedDays) =>
-    elapsedDays <= 0 ? 0 : math.max(0, approvedTotal) ~/ elapsedDays;
+/// How many distinct business days these records cover. A branch closes once per
+/// day, so this is the honest denominator for "per day" figures — counting
+/// documents would double-count a day that was corrected and resubmitted.
+int distinctBusinessDays(Iterable<DailySalesSubmissionEntity> submissions) =>
+    submissions.map((submission) => submission.businessDateKey).toSet().length;
 
+/// Average takings of a day that actually has an **approved** close.
+///
+/// Deliberately NOT divided by calendar days elapsed: approvals lag by a day or
+/// more, so the newest day (or two) of every month-to-date has no approved
+/// record yet. Dividing by elapsed calendar days understated the branch's pace
+/// every single day and dragged the forecast down with it.
+int averagePerApprovedDayPiastres(int approvedTotal, int approvedDayCount) =>
+    approvedDayCount <= 0 ? 0 : math.max(0, approvedTotal) ~/ approvedDayCount;
+
+/// What each remaining selling day must bring in to land exactly on target.
+/// Rounded **up** — landing a piastre short is not hitting the target.
 int requiredDailyRunRatePiastres(int remaining, int daysRemaining) {
   if (remaining <= 0 || daysRemaining <= 0) return 0;
   return (remaining + daysRemaining - 1) ~/ daysRemaining;
 }
 
-int calendarDaysRemaining(int daysInMonth, int elapsedDays) =>
-    math.max(0, daysInMonth - math.max(0, elapsedDays));
+/// Selling days left in the month **including today**.
+///
+/// Today is still a day the branch can sell, so on the 31st of a 31-day month
+/// this is 1, not 0. The exclusive version made "needed per day" collapse to
+/// zero on the last day of every month while the branch was still short of its
+/// target — the most misleading number on the dashboard.
+int sellingDaysRemaining(int daysInMonth, int elapsedDays) => math.max<int>(
+  0,
+  math.max<int>(0, daysInMonth) - math.max<int>(0, elapsedDays) + 1,
+);
 
-/// Calendar-day run-rate forecast; it intentionally does not infer opening days.
+/// Where the month lands if every day with no record yet performs like an
+/// average approved day. Days already recorded are counted at their real value
+/// (they are inside [approvedTotal]) and never re-projected.
 int monthEndForecastPiastres(
   int approvedTotal,
-  int averageDailyPiastres,
-  int daysRemaining,
+  int averagePerApprovedDay,
+  int unrecordedDaysRemaining,
 ) =>
     math.max(0, approvedTotal) +
-    math.max(0, averageDailyPiastres) * math.max(0, daysRemaining);
+    math.max(0, averagePerApprovedDay) * math.max(0, unrecordedDaysRemaining);
 
-DateTime? completionDateEstimate({
+/// The single plain-language verdict the pace figures exist to support.
+enum SalesPace {
+  /// The target is already met — nothing left to decide.
+  achieved,
+
+  /// No approved day yet, so there is no pace to judge.
+  noData,
+
+  /// Projected to finish the month at or above target.
+  onTrack,
+
+  /// Projected to finish short — this is the day to intervene.
+  behind,
+}
+
+SalesPace salesPace({
   required int targetPiastres,
   required int approvedPiastres,
-  required int averageDailyPiastres,
-  required DateTime today,
+  required int expectedMonthEndPiastres,
+  required int approvedDayCount,
 }) {
-  if (targetPiastres <= 0 || approvedPiastres >= targetPiastres) {
-    return DateTime(today.year, today.month, today.day);
-  }
-  if (averageDailyPiastres <= 0) return null;
-  final days =
-      (targetPiastres - approvedPiastres + averageDailyPiastres - 1) ~/
-      averageDailyPiastres;
-  return DateTime(today.year, today.month, today.day).add(Duration(days: days));
+  if (targetPiastres <= 0) return SalesPace.noData;
+  if (approvedPiastres >= targetPiastres) return SalesPace.achieved;
+  if (approvedDayCount <= 0) return SalesPace.noData;
+  return expectedMonthEndPiastres >= targetPiastres
+      ? SalesPace.onTrack
+      : SalesPace.behind;
 }

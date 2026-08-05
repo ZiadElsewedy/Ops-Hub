@@ -5,23 +5,25 @@ sales at the end of a working day; a manager approves or rejects it; **only appr
 sales count** toward the branch's monthly progress. Remaining, progress %, and
 forecast are **derived on read — never stored**.
 
-> **Status: implemented (P1–P6) on `feature/branch-sales-target` — not merged, not
-> deployed.** The full vertical slice is built under `lib/features/sales/`: domain +
-> data reads, server callables + `firestore.rules` + indexes, the client write path,
-> employee submit + Home card, manager dashboard / approval / history, admin
-> management + notification routing, and derived KPIs. Read
+> **Status: implemented and audited (2026-08-05) on `Sales-target`.** The full
+> vertical slice lives under `lib/features/sales/`. A post-implementation audit
+> fixed a routing bug that made the entire employee half unreachable, corrected
+> the pace metrics, added the per-branch opt-in, added the employee sales page and
+> the missing resubmit loop, and put Branch Sales in the desktop sidebar. Read
 > **[ADR-022](../decisions/ADR-022-branch-sales-monthly-ledger.md) before changing
-> anything here.** ⚠️ **Before it ships, deploy in order — Cloud Functions →
-> `firestore.rules` + `firestore.indexes.json` → verify the deployed revisions → the
-> client build that calls them** (the standing deploy-lag hazard: a client shipped
-> ahead of its functions/rules is broken). This doc is the behaviour reference; the
-> live collections are summarised in [DATA_MODEL.md](DATA_MODEL.md).
+> anything here.** ⚠️ **Deploy in order — Cloud Functions → `firestore.rules` +
+> `firestore.indexes.json` → verify the deployed revisions → the client build**
+> (the standing deploy-lag hazard). The functions were deployed 2026-08-05; the
+> **branch opt-in added a rule and a callable precondition, so rules + functions
+> must be redeployed before this client ships.** Live collections are summarised
+> in [DATA_MODEL.md](DATA_MODEL.md).
 
 ## Rules of the shape
 
 | | |
 | --- | --- |
 | **Money** | Signed integer **piastres** (`amountPiastres`). Never `double`/decimal. `>= 0`; **zero is a valid, explicitly-submitted "no sales" day**; negative forbidden |
+| **Opt-in** | Per branch: `branches/{id}.salesTargetEnabled`, **admin-only, default `false`**. Off ⇒ the feature does not exist for that branch — no Home card, no sales pages, no target management, no submissions (client + rules + callable) |
 | **Target owner** | The **branch**, per accounting **month** — not an employee, not the mutable branch doc |
 | **Submission statuses** | `pending → approved \| rejected \| correctionRequested`. A `correctionRequested` doc, once resubmitted, returns to `pending`. A manager/admin edit of an already-`approved` amount stays `approved` and bumps `revision`. Admin reopen returns any terminal record to `pending` |
 | **Submit** | Any **active branch employee**. **One document per branch business day** — first valid submission wins (deterministic id); a second attempt opens the existing record, never overwrites it |
@@ -174,15 +176,34 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
 
 | Screen | Composition |
 | --- | --- |
-| **Employee Home card** | One `GlassContainer` module on the existing Home: `StatStrip` (target · approved · remaining), monochrome linear progress, `StatusBadge` for state, one `PrimaryCta` "Submit today's sales" when eligible. `Skeleton` loading · `DropEmptyState` when no target · `AppProblemPanel` + retry on failure |
-| **Submission screen** | `AdaptiveScaffold` + `PageHero`; piastres-safe EGP field, business-date confirmation; one `AppButton` "Submit for approval". A duplicate-day state shows the existing record with a route to detail instead of a second CTA |
-| **Manager dashboard** | `PageHero` (one CTA: "Review pending sales") → KPI `GlassContainer` → `AttentionPanel` for pending / correction-requested → `MetricTileRow` for approved / rejected / history (each navigable). Edit Target is a secondary/overflow action, not a competing hero CTA |
-| **Approval / detail** | `PageHero` + `GlassContainer` evidence block (amount · day · submitter · revision · audit context). One primary action per state: Approve; Reject / Request correction in a confirm sheet with **mandatory reason**. Approved is read-only except authorized edit/reopen |
-| **Admin management** | `PageHero` + branch selector; `MetricTileRow` per branch (progress → history drill). Target edit / approved correction / reopen live in contextual sheets. No dense enterprise table |
-| **History** | Month picker, `PageHero`, `StatStrip` month facts, daily `ActivityCard` list newest-first. `DropEmptyState` · `ListSkeleton` · `AppErrorState`. Manager reuses the same page with its branch preselected |
+| **Employee Home card** | One compact `GlassContainer` module: today · achieved · remaining, a monochrome progress bar, a `StatusBadge` for today's real status, and a tap into `/sales/mine`. **Never an empty state** — a Home module is a row, not a page; the "Target not set" branch renders one sentence, and an opted-out branch renders **nothing, including its spacing** |
+| **Employee sales page** (`/sales/mine`) | `PageHero` (one CTA: "Submit today's sales", only when eligible) → today's close and its status/decision reason → month facts (`StatStrip` target · achieved · remaining, progress bar, days left) → own submission history with "Fix and resubmit" on a corrected day |
+| **Submission screen** | `AdaptiveScaffold` + `PageHero`; piastres-safe EGP field, Cairo business-date confirmation; one `AppButton`. Dual mode: new close, or a correction seeded with the amount under review and the manager's reason. Already-closed, no-target and teammate-closed days each render their own explanatory panel instead of a dead CTA |
+| **Manager dashboard** | `PageHero` — **"Set monthly target" until one exists, "Edit monthly target" after** → progress → pace KPIs → `AttentionPanel` (each signal opens the matching filtered ledger) → review queue with inline approve/reject → `MetricTileRow` (approved · rejected · history, each opening its own filter) |
+| **Approval / detail** | `PageHero` + evidence block (amount · day · submitter · decision provenance · revision). **Actions render only for a manager or admin**; reopen only for an admin on a terminal record. One primary action per state |
+| **Admin management** | `PageHero` + every branch, opted-in first. An opted-out branch is listed but visibly off and not tappable — the switch lives in branch settings |
+| **History** | Month picker, `StatStrip` month facts, status filter chips, daily list newest-first. `DropEmptyState` · `ListSkeleton` · `AppProblemPanel` |
 
-**Routes:** `/sales/submit` · `/sales/submission/:submissionId` · `/sales/history` ·
-`/sales/manage` (admin) — role-guarded in `app_router.dart` + `route_names.dart`.
+Business date keys are **never shown raw** — `formatBusinessDate` /
+`formatBusinessMonth` render them ("20260805" leaked to users on tiles, the
+history list and the detail screen).
+
+**Routes** — role-guarded in `app_router.dart` + `route_names.dart`:
+
+| Route | Who | Notes |
+| --- | --- | --- |
+| `/sales` | manager · admin | branch dashboard. Admin may steer with `?branchId=`; a manager is always pinned to their own branch |
+| `/sales/history` | manager · admin | branch ledger; `?branchId=` · `?status=` |
+| `/sales/admin` | admin | all-branches overview |
+| `/sales/submit` | employee | close of day; `?correct=<submissionId>` for a resubmission |
+| `/sales/mine` | employee | the employee's own sales page |
+| `/sales/submission/:id` | role-shared | rules scope what each role may read |
+
+> ⚠️ `isManagerArea` matches `/sales` **exactly**, never by prefix. Every other
+> sales path lives under `/sales/`, and a prefix match here once made all of them
+> manager-only — silently bouncing every employee back to Home from their own
+> submit screen, their own records, and the sales deep link. `sales_route_access_test.dart`
+> is the regression guard.
 
 ## Audit ([AUDIT_LOG](AUDIT_LOG.md))
 
@@ -216,13 +237,38 @@ construct sales notification docs.
 
 ## KPIs (derived-on-read only)
 
-days remaining in the current Cairo month · approved total · average approved daily
-sales · required calendar-day run-rate · simple month-end forecast · completion-date
-estimate · a compact recent-days approved trend (a list, **not** a stored chart
-series). Each must name the decision it changes (run-rate → intervene today?;
-forecast → on track?; pending count → approvals needed?). **No** `sales_analytics`,
-rollups, scorecards, leaderboards, exports, or per-read write aggregation — that is an
-ADR decision, not a default (ADR-009/010, ADR-022).
+Five figures, each answering one question, all computed from the **approved**
+ledger. Formulas are pure and unit-tested in `sales_calculator.dart` /
+`sales_kpis_calculator.dart` with `now` injected.
+
+| Figure | Formula | Answers |
+| --- | --- | --- |
+| **Achieved** | Σ approved `amountPiastres` | where are we? |
+| **Remaining** | `max(0, target − achieved)` | how much is left? |
+| **Progress %** | `achieved / target`, uncapped in text, capped `[0,1]` in the bar | how far in? |
+| **Days left** | `daysInMonth − dayOfMonth + 1` — **includes today** | how much time? |
+| **Needed per day** | `ceil(remaining / daysLeft)` | intervene today? |
+| **Average per day** | `achieved ÷ distinct days with an approved record` | what is a normal day worth? |
+| **Expected month end** | `achieved + average × days with no record at all` | on track? |
+
+Three deliberate choices, each reversing a wrong one:
+
+- **Days left includes today.** The exclusive count made *Needed per day* read
+  `0 EGP` on the last day of every month while the branch was still short.
+- **The average divides by approved DAYS, not elapsed calendar days.** Approvals
+  lag, so the newest day or two never has an approved record; dividing by elapsed
+  days understated the pace daily and dragged the forecast down with it. Distinct
+  business days, not documents — a corrected-and-resubmitted day is still one day.
+- **The forecast only projects days with no record at all.** Recorded days count
+  at their real value and are never re-projected.
+
+`completionDateEstimate` was **removed**. It returned *today* whenever the target
+was already met, so the strip printed "On track by <today>" — the least useful
+line on the dashboard. It is replaced by `salesPace` (`achieved` · `onTrack` ·
+`behind` · `noData`), which renders as one plain sentence naming the decision.
+
+**No** `sales_analytics`, rollups, scorecards, leaderboards, exports, or per-read
+write aggregation — that is an ADR decision, not a default (ADR-009/010, ADR-022).
 
 ## Edge cases
 

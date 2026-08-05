@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
+import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/features/auth/presentation/widgets/app_button.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
 
@@ -8,6 +10,7 @@ typedef SalesAmountReason = ({int amountPiastres, String reason});
 Future<SalesAmountReason?> showSalesTargetEditorSheet(
   BuildContext context, {
   required String title,
+  String? subtitle,
   String? initialAmount,
   String confirmLabel = 'Save',
 }) {
@@ -30,7 +33,16 @@ Future<SalesAmountReason?> showSalesTargetEditorSheet(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title),
+            Text(title, style: AppTypography.h3),
+            if (subtitle != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                subtitle,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: amount,

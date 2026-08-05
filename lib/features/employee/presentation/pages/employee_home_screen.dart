@@ -242,35 +242,45 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
             ),
 
             if (user?.branchId != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pagePadding,
-                  AppSpacing.xl,
-                  AppSpacing.pagePadding,
-                  0,
-                ),
-                child: BlocBuilder<SalesMonthCubit, SalesMonthState>(
-                  builder: (context, state) {
-                    if (state is SalesMonthError) {
-                      return SalesTargetCard.error(
-                        errorMessage: state.message,
-                        onRetry: () =>
-                            context.read<SalesMonthCubit>().loadForEmployee(
-                              branchId: user!.branchId!,
-                              uid: user.uid,
-                            ),
-                      );
-                    }
-                    if (state is SalesMonthLoaded) {
-                      return SalesTargetCard(
-                        snapshot: state.snapshot,
-                        ownSubmissions: state.ownSubmissions,
-                        onSubmit: () => context.push(RouteNames.salesSubmit),
-                      );
-                    }
-                    return const SalesTargetCard.loading();
-                  },
-                ),
+              BlocBuilder<SalesMonthCubit, SalesMonthState>(
+                builder: (context, state) {
+                  // A branch that does not run monthly targets shows nothing at
+                  // all — the feature must not exist for those employees. The
+                  // module gates its own spacing too, so an opted-out Home has
+                  // no unexplained gap where the card would have been.
+                  if (state is SalesMonthDisabled ||
+                      state is SalesMonthInitial) {
+                    return const SizedBox.shrink();
+                  }
+                  final Widget card;
+                  if (state is SalesMonthError) {
+                    card = SalesTargetCard.error(
+                      errorMessage: state.message,
+                      onRetry: () =>
+                          context.read<SalesMonthCubit>().loadForEmployee(
+                            branchId: user!.branchId!,
+                            uid: user.uid,
+                            force: true,
+                          ),
+                    );
+                  } else if (state is SalesMonthLoaded) {
+                    card = SalesTargetCard(
+                      state: state,
+                      onOpen: () => context.push(RouteNames.salesMine),
+                    );
+                  } else {
+                    card = const SalesTargetCard.loading();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.xl,
+                      AppSpacing.pagePadding,
+                      0,
+                    ),
+                    child: card,
+                  );
+                },
               ),
 
             Padding(

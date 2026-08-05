@@ -53,6 +53,7 @@ import 'package:drop/features/sales/presentation/pages/sales_manager_dashboard_s
 import 'package:drop/features/sales/presentation/pages/sales_history_screen.dart';
 import 'package:drop/features/sales/presentation/pages/sales_submission_detail_screen.dart';
 import 'package:drop/features/sales/presentation/pages/sales_admin_overview_screen.dart';
+import 'package:drop/features/sales/presentation/pages/employee_sales_screen.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
@@ -139,11 +140,14 @@ GoRouter createRouter(
                 _fadeTransition(state, const ManagerShell()),
           ),
           GoRoute(path: RouteNames.salesManage, pageBuilder: (context, state) {
-            final branchId = state.uri.queryParameters['branchId'] ?? authCubit.state.maybeWhen(authenticated: (user) => user.branchId, orElse: () => null) ?? '';
-            return _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(branchId), child: SalesManagerDashboardScreen(branchId: branchId)));
+            final branchId = _salesBranchId(authCubit, state);
+            return _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(), child: SalesManagerDashboardScreen(branchId: branchId)));
           }),
           GoRoute(path: RouteNames.salesAdminOverview, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesAdminOverviewCubit(), child: const SalesAdminOverviewScreen()))),
-          GoRoute(path: RouteNames.salesHistory, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(authCubit.state.maybeWhen(authenticated: (user) => user.branchId ?? '', orElse: () => '')), child: const SalesHistoryScreen()))),
+          GoRoute(path: RouteNames.salesHistory, pageBuilder: (context, state) {
+            final branchId = _salesBranchId(authCubit, state);
+            return _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(), child: SalesHistoryScreen(branchId: branchId, status: state.uri.queryParameters['status'])));
+          }),
           GoRoute(path: RouteNames.salesSubmissionDetailPattern, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesSubmissionDetailCubit(state.pathParameters['submissionId'] ?? ''), child: SalesSubmissionDetailScreen(submissionId: state.pathParameters['submissionId'] ?? '')))),
           // ─── Tasks (Phase 3) ───────────────────────────────────────
           // Guarded like the rest: /admin/tasks is admin-only, /manager/tasks admits
@@ -409,8 +413,17 @@ GoRouter createRouter(
           ),
           GoRoute(
             path: RouteNames.salesSubmit,
+            pageBuilder: (context, state) => _slideTransition(
+              state,
+              SalesSubmissionScreen(
+                submissionId: state.uri.queryParameters['correct'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: RouteNames.salesMine,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const SalesSubmissionScreen()),
+                _slideTransition(state, const EmployeeSalesScreen()),
           ),
           // Attendance History — the employee's own ledger (role-shared).
           GoRoute(
@@ -513,7 +526,7 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
     // Shared routes (/profile, /settings) stay open to all roles.
     if (_isAdminArea(loc) && !user.role.isAdmin) return roleHome;
     if (loc == RouteNames.salesAdminOverview && !user.role.isAdmin) return roleHome;
-    if (_isManagerArea(loc) && !(user.role.isManager || user.role.isAdmin)) {
+    if (isManagerArea(loc) && !(user.role.isManager || user.role.isAdmin)) {
       return roleHome;
     }
     // Communications Center is admin + manager only; employees are bounced.
@@ -530,7 +543,14 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
     if (_isAttendanceReportsArea(loc) && user.role.isEmployee) {
       return roleHome;
     }
-    if (loc == RouteNames.salesSubmit && !user.role.isEmployee) return roleHome;
+    // The two employee-owned sales surfaces. `/sales/history` and
+    // `/sales/submission/:id` stay role-shared: they self-scope by role and
+    // Firestore rules are the enforcement point (an employee reads only their
+    // own records plus their branch's approved ones).
+    if ((loc == RouteNames.salesSubmit || loc == RouteNames.salesMine) &&
+        !user.role.isEmployee) {
+      return roleHome;
+    }
     if (loc == RouteNames.home && !user.role.isEmployee) {
       return roleHome;
     }
@@ -634,17 +654,47 @@ CustomTransitionPage<void> _slideTransition(
   },
 );
 
+/// Which branch a sales screen opens on.
+///
+/// Only an **admin** is global, so only an admin may steer the screen with
+/// `?branchId=` (that is how the admin overview drills into a branch). A manager
+/// is pinned to their own branch no matter what a link asks for — Firestore
+/// rules would deny the read anyway, but a UI that tries and fails reads as a
+/// bug rather than as a boundary.
+String _salesBranchId(AuthCubit authCubit, GoRouterState state) {
+  final user = authCubit.state.maybeWhen(
+    authenticated: (user) => user,
+    orElse: () => null,
+  );
+  final own = user?.branchId ?? '';
+  if (user != null && user.role.isAdmin) {
+    final requested = state.uri.queryParameters['branchId'];
+    if (requested != null && requested.isNotEmpty) return requested;
+  }
+  return own;
+}
+
 /// True when [loc] is anywhere inside the admin area (`/admin` or `/admin/...`).
 bool _isAdminArea(String loc) =>
     loc == RouteNames.adminDashboard ||
     loc.startsWith('${RouteNames.adminDashboard}/');
 
-/// True when [loc] is anywhere inside the manager area (`/manager` or `/manager/...`).
-bool _isManagerArea(String loc) =>
+/// True when [loc] is anywhere inside the manager area (`/manager` or
+/// `/manager/...`), plus the manager/admin branch-sales surfaces.
+///
+/// Public so the sales-path classification is unit-tested — a prefix match here
+/// silently locked employees out of their own screens.
+///
+/// ⚠️ The sales dashboard is matched EXACTLY (`/sales`), never by a `/sales/`
+/// prefix. `/sales/submit` and `/sales/mine` are employee-owned and
+/// `/sales/history` + `/sales/submission/:id` are role-shared; a prefix match
+/// made all four manager-only and silently bounced every employee back to Home
+/// — including the sales notification deep link.
+bool isManagerArea(String loc) =>
     loc == RouteNames.managerHome ||
     loc.startsWith('${RouteNames.managerHome}/') ||
     loc == RouteNames.salesManage ||
-    loc.startsWith('${RouteNames.salesManage}/');
+    loc == RouteNames.salesHistory;
 
 /// True when [loc] is anywhere inside the Communications Center
 /// (`/communications` or `/communications/...`) — admin + manager only.

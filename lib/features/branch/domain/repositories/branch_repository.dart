@@ -13,6 +13,12 @@ abstract class BranchRepository {
     bool includeDeleted = false,
     bool forceRefresh = false,
   });
+  /// One branch by id, resolved from the same cached list as [getBranches].
+  /// Null when the branch is unknown or soft-deleted. Any signed-in user may
+  /// read branches, so this is the seam a role-scoped feature uses to resolve
+  /// its own branch's configuration (e.g. `salesTargetEnabled`).
+  Future<BranchEntity?> getBranch(String branchId, {bool forceRefresh = false});
+
   Future<BranchEntity> createBranch(BranchEntity branch);
   Future<void> updateBranch(BranchEntity branch);
   Future<void> setBranchActive(String branchId, bool isActive);

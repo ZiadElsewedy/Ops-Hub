@@ -5,15 +5,13 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/stat_strip.dart';
 import 'package:drop/features/sales/domain/entities/sales_kpis.dart';
 import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:drop/features/sales/domain/sales_calculator.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
 
-/// Read-only monthly KPIs that help a manager decide whether to intervene.
+/// Read-only monthly pace figures, each labelled in plain words, under one
+/// sentence that states the verdict those figures add up to.
 class SalesKpiStrip extends StatelessWidget {
-  const SalesKpiStrip({
-    super.key,
-    required this.snapshot,
-    required this.kpis,
-  });
+  const SalesKpiStrip({super.key, required this.snapshot, required this.kpis});
 
   final SalesMonthSnapshot snapshot;
   final SalesKpis kpis;
@@ -21,17 +19,31 @@ class SalesKpiStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!snapshot.hasTarget) return const SizedBox.shrink();
-    final completion = kpis.completionDateEstimate;
-    final monthKey = snapshot.target!.monthKey;
-    final monthEnd = DateTime(
-      int.parse(monthKey.substring(0, 4)),
-      int.parse(monthKey.substring(4, 6)) + 1,
-      0,
+    final target = snapshot.target!.targetPiastres;
+    final approved = snapshot.approvedTotalPiastres;
+    final pace = salesPace(
+      targetPiastres: target,
+      approvedPiastres: approved,
+      expectedMonthEndPiastres: kpis.expectedMonthEndPiastres,
+      approvedDayCount: kpis.approvedDayCount,
     );
-    final isOnTrack = completion != null && !completion.isAfter(monthEnd);
-    final dateText = completion == null
-        ? null
-        : MaterialLocalizations.of(context).formatMediumDate(completion);
+
+    final dayWord = kpis.daysRemaining == 1 ? 'day' : 'days';
+    final verdict = switch (pace) {
+      SalesPace.achieved =>
+        'Target reached — ${formatEgp(approved - target, withSuffix: true)} above target with '
+            '${kpis.daysRemaining} $dayWord still to sell.',
+      SalesPace.noData =>
+        'No approved day yet this month, so there is no pace to judge. Approve a '
+            'daily close to start tracking.',
+      SalesPace.onTrack =>
+        'On track — at the current pace the month ends around '
+            '${formatEgp(kpis.expectedMonthEndPiastres, withSuffix: true)}, above the target.',
+      SalesPace.behind =>
+        'Behind — at the current pace the month ends around '
+            '${formatEgp(kpis.expectedMonthEndPiastres, withSuffix: true)}, short of the target. '
+            'Each remaining day needs ${formatEgp(kpis.neededPerDayPiastres, withSuffix: true)}.',
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,35 +51,38 @@ class SalesKpiStrip extends StatelessWidget {
         Text('Pace', style: AppTypography.labelLarge),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Use these signals to decide whether action is needed today.',
-          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+          'Approved sales only — pending closes are not counted yet.',
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         StatStrip(
           stats: [
-            Stat(value: '${kpis.daysRemaining}', label: 'Days left · time pressure'),
+            Stat(value: '${kpis.daysRemaining}', label: 'Days left'),
             Stat(
-              value: formatEgp(kpis.requiredDailyRunRatePiastres, withSuffix: true),
-              label: 'Need / day · intervene today?',
+              value: formatEgp(kpis.neededPerDayPiastres, withSuffix: true),
+              label: 'Needed per day',
             ),
             Stat(
-              value: formatEgp(kpis.averageApprovedDailyPiastres, withSuffix: true),
-              label: 'Avg / day · current pace',
+              value: formatEgp(
+                kpis.averagePerApprovedDayPiastres,
+                withSuffix: true,
+              ),
+              label: 'Average per day',
             ),
             Stat(
-              value: formatEgp(kpis.monthEndForecastPiastres, withSuffix: true),
-              label: 'Forecast · on track?',
+              value: formatEgp(kpis.expectedMonthEndPiastres, withSuffix: true),
+              label: 'Expected month end',
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          completion == null
-              ? 'Behind pace · intervene today?'
-              : isOnTrack
-              ? 'On track by $dateText'
-              : 'Behind pace · projected completion $dateText',
-          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+          verdict,
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
     );

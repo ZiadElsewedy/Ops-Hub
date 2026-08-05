@@ -79,31 +79,52 @@
 > enters with the shared restrained stagger motion. All existing routes/actions
 > are unchanged.
 
-> **Branch Monthly Sales Target — design locked, not built (2026-08-05):** A new
-> planned feature is fully designed in
-> [docs/design/SALES_TARGETS.md](docs/design/SALES_TARGETS.md) +
-> [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md): per-branch monthly
-> targets, daily employee submissions, manager/admin approval, derived-on-read progress,
-> admin all-branches management, notification routing, and derived KPIs. A **derived
+> **Branch Monthly Sales Target — built, audited, awaiting redeploy + QA (2026-08-05):**
+> Per-branch monthly targets, daily employee closes, manager/admin approval,
+> derived-on-read progress, admin all-branches management, notification routing and
+> derived pace KPIs. Design: [SALES_TARGETS](docs/design/SALES_TARGETS.md) +
+> [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md). A **derived
 > ledger** — deterministic `branch_sales_months` / `branch_sales_submissions` docs,
-> approved total re-summed on read, no stored accumulation (stays inside ADR-009/010);
-> **server-authoritative** callables for every monetary transition (ADR-005),
-> **`Africa/Cairo`** keys, piastres money, reused audit + notification seams. Owner
-> sign-off (P0): peer visibility = **approved-only**; employee back-date =
-> **current + 3 Cairo days**. Gates green: `flutter analyze` clean · `flutter test`
-> **1606 pass** (the former "known-fail" splash test was the corrupt Lottie asset,
-> fixed 2026-08-05 by restoring blob `7bd8d6a`) · `functions` node --test **93** ·
-> `firestore-tests` **66**.
-> ✅ **Backend DEPLOYED to `bazic-d9ad7` 2026-08-05.** The 5 sales functions were
-> **created** (v2, us-central1, nodejs22) — `setBranchSalesTarget`,
-> `decideDailySalesSubmission`, `editApprovedDailySalesSubmission`,
-> `resubmitCorrectedSales`, `onDailySalesSubmissionCreated` — verified via
-> `firebase functions:list`; the other 24 functions were left untouched (scoped
-> `--only functions:<names>` deploy). `firestore.rules` released (compiled clean) and
-> `firestore.indexes.json` deployed (additive, no deletions). ⚠️ **Remaining before
-> users see it: merge `feature/branch-sales-target`, ship the client build, and do
-> on-device QA.** The functions are live but nothing calls them yet (the sales client
-> UI is not in any released build) — the safe functions-before-client ordering.
+> approved total re-summed on read, no stored accumulation; **server-authoritative**
+> callables for every monetary transition; **`Africa/Cairo`** keys; piastres money;
+> reused audit + notification seams.
+>
+> **A post-implementation audit on 2026-08-05 fixed nine real defects** — see the
+> CHANGELOG entry for the full list. The load-bearing ones:
+> - `isManagerArea` matched `/sales` by **prefix**, so `/sales/submit`,
+>   `/sales/mine`, `/sales/history` and `/sales/submission/:id` were all
+>   manager-only. **Every employee was bounced to Home** from their own submit
+>   screen, their own records, and the sales notification deep link. The whole
+>   employee half of the feature was unreachable.
+> - **Resubmit-after-correction had no caller.** `ResubmitCorrectedSales` was wired
+>   into DI but no cubit or screen used it, so `correctionRequested` was a dead end.
+> - **"Needed per day" read `0 EGP` on the last day of every month** while the
+>   branch was still short (exclusive day count), and **"Average per day" divided by
+>   elapsed calendar days**, understating pace daily because approvals lag.
+>
+> **New: per-branch opt-in.** `branches/{id}.salesTargetEnabled` (**admin-only,
+> default `false`**). Off ⇒ the feature does not exist for that branch: no Home
+> card (and no gap where it was), no sales pages, no target management, no
+> submissions. Enforced in the client, in `firestore.rules`, and in
+> `setBranchSalesTarget`. Deciding **already-open** records stays allowed when a
+> branch is switched off, so nothing is stranded.
+>
+> Owner sign-off (P0) stands: peer visibility = **approved-only**; employee
+> back-date = **current + 3 Cairo days**.
+>
+> Gates green: `flutter analyze` clean · `flutter test` **1630 pass** (was 1606;
+> +24 new sales/route/branch-gate tests) · `functions` node --test **112** ·
+> `firestore-tests` **68**.
+> ⚠️ **Before users see it:** the 5 sales functions were deployed 2026-08-05, but
+> the audit **added a `firestore.rules` branch gate and a `setBranchSalesTarget`
+> precondition — rules + functions must be redeployed**, then the client build
+> shipped, then on-device QA. Deploy order: functions → rules + indexes → verify
+> revisions → release client.
+> ⚠️ **Known divergence:** the Dart client hand-rolls Cairo DST (last Friday of
+> April/October) while the callables use `Intl` with real tzdata, which also
+> suspends DST during Ramadan. The two can disagree on the civil date for a few
+> hours a year. The server is authoritative for validation; a shared tz source is
+> the open recommendation.
 
 > **Swap workflow reliability + history (2026-08-05):** The manager/admin swap
 > sheet captures its height before opening, avoiding the deactivated-context

@@ -36,6 +36,11 @@ class DailySalesSubmissionEntity with _$DailySalesSubmissionEntity {
 
   bool get isApproved => status == SalesSubmissionStatus.approved;
   bool get isPending => status == SalesSubmissionStatus.pending;
+  bool get isRejected => status == SalesSubmissionStatus.rejected;
+
+  /// Sent back to the submitting employee to fix and resubmit.
+  bool get needsCorrection =>
+      status == SalesSubmissionStatus.correctionRequested;
 
   /// A decided record admin reopen can move back to `pending`. Correction
   /// requests are NOT terminal — they return to `pending` on resubmission.

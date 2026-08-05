@@ -20,6 +20,9 @@ async function seedUsersAndTarget() {
       setDoc(doc(db, "users/mgr1"), { role: "manager", branchId: "branch1", isActive: true }),
       setDoc(doc(db, "users/admin1"), { role: "admin", isActive: true }),
       setDoc(doc(db, "branch_sales_months/branch1_202608"), { branchId: "branch1", monthKey: "202608" }),
+      // branch1 runs monthly targets; branch2 deliberately does not.
+      setDoc(doc(db, "branches/branch1"), { name: "Branch One", isActive: true, salesTargetEnabled: true }),
+      setDoc(doc(db, "branches/branch2"), { name: "Branch Two", isActive: true, salesTargetEnabled: false }),
     ]);
   });
 }
@@ -54,4 +57,28 @@ test("manager/admin cannot client-write targets or decisions; unauthenticated is
   await assertFails(updateDoc(doc(as("admin1"), "branch_sales_submissions/branch1_20260805"), { status: "approved" }));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), "branch_sales_months/branch1_202608")));
   await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), "branch_sales_submissions/branch1_20260806"), submission({ id: "branch1_20260806", businessDateKey: "20260806" })));
+});
+
+test("DENY: a branch that has monthly targets switched off accepts no submission", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await Promise.all([
+      setDoc(doc(db, "users/emp3"), { role: "employee", branchId: "branch2", isActive: true }),
+      setDoc(doc(db, "branch_sales_months/branch2_202608"), { branchId: "branch2", monthKey: "202608" }),
+    ]);
+  });
+  await assertFails(setDoc(doc(as("emp3"), "branch_sales_submissions/branch2_20260805"),
+    submission({ id: "branch2_20260805", branchId: "branch2", submittedById: "emp3" })));
+});
+
+test("DENY: a branch with no branch document at all accepts no submission", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await Promise.all([
+      setDoc(doc(db, "users/emp4"), { role: "employee", branchId: "ghost", isActive: true }),
+      setDoc(doc(db, "branch_sales_months/ghost_202608"), { branchId: "ghost", monthKey: "202608" }),
+    ]);
+  });
+  await assertFails(setDoc(doc(as("emp4"), "branch_sales_submissions/ghost_20260805"),
+    submission({ id: "ghost_20260805", branchId: "ghost", submittedById: "emp4" })));
 });
