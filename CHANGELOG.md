@@ -14,6 +14,25 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Restore the clean splash Lottie (corrupt asset revert; LOW risk)
+
+**This is the actual "why the launch animation looks wrong" answer.** On 2026-08-05
+commit `b260c39` ("Change the name fbro") re-exported `assets/0704.json` and
+corrupted **5 of its 102 embedded WebP frames** (39, 47, 55, 68, 69): each got a
+stray `-`, which is invalid in standard base64. Strict `base64Decode` — the path
+the `lottie` runtime *and* `splash_visual_centering_test` both use — rejects
+those frames, so the cold-start intro can't decode them and misrenders. The
+export was otherwise the **same animation** (identical header, 102 frames,
+`op:155`, identical first-frame data); only those 5 frames were mis-encoded, and
+the stray `-` can't be stripped cleanly (it leaves invalid base64 lengths).
+
+**Fix:** `git checkout 44d2d21 -- assets/0704.json` — restored the pre-`b260c39`
+blob `7bd8d6a`, which is 100% valid (all 102 frames strict-decode to `RIFF…WEBP`).
+The only thing dropped is the cosmetic "name" edit; the animation is unchanged.
+The long-standing `splash_visual_centering_test` failure (`FormatException` at
+char 65630) that CURRENT_STATE tracked as "pre-existing" is now **green** — it was
+this corruption all along.
+
 ## 2026-08-05 — Cold-start bootstrap can no longer hang the splash (bug; LOW risk)
 
 The desktop launch screen plays a one-shot 5 s Lottie intro, then **holds its

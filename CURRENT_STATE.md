@@ -91,7 +91,8 @@
 > **`Africa/Cairo`** keys, piastres money, reused audit + notification seams. Owner
 > sign-off (P0): peer visibility = **approved-only**; employee back-date =
 > **current + 3 Cairo days**. Gates green: `flutter analyze` clean · `flutter test`
-> **1606 pass / 1 known-fail** (pre-existing splash) · `functions` node --test **93** ·
+> **1606 pass** (the former "known-fail" splash test was the corrupt Lottie asset,
+> fixed 2026-08-05 by restoring blob `7bd8d6a`) · `functions` node --test **93** ·
 > `firestore-tests` **66**.
 > ✅ **Backend DEPLOYED to `bazic-d9ad7` 2026-08-05.** The 5 sales functions were
 > **created** (v2, us-central1, nodejs22) — `setBranchSalesTarget`,
@@ -256,7 +257,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-05** after the premium mobile role-home bar pass |
-| **Tests** | **1587 pass · 1 fail** (~73s) — re-run **2026-08-05** after the premium mobile role-home bar pass; the new narrow-manager chrome case passes. ⚠️ **The one failure is `splash_visual_centering_test.dart`, pre-existing and unrelated to the bar**: it `base64Decode`s the Lottie's embedded WebP frames and throws `FormatException: Invalid character (at character 65630)` — the data URI carries trailing whitespace after its padding, which strict `base64Decode` rejects. It regressed with the branding/asset churn in `b260c39`/`b76cbac`, not with this presentation change. Cloud Functions: **105 pass** (`cd functions && node --test`) — re-run **2026-08-05** after the automation P0, reminder and rejected-instance fixes (+19 tests); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1587 pass · 1 fail** (~73s) — re-run **2026-08-05** after the premium mobile role-home bar pass; the new narrow-manager chrome case passes. ✅ **`splash_visual_centering_test.dart` is now GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **105 pass** (`cd functions && node --test`) — re-run **2026-08-05** after the automation P0, reminder and rejected-instance fixes (+19 tests); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚨 **Functions deploy for the automation P0 + reminder fixes (2026-08-05) — daily routines generate nothing in production until it runs.** Then: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
