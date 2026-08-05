@@ -8,12 +8,12 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/brand_watermark.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
+import 'package:drop/features/settings/presentation/widgets/settings_tiles.dart';
 
 /// The signed-in user's account hub.
 ///
@@ -46,7 +46,7 @@ class SettingsPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Reveal(
+                SettingsReveal(
                   index: 0,
                   child: _AccountHero(
                     user: user,
@@ -54,16 +54,59 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
-                _Reveal(
+                const SettingsReveal(
                   index: 1,
-                  child: const _SectionHeader(label: 'Security'),
+                  child: SettingsSectionHeader(label: 'Preferences'),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _Reveal(
+                SettingsReveal(
                   index: 2,
-                  child: _SettingsGroup(
+                  child: SettingsGroup(
                     children: [
-                      _SettingsRow(
+                      SettingsRow(
+                        icon: Icons.notifications_none_rounded,
+                        label: 'Notifications',
+                        subtitle: 'Manage notification preferences',
+                        isFirst: true,
+                        isLast: true,
+                        onTap: () =>
+                            context.push(RouteNames.notificationSettings),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const SettingsReveal(
+                  index: 3,
+                  child: SettingsGroup(
+                    children: [
+                      SettingsRow(
+                        icon: Icons.palette_outlined,
+                        label: 'Appearance',
+                        subtitle: 'Customize app appearance',
+                        isFirst: true,
+                        isLast: true,
+                        // Deliberately inert for v1: the row states that the
+                        // destination is coming rather than opening an empty
+                        // screen or pretending to switch a theme DROP does not
+                        // have yet (it is dark-only — ADR-004).
+                        onTap: null,
+                        trailing: SettingsComingSoonLabel(),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                const SettingsReveal(
+                  index: 4,
+                  child: SettingsSectionHeader(label: 'Security'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SettingsReveal(
+                  index: 5,
+                  child: SettingsGroup(
+                    children: [
+                      SettingsRow(
                         icon: Icons.lock_outline_rounded,
                         label: 'Change password',
                         subtitle: 'Keep your account access secure',
@@ -75,16 +118,16 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
-                _Reveal(
-                  index: 3,
-                  child: const _SectionHeader(label: 'Workspace'),
+                const SettingsReveal(
+                  index: 6,
+                  child: SettingsSectionHeader(label: 'Workspace'),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _Reveal(
-                  index: 4,
-                  child: _SettingsGroup(
+                SettingsReveal(
+                  index: 7,
+                  child: SettingsGroup(
                     children: [
-                      _SettingsRow(
+                      SettingsRow(
                         icon: Icons.forum_outlined,
                         label: 'Cases',
                         subtitle: 'Private support conversations',
@@ -96,16 +139,16 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
-                _Reveal(
-                  index: 5,
-                  child: const _SectionHeader(label: 'Drop Operation'),
+                const SettingsReveal(
+                  index: 8,
+                  child: SettingsSectionHeader(label: 'Drop Operation'),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _Reveal(
-                  index: 6,
-                  child: _SettingsGroup(
+                SettingsReveal(
+                  index: 9,
+                  child: SettingsGroup(
                     children: [
-                      _SettingsRow(
+                      SettingsRow(
                         icon: Icons.info_outline_rounded,
                         label: 'About Drop Operation',
                         subtitle: 'Product details and human support',
@@ -117,8 +160,8 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
-                _Reveal(
-                  index: 7,
+                SettingsReveal(
+                  index: 10,
                   child: _SignOutCard(
                     onTap: () => context.read<AuthCubit>().signOut(),
                   ),
@@ -269,133 +312,13 @@ class _RolePill extends StatelessWidget {
   );
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(left: 4),
-    child: Text(
-      label.toUpperCase(),
-      style: AppTypography.caption.copyWith(
-        color: AppColors.textTertiary,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 1.4,
-      ),
-    ),
-  );
-}
-
-class _SettingsGroup extends StatelessWidget {
-  const _SettingsGroup({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => AppGlassCard(
-    padding: EdgeInsets.zero,
-    child: Column(children: children),
-  );
-}
-
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.subtitle,
-    this.isFirst = false,
-    this.isLast = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? subtitle;
-  final VoidCallback onTap;
-  final bool isFirst;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        if (!isFirst)
-          const Divider(height: 1, color: AppColors.darkBorder, indent: 68),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: _rowRadius(isFirst: isFirst, isLast: isLast),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.lg,
-              ),
-              child: Row(
-                children: [
-                  _IconMedallion(icon: icon),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(label, style: AppTypography.labelLarge),
-                        if ((subtitle ?? '').isNotEmpty) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            subtitle!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.bodySmall,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: AppColors.textQuaternary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _IconMedallion extends StatelessWidget {
-  const _IconMedallion({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 40,
-    height: 40,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: AppColors.primarySurface,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.darkBorder),
-    ),
-    child: Icon(icon, size: 19, color: AppColors.textSecondary),
-  );
-}
-
 class _VersionRow extends StatelessWidget {
   const _VersionRow();
 
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      const Divider(height: 1, color: AppColors.darkBorder, indent: 68),
+      const SettingsRowDivider(),
       Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
@@ -403,19 +326,12 @@ class _VersionRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const _IconMedallion(icon: Icons.apps_rounded),
+            const SettingsIconMedallion(icon: Icons.apps_rounded),
             const SizedBox(width: AppSpacing.md),
             const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('App version', style: AppTypography.labelLarge),
-                  SizedBox(height: 3),
-                  Text(
-                    'Current installed build',
-                    style: AppTypography.bodySmall,
-                  ),
-                ],
+              child: SettingsRowLabel(
+                label: 'App version',
+                subtitle: 'Current installed build',
               ),
             ),
             Text(
@@ -492,30 +408,4 @@ class _SignOutCard extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// Respects the system's reduced-motion preference without changing the shared
-/// animation primitive for every other feature.
-class _Reveal extends StatelessWidget {
-  const _Reveal({required this.index, required this.child});
-
-  final int index;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) return child;
-    return EntranceFade(delay: staggerDelay(index), child: child);
-  }
-}
-
-BorderRadius _rowRadius({required bool isFirst, required bool isLast}) {
-  if (isFirst && isLast) return AppRadius.cardAll;
-  if (isFirst) {
-    return const BorderRadius.vertical(top: Radius.circular(AppRadius.card));
-  }
-  if (isLast) {
-    return const BorderRadius.vertical(bottom: Radius.circular(AppRadius.card));
-  }
-  return BorderRadius.zero;
 }

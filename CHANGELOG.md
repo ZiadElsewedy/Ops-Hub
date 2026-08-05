@@ -14,6 +14,49 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-06 — Settings: Notifications preferences screen + Appearance placeholder (feature; LOW risk)
+
+Settings gained a **Preferences** section directly under the account card, with
+two cards: **Notifications** (*Manage notification preferences*) and
+**Appearance** (*Customize app appearance*).
+
+**Notifications** pushes a new `NotificationsSettingsScreen`
+(`/settings/notifications`, routed through the same `_pushPage` every other page
+uses, so it keeps its back button **and** the iOS edge swipe) carrying six
+switches: **Enable Notifications · Task Reminders · Schedule Updates · Case
+Messages · Announcements · Sound**. Enable Notifications is the master — with it
+off the other five dim to 40% and take a null `onChanged` (which is what makes a
+Material *or* a Cupertino switch reject input), but **keep their stored values**,
+so turning it back on restores the exact set the user had chosen rather than
+resetting it.
+
+Values persist **locally only** — no Firestore document, no rules change, no
+delivery wiring. `core/services/notification_preferences_store.dart` writes a
+uid-namespaced JSON file into the app-support directory, the same mechanism
+`CaseSeenStore` / `TaskSeenStore` already use; **`shared_preferences` was
+deliberately not added** for it. The file read is bounded at 2s so the screen's
+loading placeholder can never become permanent, and any file failure (sandbox,
+web) degrades to in-memory. **Nothing reads these values yet** — suppressing an
+actual push is the next step, and the store is the seam it will read.
+
+**Appearance is intentionally inert for v1:** no screen, no theme switching, a
+quiet monochrome **COMING SOON** trailing label instead of a chevron, and a tap
+that does nothing. DROP is dark-only (ADR-004); a theme toggle would be a
+decision, not a row.
+
+No new visual language: `settings_page.dart`'s private row widgets were
+**extracted unchanged** to
+`features/settings/presentation/widgets/settings_tiles.dart` (`SettingsGroup` ·
+`SettingsRow` · `SettingsSwitchRow` · `SettingsSectionHeader` ·
+`SettingsIconMedallion` · `SettingsReveal` · `SettingsComingSoonLabel`) so the
+new screen draws the *same* row rather than a lookalike. A switch row toggles
+from anywhere in its 72pt body (the switch sits in a fixed 48pt box so a 31pt
+Cupertino switch and a 48pt Material one leave the row at the same height as
+every navigating row), and merges its label + control into one semantics node.
+
+Tests **1684 → 1698**. `flutter analyze` clean.
+**Not device-verified.**
+
 ## 2026-08-05 — Task reminder wording: the 24h rung no longer says "due soon" (copy; LOW risk)
 
 A task ending **tomorrow** hits the `due24h` reminder rung on the next 30-minute
