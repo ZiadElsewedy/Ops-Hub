@@ -21,6 +21,9 @@ class ShiftSwapModel {
   final String? note;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? managerApprovedById;
+  final String? managerApprovedByName;
+  final DateTime? managerApprovedAt;
 
   const ShiftSwapModel({
     required this.id,
@@ -36,6 +39,9 @@ class ShiftSwapModel {
     this.note,
     this.createdAt,
     this.updatedAt,
+    this.managerApprovedById,
+    this.managerApprovedByName,
+    this.managerApprovedAt,
   });
 
   factory ShiftSwapModel.fromMap(Map<String, dynamic> map, {String? id}) =>
@@ -54,6 +60,9 @@ class ShiftSwapModel {
         note: map['note'] as String?,
         createdAt: map.date('createdAt'),
         updatedAt: map.date('updatedAt'),
+        managerApprovedById: map['managerApprovedById'] as String?,
+        managerApprovedByName: map['managerApprovedByName'] as String?,
+        managerApprovedAt: map.date('managerApprovedAt'),
       );
 
   factory ShiftSwapModel.fromEntity(ShiftSwapEntity e) => ShiftSwapModel(
@@ -70,6 +79,9 @@ class ShiftSwapModel {
         note: e.note,
         createdAt: e.createdAt,
         updatedAt: e.updatedAt,
+        managerApprovedById: e.managerApprovedById,
+        managerApprovedByName: e.managerApprovedByName,
+        managerApprovedAt: e.managerApprovedAt,
       );
 
   /// Persisted fields. `createdAt`/`updatedAt` are written by the datasource as
@@ -86,6 +98,11 @@ class ShiftSwapModel {
         'targetName': targetName,
         'status': status.value,
         'note': note,
+        'managerApprovedById': managerApprovedById,
+        'managerApprovedByName': managerApprovedByName,
+        'managerApprovedAt': managerApprovedAt == null
+            ? null
+            : Timestamp.fromDate(managerApprovedAt!),
       };
 
   ShiftSwapModel copyWithId(String id) => ShiftSwapModel(
@@ -102,6 +119,9 @@ class ShiftSwapModel {
         note: note,
         createdAt: createdAt,
         updatedAt: updatedAt,
+        managerApprovedById: managerApprovedById,
+        managerApprovedByName: managerApprovedByName,
+        managerApprovedAt: managerApprovedAt,
       );
 
   ShiftSwapEntity toEntity() => ShiftSwapEntity(
@@ -118,5 +138,8 @@ class ShiftSwapModel {
         note: note,
         createdAt: createdAt,
         updatedAt: updatedAt,
+        managerApprovedById: managerApprovedById,
+        managerApprovedByName: managerApprovedByName,
+        managerApprovedAt: managerApprovedAt,
       );
 }

@@ -1268,8 +1268,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
     );
   }
 
-  /// Pending-swap queue chip — replaces the old floating footer card, so swap
-  /// management lives on the same line as every other week fact.
+  /// Swap control stays available for both actions and settled-request history.
   Widget _swapChip() {
     return BlocBuilder<ShiftSwapCubit, ShiftSwapState>(
       builder: (context, state) {
@@ -1277,7 +1276,6 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
           loaded: (swaps, _) => swaps.where((s) => !s.status.isResolved).length,
           orElse: () => 0,
         );
-        if (count == 0) return const SizedBox.shrink();
         return GestureDetector(
           onTap: () => showSwapQueueSheet(
             context: context,
@@ -1301,14 +1299,16 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '$count ',
+                  count > 0 ? '$count ' : '',
                   style: AppTypography.labelSmall.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
-                  count == 1 ? 'swap waiting' : 'swaps waiting',
+                  count > 0
+                      ? (count == 1 ? 'swap waiting' : 'swaps waiting')
+                      : 'Swap history',
                   style: AppTypography.caption.copyWith(
                     color: AppColors.textSecondary,
                   ),

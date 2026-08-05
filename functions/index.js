@@ -809,6 +809,7 @@ exports.approveSwap = onCall(async (request) => {
   const caller = callerSnap.data() || {};
   const callerRole = caller.role || "employee";
   const callerBranch = caller.branchId || "";
+  const approverName = String(caller.displayName || caller.fullName || caller.email || "Manager").trim();
   const canApprove =
     callerRole === "admin" ||
     (callerRole === "manager" && callerBranch === branchId);
@@ -957,6 +958,9 @@ exports.approveSwap = onCall(async (request) => {
 
     tx.update(swapRef, {
       status: "managerApproved",
+      managerApprovedById: auth.uid,
+      managerApprovedByName: approverName,
+      managerApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     tx.update(schedRef, {
@@ -992,7 +996,7 @@ exports.approveSwap = onCall(async (request) => {
         senderUid: auth.uid,
         type: "swapApproved",
         title: "Swap Approved",
-        body: `Your ${dayLabel} shift swap was approved — the schedule is updated.`,
+        body: `${approverName} approved your ${dayLabel} shift swap — the schedule is updated.`,
         readAt: null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         payload: { swapId, route: "schedule" },

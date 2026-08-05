@@ -44,5 +44,11 @@ class ShiftSwapEntity with _$ShiftSwapEntity {
     String? note,
     DateTime? createdAt,
     DateTime? updatedAt,
+
+    /// The manager/admin who atomically approved the exchange. Written only by
+    /// the server-authoritative `approveSwap` Cloud Function.
+    String? managerApprovedById,
+    String? managerApprovedByName,
+    DateTime? managerApprovedAt,
   }) = _ShiftSwapEntity;
 }

@@ -114,6 +114,10 @@ Future<void> showSwapQueueSheet({
   required String currentUid,
   required bool showBranch,
 }) {
+  // Capture inherited data while the caller is alive. The schedule rebuilds
+  // while this route is opening; reading the caller context inside `builder`
+  // can then hit a deactivated Element (the reported MediaQuery crash).
+  final sheetHeight = MediaQuery.sizeOf(context).height * 0.8;
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -121,8 +125,8 @@ Future<void> showSwapQueueSheet({
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (_) => SizedBox(
-      height: MediaQuery.of(context).size.height * 0.8,
+    builder: (sheetContext) => SizedBox(
+      height: sheetHeight,
       child: Column(
         children: [
           const SizedBox(height: AppSpacing.md),
@@ -137,7 +141,7 @@ Future<void> showSwapQueueSheet({
                 IconButton(
                   icon: const Icon(Icons.close_rounded,
                       color: AppColors.textSecondary),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(sheetContext).pop(),
                 ),
               ],
             ),
