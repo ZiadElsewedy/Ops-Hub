@@ -306,10 +306,15 @@ void main() {
     // The copy states the grace period explicitly (ADR-013) — a manager judging
     // a Missed record has to know it already allowed for finishing a little
     // over. Asserted against the constant so the two can never drift.
+    //
+    // It also names rework (ruled 2026-08-05): a manager who sends a generated
+    // instance back is starting a clock they cannot otherwise see, since the
+    // same sweep now closes `rejected` as Missed.
     expect(
       find.text(
-        'Generated tasks are due at shift end. Unfinished tasks end as '
-        'Missed ${kTaskGracePeriod.inMinutes} minutes after that.',
+        'Generated tasks are due at shift end. Unfinished tasks — including any '
+        'sent back for rework — end as Missed '
+        '${kTaskGracePeriod.inMinutes} minutes after that.',
       ),
       findsOneWidget,
     );

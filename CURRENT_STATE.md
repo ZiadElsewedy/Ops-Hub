@@ -5,6 +5,55 @@
 >
 > **Last verified against the code:** 2026-08-05.
 
+> 🚨 **AUTOMATION P0 — FIXED IN CODE, NOT DEPLOYED (2026-08-05).** Daily
+> recurring routines have generated **nothing** since the 2026-07-31 functions
+> deploy. `generateShiftTaskInstances`'s "temporary UTC-key transition guard"
+> probed a legacy-keyed id before creating; at the pinned 01:00 Africa/Cairo tick
+> the UTC date is always *yesterday*, and both key conventions share one id
+> format — so it was reading **yesterday's ordinary instance**, finding it, and
+> recording `skipped / alreadyExists`. Every run looked healthy: clean
+> `automationRuns` row, `failureCount` 0, Automation Center saying "Already
+> generated". Weekly routines were unaffected. The guard is deleted and the id
+> convention now has one source (`recurringInstanceId`), pinned by tests.
+> ⚠️ **Nothing changes in production until
+> `firebase deploy --only functions:generateShiftTaskInstances,functions:runTaskReminders`
+> runs — this is the highest-priority deploy in the repo.** Verify with
+> `gcloud functions describe`, not the CLI's word (see the 2026-08-05 swap
+> entry for why). Days already missed cannot be backfilled: generation is
+> per-business-day and there is no catch-up path.
+>
+> **Automated shift tasks now get reminders (2026-08-05, undeployed):**
+> `runTaskReminders` skipped every task with an empty `assigneeIds` — which is
+> every generated shift task — so the most important task class had one 01:00
+> notification and nothing after. It now resolves the rostered crew via the
+> generator's own `eligibleRecipients`, against the task's `instanceDate`. Quiet
+> hours moved from UTC to Africa/Cairo (the 22→07 default was silencing
+> 00:00–09:00 Cairo, i.e. the 08:30 morning-shift start) and fail **open**. The
+> unbounded 30-minute scan is floored at 7 days and paged at 500. Notification
+> ids are deterministic. Functions tests: **98 pass** (was 86).
+>
+> **Rejected shift instances now close (2026-08-05, undeployed, owner-ruled):**
+> They previously reached no terminal at all — Late forever, never out of the
+> active window, still surfacing for later days' crews, and absent from
+> Approved ÷ (Approved + Missed), which made rejection score better than a miss.
+> `rejected` joins `pending`/`started` in `AUTO_END_ELIGIBLE_STATUSES`, one
+> constant now shared by the predicate **and** the sweep's query (drift between
+> them is what caused the leak). `waitingReview`/`completed` deliberately stay
+> out. `task.auto_missed` carries `fromStatus`. Second ruling: a rejected shift
+> instance is the sole exception to "rejected is reminder-ineligible" — it gets a
+> **Rework Needed** nudge on the existing ladder, because closing work
+> automatically against an unsent message is not acceptable. Spec §3.7 + §9.5.
+> No index change. Functions tests: **105 pass**.
+>
+> ⚠️ **Still open from the same audit, not fixed** (reported 2026-08-05): the
+> **auto-end sweep can starve**: one
+> `limit(500)` slice ordered by deadline, from which manually-created shift tasks
+> (no `sourceTemplateId`) are skipped but never leave — accumulate ~500 and Missed
+> stops working. A **failed generation pages nobody** (a Missed task does).
+> Routines **cannot be edited** (add/pause/delete only) though the server-side
+> config-diff audit fully supports it. The ADR-011 execution record is **written
+> daily and read by no screen**.
+>
 > **Premium mobile role-home bar (2026-08-05, presentation only):** The shared
 > admin/manager/employee `RoleScaffold` header now uses a restrained gradient +
 > bottom hairline, groups daily actions inside one flat glass capsule, and gives
@@ -195,8 +244,8 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-05** after the premium mobile role-home bar pass |
-| **Tests** | **1587 pass · 1 fail** (~73s) — re-run **2026-08-05** after the premium mobile role-home bar pass; the new narrow-manager chrome case passes. ⚠️ **The one failure is `splash_visual_centering_test.dart`, pre-existing and unrelated to the bar**: it `base64Decode`s the Lottie's embedded WebP frames and throws `FormatException: Invalid character (at character 65630)` — the data URI carries trailing whitespace after its padding, which strict `base64Decode` rejects. It regressed with the branding/asset churn in `b260c39`/`b76cbac`, not with this presentation change. Cloud Functions: **86 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
-| **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
+| **Tests** | **1587 pass · 1 fail** (~73s) — re-run **2026-08-05** after the premium mobile role-home bar pass; the new narrow-manager chrome case passes. ⚠️ **The one failure is `splash_visual_centering_test.dart`, pre-existing and unrelated to the bar**: it `base64Decode`s the Lottie's embedded WebP frames and throws `FormatException: Invalid character (at character 65630)` — the data URI carries trailing whitespace after its padding, which strict `base64Decode` rejects. It regressed with the branding/asset churn in `b260c39`/`b76cbac`, not with this presentation change. Cloud Functions: **105 pass** (`cd functions && node --test`) — re-run **2026-08-05** after the automation P0, reminder and rejected-instance fixes (+19 tests); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Blocking release** | 🚨 **Functions deploy for the automation P0 + reminder fixes (2026-08-05) — daily routines generate nothing in production until it runs.** Then: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
 DROP is **feature-complete for its intended scope** and now gated on QA, not on

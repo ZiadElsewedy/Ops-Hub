@@ -14,6 +14,90 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Rejected shift tasks close at the wall (bug + product ruling; MED risk)
+
+A generated shift instance sent back for rework never reached a terminal:
+`autoEndRecurringShiftTasks` only moved `pending`/`started`. So it read **Late
+forever**, never left `isTaskInActiveWindow`, kept surfacing for whoever was
+rostered on that shift on later days (the shift task stream has no date filter),
+and — decisively — fell out of **Approved ÷ (Approved + Missed)** entirely. That
+made rejection a laundering path: sending work back scored *better* than letting
+it be missed, which spec §10.1 forbids.
+
+**Owner ruling:** `rejected` joins `pending`/`started` in the auto-end sweep. The
+states that auto-close are now one exported constant,
+`AUTO_END_ELIGIBLE_STATUSES`, shared by the predicate *and* the Firestore query —
+a status the predicate accepts but the query never fetches is never closed, which
+is the exact shape of this leak. `waitingReview`/`completed` stay out: the
+employee has done their part, and auto-failing there would record an employee
+failure for a reviewer's delay. Rework inside the window is unaffected.
+`task.auto_missed` now carries `fromStatus`, and the timeline entry says *rework
+was still owed* rather than implying nobody touched it. No index change (the
+existing `(assignmentType, status, deadline)` composite serves the widened `in`).
+
+**Second ruling — rework is nudged.** A rejected shift instance is now the one
+exception to "rejected is reminder-ineligible" (`shouldRemindTask`): closing work
+automatically against a message you chose not to send is not acceptable. Its own
+copy (**Rework Needed** · "… was sent back and is due soon"), on the existing
+ladder and cap. Rejected manual/individual/team work stays silent.
+
+Spec §3.7 + §9.5 record both rulings; the Missed-policy note in the Automation
+Center now names rework. +7 tests (98 → 105). **Requires a functions deploy.**
+
+## 2026-08-05 — Daily automated tasks stopped generating entirely (bug; HIGH risk)
+
+**P0.** `generateShiftTaskInstances` produced nothing for any **daily** routine
+from the 2026-07-31 functions deploy onward, and reported itself healthy while
+doing it.
+
+The cause was the "temporary UTC-key → business-date-key transition guard": it
+probed `rt_{templateId}_{utcDateKey}` before creating and skipped when that
+document existed. But the generator is pinned to 01:00 Africa/Cairo, where the
+UTC date is *always the previous day* (UTC+2 and UTC+3 alike), and both key
+conventions share one id format — so the "legacy id" it probed was yesterday's
+ordinary instance. It always existed. Every run recorded
+`skipped / alreadyExists`, wrote a clean `automationRuns` row, left
+`failureCount` at 0, and created no task. Weekly routines were unaffected
+(yesterday's id never exists for them). The guard's premise was wrong from the
+start: the pre-fix generator ran at a UTC-anchored hour where the two dates
+agreed, so one occurrence was never written under two keys.
+
+Deleted the guard and `legacyUtcDateKey`. The deterministic id now has one named
+source, `recurringInstanceId` (`recurring_task_deadline.js`), shared by the
+generator and the tests. `ref.create()` remains the entire duplicate guarantee.
+The invariant is pinned by three new tests asserting that at the pinned tick a
+UTC-derived key names *yesterday's* occurrence and that consecutive days yield
+distinct ids. **The generator body itself is still not unit-testable** (no
+emulator harness) — that gap is what let this ship.
+
+**Requires a functions deploy to take effect.**
+
+## 2026-08-05 — Automated shift tasks finally get reminders (bug; MED risk)
+
+Three defects in `runTaskReminders`, all affecting automation:
+
+- **Generated shift tasks were never reminded at all.** They carry
+  `assigneeIds: []` by construction and the sweep did `if (assignees.length === 0)
+  continue` — so the app's most important task class had one 01:00 notification
+  and then silence until the manager was told it had been Missed. Recipients now
+  resolve through the same `eligibleRecipients` the generator uses, against the
+  week of the task's own `instanceDate` (not "today", which would resolve the
+  wrong crew for a night shift after midnight). Schedule reads are memoized per
+  sweep.
+- **Quiet hours were evaluated in UTC**, putting the default 22→07 window at
+  00:00–09:00 Cairo: it muted the 08:30 morning-shift start and allowed a 23:30
+  ping. Now resolved via the new `businessHourOf` (ADR-015); an unresolvable hour
+  fails **open** rather than muting every reminder in the estate.
+- **The scan was unbounded** — `deadline <= now + 24h`, no floor, no limit, no
+  status filter, 48×/day over every task ever written with a past deadline. Now
+  floored at 7 days and paged at `BATCH_LIMIT` on the same auto-indexed field (no
+  composite index), with a warning log when the page fills.
+
+Reminder notification ids are now deterministic
+(`taskreminder_{taskId}_{kind}_{uid}`). The pure decisions moved into
+`functions/task_reminders.js`; +12 tests (86 → 98 pass). **Requires a functions
+deploy.**
+
 ## 2026-08-05 — Mobile role-home bar gains premium grouped chrome (polish; LOW risk)
 
 Refined the shared admin/manager/employee home AppBar without changing its

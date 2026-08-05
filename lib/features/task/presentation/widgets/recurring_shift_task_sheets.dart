@@ -1241,8 +1241,14 @@ class _MissedPolicyNote extends StatelessWidget {
                   // States the grace explicitly. A manager judging a Missed
                   // record needs to know the record already allowed for
                   // finishing a little over (ADR-013).
-                  'Generated tasks are due at shift end. Unfinished tasks end as '
-                  'Missed ${kTaskGracePeriod.inMinutes} minutes after that.',
+                  //
+                  // Rework is named because a manager who sends a task back is
+                  // starting a clock they cannot see: from 2026-08-05 a rejected
+                  // instance is closed by the same sweep, so "I rejected it" is
+                  // no longer a way to leave work permanently open.
+                  'Generated tasks are due at shift end. Unfinished tasks — '
+                  'including any sent back for rework — end as Missed '
+                  '${kTaskGracePeriod.inMinutes} minutes after that.',
                   style: AppTypography.caption,
                 ),
               ],

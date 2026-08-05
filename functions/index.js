@@ -82,12 +82,15 @@ const ATTENDANCE_AUTO_CLOSE_GRACE_MINUTES = AUTO_CLOSE_GRACE_MINUTES;
 // Max session cap (R7 safety net) — mirrors AttendanceConfig.defaults.maxSessionMinutes.
 const ATTENDANCE_MAX_SESSION_MINUTES = 16 * 60;
 const {
+  AUTO_END_ELIGIBLE_STATUSES,
   BUSINESS_TIME_ZONE,
   TASK_GRACE_MS,
   businessCivilMidnightMs,
   businessDayParts,
+  businessHourOf,
   businessWeekStartKey,
   isTerminalTaskStatus,
+  recurringInstanceId,
   resolveRecurringTaskWindow,
   selectMissedNotifyTargets,
   shouldAutoEndRecurringTask,
@@ -102,7 +105,11 @@ const {
   correlationId,
   buildExecutionSnapshot,
 } = require("./automation_run");
-const { isReminderEligibleStatus } = require("./task_reminders");
+const {
+  reminderDueKind,
+  reminderWindowFloorMs,
+  shouldRemindTask,
+} = require("./task_reminders");
 const { isRetryableBroadcastPushError, resolveSendsPush } = require("./broadcast_delivery");
 const { canClaimScheduledBroadcast } = require("./broadcast_schedule");
 const {
@@ -1460,31 +1467,62 @@ exports.broadcastHousekeeping = onSchedule("every 24 hours", async () => {
 });
 
 // ── Task reminder rules (mirrors lib/features/task/domain/reminder_rules.dart) ──
-const REMINDER_ORDER = ["due24h", "due1h", "overdue"];
+// The pure decisions live in `task_reminders.js` so they are unit-testable
+// without Firebase; this file only does the I/O around them.
 
-function reminderInQuietHours(hour, startHour, endHour) {
-  if (startHour === endHour) return false;
-  if (startHour < endHour) return hour >= startHour && hour < endHour;
-  return hour >= startHour || hour < endHour; // wraps midnight
-}
+/**
+ * Who a reminder for [task] should reach.
+ *
+ * An individual/team task names its assignees. A generated shift task never
+ * does — it is a broadcast to whoever is rostered, so `assigneeIds` is `[]` by
+ * construction. That is why reminders used to skip them entirely (`if
+ * (assignees.length === 0) continue`), leaving the app's most important task
+ * class with exactly ONE notification, fired at 01:00, and then silence until
+ * the manager was told it had been Missed.
+ *
+ * The roster is resolved through the same `eligibleRecipients` used at
+ * generation time (rostered · not on leave · active), against the week of the
+ * task's own occurrence — never "today", or a reminder sent just after midnight
+ * for a night shift would resolve the wrong day's crew.
+ *
+ * [scheduleCache] memoizes weekly-schedule reads across one sweep, since a
+ * branch's tasks all share a document.
+ */
+async function reminderRecipients(task, scheduleCache) {
+  const assignees = Array.isArray(task.assigneeIds)
+    ? task.assigneeIds.filter(Boolean)
+    : [];
+  if (String(task.assignmentType || "individual") !== "shift") return assignees;
 
-function reminderDueKind(deadline, now, lastKind, count, cfg) {
-  if (!cfg.enabled) return null;
-  if (count >= cfg.maxReminders) return null;
-  if (reminderInQuietHours(now.getUTCHours(), cfg.quietStartHour, cfg.quietEndHour)) {
-    return null;
+  const branchId = String(task.branchId || "");
+  const shift = task.shift === "night" ? "night" : "morning";
+  const occurrence = task.instanceDate || task.deadline;
+  if (!branchId || !occurrence) return [];
+
+  const day = occurrence.toDate ? occurrence.toDate() : occurrence;
+  const scheduleId = `${branchId}_${weekStartKey(day)}`;
+  if (!scheduleCache.has(scheduleId)) {
+    try {
+      const snap = await db.collection(WEEKLY_SCHEDULES).doc(scheduleId).get();
+      scheduleCache.set(scheduleId, snap.exists ? (snap.data() || {}) : null);
+    } catch (err) {
+      // A roster we cannot read means we cannot name a recipient. Cache the
+      // miss so one broken week doesn't re-read on every task in the branch.
+      logger.warn("reminder roster lookup failed", {
+        scheduleId,
+        error: String(err),
+      });
+      scheduleCache.set(scheduleId, null);
+    }
   }
-  const diffMs = deadline.getTime() - now.getTime();
-  let kind;
-  if (diffMs < 0) kind = "overdue";
-  else if (diffMs <= 60 * 60 * 1000) kind = "due1h";
-  else if (diffMs <= 24 * 60 * 60 * 1000) kind = "due24h";
-  else return null;
-  // Only escalate forward.
-  if (lastKind && REMINDER_ORDER.indexOf(kind) <= REMINDER_ORDER.indexOf(lastKind)) {
-    return null;
-  }
-  return kind;
+  const scheduleData = scheduleCache.get(scheduleId);
+  if (!scheduleData) return [];
+  const resolved = await eligibleRecipients(
+    scheduleData,
+    scheduleDayName(day),
+    shift,
+  );
+  return resolved.map((r) => r.uid);
 }
 
 /**
@@ -1523,18 +1561,44 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
     return;
   }
 
-  // Tasks due within 24h or already overdue (single-field inequality).
-  const soon = admin.firestore.Timestamp.fromMillis(now.getTime() + 24 * 60 * 60 * 1000);
-  const snap = await db.collection(TASKS).where("deadline", "<=", soon).get();
+  // The staff wall-clock hour, for quiet hours. Resolved ONCE per sweep — every
+  // task in the run shares it, and it must never be `getUTCHours()` (see
+  // `reminderInQuietHours`).
+  const businessHour = businessHourOf(now);
 
+  // Tasks whose deadline sits inside the reminder window: at most 24h ahead,
+  // and no further back than the lookback floor. Both ends are the same
+  // single-field inequality, so this stays auto-indexed — no composite to
+  // deploy — while bounding a scan that was previously unbounded and growing.
+  const soon = admin.firestore.Timestamp.fromMillis(now.getTime() + 24 * 60 * 60 * 1000);
+  const floor = admin.firestore.Timestamp.fromMillis(
+    reminderWindowFloorMs(now.getTime()),
+  );
+  const snap = await db
+    .collection(TASKS)
+    .where("deadline", ">=", floor)
+    .where("deadline", "<=", soon)
+    .orderBy("deadline", "asc")
+    .limit(BATCH_LIMIT)
+    .get();
+  if (snap.size === BATCH_LIMIT) {
+    // Not fatal (the next tick picks up where the deadline ordering left off),
+    // but it means the window no longer fits one page — worth seeing before it
+    // becomes a starvation problem rather than after.
+    logger.warn("task reminder scan hit the page limit", { limit: BATCH_LIMIT });
+  }
+
+  const scheduleCache = new Map();
   let sent = 0;
   for (const doc of snap.docs) {
     const t = doc.data() || {};
-    if (!isReminderEligibleStatus(t.status)) continue;
+    const isGeneratedShiftTask =
+      String(t.assignmentType || "individual") === "shift" &&
+      String(t.sourceTemplateId || "").trim().length > 0;
+    if (!shouldRemindTask(t.status, isGeneratedShiftTask)) continue;
+    if (t.archivedAt != null) continue;
     const deadline = t.deadline && t.deadline.toDate ? t.deadline.toDate() : null;
     if (!deadline) continue;
-    const assignees = Array.isArray(t.assigneeIds) ? t.assigneeIds.filter(Boolean) : [];
-    if (assignees.length === 0) continue;
 
     // Per-task reminder ledger.
     const ledgerRef = db.collection(TASK_REMINDERS).doc(doc.id);
@@ -1551,19 +1615,41 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
       // best-effort
     }
 
-    const kind = reminderDueKind(deadline, now, lastKind, count, cfg);
+    const kind = reminderDueKind(deadline, now, lastKind, count, cfg, businessHour);
     if (!kind) continue;
 
+    // Resolved only once a reminder is actually owed. A shift task's roster
+    // costs a schedule read (memoized) plus one read per rostered employee, so
+    // doing it for every task in the window on every 30-minute tick would
+    // recreate the unbounded-read problem this pass exists to remove.
+    const assignees = await reminderRecipients(t, scheduleCache);
+    if (assignees.length === 0) continue;
+
+    // A rejected shift instance is a different message from a task nobody has
+    // started: the work came back and the wall is still coming. Saying "is due
+    // soon" would hide the one fact the employee has to act on.
+    const isRework = String(t.status || "") === "rejected";
     const type = kind === "overdue" ? "taskOverdue" : "taskReminder";
-    const title = kind === "overdue" ? "Task Late" : "Task Reminder";
+    const title = isRework
+      ? "Rework Needed"
+      : kind === "overdue"
+        ? "Task Late"
+        : "Task Reminder";
     const dueLabel = kind === "overdue" ? "is late" : "is due soon";
-    const body = `${t.title || "A task"} ${dueLabel}`;
+    const body = isRework
+      ? `${t.title || "A task"} was sent back and ${dueLabel}`
+      : `${t.title || "A task"} ${dueLabel}`;
     const payload = { taskId: doc.id, route: "task_details", kind };
 
     try {
       const batch = db.batch();
       for (const uid of assignees) {
-        const ref = db.collection(NOTIFICATIONS).doc();
+        // Deterministic id — (task, rung, recipient) identifies one reminder, so
+        // a retried sweep or a partially-committed batch converges on the same
+        // notice instead of stacking duplicates in the inbox.
+        const ref = db
+          .collection(NOTIFICATIONS)
+          .doc(`taskreminder_${doc.id}_${kind}_${uid}`);
         batch.set(ref, {
           id: ref.id,
           recipientUid: uid,
@@ -1618,13 +1704,6 @@ function scheduleDayName(d) {
 // yyyy-MM-dd key — mirrors ScheduleWeek.startOf/docId (`<branchId>_<key>`).
 function weekStartKey(d) {
   return businessWeekStartKey(d);
-}
-
-function legacyUtcDateKey(d) {
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 function addCivilDays(year, month, day, days) {
@@ -1778,9 +1857,7 @@ exports.generateShiftTaskInstances = onSchedule(
       const branchId = String(t.branchId || "");
       if (!branchId) continue;
       const shift = t.shift === "night" ? "night" : "morning";
-      const instanceId = `rt_${doc.id}_${todayKey}`;
-      const legacyTodayKey = legacyUtcDateKey(now);
-      const legacyInstanceId = `rt_${doc.id}_${legacyTodayKey}`;
+      const instanceId = recurringInstanceId(doc.id, todayKey);
       const runId = `${doc.id}_${todayKey}`;
       // Deterministic correlation id for this execution (§Correlation ID) —
       // stamped on the run, the generated task, its notifications and its audit
@@ -1879,29 +1956,22 @@ exports.generateShiftTaskInstances = onSchedule(
         });
 
         stage("generate");
-        // Temporary transition guard for the UTC-key → business-date-key
-        // convention change. If today's occurrence already exists under the
-        // legacy UTC-derived id, this business occurrence is already spent; skip
-        // exactly like an ALREADY_EXISTS on the new id. Delete once no live
-        // UTC-keyed generated instance can remain.
-        if (legacyTodayKey !== todayKey) {
-          const legacySnap = await db.collection(TASKS).doc(legacyInstanceId).get();
-          if (legacySnap.exists) {
-            status = "skipped";
-            outcome = "alreadyExists";
-            step(SEVERITY.info, "Skipped — task already generated for today", {
-              taskId: legacyInstanceId,
-              legacyUtcDateKey: legacyTodayKey,
-              businessDateKey: todayKey,
-              windowBackfilled: false,
-            });
-          }
-        }
         // Atomic create — the ENTIRE duplicate guarantee. `create()` rejects with
         // ALREADY_EXISTS if the deterministic id is already present (an overlapping
         // run / retry / the client materializer beat us), so we never double-create
         // and never double-notify.
-        if (outcome !== "alreadyExists") {
+        //
+        // There is deliberately NO "legacy UTC date key" pre-check here. One
+        // existed and it silently disabled every DAILY routine: this function is
+        // pinned to 01:00 Africa/Cairo, where the UTC date is ALWAYS the previous
+        // day (UTC+2 and UTC+3 alike), and both key formats are the same
+        // `rt_{templateId}_{yyyy-MM-dd}` string — so the "legacy id" it probed was
+        // simply YESTERDAY'S perfectly normal instance. It existed, every run
+        // recorded `skipped / alreadyExists`, and no task was ever created again.
+        // The premise was wrong to begin with: the pre-fix generator ran at a
+        // UTC-anchored hour where the UTC and Cairo dates agreed, so one
+        // occurrence was never written under two different keys.
+        {
           try {
             await ref.create({
               id: instanceId,
@@ -2360,7 +2430,11 @@ exports.autoEndRecurringShiftTasks = onSchedule(
       due = await db
         .collection(TASKS)
         .where("assignmentType", "==", "shift")
-        .where("status", "in", ["pending", "started"])
+        // Must stay in lockstep with `shouldAutoEndRecurringTask` — the query
+        // selects candidates and the transaction re-checks them, so a status the
+        // predicate accepts but the query omits is simply never closed. That is
+        // exactly how `rejected` instances leaked before 2026-08-05.
+        .where("status", "in", AUTO_END_ELIGIBLE_STATUSES)
         .where("deadline", "<=", graceCutoffTs)
         .orderBy("deadline", "asc")
         .limit(BATCH_LIMIT)
@@ -2394,6 +2468,13 @@ exports.autoEndRecurringShiftTasks = onSchedule(
 
           const currentVersion = Number(task.version);
           const activityLog = Array.isArray(task.activityLog) ? task.activityLog : [];
+          // Name the actual reason. A task closed while REJECTED was not simply
+          // never picked up — rework had been asked for and was still outstanding
+          // at the wall, and the timeline should say so rather than imply nobody
+          // ever touched it.
+          const note = task.status === "rejected"
+            ? "Automatically marked missed — rework was still owed when the shift ended and the grace period passed."
+            : "Automatically marked missed — the shift ended and the grace period passed.";
           tx.update(doc.ref, {
             status: "missed",
             missedAt: nowTs,
@@ -2404,7 +2485,7 @@ exports.autoEndRecurringShiftTasks = onSchedule(
                 actorId: "system",
                 actorName: "Automation",
                 at: nowTs,
-                note: "Automatically marked missed — the shift ended and the grace period passed.",
+                note,
                 attachments: [],
               },
             ],
@@ -2416,6 +2497,9 @@ exports.autoEndRecurringShiftTasks = onSchedule(
             deadline: task.deadline || null,
             templateId: String(task.sourceTemplateId || ""),
             title: String(task.title || ""),
+            // Which open state it was closed FROM — the audit trail's only record
+            // of whether this was work never done or rework never returned.
+            fromStatus: String(task.status || ""),
           };
         });
       } catch (transitionErr) {
@@ -2436,6 +2520,7 @@ exports.autoEndRecurringShiftTasks = onSchedule(
       await writeAutomationAudit("task.auto_missed", "task", doc.id, ended.branchId, {
         deadline: ended.deadline,
         templateId: ended.templateId,
+        fromStatus: ended.fromStatus,
       });
       // A task that fails automatically must be visible to a HUMAN (spec §9.1).
       // Before this, the sweep closed work silently and the only trace was the
