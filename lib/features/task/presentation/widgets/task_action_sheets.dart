@@ -124,30 +124,34 @@ Future<void> showReportIncorrectSheet({
 
 /// Shared bottom-sheet chrome (rounded top, drag handle, keyboard-aware
 /// padding). Reused by the task + template sheets so they all feel the same.
-Future<T?> showSheet<T>(BuildContext context, Widget child) =>
-    showModalBottomSheet<T>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.darkSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: AppSpacing.pagePadding,
-          right: AppSpacing.pagePadding,
-          top: AppSpacing.sm,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.xl,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SheetHandle(),
-            Flexible(child: child),
-          ],
-        ),
-      ),
-    );
+Future<T?> showSheet<T>(
+  BuildContext context,
+  Widget child, {
+  bool useSafeArea = false,
+}) => showModalBottomSheet<T>(
+  context: context,
+  isScrollControlled: true,
+  useSafeArea: useSafeArea,
+  backgroundColor: AppColors.darkSurface,
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  ),
+  builder: (ctx) => Padding(
+    padding: EdgeInsets.only(
+      left: AppSpacing.pagePadding,
+      right: AppSpacing.pagePadding,
+      top: AppSpacing.sm,
+      bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.xl,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SheetHandle(),
+        Flexible(child: child),
+      ],
+    ),
+  ),
+);
 
 /// A small centered drag handle shown at the top of every bottom sheet.
 class SheetHandle extends StatelessWidget {

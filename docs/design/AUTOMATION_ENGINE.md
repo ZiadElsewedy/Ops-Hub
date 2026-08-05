@@ -112,6 +112,14 @@ Cloud-Function-owned (like `version`/`createdAt`), so a client edit can't regres
 them. Template read failures render an error/retry state; they are not treated as
 an empty branch.
 
+Routine details use the same single-modal loop, but the details-only route opts
+into the device safe area. A pinned header provides a labelled 44px Close action;
+the scroll body initially shows schedule + next check, latest generation outcome
+and the last generated task. Priority, checklist, assignment, shift-window notes
+and the Missed policy are deliberately collapsed under **More details**. Failure
+state stays visible above that disclosure. Pause/resume and confirmed delete
+remain in the primary scroll flow and use the existing `TaskCubit` mutations.
+
 The presentation is deliberately honest about the boundary between a template and
 one generated occurrence:
 

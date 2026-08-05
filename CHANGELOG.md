@@ -14,6 +14,28 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Mobile role-home bar gains premium grouped chrome (polish; LOW risk)
+
+Refined the shared admin/manager/employee home AppBar without changing its
+navigation. The DROP mark now sits over a restrained gradient and bottom
+hairline; role-specific actions are grouped in one flat glass command capsule;
+the account avatar is a separate surfaced control. Every action keeps a ≥44px
+target and tooltip, notifications announce the unread count, and the account
+control names the user it opens. The role word remains intentionally hidden.
+Widget coverage pins the manager's five-control worst case at 320px and confirms
+the avatar still opens Settings. Desktop chrome is unchanged.
+
+## 2026-08-05 — Automation details simplified and made safe to close (polish; LOW risk)
+
+Redesigned the recurring-task details sheet around progressive disclosure. A
+safe-area, non-scrolling header now keeps a labelled 44px Close action available
+without requiring a swipe; schedule + next check, latest outcome and the last
+generated task form the compact first view; priority, checklist, assignment,
+shift timing notes and the Missed policy live under collapsed **More details**.
+Pause/resume, confirmed delete, last-task navigation and the single-modal
+Automation Center loop are unchanged. Phone widget coverage now verifies close,
+disclosure, failure visibility and the details-sheet action paths.
+
 ## 2026-08-05 — Settings redesigned as premium account hub (polish; LOW risk)
 
 Replaced the flat list of equally weighted Settings boxes with a branded,
