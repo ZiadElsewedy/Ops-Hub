@@ -174,7 +174,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |
 | `employee` | EmployeeShell + employee home | — |
-| `settings` | Settings + change password (presentation-only) | — |
+| `settings` | Premium account hub, profile/security/workspace links, sign-out, About + change password (presentation-only) | — |
 
 `manager`, `employee`, and `settings` are **presentation-only** — they reuse other
 features' cubits.

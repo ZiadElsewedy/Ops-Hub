@@ -5,6 +5,14 @@
 >
 > **Last verified against the code:** 2026-08-05.
 
+> **Premium Settings account hub (2026-08-05, presentation only):** Settings now
+> leads with a tappable signed-in identity card (real avatar, name, email and
+> role), then separates Security, Workspace and Drop Operation information into
+> shared glass surfaces with clearer supporting copy. Sign out is isolated as a
+> deliberate destructive action, version metadata stays visible, and the page
+> enters with the shared restrained stagger motion. All existing routes/actions
+> are unchanged.
+
 > **Branch Monthly Sales Target — design locked, not built (2026-08-05):** A new
 > planned feature is fully designed in
 > [docs/design/SALES_TARGETS.md](docs/design/SALES_TARGETS.md) +

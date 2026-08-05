@@ -14,6 +14,15 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Settings redesigned as premium account hub (polish; LOW risk)
+
+Replaced the flat list of equally weighted Settings boxes with a branded,
+motion-aware account hub. A real-avatar identity hero now opens Profile;
+Security, Workspace and product information use the shared glass system with
+clear supporting copy; Sign out is isolated with the destructive semantic
+treatment; and the version remains visible without pretending to be navigation.
+Existing routes and behavior are unchanged.
+
 ## 2026-08-05 — Branch Monthly Sales Target: design locked (docs only; no code)
 
 Added [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md) and
