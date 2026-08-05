@@ -112,9 +112,20 @@
 > Owner sign-off (P0) stands: peer visibility = **approved-only**; employee
 > back-date = **current + 3 Cairo days**.
 >
-> Gates green: `flutter analyze` clean · `flutter test` **1630 pass** (was 1606;
-> +24 new sales/route/branch-gate tests) · `functions` node --test **112** ·
-> `firestore-tests` **68**.
+> **UX pass (same day):** everything collapses to **target · achieved ·
+> remaining** via one shared `SalesMoneyRow`; the only statistic left is **Needed
+> per day**, which is also the only colour (today's close vs. what a day needs —
+> ≥100% green, ≥50% amber, below red, monochrome when there is nothing to judge).
+> Progress bars/percentages, the Pace strip, the recent-approved list and the
+> employee history table are gone. Pending/Approved/Rejected/History are now four
+> separately filtered destinations. Admin Home gained a self-gating Branch sales
+> summary. **`formatEgp` shipped a leading-comma bug** (`945000` → `,945,000`) —
+> fixed and regression-tested. Naming corrected throughout: the target belongs to
+> the **branch**, so every role's destination is "Branch Sales" and the employee
+> page reads "TEAM TARGET".
+>
+> Gates green: `flutter analyze` clean · `flutter test` **1641 pass** (was 1606) ·
+> `functions` node --test **112** · `firestore-tests` **68**.
 > ⚠️ **Before users see it:** the 5 sales functions were deployed 2026-08-05, but
 > the audit **added a `firestore.rules` branch gate and a `setBranchSalesTarget`
 > precondition — rules + functions must be redeployed**, then the client build

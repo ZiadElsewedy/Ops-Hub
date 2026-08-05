@@ -176,17 +176,38 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
 
 | Screen | Composition |
 | --- | --- |
-| **Employee Home card** | One compact `GlassContainer` module: today · achieved · remaining, a monochrome progress bar, a `StatusBadge` for today's real status, and a tap into `/sales/mine`. **Never an empty state** — a Home module is a row, not a page; the "Target not set" branch renders one sentence, and an opted-out branch renders **nothing, including its spacing** |
-| **Employee sales page** (`/sales/mine`) | `PageHero` (one CTA: "Submit today's sales", only when eligible) → today's close and its status/decision reason → month facts (`StatStrip` target · achieved · remaining, progress bar, days left) → own submission history with "Fix and resubmit" on a corrected day |
-| **Submission screen** | `AdaptiveScaffold` + `PageHero`; piastres-safe EGP field, Cairo business-date confirmation; one `AppButton`. Dual mode: new close, or a correction seeded with the amount under review and the manager's reason. Already-closed, no-target and teammate-closed days each render their own explanatory panel instead of a dead CTA |
-| **Manager dashboard** | `PageHero` — **"Set monthly target" until one exists, "Edit monthly target" after** → progress → pace KPIs → `AttentionPanel` (each signal opens the matching filtered ledger) → review queue with inline approve/reject → `MetricTileRow` (approved · rejected · history, each opening its own filter) |
-| **Approval / detail** | `PageHero` + evidence block (amount · day · submitter · decision provenance · revision). **Actions render only for a manager or admin**; reopen only for an admin on a terminal record. One primary action per state |
-| **Admin management** | `PageHero` + every branch, opted-in first. An opted-out branch is listed but visibly off and not tappable — the switch lives in branch settings |
-| **History** | Month picker, `StatStrip` month facts, status filter chips, daily list newest-first. `DropEmptyState` · `ListSkeleton` · `AppProblemPanel` |
+| **Employee Home card** | One compact `GlassContainer`: **target · achieved · remaining** and a tap into the branch sales page. Nothing else — no bar, no percentage, no badge. An opted-out branch renders **nothing, including its spacing** |
+| **Employee sales page** (`/sales/mine`) | The team month (`SalesMoneyRow`) → **Needed per day**, toned by today → today's close and its status → the one CTA. A day sent back for correction keeps a single actionable row; there is no month-history table |
+| **Submission screen** | `PageHero`, piastres-safe EGP field, Cairo business-date confirmation, one `AppButton`. Dual mode: new close, or a correction seeded with the amount under review and the manager's reason. Already-closed / no-target / teammate-closed each render their own panel instead of a dead CTA |
+| **Manager dashboard** | The branch month (**"Set target"** until one exists, **"Edit target"** after) → **Needed per day** → the review queue with inline approve/reject → four `MetricTile`s, each opening a **different** filtered ledger |
+| **Approval / detail** | Evidence block (amount · day · submitter · decision provenance · revision). Actions render only for a manager or admin; reopen only for an admin on a terminal record. One primary action per state |
+| **Admin overview** | One row per **opted-in** branch: name + **target · achieved · remaining**. Opted-out branches are absent, not greyed — `salesEnabledBranches` is the single scope rule, shared with Admin Home |
+| **Admin Home summary** | One line per opted-in branch: name + achieved *of* target. Gates itself and its heading; with nothing opted in it never builds its cubit, so Home costs nothing |
+| **History** | Month picker, status chips, daily list newest-first. Pending / Approved / Rejected / All are **four destinations** — each has its own title, filter and empty state |
 
-Business date keys are **never shown raw** — `formatBusinessDate` /
-`formatBusinessMonth` render them ("20260805" leaked to users on tiles, the
-history list and the detail screen).
+### The simplification rules
+
+- **Three money facts, one component.** `SalesMoneyRow` renders **target ·
+  achieved · remaining** in that order on every surface. The currency is named
+  **once** per row, not three times; each figure `scaleDown`s so a seven-digit
+  target cannot clip its column.
+- **One statistic survives: Needed per day.** Progress bars, progress
+  percentages, average-per-day, expected-month-end and the recent-approved-days
+  list were all deleted. They restated the same month from five angles.
+- **That statistic is the only colour.** `salesDayPace` compares **today's**
+  close to what a day needs: `>= 100%` green · `>= 50%` amber · below red ·
+  nothing to judge (no target, target met, day not submitted) stays monochrome.
+  An unsubmitted day is never rendered as a failure. Colour is carried by a
+  hairline and the figure, never by a filled block.
+- **Money is grouped from the right.** `formatEgp` counts in threes from the
+  last digit. A lookahead once matched at index 0 whenever the digit count was a
+  multiple of three, so `945000` shipped to users as **`,945,000`**.
+- **The target is the branch's, never the viewer's.** Every role's destination is
+  labelled **Branch Sales**; the employee page says "TEAM TARGET". Nothing is
+  framed as a personal quota — "My Sales" mis-stated what the feature measures.
+- **Brand is the logo, never the word.** Where a surface carries a mark it is
+  `BrandWatermark(assetLogo: true)` — the real artwork at low opacity, not a
+  typographic "DROP".
 
 **Routes** — role-guarded in `app_router.dart` + `route_names.dart`:
 
@@ -237,35 +258,34 @@ construct sales notification docs.
 
 ## KPIs (derived-on-read only)
 
-Five figures, each answering one question, all computed from the **approved**
-ledger. Formulas are pure and unit-tested in `sales_calculator.dart` /
-`sales_kpis_calculator.dart` with `now` injected.
+`computeSalesKpis` still derives the full set (pure, `now` injected, unit-tested),
+but **only one is rendered**: *Needed per day*. The rest stay available for a
+future surface that can justify them; nothing on screen shows them today.
 
-| Figure | Formula | Answers |
+| Figure | Formula | Rendered? |
 | --- | --- | --- |
-| **Achieved** | Σ approved `amountPiastres` | where are we? |
-| **Remaining** | `max(0, target − achieved)` | how much is left? |
-| **Progress %** | `achieved / target`, uncapped in text, capped `[0,1]` in the bar | how far in? |
-| **Days left** | `daysInMonth − dayOfMonth + 1` — **includes today** | how much time? |
-| **Needed per day** | `ceil(remaining / daysLeft)` | intervene today? |
-| **Average per day** | `achieved ÷ distinct days with an approved record` | what is a normal day worth? |
-| **Expected month end** | `achieved + average × days with no record at all` | on track? |
+| **Achieved** | Σ approved `amountPiastres` | ✅ |
+| **Remaining** | `max(0, target − achieved)` | ✅ |
+| **Days left** | `daysInMonth − dayOfMonth + 1` — **includes today** | ✅ (beside Needed per day) |
+| **Needed per day** | `ceil(remaining / daysLeft)` | ✅ — **the only coloured figure** |
+| **Average per day** | `achieved ÷ distinct days with an approved record` | ❌ derived, not shown |
+| **Expected month end** | `achieved + average × days with no record at all` | ❌ derived, not shown |
+| **Progress %** | `achieved / target` | ❌ **deleted** |
 
-Three deliberate choices, each reversing a wrong one:
+Three formula choices, each reversing a wrong one:
 
 - **Days left includes today.** The exclusive count made *Needed per day* read
   `0 EGP` on the last day of every month while the branch was still short.
 - **The average divides by approved DAYS, not elapsed calendar days.** Approvals
   lag, so the newest day or two never has an approved record; dividing by elapsed
-  days understated the pace daily and dragged the forecast down with it. Distinct
-  business days, not documents — a corrected-and-resubmitted day is still one day.
+  days understated the pace daily. Distinct business days, not documents — a
+  corrected-and-resubmitted day is still one day.
 - **The forecast only projects days with no record at all.** Recorded days count
   at their real value and are never re-projected.
 
-`completionDateEstimate` was **removed**. It returned *today* whenever the target
-was already met, so the strip printed "On track by <today>" — the least useful
-line on the dashboard. It is replaced by `salesPace` (`achieved` · `onTrack` ·
-`behind` · `noData`), which renders as one plain sentence naming the decision.
+`completionDateEstimate` and the month-level `salesPace` verdict were both
+**removed**: the first returned *today* whenever the target was met (printing "On
+track by \<today\>"), and the second lost its only caller when the Pace strip went.
 
 **No** `sales_analytics`, rollups, scorecards, leaderboards, exports, or per-read
 write aggregation — that is an ADR decision, not a default (ADR-009/010, ADR-022).

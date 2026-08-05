@@ -14,6 +14,54 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Branch Sales UX pass: one card, one statistic, one colour (polish/bug; LOW risk)
+
+A simplification pass over the audited feature, plus one shipping bug.
+
+**Money formatting was wrong.** `formatEgp` grouped with a lookahead that also
+matched at index 0 whenever the digit count was an exact multiple of three, so
+every such amount rendered with a **leading comma** — `945000` reached users as
+`,945,000` and `35000` as `,350`. Now grouped from the right; regression-tested
+across magnitudes and negatives.
+
+**Everything collapses to three money facts.** `SalesMoneyRow` renders **target ·
+achieved · remaining**, in that order, on Home, the employee page, the branch
+dashboard and the admin overview. The currency is named once per row rather than
+per figure, and each figure scales down, so a seven-digit target no longer clips
+its column on a 375pt phone.
+
+**One statistic survives.** Deleted: the progress bar, the progress percentage,
+the four-figure Pace strip, "Recent approved days", the month-level `salesPace`
+verdict, and the employee month-history table. Kept: **Needed per day**, which is
+now the feature's only colour — `salesDayPace` compares **today's** close to what
+a day needs (≥100% green · ≥50% amber · below red), and stays monochrome when
+there is nothing to judge, so an unsubmitted day is never painted as a failure.
+Three widget files removed outright.
+
+**Four doors, four lists.** Pending / Approved / Rejected / History were four
+tiles onto one unfiltered screen; each now carries its own filter, page title and
+empty state.
+
+**Admin Home gained a Branch sales summary** — one line per opted-in branch,
+achieved *of* target. It gates itself and its heading, and when nothing is opted
+in it never builds its cubit, so Home costs nothing. `salesEnabledBranches` is the
+single shared scope rule; the admin overview no longer lists opted-out branches at
+all rather than greying them.
+
+**Naming corrected: the target is the branch's, not the viewer's.** Every role's
+destination is now **Branch Sales** and the employee page says "TEAM TARGET" —
+"My Sales" mis-stated what the feature measures. Where a surface carries brand it
+is the DROP **logo artwork** at low opacity, never a typographic "DROP".
+
+Verified on device: iOS simulator (Home card + employee page, green tone with
+today's close covering the requirement); macOS build produced for the admin side.
+
+Gates: `flutter analyze` clean · `flutter test` **1641 pass** (was 1631).
+Server, rules and indexes untouched by this pass — the redeploy note from the
+audit entry still stands.
+
+---
+
 ## 2026-08-05 — Branch Sales audit: 9 fixes + per-branch opt-in (bug/feature; MED risk)
 
 A full audit of the just-built Branch Monthly Sales Target feature, before it ever
