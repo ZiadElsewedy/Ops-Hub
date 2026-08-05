@@ -13,6 +13,7 @@ import 'package:drop/core/config/app_environment.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/observability/crash_reporter.dart';
 import 'package:drop/core/routes/app_router.dart';
+import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/services/usage_tracker.dart';
 import 'package:drop/core/theme/app_colors.dart';
@@ -27,6 +28,7 @@ import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/auth/presentation/pages/splash_page.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
 import 'package:drop/features/notifications/domain/notification_deep_link.dart';
+import 'package:drop/features/notifications/presentation/notification_navigation.dart';
 import 'package:drop/firebase_options.dart';
 
 /// Background FCM handler. The push carries a `notification` block, so the OS
@@ -285,11 +287,7 @@ void _configureNotificationService() {
                   onPressed: () {
                     final router = _router;
                     if (router == null) return;
-                    if (_isChatDestination(destination)) {
-                      _openChatNotification(router, destination);
-                    } else {
-                      router.push(destination);
-                    }
+                    _openTapDestination(router, destination);
                   },
                 ),
         ),
@@ -304,19 +302,11 @@ void _configureNotificationService() {
       final router = _router;
       if (router == null) return;
       // One shared resolver for every tap surface (foreground / background /
-      // cold-start / in-app). A resolvable target is pushed onto the current
-      // stack; anything unresolved falls back to the inbox — navigation never
-      // crashes on a stale or unknown notification.
-      final destination = _resolveTapLocation(data);
-      if (destination != null) {
-        if (_isChatDestination(destination)) {
-          _openChatNotification(router, destination);
-        } else {
-          router.push(destination);
-        }
-      } else {
-        router.go(RouteNames.notifications);
-      }
+      // cold-start / in-app), then one shared *navigator*. Both the resolved
+      // target and the unresolved fallback are opened on top of the role home,
+      // so a tap can never strand the user on a page with no way back — which
+      // is what the old `go(notifications)` fallback did.
+      _openTapDestination(router, _resolveTapLocation(data));
     };
   unawaited(AppDependencies.notificationService.init());
 }
@@ -324,12 +314,33 @@ void _configureNotificationService() {
 bool _isChatDestination(String destination) =>
     destination.startsWith('${RouteNames.chat}/');
 
+/// The single navigator behind every push-notification tap. [destination] is
+/// whatever [_resolveTapLocation] produced — `null` when nothing safe resolved.
+///
+/// A chat thread keeps its own opener (its natural parent is the inbox, so it
+/// builds home ← inbox ← thread); everything else goes through
+/// [openNotificationDeepLink], which guarantees Home sits under the target.
+void _openTapDestination(GoRouter router, String? destination) {
+  if (destination != null && _isChatDestination(destination)) {
+    _openChatNotification(router, destination);
+    return;
+  }
+  openNotificationDeepLink(
+    router,
+    destination: destination,
+    role: _currentRole(),
+  );
+}
+
+/// The signed-in user's role, or `null` when no session is restored.
+UserRole? _currentRole() => AppDependencies.authCubit.state.maybeWhen(
+  authenticated: (user) => user.role,
+  orElse: () => null,
+);
+
 void _openChatNotification(GoRouter router, String destination) {
   final conversationId = Uri.parse(destination).pathSegments.last;
-  final role = AppDependencies.authCubit.state.maybeWhen(
-    authenticated: (user) => user.role,
-    orElse: () => null,
-  );
+  final role = _currentRole();
   if (role == null) return;
   openChatDeepLink(
     router,

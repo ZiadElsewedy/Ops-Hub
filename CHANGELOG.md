@@ -14,6 +14,15 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Professional README (docs; LOW risk)
+
+Rewrote `README.md` into a polished project front page: logo header, status badges,
+overview with the three-role table and design philosophy, a feature-by-module table,
+tech stack, architecture summary with the layer tree, getting-started/verify/Firebase
+sections, and the documentation index. No code, no doc-set responsibility changed —
+still links out to the design docs rather than restating them, and defers deploy
+status to CURRENT_STATE.
+
 ## 2026-08-05 — iOS navigates back by gesture, not by chevron (polish; MED risk)
 
 **On iOS the app bar no longer draws a back button.** Coming back is the native

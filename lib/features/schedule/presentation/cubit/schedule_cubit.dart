@@ -36,13 +36,25 @@ class ScheduleCubit extends Cubit<ScheduleState> {
 
   /// How long a just-loaded (branch, week) stays reusable without a refetch.
   /// Re-opening the schedule within this window is **instant** — the roster
-  /// already on screen is shown as-is instead of firing a Firestore read on
-  /// every single visit (the "it loads every time I click" complaint). Any real
-  /// scope change (branch/week), an explicit [refresh] or pull-to-refresh, and
-  /// every roster mutation still refetch, so a stale window is at most this long
-  /// and only against edits made on another device. Short by design for an
-  /// operations tool.
-  static const Duration _freshFor = Duration(seconds: 60);
+  /// already on screen is shown as-is instead of firing three Firestore reads
+  /// on every visit (the "it loads every time I click" complaint).
+  ///
+  /// Raised from 60s: a minute is shorter than a single trip through the app,
+  /// so in practice every return to Schedule still paid for a full reload. Five
+  /// minutes is safe here because **nothing that actually changes this roster
+  /// relies on the window expiring**:
+  ///
+  /// * a scope change (different branch or week) refetches — it isn't the same
+  ///   data;
+  /// * every roster mutation on this device refetches through [_mutate];
+  /// * an approved swap — the one edit that lands from *another* device —
+  ///   arrives on the realtime swap stream and `SwapRosterSync` forces a
+  ///   refetch off it;
+  /// * [refresh] (toolbar button, pull-to-refresh) always bypasses it.
+  ///
+  /// So the window only ever hides a manual roster edit made elsewhere, for at
+  /// most this long, with a Refresh always one tap away.
+  static const Duration _freshFor = Duration(minutes: 5);
 
   ScheduleCubit(this._repository, this._getUsersByBranch, this._templates)
       : super(const ScheduleState.initial());

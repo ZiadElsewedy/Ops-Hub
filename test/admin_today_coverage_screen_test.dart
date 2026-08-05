@@ -35,6 +35,9 @@ class _FakeAuthCubit extends Cubit<AuthState> implements AuthCubit {
 class _FakeBranchCubit extends Cubit<BranchState> implements BranchCubit {
   _FakeBranchCubit() : super(const BranchState.loaded([_branch]));
   @override Future<void> load({bool forceRefresh = false}) async {}
+  // Screen entry fetches the branch directory only if it isn't already loaded —
+  // an unconditional load() refetched it on every visit to Schedule.
+  @override Future<void> loadIfNeeded() async {}
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 class _FakeScheduleCubit extends Cubit<ScheduleState> implements ScheduleCubit {
@@ -58,7 +61,7 @@ class _FakeSwaps extends Cubit<ShiftSwapState> implements ShiftSwapCubit {
 }
 class _FakeCoverage extends Cubit<TodayCoverageState> implements TodayCoverageCubit {
   _FakeCoverage(TodayCoverage row) : super(TodayCoverageLoaded([row]));
-  @override Future<void> load(List<BranchEntity> branches) async {}
+  @override Future<void> load(List<BranchEntity> branches, {bool force = false}) async {}
   @override dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

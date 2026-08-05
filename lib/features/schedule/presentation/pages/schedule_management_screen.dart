@@ -68,26 +68,37 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
     }
   }
 
+  /// Returning to Today after using the editor **must** re-derive: a board still
+  /// reporting "Nobody is on night" for a shift just filled is worse than no
+  /// board at all. This is the one entry that bypasses the freshness window.
   void _reloadCoverage() {
     context.read<BranchCubit>().state.maybeWhen(
-      loaded: (branches, _) => _loadCoverage(branches),
+      loaded: (branches, _) => _loadCoverage(branches, force: true),
       orElse: () {},
     );
   }
 
+  /// Screen entry. Both cubits are app-wide and self-guarding: the branch
+  /// directory is fetched only if it isn't already loaded, and the swap stream
+  /// is idempotent per scope. An unconditional `load()` here was refetching the
+  /// whole branch directory — and emitting `loading()`, which blanked every
+  /// branch-identity surface in the app — on every single visit to Schedule.
   void _load() {
-    context.read<BranchCubit>().load();
+    context.read<BranchCubit>().loadIfNeeded();
     context.read<ShiftSwapCubit>().loadAll();
   }
 
-  void _loadCoverage(List<BranchEntity> branches) {
-    context.read<TodayCoverageCubit>().load(branches);
+  void _loadCoverage(List<BranchEntity> branches, {bool force = false}) {
+    context.read<TodayCoverageCubit>().load(branches, force: force);
   }
 
+  /// The explicit Refresh action — everything refetches, freshness windows and
+  /// all. The branch listener re-derives Today off the reloaded directory.
   void _refresh() {
     context.read<ScheduleCubit>().refresh();
     context.read<ShiftSwapCubit>().refresh();
     context.read<BranchCubit>().load(forceRefresh: true);
+    _reloadCoverage();
   }
 
   /// Open the weekly editor **on the branch whose row was tapped**.

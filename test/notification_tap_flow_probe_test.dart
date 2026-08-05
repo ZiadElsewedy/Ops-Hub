@@ -6,8 +6,8 @@
 //   B) admin taps the broadcast tile → /communications/:id detail, which
 //      self-resolves the broadcast by id even though the feed was never loaded
 //      (B3 fix — previously dead-ended on "Broadcast unavailable");
-//   C) cold-start ordering: go('/notifications') BEFORE the router is attached
-//      with initialLocation '/', proving the role home never has to build.
+// Cold-start ordering and the tap's back stack are covered separately, in
+// `notification_tap_navigation_test.dart`.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -293,18 +293,4 @@ void main() {
     expect(find.text('All hands at 5 PM'), findsWidgets);
   });
 
-  testWidgets(
-      'C: employee cold start — go(/notifications) BEFORE the router attaches '
-      '(initialLocation is the role home, which must never build)',
-      (tester) async {
-    final (auth, notifications, broadcasts) =
-        await buildCubits(UserRole.employee);
-    final router = createRouter(auth, initialLocation: '/');
-    router.go('/notifications'); // the FCM tap handler, pre-attach
-    await tester
-        .pumpWidget(appWith(auth, notifications, broadcasts, router));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.byType(NotificationsScreen), findsOneWidget);
-  });
 }
