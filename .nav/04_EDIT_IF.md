@@ -136,9 +136,14 @@ For chat (the only external API):
 ```
 ▸ 1. lib/core/routes/route_names.dart   add the path const (+ a helper for :params)
 ▸ 2. lib/core/routes/app_router.dart    add the GoRoute inside the right area; pick a guard
+▸ 2b. use _pushPage (NOT _fadeTransition) — it gives iOS a CupertinoPage, i.e. the swipe-back
 ▸ 3. lib/features/<F>/presentation/pages/<x>_screen.dart   the screen
 ▸ 4. build the cubit via AppDependencies (or a BlocProvider in the route builder)
 ```
+
+⚠️ Pushing a page **imperatively** instead? Use `appPageRoute` (`lib/core/routes/app_page_route.dart`),
+never a raw `PageRouteBuilder`. iOS has no app-bar back chevron — only a Cupertino route carries the
+edge-swipe, so a plain `PageRouteBuilder` leaves the screen with no way back. See DANGER §8.
 
 ## ➕ Add a new WORK TYPE (task polymorphism — the cheapest extension in the app 🧩)
 

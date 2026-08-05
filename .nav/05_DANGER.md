@@ -9,6 +9,7 @@ Read this before editing anything load-bearing. Each entry: **what it is · what
 | How anything is constructed/wired | `lib/core/di/injection.dart` (`AppDependencies`) | ad-hoc `new` in screens |
 | Navigation + auth/role gate | `lib/core/routes/app_router.dart` `_redirect` + guards | scattered `if (role)` nav checks |
 | Route strings | `lib/core/routes/route_names.dart` | hard-coded path literals |
+| How a page is pushed / how the user gets back | `lib/core/routes/app_page_route.dart` (`appPageRoute` · `showsBackChevron`) | a hand-rolled `PageRouteBuilder` (no iOS back gesture ⇒ dead end) |
 | Backend security | `firestore.rules` / `storage.rules` | client-side "trust" |
 | Privileged writes | `functions/index.js` (🖥️) | client writing server-owned fields |
 | Date → String formatting | `lib/core/utils/app_date_formatter.dart` | inline month arrays (18 were deleted — don't re-add) |
@@ -54,6 +55,14 @@ Not configurable. There is no "Completed-Late" state.
 Direct chat lives on the **NestJS API** + **Drift** cache. REST = truth, socket = delivery only.
 ⚠️ **Never cache image bytes** in Drift. Never fabricate presence. Imports in chat are confined to
 `dio` · `socket_io_client` · `drift`.
+
+### 8. On iOS there is NO back chevron — the route must carry the gesture
+`core/routes/app_page_route.dart` owns the whole contract. The app bar drops its automatic back button
+on iOS; the way back is the native left-edge swipe. **Both halves must hold together.** Push a page with
+`appPageRoute` (or route it in `app_router.dart`, which gives iOS a `CupertinoPage`) — a hand-rolled
+`PageRouteBuilder` carries **no gesture**, and with no chevron that screen is a **dead end**.
+Same trap for `PopScope(canPop: false)`: it disables the gesture, so the screen must supply its own
+`leading`. Android/desktop are unchanged. Pinned by `test/back_navigation_contract_test.dart`.
 
 ## 🚫 Do-NOT-EDIT / handle-with-care
 

@@ -1,5 +1,8 @@
+import 'package:flutter/cupertino.dart' show CupertinoPage;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drop/core/routes/app_page_route.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/widgets/app_shell.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
@@ -96,12 +99,12 @@ GoRouter createRouter(
       GoRoute(
         path: RouteNames.login,
         pageBuilder: (context, state) =>
-            _slideTransition(state, const LoginPage()),
+            _pushPage(state, const LoginPage()),
       ),
       GoRoute(
         path: RouteNames.forgotPassword,
         pageBuilder: (context, state) =>
-            _slideTransition(state, const ForgotPasswordPage()),
+            _pushPage(state, const ForgotPasswordPage()),
       ),
       GoRoute(
         path: RouteNames.forcePasswordChange,
@@ -127,41 +130,41 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.home,
             pageBuilder: (context, state) =>
-                _fadeTransition(state, const EmployeeShell()),
+                _homePage(state, const EmployeeShell()),
           ),
           GoRoute(
             path: RouteNames.adminDashboard,
             pageBuilder: (context, state) =>
-                _fadeTransition(state, const AdminShell()),
+                _homePage(state, const AdminShell()),
           ),
           GoRoute(
             path: RouteNames.managerHome,
             pageBuilder: (context, state) =>
-                _fadeTransition(state, const ManagerShell()),
+                _homePage(state, const ManagerShell()),
           ),
           GoRoute(path: RouteNames.salesManage, pageBuilder: (context, state) {
             final branchId = _salesBranchId(authCubit, state);
-            return _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(), child: SalesManagerDashboardScreen(branchId: branchId)));
+            return _pushPage(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(), child: SalesManagerDashboardScreen(branchId: branchId)));
           }),
-          GoRoute(path: RouteNames.salesAdminOverview, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesAdminOverviewCubit(), child: const SalesAdminOverviewScreen()))),
+          GoRoute(path: RouteNames.salesAdminOverview, pageBuilder: (context, state) => _pushPage(state, BlocProvider(create: (_) => AppDependencies.createSalesAdminOverviewCubit(), child: const SalesAdminOverviewScreen()))),
           GoRoute(path: RouteNames.salesHistory, pageBuilder: (context, state) {
             final branchId = _salesBranchId(authCubit, state);
-            return _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(), child: SalesHistoryScreen(branchId: branchId, status: state.uri.queryParameters['status'])));
+            return _pushPage(state, BlocProvider(create: (_) => AppDependencies.createSalesManagerDashboardCubit(), child: SalesHistoryScreen(branchId: branchId, status: state.uri.queryParameters['status'])));
           }),
-          GoRoute(path: RouteNames.salesSubmissionDetailPattern, pageBuilder: (context, state) => _slideTransition(state, BlocProvider(create: (_) => AppDependencies.createSalesSubmissionDetailCubit(state.pathParameters['submissionId'] ?? ''), child: SalesSubmissionDetailScreen(submissionId: state.pathParameters['submissionId'] ?? '')))),
+          GoRoute(path: RouteNames.salesSubmissionDetailPattern, pageBuilder: (context, state) => _pushPage(state, BlocProvider(create: (_) => AppDependencies.createSalesSubmissionDetailCubit(state.pathParameters['submissionId'] ?? ''), child: SalesSubmissionDetailScreen(submissionId: state.pathParameters['submissionId'] ?? '')))),
           // ─── Tasks (Phase 3) ───────────────────────────────────────
           // Guarded like the rest: /admin/tasks is admin-only, /manager/tasks admits
           // manager + admin; /my-tasks is self-scoped.
           GoRoute(
             path: RouteNames.adminTasks,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const TaskManagementScreen()),
+                _pushPage(state, const TaskManagementScreen()),
           ),
           // Admin Pending Review drill-down (Summary → Branch → Employee → Task).
           GoRoute(
             path: RouteNames.adminReview,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const PendingReviewScreen()),
+                _pushPage(state, const PendingReviewScreen()),
           ),
           // Manager "Operations" tab → the Branch Operations cockpit for the
           // manager's own branch (the task→operations redesign; the full per-branch
@@ -169,17 +172,17 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.managerTasks,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const ManagerOperationsScreen()),
+                _pushPage(state, const ManagerOperationsScreen()),
           ),
           GoRoute(
             path: RouteNames.myTasks,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const MyTasksScreen()),
+                _pushPage(state, const MyTasksScreen()),
           ),
           // Exact-task deep-link (every role) — a task notification lands here.
           GoRoute(
             path: RouteNames.taskDetailPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               TaskDetailLoaderScreen(
                 taskId: state.pathParameters['taskId'] ?? '',
@@ -192,44 +195,44 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.adminSchedule,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const ScheduleManagementScreen()),
+                _pushPage(state, const ScheduleManagementScreen()),
           ),
           GoRoute(
             path: RouteNames.managerSchedule,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const BranchScheduleScreen()),
+                _pushPage(state, const BranchScheduleScreen()),
           ),
           GoRoute(
             path: RouteNames.mySchedule,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const MyScheduleScreen()),
+                _pushPage(state, const MyScheduleScreen()),
           ),
           // ─── Admin module (Phase 5) ────────────────────────────────
           // All under /admin/*, covered by the admin-only `_isAdminArea` guard.
           GoRoute(
             path: RouteNames.adminBranches,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const BranchManagementScreen()),
+                _pushPage(state, const BranchManagementScreen()),
           ),
           GoRoute(
             path: RouteNames.adminManagers,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const ManagerManagementScreen()),
+                _pushPage(state, const ManagerManagementScreen()),
           ),
           GoRoute(
             path: RouteNames.adminEmployees,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const EmployeeManagementScreen()),
+                _pushPage(state, const EmployeeManagementScreen()),
           ),
           GoRoute(
             path: RouteNames.adminAnalytics,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const AdminAnalyticsScreen()),
+                _pushPage(state, const AdminAnalyticsScreen()),
           ),
           GoRoute(
             path: RouteNames.adminCreateAccount,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const CreateAccountScreen()),
+                _pushPage(state, const CreateAccountScreen()),
           ),
           // ─── Communications Center (Phase 3) ───────────────────────
           // admin + manager (employees blocked by `_isCommunicationsArea`). The
@@ -238,11 +241,11 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.communications,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const CommunicationsScreen()),
+                _pushPage(state, const CommunicationsScreen()),
           ),
           GoRoute(
             path: RouteNames.communicationsCompose,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               ComposeBroadcastScreen(
                 prefill: state.extra is BroadcastEntity
@@ -253,7 +256,7 @@ GoRouter createRouter(
           ),
           GoRoute(
             path: RouteNames.communicationsTemplates,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               BroadcastTemplatesScreen(pickMode: state.extra == 'pick'),
             ),
@@ -261,11 +264,11 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.communicationsSchedules,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const BroadcastSchedulesScreen()),
+                _pushPage(state, const BroadcastSchedulesScreen()),
           ),
           GoRoute(
             path: RouteNames.communicationsDetailPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               BroadcastDetailScreen(
                 broadcastId: state.pathParameters['broadcastId'] ?? '',
@@ -280,7 +283,7 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.notifications,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const NotificationsScreen()),
+                _pushPage(state, const NotificationsScreen()),
           ),
           // ─── Case Management (private conversation until resolution) ──────────
           // Shared by every role (like notifications); the list self-scopes by role
@@ -290,16 +293,16 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.cases,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const CasesScreen()),
+                _pushPage(state, const CasesScreen()),
           ),
           GoRoute(
             path: RouteNames.casesCreate,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const CreateCaseScreen()),
+                _pushPage(state, const CreateCaseScreen()),
           ),
           GoRoute(
             path: RouteNames.caseDetailPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               CaseConversationScreen(
                 caseId: state.pathParameters['caseId'] ?? '',
@@ -314,18 +317,18 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.chat,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const ChatScreen()),
+                _pushPage(state, const ChatScreen()),
           ),
           // Static `/chat/new` MUST precede the `:conversationId` pattern so it
           // is matched as the picker, never captured as a conversation id.
           GoRoute(
             path: RouteNames.chatNew,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const NewChatScreen()),
+                _pushPage(state, const NewChatScreen()),
           ),
           GoRoute(
             path: RouteNames.chatConversationPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               ChatConversationScreen(
                 conversationId: state.pathParameters['conversationId'] ?? '',
@@ -343,16 +346,16 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.requests,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const RequestsScreen()),
+                _pushPage(state, const RequestsScreen()),
           ),
           GoRoute(
             path: RouteNames.requestsCreate,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const CreateRequestScreen()),
+                _pushPage(state, const CreateRequestScreen()),
           ),
           GoRoute(
             path: RouteNames.requestDetailPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               RequestDetailScreen(
                 requestId: state.pathParameters['requestId'] ?? '',
@@ -366,21 +369,21 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.adminAttendanceWorkspace,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const AttendanceAdminWorkspaceScreen()),
+                _pushPage(state, const AttendanceAdminWorkspaceScreen()),
           ),
           GoRoute(
             path: RouteNames.attendanceReports,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const AdminAttendanceScreen()),
+                _pushPage(state, const AdminAttendanceScreen()),
           ),
           GoRoute(
             path: RouteNames.attendanceReportsHub,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const AttendanceReportsScreen()),
+                _pushPage(state, const AttendanceReportsScreen()),
           ),
           GoRoute(
             path: RouteNames.attendanceWeeklyPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               AttendanceWeeklyReportScreen(
                 periodId: state.pathParameters['periodId'] ?? '',
@@ -389,7 +392,7 @@ GoRouter createRouter(
           ),
           GoRoute(
             path: RouteNames.attendanceDailyReviewPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               AttendanceDailyReviewScreen(
                 branchId: state.pathParameters['branchId'] ?? '',
@@ -399,7 +402,7 @@ GoRouter createRouter(
           ),
           GoRoute(
             path: RouteNames.attendanceMonthlyPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               AttendanceMonthlyReportScreen(
                 periodId: state.pathParameters['periodId'] ?? '',
@@ -409,11 +412,11 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.attendance,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const AttendanceScreen()),
+                _pushPage(state, const AttendanceScreen()),
           ),
           GoRoute(
             path: RouteNames.salesSubmit,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               SalesSubmissionScreen(
                 submissionId: state.uri.queryParameters['correct'],
@@ -423,13 +426,13 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.salesMine,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const EmployeeSalesScreen()),
+                _pushPage(state, const EmployeeSalesScreen()),
           ),
           // Attendance History — the employee's own ledger (role-shared).
           GoRoute(
             path: RouteNames.attendanceHistory,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const AttendanceHistoryScreen.self()),
+                _pushPage(state, const AttendanceHistoryScreen.self()),
           ),
           // Manager/admin branch review (guarded by `_isAttendanceReviewArea`).
           // An [AttendanceReviewLink] may arrive as `extra` to open one person
@@ -439,7 +442,7 @@ GoRouter createRouter(
             path: RouteNames.attendanceReview,
             pageBuilder: (context, state) {
               final link = _attendanceReviewLink(state.extra);
-              return _slideTransition(
+              return _pushPage(
                 state,
                 AttendanceHistoryScreen.review(
                   initialBranchId: link?.branchId,
@@ -454,7 +457,7 @@ GoRouter createRouter(
           // `extra` for an instant first paint; rules gate the read.
           GoRoute(
             path: RouteNames.attendanceRecordPattern,
-            pageBuilder: (context, state) => _slideTransition(
+            pageBuilder: (context, state) => _pushPage(
               state,
               AttendanceDetailsScreen(
                 recordId: state.pathParameters['id'] ?? '',
@@ -467,27 +470,27 @@ GoRouter createRouter(
           GoRoute(
             path: RouteNames.profile,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const ProfilePage()),
+                _pushPage(state, const ProfilePage()),
           ),
           GoRoute(
             path: RouteNames.editProfile,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const EditProfilePage()),
+                _pushPage(state, const EditProfilePage()),
           ),
           GoRoute(
             path: RouteNames.settings,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const SettingsPage()),
+                _pushPage(state, const SettingsPage()),
           ),
           GoRoute(
             path: RouteNames.changePassword,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const ChangePasswordPage()),
+                _pushPage(state, const ChangePasswordPage()),
           ),
           GoRoute(
             path: RouteNames.about,
             pageBuilder: (context, state) =>
-                _slideTransition(state, const AboutPage()),
+                _pushPage(state, const AboutPage()),
           ),
         ],
       ),
@@ -599,6 +602,21 @@ String? firstLoginLocation(UserEntity user) {
   return null;
 }
 
+/// A role home. On iOS it is a [CupertinoPage] so that a screen pushed on top
+/// of it gets the native parallax — the home slides out under the incoming
+/// page and tracks the finger back during the edge-swipe. Everywhere else it
+/// keeps the calm fade it has always had.
+Page<void> _homePage(GoRouterState state, Widget child) {
+  if (isGestureBackPlatform(defaultTargetPlatform)) {
+    return CupertinoPage<void>(
+      key: state.pageKey,
+      name: state.uri.toString(),
+      child: child,
+    );
+  }
+  return _fadeTransition(state, child);
+}
+
 CustomTransitionPage<void> _fadeTransition(GoRouterState state, Widget child) =>
     CustomTransitionPage<void>(
       key: state.pageKey,
@@ -612,6 +630,30 @@ CustomTransitionPage<void> _fadeTransition(GoRouterState state, Widget child) =>
             child: child,
           ),
     );
+
+/// Every pushed route in the app.
+///
+/// On **iOS** this is a [CupertinoPage], which is what makes the interactive
+/// left-edge swipe-back exist at all — it is the only way back there, because
+/// the app bar draws no chevron (see `core/routes/app_page_route.dart`).
+/// On Android and desktop it stays the existing [CustomTransitionPage], so the
+/// Material back button, the system back gesture and the desktop fade are
+/// unchanged.
+///
+/// The branch is on the **platform**, never on window width: the `Page`
+/// subtype is part of the route's identity, so flipping it while the app is
+/// running (an iPad resized into Split View) would tear the route down and
+/// rebuild it mid-gesture.
+Page<void> _pushPage(GoRouterState state, Widget child) {
+  if (isGestureBackPlatform(defaultTargetPlatform)) {
+    return CupertinoPage<void>(
+      key: state.pageKey,
+      name: state.uri.toString(),
+      child: child,
+    );
+  }
+  return _slideTransition(state, child);
+}
 
 CustomTransitionPage<void> _slideTransition(
   GoRouterState state,

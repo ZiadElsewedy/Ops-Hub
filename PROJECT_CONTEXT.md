@@ -195,7 +195,7 @@ features' cubits.
 | `network/` | `ApiClient` — the single authenticated HTTP seam for the NestJS chat API (+ `NetworkConfig`). Consumed only by `features/chat/` |
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
-| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (55 routes) |
+| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (55 routes) · `app_page_route.dart` (the back-navigation contract) |
 | `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
@@ -226,6 +226,7 @@ Reuse these. Do not re-implement or duplicate them.
 | Task visibility | `task/domain/task_access.dart` (`canUserAccessTask`) |
 | Notification routing | `notifications/domain/notification_deep_link.dart` |
 | Sidebar + command palette | `AppShell.sectionsForRole` |
+| How a screen is pushed / how the user gets back | `core/routes/app_page_route.dart` (`appPageRoute` · `showsBackChevron`) |
 
 ---
 
@@ -238,6 +239,7 @@ Reuse these. Do not re-implement or duplicate them.
 | A new action in any feature | `domain/usecases/` → repository contract + impl → datasource → cubit → **`core/di/injection.dart`** |
 | Any entity or state shape | the `freezed` file, **then run codegen** |
 | Routes / navigation guards | `core/routes/app_router.dart` + `route_names.dart` |
+| **Any imperative `Navigator.push` of a page** | `appPageRoute` (`core/routes/app_page_route.dart`) — a raw `PageRouteBuilder` has no iOS back gesture, and iOS has no back chevron, so the screen becomes a dead end |
 | Role chrome (bottom nav) | `core/widgets/role_scaffold.dart` + `app_bottom_nav.dart` |
 | Desktop chrome (sidebar, ⌘K) | `core/widgets/app_shell.dart` + `app_sidebar.dart` + `command_palette.dart` |
 | Colours / type / spacing / radius | `core/theme/` — never inline a `Color(...)` or `TextStyle(...)` |
@@ -417,6 +419,31 @@ New surfaces compose the Design System V2 primitives — see
 - **Desktop:** persistent role-aware `AppSidebar` via `AppShell` (a `ShellRoute`),
   ⌘1–⌘9 jump to destinations, ⌘K opens the command palette.
 - Pages use `AdaptiveScaffold` (mobile AppBar ⇄ desktop page header).
+
+### Going back is platform-native
+
+**iOS has no back chevron.** The way back is the native interactive left-edge
+swipe, exactly as in Apple's apps. Android keeps its app-bar back button, system
+back gesture and Material transition; desktop keeps the in-header back control.
+The whole decision lives in `core/routes/app_page_route.dart`.
+
+Both halves must hold together, or a screen becomes a **dead end on iOS**:
+
+- **Chrome** — `showsBackChevron(context)` gates the automatic leading. An
+  explicit `leading` is *always* honoured: it is in-page navigation (a
+  drill-down level-up, a search dismiss), not route back.
+- **Route** — the pushed route must actually carry the gesture. Push through
+  `appPageRoute`, or route it in `app_router.dart` (iOS gets `CupertinoPage`).
+  Never hand-roll a `PageRouteBuilder` for a page.
+
+Exceptions keep a visible control, because iOS itself gives them no gesture: a
+`fullscreenDialog`, a media viewer (a zoomed `InteractiveViewer` competes with
+the edge drag), and anything blocking pop with `PopScope(canPop: false)` — which
+must then supply its own `leading`.
+
+> ⚠️ The platform branch is on **`TargetPlatform`, never on window width**. A
+> `Page` subtype is part of route identity; flipping it at runtime (an iPad
+> resized into Split View) tears the route down and rebuilds it mid-gesture.
 
 > ⚠️ **Never wrap the `ShellRoute` child in an `AnimatedSwitcher` or keyed
 > cross-fade.** It is go_router's shell Navigator (a `GlobalKey`); mounting it twice

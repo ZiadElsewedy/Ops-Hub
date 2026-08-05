@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drop/core/routes/app_page_route.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
@@ -1344,9 +1345,11 @@ class _TaskSection extends StatelessWidget {
   void _openTask(BuildContext context, TaskEntity task) {
     seen.onSeen(task);
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (ctx, anim, _) =>
-            TaskDetailsScreen(task: task, directory: directory),
+      appPageRoute<void>(
+        builder: (_) => TaskDetailsScreen(task: task, directory: directory),
+        // Home's own rise-and-fade opening, kept for Android/desktop. iOS uses
+        // the Cupertino push instead, because that is what carries the
+        // swipe-back the app bar no longer offers.
         transitionsBuilder: (ctx, anim, _, child) => FadeTransition(
           opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
           child: SlideTransition(

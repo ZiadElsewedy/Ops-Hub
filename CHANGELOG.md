@@ -14,6 +14,51 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — iOS navigates back by gesture, not by chevron (polish; MED risk)
+
+**On iOS the app bar no longer draws a back button.** Coming back is the native
+interactive left-edge swipe, as in Apple's own apps. **Android is untouched** —
+its back button, system back gesture and zoom transition all stay. Desktop keeps
+`AdaptiveScaffold`'s in-header back control.
+
+The risky half of this is not hiding the chevron, it is guaranteeing the gesture
+exists on **every** screen that lost one. Three route families had to be fixed
+together, or the removal would have stranded users:
+
+- **The theme was suppressing the gesture app-wide.** `pageTransitionsTheme`
+  pinned iOS to `ZoomPageTransitionsBuilder`, overriding Flutter's own iOS
+  default. `CupertinoPageTransitionsBuilder` is the *only* builder that inserts
+  the back-gesture detector, so every one of the ~12 `MaterialPageRoute` pushes
+  had neither a chevron nor a swipe. Restored to Cupertino for iOS only.
+- **go_router's pushed pages had no gesture at all.** All 85 `context.push`
+  destinations were `CustomTransitionPage`, which cannot carry one. iOS now gets
+  `CupertinoPage` (`_pushPage`); Android/desktop keep the existing slide/fade
+  verbatim. The branch is on **platform, never window width** — the `Page`
+  subtype is part of route identity, so flipping it on an iPad resize would tear
+  the route down mid-gesture. Role homes are `CupertinoPage` on iOS too, so the
+  screen underneath does the native parallax instead of sitting still.
+- **`TaskDetailsScreen` was pushed from four hand-rolled `PageRouteBuilder`s.**
+  Three were byte-identical. All four now go through the new
+  `appPageRoute` seam; Employee Home keeps its own rise-and-fade on non-iOS.
+
+New seam: **`core/routes/app_page_route.dart`** — one file owns the decision,
+`showsBackChevron` for chrome and `appPageRoute` for imperative pushes.
+
+Chrome updated: `AdaptiveScaffold` (56 screens), `AuthScaffold`, and the two
+chat detail pages that own their app bar. **An explicit `leading` is always
+honoured** on every platform — the pending-review drill-down, the new-request
+type picker and the chat search dismiss are in-page navigation, not route back.
+
+Deliberately keeping their controls, all matching iOS itself: full-screen modals
+(`fullscreenDialog` — no back gesture on iOS either), the image and attachment
+viewers (a zoomed `InteractiveViewer` competes with the edge drag), the Final
+Schedule preview's own toolbar, and any screen blocking pop via `PopScope`
+(pending review's drill-down, task details mid-submission).
+
+Gates: `flutter analyze` clean · `flutter test` **1651 pass** (was 1641) — 10 new
+in `back_navigation_contract_test.dart`, which pins both halves of the contract
+on both platforms. Not yet verified on device.
+
 ## 2026-08-05 — Branch Sales UX pass: one card, one statistic, one colour (polish/bug; LOW risk)
 
 A simplification pass over the audited feature, plus one shipping bug.

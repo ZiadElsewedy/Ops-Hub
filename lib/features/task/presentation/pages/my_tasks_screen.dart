@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/routes/app_page_route.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/theme/app_colors.dart';
@@ -765,33 +766,9 @@ class _EmployeeTaskCardState extends State<EmployeeTaskCard> {
 
   void _open() {
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (ctx, animation, secAnim) => TaskDetailsScreen(
-          task: widget.task,
-          directory: widget.directory,
-        ),
-        transitionsBuilder: (ctx, animation, secAnim, child) {
-          return SlideTransition(
-            position:
-                Tween<Offset>(
-                  begin: const Offset(1, 0),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                ),
-            child: FadeTransition(
-              opacity: CurvedAnimation(
-                parent: animation,
-                curve: const Interval(0, 0.6),
-              ),
-              child: child,
-            ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 320),
+      appPageRoute<void>(
+        builder: (_) =>
+            TaskDetailsScreen(task: widget.task, directory: widget.directory),
       ),
     );
   }

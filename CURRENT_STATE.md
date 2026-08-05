@@ -54,6 +54,20 @@
 > config-diff audit fully supports it. The ADR-011 execution record is **written
 > daily and read by no screen**.
 >
+> **iOS back navigation is now gesture-only (2026-08-05, presentation only,
+> NOT device-verified):** On iOS the app bar draws no back chevron; the way back
+> is the native interactive left-edge swipe. Android and desktop are unchanged.
+> One seam owns it — `core/routes/app_page_route.dart` (`showsBackChevron` for
+> chrome, `appPageRoute` for imperative pushes) — plus `CupertinoPage` for every
+> go_router push and `CupertinoPageTransitionsBuilder` for iOS in the theme.
+> ⚠️ **The invariant to protect:** a screen may only drop its chevron if its
+> route actually carries the gesture. A new page pushed on a plain
+> `PageRouteBuilder`, or one that blocks pop with `PopScope(canPop: false)`
+> without supplying its own `leading`, is a **dead end on iOS**.
+> `test/back_navigation_contract_test.dart` pins both halves.
+> Needs on-device QA: the edge swipe over horizontally scrolling content
+> (`SegmentedTabBar` tabs, the schedule week strip) and inside the chat thread.
+
 > **Premium mobile role-home bar (2026-08-05, presentation only):** The shared
 > admin/manager/employee `RoleScaffold` header now uses a restrained gradient +
 > bottom hairline, groups daily actions inside one flat glass capsule, and gives
