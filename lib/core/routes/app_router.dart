@@ -48,6 +48,7 @@ import 'package:drop/features/chat/presentation/pages/new_chat_screen.dart';
 import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/presentation/pages/attendance_screen.dart';
+import 'package:drop/features/sales/presentation/pages/sales_submission_screen.dart';
 import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
 import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
 import 'package:drop/features/attendance/presentation/history/attendance_history_screen.dart';
@@ -393,6 +394,11 @@ GoRouter createRouter(
             pageBuilder: (context, state) =>
                 _slideTransition(state, const AttendanceScreen()),
           ),
+          GoRoute(
+            path: RouteNames.salesSubmit,
+            pageBuilder: (context, state) =>
+                _slideTransition(state, const SalesSubmissionScreen()),
+          ),
           // Attendance History — the employee's own ledger (role-shared).
           GoRoute(
             path: RouteNames.attendanceHistory,
@@ -510,6 +516,7 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
     if (_isAttendanceReportsArea(loc) && user.role.isEmployee) {
       return roleHome;
     }
+    if (loc == RouteNames.salesSubmit && !user.role.isEmployee) return roleHome;
     if (loc == RouteNames.home && !user.role.isEmployee) {
       return roleHome;
     }

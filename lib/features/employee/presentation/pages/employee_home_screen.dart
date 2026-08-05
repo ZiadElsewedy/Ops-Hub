@@ -25,6 +25,9 @@ import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/attendance/domain/attendance_calculator.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_state.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_target_card.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
@@ -97,6 +100,15 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   void _load({bool force = false}) {
     final user = context.currentUser;
     if (user != null) {
+      final branchId = user.branchId;
+      if (branchId != null && branchId.isNotEmpty) {
+        unawaited(
+          context.read<SalesMonthCubit>().loadForEmployee(
+            branchId: branchId,
+            uid: user.uid,
+          ),
+        );
+      }
       unawaited(_loadSeen(user.uid));
       context.read<StatisticsCubit>().load(user, forceRefresh: force);
       context.read<TaskCubit>().load(user, forceRefresh: force);
@@ -228,6 +240,38 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                 },
               ),
             ),
+
+            if (user?.branchId != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pagePadding,
+                  AppSpacing.xl,
+                  AppSpacing.pagePadding,
+                  0,
+                ),
+                child: BlocBuilder<SalesMonthCubit, SalesMonthState>(
+                  builder: (context, state) {
+                    if (state is SalesMonthError) {
+                      return SalesTargetCard.error(
+                        errorMessage: state.message,
+                        onRetry: () =>
+                            context.read<SalesMonthCubit>().loadForEmployee(
+                              branchId: user!.branchId!,
+                              uid: user.uid,
+                            ),
+                      );
+                    }
+                    if (state is SalesMonthLoaded) {
+                      return SalesTargetCard(
+                        snapshot: state.snapshot,
+                        ownSubmissions: state.ownSubmissions,
+                        onSubmit: () => context.push(RouteNames.salesSubmit),
+                      );
+                    }
+                    return const SalesTargetCard.loading();
+                  },
+                ),
+              ),
 
             Padding(
               padding: const EdgeInsets.fromLTRB(

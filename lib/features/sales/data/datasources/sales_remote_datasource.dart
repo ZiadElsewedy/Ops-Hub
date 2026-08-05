@@ -12,6 +12,15 @@ abstract class SalesRemoteDataSource {
     String branchId,
     String monthKey,
   );
+  Stream<List<DailySalesSubmissionModel>> watchApprovedSubmissions(
+    String branchId,
+    String monthKey,
+  );
+  Stream<List<DailySalesSubmissionModel>> watchOwnSubmissions(
+    String branchId,
+    String monthKey,
+    String submittedById,
+  );
   Stream<DailySalesSubmissionModel?> watchSubmission(String id);
   Stream<List<BranchSalesMonthModel>> watchMonths(String monthKey);
   Stream<List<DailySalesSubmissionModel>> watchMonthSubmissions(
@@ -58,6 +67,49 @@ class SalesRemoteDataSourceImpl implements SalesRemoteDataSource {
     _submissions
         .where('branchId', isEqualTo: branchId)
         .where('monthKey', isEqualTo: monthKey)
+        .orderBy('businessDateKey', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) =>
+                    DailySalesSubmissionModel.fromMap(doc.data(), id: doc.id),
+              )
+              .toList(),
+        ),
+  );
+
+  @override
+  Stream<List<DailySalesSubmissionModel>> watchApprovedSubmissions(
+    String branchId,
+    String monthKey,
+  ) => _withServerErrors(
+    _submissions
+        .where('branchId', isEqualTo: branchId)
+        .where('monthKey', isEqualTo: monthKey)
+        .where('status', isEqualTo: 'approved')
+        .orderBy('businessDateKey', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) =>
+                    DailySalesSubmissionModel.fromMap(doc.data(), id: doc.id),
+              )
+              .toList(),
+        ),
+  );
+
+  @override
+  Stream<List<DailySalesSubmissionModel>> watchOwnSubmissions(
+    String branchId,
+    String monthKey,
+    String submittedById,
+  ) => _withServerErrors(
+    _submissions
+        .where('branchId', isEqualTo: branchId)
+        .where('monthKey', isEqualTo: monthKey)
+        .where('submittedById', isEqualTo: submittedById)
         .orderBy('businessDateKey', descending: true)
         .snapshots()
         .map(

@@ -8,6 +8,15 @@ abstract class SalesRepository {
     String branchId,
     String monthKey,
   );
+  Stream<List<DailySalesSubmissionEntity>> watchApprovedSubmissions(
+    String branchId,
+    String monthKey,
+  );
+  Stream<List<DailySalesSubmissionEntity>> watchOwnSubmissions(
+    String branchId,
+    String monthKey,
+    String submittedById,
+  );
   Stream<DailySalesSubmissionEntity?> watchSubmission(String id);
   Stream<List<SalesMonthSnapshot>> watchBranchMonthSummaries(String monthKey);
   Future<void> submitDailySales({required String branchId, required String monthKey, required String businessDateKey, required int amountPiastres, required String submittedById, required String submittedByName});

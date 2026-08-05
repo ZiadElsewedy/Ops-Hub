@@ -54,6 +54,7 @@ import 'package:drop/features/sales/domain/usecases/request_sales_correction.dar
 import 'package:drop/features/sales/domain/usecases/resubmit_corrected_sales.dart';
 import 'package:drop/features/sales/domain/usecases/edit_approved_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/reopen_sales_submission.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
 import 'package:drop/features/admin/data/datasources/user_admin_remote_datasource.dart';
 import 'package:drop/features/admin/data/repositories/user_admin_repository_impl.dart';
 import 'package:drop/features/admin/domain/repositories/user_admin_repository.dart';
@@ -464,6 +465,8 @@ class AppDependencies {
   /// Branch Sales Target — read-only ledger seam (P1). P3 constructs the sales
   /// cubits and read use cases from this once presentation consumers exist.
   static late final SalesRepository salesRepository;
+  /// P3 — the employee Home sales card + submission screen consume this app-wide.
+  static late final SalesMonthCubit salesMonthCubit;
   // P3 presentation consumes these write actions when its sales cubits land.
   static late final SubmitDailySales submitDailySales;
   static late final SetBranchMonthlyTarget setBranchMonthlyTarget;
@@ -656,6 +659,10 @@ class AppDependencies {
     resubmitCorrectedSales = ResubmitCorrectedSales(salesRepository);
     editApprovedSalesSubmission = EditApprovedSalesSubmission(salesRepository);
     reopenSalesSubmission = ReopenSalesSubmission(salesRepository);
+    salesMonthCubit = SalesMonthCubit(
+      repository: salesRepository,
+      submitDailySales: submitDailySales,
+    );
 
     // Notification repository is built early — the TaskCubit needs the
     // NotifyTaskEvent use case for its automatic task-event notifications.

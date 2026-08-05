@@ -48,6 +48,27 @@ class SalesRepositoryImpl implements SalesRepository {
   );
 
   @override
+  Stream<List<DailySalesSubmissionEntity>> watchApprovedSubmissions(
+    String branchId,
+    String monthKey,
+  ) => _failureStream(
+    _remote
+        .watchApprovedSubmissions(branchId, monthKey)
+        .map((models) => models.map((model) => model.toEntity()).toList()),
+  );
+
+  @override
+  Stream<List<DailySalesSubmissionEntity>> watchOwnSubmissions(
+    String branchId,
+    String monthKey,
+    String submittedById,
+  ) => _failureStream(
+    _remote
+        .watchOwnSubmissions(branchId, monthKey, submittedById)
+        .map((models) => models.map((model) => model.toEntity()).toList()),
+  );
+
+  @override
   Stream<DailySalesSubmissionEntity?> watchSubmission(String id) =>
       _failureStream(
         _remote.watchSubmission(id).map((model) => model?.toEntity()),
