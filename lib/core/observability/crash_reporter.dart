@@ -91,8 +91,25 @@ class CrashReporter {
   static void recordZoneError(Object error, StackTrace stack) =>
       record('zone', error, stack);
 
+  /// A `WebSocketConnectionClosed` bubbling out of the socket teardown path —
+  /// an expected transient (the peer or server closed the connection), never
+  /// an application fault. Matched by type name so `crash_reporter` needn't
+  /// depend on the transitive `web_socket` package that defines it.
+  static bool _isBenignSocketClosure(Object error) =>
+      error.runtimeType.toString() == 'WebSocketConnectionClosed';
+
   /// Build, log, and persist one structured crash report.
   static void record(String source, Object error, StackTrace? stack) {
+    // A socket closing is not a crash. When the server disconnects a rejected
+    // socket, socket_io_client tears the transport down in a microtask and
+    // web_socket's `IOWebSocket.close()` throws `WebSocketConnectionClosed`
+    // from a callback we don't own, so it escapes to the zone/platform funnels.
+    // ChatSocketService already handles the closure (a backed-off reconnect) —
+    // downgrade it to a breadcrumb instead of a 🔴 CRASH report.
+    if (_isBenignSocketClosure(error)) {
+      AppLog.warning('chat', 'socket closed ($source, non-fatal): $error');
+      return;
+    }
     final report = _buildReport(source, error, stack);
     AppLog.error('crash', 'uncaught ($source) — ${CrashContext.screen ?? '?'}',
         error);

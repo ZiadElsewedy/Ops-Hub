@@ -14,6 +14,59 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Cold-start bootstrap can no longer hang the splash (bug; LOW risk)
+
+The desktop launch screen plays a one-shot 5 s Lottie intro, then **holds its
+final frame** until `LaunchApp`'s rendezvous is satisfied — both the intro *and*
+`_initializeRuntime` must finish (`main.dart` `_canEnterApp`). But
+`_initializeRuntime` awaited `Firebase.initializeApp`, `restoreSession`, and the
+home-critical warm-up (`statistics`/`task`/`branch` loads) with **no timeout**,
+so a slow or unreachable backend (e.g. the dev API misbehaving, cf. the same-day
+chat-socket note) left the splash frozen on that static final frame indefinitely
+— which reads as "the animated logo stopped animating." Nothing in the splash or
+the Lottie asset actually changed (git: the asset's only Aug-5 touch was a
+one-line name field); the regression was purely bootstrap latency with no
+ceiling.
+
+**Fix:** each bootstrap phase is now bounded. `Firebase.initializeApp`
+(20 s) is the one hard precondition — a timeout throws and surfaces the existing
+retryable startup-error screen. `restoreSession` (10 s) and the warm-up (8 s)
+**degrade** instead: on timeout the app enters anyway (worst case the router
+lands on login and the auth-stream `refreshListenable` re-routes to the correct
+home once the session resolves; warm-up scopes keep loading lazily). The warm-up
+future is `ignore()`d alongside its timeout so a late failure can't become an
+unobserved async error. Touches `main.dart` only; `flutter analyze` clean, splash
++ chat suites green. **Note:** this stops the *hang*; if the dev backend itself is
+down, that's still an environment fix.
+
+## 2026-08-05 — Chat socket: a rejected token no longer crash-loops (bug; LOW risk)
+
+A rejected/expired Firebase token on the chat socket turned into a ~1/second
+reconnect + REST-401 + 🔴 CRASH storm. Root cause was in how the client *handled*
+the rejection, not the token itself: the `drop-api` gateway **allows** the socket
+to connect and only then rejects a bad token via `connection:error` + a
+server-side disconnect. `ChatSocketService.onConnect` treated that raw transport
+connect as an authenticated session — it reset the exponential backoff to zero
+(so retries never grew past 1s) and emitted `ChatRealtimeConnected`, which made
+`ChatListCubit` re-pull `GET /conversations` → **401** every cycle. Each cycle's
+server disconnect also let `socket_io_client` throw an **uncaught**
+`WebSocketConnectionClosed` from a library microtask into the zone funnel, logged
+as a full crash.
+
+**Fix (client resilience only):** a raw connect is no longer proof of auth — the
+connection is promoted to healthy (backoff reset, `ChatRealtimeConnected` emitted,
+rooms re-joined) only after an 800 ms grace window elapses with **no**
+`connection:error`. A rejection now keeps the backoff growing (1→2→4→…→30 s cap)
+and emits nothing, so the REST inbox is never falsely refreshed. `CrashReporter`
+downgrades `WebSocketConnectionClosed` from the socket-close path to a
+non-fatal breadcrumb (matched by type name; no new dependency). Net: an
+unreachable/rejecting chat backend degrades to a quiet, backed-off "will retry"
+instead of a crash storm. Touches `chat_socket_service.dart` +
+`crash_reporter.dart`; realtime event consumers unchanged. `flutter analyze`
+clean; chat realtime + connectivity suites green. **Note:** the *cause* of the
+401 (dev backend rejecting the token — cf. the 2026-07-22 migration-gap note in
+CURRENT_STATE) is an environment matter, out of scope for this client fix.
+
 ## 2026-08-05 — Rejected shift tasks close at the wall (bug + product ruling; MED risk)
 
 A generated shift instance sent back for rework never reached a terminal:

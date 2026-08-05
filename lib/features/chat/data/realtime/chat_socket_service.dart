@@ -49,9 +49,12 @@ class ChatSocketService implements ChatRealtime {
 
   io.Socket? _socket;
   Timer? _retryTimer;
+  Timer? _authConfirmTimer;
+  Completer<bool>? _pendingOpen;
   int _attempt = 0;
   bool _connecting = false;
   bool _connectedOnce = false;
+  bool _sessionConfirmed = false;
   bool _forceRefreshToken = false;
   bool _inboxAttached = false;
   bool _disposed = false;
@@ -64,6 +67,17 @@ class ChatSocketService implements ChatRealtime {
   static const _connectTimeout = Duration(seconds: 15);
   static const _ackTimeout = Duration(seconds: 10);
   static const _maxBackoff = Duration(seconds: 30);
+
+  /// After the transport connects, this gateway still rejects a bad token via
+  /// `connection:error` followed by a server-side disconnect — so a raw
+  /// `connect` is NOT proof of an authenticated session. The connection is only
+  /// promoted to "healthy" (backoff reset, [ChatRealtimeConnected] emitted,
+  /// rooms re-joined) after this grace window passes with no rejection.
+  ///
+  /// Without it, a connect-then-reject bounce resets the backoff on every cycle
+  /// and emits a false "connected" that re-pulls the REST inbox — turning a
+  /// single expired token into a ~1/second reconnect + 401 + crash storm.
+  static const _authConfirmGrace = Duration(milliseconds: 800);
 
   @override
   Stream<ChatRealtimeEvent> get events => _events.stream;
@@ -162,20 +176,21 @@ class ChatSocketService implements ChatRealtime {
           .build(),
     );
     _socket = socket;
-    _wireEvents(socket);
+    _sessionConfirmed = false;
 
+    // The handshake only completes once the connection is *confirmed*
+    // authenticated (grace window elapsed with no `connection:error`) or has
+    // failed — not on the raw transport connect, which this gateway allows
+    // before it rejects a bad token. All of that is wired in [_wireEvents],
+    // which settles this completer via [_settleOpen].
     final opened = Completer<bool>();
-    void settle(bool ok) {
-      if (!opened.isCompleted) opened.complete(ok);
-    }
-
-    socket.onConnect((_) => settle(true));
-    socket.onConnectError((_) => settle(false));
-    socket.on('connection:error', (_) => settle(false));
+    _pendingOpen = opened;
+    _wireEvents(socket);
     socket.connect();
 
     final ok = await opened.future
         .timeout(_connectTimeout, onTimeout: () => false);
+    _pendingOpen = null;
     if (!ok || _disposed) {
       _scheduleRetry();
       return null;
@@ -184,30 +199,49 @@ class ChatSocketService implements ChatRealtime {
   }
 
   void _wireEvents(io.Socket socket) {
+    // A raw transport connect is NOT an authenticated session (see
+    // [_authConfirmGrace]): defer every success side effect until the grace
+    // window passes with no `connection:error`. Until then the backoff is
+    // untouched, no [ChatRealtimeConnected] is emitted, and no room is joined.
     socket.onConnect((_) {
-      _attempt = 0;
-      final isReconnect = _connectedOnce;
-      _connectedOnce = true;
-      _emitEvent(ChatRealtimeConnected(isReconnect: isReconnect));
-      // The server cleared all rooms on the previous disconnect — re-join
-      // every active conversation before consumers reconcile.
-      for (final id in _joined) {
-        _emitJoin(socket, id);
-      }
+      _authConfirmTimer?.cancel();
+      _authConfirmTimer =
+          Timer(_authConfirmGrace, () => _confirmConnection(socket));
     });
 
-    // The gateway's auth rejection: it tells us why, then disconnects us.
-    // Force-refresh the token on the next attempt (expiry is the usual cause).
+    socket.onConnectError((_) {
+      // Transport-level failure — no auth verdict. Fail the in-flight connect
+      // and retry with the backoff intact; a `disconnect` may not follow a
+      // connect error, so schedule here too (the retry guard dedupes).
+      _settleOpen(false);
+      _scheduleRetry();
+    });
+
+    // The gateway's auth rejection: it names the reason, then disconnects us.
+    // Cancel the pending confirmation so this connection is never counted as
+    // healthy (leaving the backoff to grow), and force-refresh the token on the
+    // next attempt (expiry is the usual cause).
     socket.on('connection:error', (data) {
+      _authConfirmTimer?.cancel();
+      _authConfirmTimer = null;
       _forceRefreshToken = true;
-      final message =
-          data is Map ? data['message']?.toString() : null;
+      final message = data is Map ? data['message']?.toString() : null;
       AppLog.warning(
           'chat', 'socket auth rejected: ${message ?? 'unknown reason'}');
+      _settleOpen(false);
     });
 
     socket.onDisconnect((_) {
-      _emitEvent(const ChatRealtimeDisconnected());
+      _authConfirmTimer?.cancel();
+      _authConfirmTimer = null;
+      // Only pair a Disconnected with a Connected we actually emitted: a
+      // never-confirmed (auth-rejected) connection stays silent so the inbox
+      // and thread views aren't churned during a reconnect storm.
+      if (_sessionConfirmed) {
+        _sessionConfirmed = false;
+        _emitEvent(const ChatRealtimeDisconnected());
+      }
+      _settleOpen(false);
       _scheduleRetry();
     });
 
@@ -216,6 +250,31 @@ class ChatSocketService implements ChatRealtime {
     socket.on('message:deleted', (data) => _parse(data, parseMessageDeleted));
     socket.on('message:deleted-for-me',
         (data) => _parse(data, parseMessageDeletedForMe));
+  }
+
+  /// Promotes a transport connect to a confirmed, authenticated session once
+  /// [_authConfirmGrace] elapses with no `connection:error`: resets the
+  /// backoff, emits [ChatRealtimeConnected] and re-joins every active room
+  /// (the server cleared them on the previous disconnect). A stale timer — the
+  /// socket was replaced or torn down meanwhile — is ignored.
+  void _confirmConnection(io.Socket socket) {
+    _authConfirmTimer = null;
+    if (_disposed || socket != _socket || !socket.connected) return;
+    _attempt = 0;
+    _sessionConfirmed = true;
+    final isReconnect = _connectedOnce;
+    _connectedOnce = true;
+    _settleOpen(true);
+    _emitEvent(ChatRealtimeConnected(isReconnect: isReconnect));
+    for (final id in _joined) {
+      _emitJoin(socket, id);
+    }
+  }
+
+  /// Completes the in-flight [_connectOnce] handshake exactly once.
+  void _settleOpen(bool ok) {
+    final pending = _pendingOpen;
+    if (pending != null && !pending.isCompleted) pending.complete(ok);
   }
 
   void _parse(dynamic data,
@@ -277,6 +336,10 @@ class ChatSocketService implements ChatRealtime {
   }
 
   void _teardownSocket({bool keepBackoff = false}) {
+    _authConfirmTimer?.cancel();
+    _authConfirmTimer = null;
+    _sessionConfirmed = false;
+    _settleOpen(false);
     if (!keepBackoff) {
       _retryTimer?.cancel();
       _retryTimer = null;

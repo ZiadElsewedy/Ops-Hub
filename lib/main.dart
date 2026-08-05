@@ -144,6 +144,17 @@ class _LaunchAppState extends State<LaunchApp> {
   }
 }
 
+/// Ceilings for the cold-start bootstrap so a slow or unreachable backend can
+/// never freeze the launch screen on its final static frame. The splash is
+/// shown until `_initializeRuntime` returns a router (main's rendezvous), so an
+/// unbounded await here is an indefinite hang on the frozen logo. Each phase
+/// either degrades (session/warm-up: enter the app anyway and let the auth
+/// stream + lazy screens catch up) or surfaces the retryable startup-error
+/// screen (Firebase: the one hard precondition) — never an endless hang.
+const Duration _firebaseInitTimeout = Duration(seconds: 20);
+const Duration _sessionRestoreTimeout = Duration(seconds: 10);
+const Duration _warmupTimeout = Duration(seconds: 8);
+
 Future<GoRouter> _initializeRuntime() async {
   // Startup banner — states which backend this build targets. The URL is a pure
   // function of build mode (see AppEnvironment), so this is the ground truth:
@@ -152,13 +163,17 @@ Future<GoRouter> _initializeRuntime() async {
   debugPrint(AppEnvironment.current.startupBanner);
 
   if (Firebase.apps.isEmpty) {
+    // Firebase is the one true precondition — everything downstream needs it.
+    // Bound it so it can't hang the splash forever; on timeout the throw flows
+    // to `_startBootstrap`'s catchError and surfaces the startup-error screen
+    // (with Try again), never an endless static logo.
     await AppLog.time(
       'boot',
       'Firebase.initializeApp',
       () => Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       ),
-    );
+    ).timeout(_firebaseInitTimeout);
   }
 
   if (!_dependenciesInitialized) {
@@ -173,11 +188,20 @@ Future<GoRouter> _initializeRuntime() async {
     _dependenciesInitialized = true;
   }
 
-  await AppLog.time(
-    'auth',
-    'restoreSession',
-    AppDependencies.authCubit.restoreSession,
-  );
+  // Session restore is best-effort *for rendering*: a stalled profile read must
+  // not freeze the splash. On timeout we enter the app with whatever auth state
+  // exists (worst case the router lands on login); the AuthCubit finishes the
+  // read on its own and the router — refreshed by the auth stream — re-routes to
+  // the correct home once it lands.
+  try {
+    await AppLog.time(
+      'auth',
+      'restoreSession',
+      AppDependencies.authCubit.restoreSession,
+    ).timeout(_sessionRestoreTimeout);
+  } on TimeoutException {
+    AppLog.warning('boot', 'restoreSession timed out — entering app anyway');
+  }
 
   final user = AppDependencies.authCubit.state.maybeWhen(
     authenticated: (value) => value,
@@ -186,11 +210,29 @@ Future<GoRouter> _initializeRuntime() async {
   if (user != null && user.hasAppAccess) {
     // Only the existing home-critical, cache-backed scopes are warmed. Feature
     // screens such as schedule, swaps, cases, and templates remain lazy.
-    await Future.wait<void>([
+    //
+    // Warm-up is an optimization, never a gate: bound it so a slow backend can't
+    // hold the splash on its final static frame. On timeout we enter the app
+    // anyway — these scopes keep loading in the background and their screens
+    // render as soon as they land. A genuine load *error* (not a hang) still
+    // propagates to the startup-error screen, exactly as before.
+    final warmup = Future.wait<void>([
       AppDependencies.statisticsCubit.load(user),
       AppDependencies.taskCubit.load(user),
       AppDependencies.branchCubit.loadIfNeeded(),
     ]);
+    // Observe the combined future independently so a failure that lands *after*
+    // the timeout branch has already moved on can't become an unobserved async
+    // error (which the zone funnel would report as a crash). `ignore()` silences
+    // only this listener; the `await` below still surfaces an error that arrives
+    // *before* the timeout, exactly as the original unguarded
+    // `await Future.wait(...)` did.
+    warmup.ignore();
+    try {
+      await warmup.timeout(_warmupTimeout);
+    } on TimeoutException {
+      AppLog.warning('boot', 'home-critical warm-up timed out — entering app');
+    }
   }
 
   final router = _router ??= createRouter(
