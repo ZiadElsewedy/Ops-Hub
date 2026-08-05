@@ -14,6 +14,81 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Branch Monthly Sales Target: design locked (docs only; no code)
+
+Added [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md) and
+[docs/design/SALES_TARGETS.md](docs/design/SALES_TARGETS.md) — the full design for a
+planned feature: per-branch monthly sales targets, daily employee sales submissions,
+manager/admin approval, and derived-on-read progress. Decided a **derived ledger** (two
+deterministically-keyed month/day collections, approved total re-summed on read, no
+stored accumulation, no rollup), **server-authoritative** monetary transitions via
+callables (ADR-005), **`Africa/Cairo`** keys (ADR-015), piastres money, and reuse of the
+existing audit + notification seams. Stays inside ADR-009/010 — no analytics pipeline.
+Two policy questions (peer visibility of approved amounts; back-date window) are flagged
+for owner sign-off at P0. **No `lib/features/sales/` code exists yet.**
+
+## 2026-08-05 — Swap approvals that silently did nothing (bug; MED risk)
+
+Root cause of *"sometimes it approves, sometimes it doesn't"*: **a stale roster
+produced swap requests the server can never approve, and the refusal was
+invisible.** `ScheduleCubit` is a one-shot read, and the only refresh-on-swap
+listener keyed on a **local** mutation settling — so the device that did not
+press Approve kept showing the pre-swap week. A swap requested off that week
+names a shift its requester no longer holds, and `approveSwap`'s slot-integrity
+check refuses it forever. Confirmed against production: `weekly_schedules`
+`DDwedTHvI1sPHrMz06PI_2026-08-02` was rewritten by the 00:23:33Z approval
+(Thursday night ⇄ morning), and a new request at 00:46:39Z still claimed the
+requester's *old* night slot.
+
+- New `presentation/widgets/swap_roster_sync.dart` refetches the schedule when a
+  swap on the loaded (branch, week) reaches `managerApproved`, driven by the
+  **realtime swap stream** — so both parties' devices update. Mounted on
+  `ManagerScheduleView` (replacing the local busy→idle listener) and
+  `MyScheduleScreen`, which had no refresh at all.
+- `SwapListView` states a refused decision **inside the list** (`Not applied` +
+  the server's sentence, dismissible). The queue is a modal bottom sheet and a
+  `ScaffoldMessenger` snackbar renders in the page `Scaffold` *underneath* it, so
+  the only explanation the user ever got was hidden behind the sheet. A stream
+  failure now renders `AppErrorState` + Retry instead of a blank sheet.
+- An approved record with no stored reviewer now says **Approver not recorded**
+  rather than rendering nothing — still inventing no person (attribution is
+  written only by `approveSwap`, live since 2026-08-05 00:35Z, revision
+  `approveswap-00014-ceq`), but no longer looking like a missing name.
+
+Tests: `swap_roster_sync_test.dart` (3, new) + `swap_approval_attribution_test.dart`
+(refusal surfacing + the unrecorded-approver line). Presentation only — no
+schema, rules, or function change.
+
+## 2026-08-05 — Swap approval attribution, history, and sheet crash fix (feature + bug; MED risk)
+
+Fixed `showSwapQueueSheet` reading `MediaQuery` from a schedule context that
+could be deactivated while its modal route opened. The sheet now captures its
+height before opening and uses its own route context to dismiss. Swap history is
+always available, separates open work from resolved records, and approved cards
+and notifications name the manager/admin who approved them. The `approveSwap`
+Cloud Function stores reviewer attribution atomically with the roster exchange.
+Legacy records without that stored fact do not fabricate an actor name.
+The schedule keeps the swap/history control visible even when its pending count is zero.
+
+New `test/swap_approval_attribution_test.dart` (3 cases) pins the card
+behaviour: an approved swap names its reviewer and states the decision time, a
+record with no stored reviewer names nobody, and a swap still awaiting a
+decision carries no approval line at all.
+
+**The reported symptom was a deploy gap, not a code gap.** The client rendered
+`Approved by <name>` correctly all along; it had nothing to render because
+production still ran `approveswap-00013-taz` (2026-08-04 13:16 UTC) while the
+attribution write was committed at `b76cbac` (2026-08-05 00:04 UTC) — so every
+approval in between was stored with no reviewer, and the card refused to invent
+one. `firebase deploy --only functions:approveSwap` rolled production to
+**`approveswap-00014-ceq`, `ACTIVE`** at 2026-08-05 00:35 UTC, confirmed with
+`gcloud functions describe` rather than taken from the CLI's success line.
+
+> ⚠️ **Swaps approved before that deploy are unattributed permanently.** The
+> fields are written only inside the approval transaction and nothing else
+> records who decided, so there is no backfill source. Those history cards will
+> always show no approver — which is the correct behaviour, not a bug.
+
 ## 2026-08-05 — Project identity aligned to Drop Operation (refactor; MED risk)
 
 Renamed the repository folder from its legacy name to **`Drop-operations`** and

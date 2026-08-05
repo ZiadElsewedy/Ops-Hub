@@ -7,6 +7,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/app_glass_card.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
@@ -31,12 +32,12 @@ import 'package:drop/core/widgets/list_skeleton.dart';
 /// The semantic accent for a swap status (subtle status glow + chip colour).
 /// Strictly monochrome elsewhere — only the status signal is tinted.
 Color _swapAccent(SwapStatus status) => switch (status) {
-      SwapStatus.pending => AppColors.warning,
-      SwapStatus.employeeApproved => AppColors.warning,
-      SwapStatus.managerApproved => AppColors.success,
-      SwapStatus.rejected => AppColors.error,
-      SwapStatus.cancelled => AppColors.textTertiary,
-    };
+  SwapStatus.pending => AppColors.warning,
+  SwapStatus.employeeApproved => AppColors.warning,
+  SwapStatus.managerApproved => AppColors.success,
+  SwapStatus.rejected => AppColors.error,
+  SwapStatus.cancelled => AppColors.textTertiary,
+};
 
 /// The card glow for a swap status — null (monochrome) for a settled/cancelled
 /// request, a soft accent halo while in-flight or freshly approved/rejected.
@@ -46,7 +47,15 @@ Color? _swapGlow(SwapStatus status) =>
 /// List of shift-swap requests with role-appropriate actions (Phase 7). Used on
 /// the employee "Swaps" tab ([isManager] = false) and the manager "Swap
 /// Requests" tab ([isManager] = true). Reads [ShiftSwapCubit] from context.
-class SwapListView extends StatelessWidget {
+///
+/// ⚠️ **A failed decision is reported INSIDE this list, never only as a
+/// snackbar.** The manager/admin queue is opened as a modal bottom sheet
+/// ([showSwapQueueSheet]), and a `ScaffoldMessenger` snackbar renders in the
+/// page `Scaffold` *underneath* that sheet — so a refused approval (the server
+/// re-validates the roster and rejects a swap whose slot has since moved) was
+/// completely invisible: the button appeared to do nothing, which is exactly
+/// the "sometimes it approves, sometimes it doesn't" report.
+class SwapListView extends StatefulWidget {
   const SwapListView({
     super.key,
     required this.isManager,
@@ -62,45 +71,108 @@ class SwapListView extends StatelessWidget {
   final bool showBranch;
 
   @override
+  State<SwapListView> createState() => _SwapListViewState();
+}
+
+class _SwapListViewState extends State<SwapListView> {
+  /// The last refused decision, held until the user dismisses it or starts
+  /// another action. [ShiftSwapState.error] is transient (the cubit re-emits the
+  /// list immediately after), so the message has to be kept here to stay
+  /// readable.
+  String? _actionError;
+
+  @override
   Widget build(BuildContext context) {
     return BlocConsumer<ShiftSwapCubit, ShiftSwapState>(
-      listener: (context, state) =>
-          state.whenOrNull(error: (m) => AppSnackbar.error(context, m)),
+      listener: (context, state) {
+        state.whenOrNull(error: (m) => setState(() => _actionError = m));
+        // A new attempt (or a re-subscribe) clears the previous verdict — but
+        // the settled `loaded` that FOLLOWS a refusal must not, or the message
+        // would be wiped in the same frame it arrived.
+        final retrying = state.maybeWhen(
+          loading: () => true,
+          loaded: (_, busy) => busy,
+          orElse: () => false,
+        );
+        if (retrying && _actionError != null) {
+          setState(() => _actionError = null);
+        }
+      },
       builder: (context, state) => state.maybeWhen(
         loading: () => const ListSkeleton(count: 3, cardHeight: 120),
         loaded: (swaps, busy) => _list(context, swaps, busy),
+        // A stream failure used to render nothing at all here — a blank sheet
+        // with its only explanation hidden behind it.
+        error: (message) => AppErrorState(
+          message: message,
+          title: 'Swap requests unavailable',
+          onRetry: () => context.read<ShiftSwapCubit>().refresh(),
+        ),
         orElse: () => const SizedBox.shrink(),
       ),
     );
   }
 
   Widget _list(BuildContext context, List<ShiftSwapEntity> swaps, bool busy) {
+    final error = _actionError;
     return Column(
       children: [
         if (busy) const LinearProgressIndicator(minHeight: 2),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding,
+              AppSpacing.md,
+              AppSpacing.pagePadding,
+              0,
+            ),
+            child: _SwapActionError(
+              message: error,
+              onDismiss: () => setState(() => _actionError = null),
+            ),
+          ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => context.read<ShiftSwapCubit>().refresh(),
             child: swaps.isEmpty
                 ? DropEmptyState(
                     title: 'No swap requests',
-                    message: isManager
+                    message: widget.isManager
                         ? 'When a coworker accepts a teammate’s swap, it’ll '
-                            'arrive here for your approval.'
+                              'arrive here for your approval.'
                         : 'Tap a shift on your week to request a swap with a '
-                            'coworker on the opposite shift.',
+                              'coworker on the opposite shift.',
                   )
                 : ListView(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
-                        AppSpacing.lg, AppSpacing.pagePadding, AppSpacing.xxxl),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.lg,
+                      AppSpacing.pagePadding,
+                      AppSpacing.xxxl,
+                    ),
                     children: [
-                      for (final s in swaps)
-                        _SwapCard(
-                          swap: s,
-                          isManager: isManager,
-                          currentUid: currentUid,
-                          showBranch: showBranch,
-                        ),
+                      if (swaps.any((s) => !s.status.isResolved)) ...[
+                        const _SwapSectionTitle('Needs attention'),
+                        for (final s in swaps.where(
+                          (s) => !s.status.isResolved,
+                        ))
+                          _SwapCard(
+                            swap: s,
+                            isManager: widget.isManager,
+                            currentUid: widget.currentUid,
+                            showBranch: widget.showBranch,
+                          ),
+                      ],
+                      if (swaps.any((s) => s.status.isResolved)) ...[
+                        const _SwapSectionTitle('History'),
+                        for (final s in swaps.where((s) => s.status.isResolved))
+                          _SwapCard(
+                            swap: s,
+                            isManager: widget.isManager,
+                            currentUid: widget.currentUid,
+                            showBranch: widget.showBranch,
+                          ),
+                      ],
                     ],
                   ),
           ),
@@ -165,6 +237,13 @@ class _SwapCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               _NoteLine(note: swap.note!),
             ],
+            if (swap.status == SwapStatus.managerApproved) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _ApprovalLine(
+                name: swap.managerApprovedByName,
+                approvedAt: swap.managerApprovedAt,
+              ),
+            ],
 
             const SizedBox(height: AppSpacing.md),
             const Divider(height: 1, color: AppColors.darkBorder),
@@ -176,8 +255,10 @@ class _SwapCard extends StatelessWidget {
                 Expanded(child: _SwapStatusTimeline(status: swap.status)),
                 if (swap.createdAt != null) ...[
                   const SizedBox(width: AppSpacing.sm),
-                  Text(_relativeTime(swap.createdAt!),
-                      style: AppTypography.caption),
+                  Text(
+                    _relativeTime(swap.createdAt!),
+                    style: AppTypography.caption,
+                  ),
                 ],
               ],
             ),
@@ -194,49 +275,186 @@ class _SwapCard extends StatelessWidget {
     if (isManager) {
       // Manager acts once the coworker has approved.
       if (swap.status.isEmployeeApproved) {
-        buttons.add(_SwapButton(
-          label: 'Approve swap',
-          icon: Icons.check_circle_outline_rounded,
-          style: PremiumButtonStyle.filled,
-          onPressed: () => cubit.managerApprove(swap),
-        ));
-        buttons.add(_SwapButton(
-          label: 'Reject',
-          icon: Icons.cancel_outlined,
-          color: AppColors.error,
-          onPressed: () => cubit.reject(swap, actorId: currentUid),
-        ));
+        buttons.add(
+          _SwapButton(
+            label: 'Approve swap',
+            icon: Icons.check_circle_outline_rounded,
+            style: PremiumButtonStyle.filled,
+            onPressed: () => cubit.managerApprove(swap),
+          ),
+        );
+        buttons.add(
+          _SwapButton(
+            label: 'Reject',
+            icon: Icons.cancel_outlined,
+            color: AppColors.error,
+            onPressed: () => cubit.reject(swap, actorId: currentUid),
+          ),
+        );
       }
     } else {
       final isTarget = swap.targetId == currentUid;
       final isRequester = swap.requesterId == currentUid;
       if (isTarget && swap.status.isPending) {
-        buttons.add(_SwapButton(
-          label: 'Accept',
-          icon: Icons.check_rounded,
-          style: PremiumButtonStyle.filled,
-          onPressed: () => cubit.coworkerApprove(swap),
-        ));
-        buttons.add(_SwapButton(
-          label: 'Decline',
-          icon: Icons.close_rounded,
-          color: AppColors.error,
-          onPressed: () => cubit.reject(swap, actorId: currentUid),
-        ));
+        buttons.add(
+          _SwapButton(
+            label: 'Accept',
+            icon: Icons.check_rounded,
+            style: PremiumButtonStyle.filled,
+            onPressed: () => cubit.coworkerApprove(swap),
+          ),
+        );
+        buttons.add(
+          _SwapButton(
+            label: 'Decline',
+            icon: Icons.close_rounded,
+            color: AppColors.error,
+            onPressed: () => cubit.reject(swap, actorId: currentUid),
+          ),
+        );
       } else if (isRequester && !swap.status.isResolved) {
-        buttons.add(_SwapButton(
-          label: 'Cancel request',
-          icon: Icons.undo_rounded,
-          color: AppColors.warning,
-          onPressed: () => cubit.cancelSwap(swap),
-        ));
+        buttons.add(
+          _SwapButton(
+            label: 'Cancel request',
+            icon: Icons.undo_rounded,
+            color: AppColors.warning,
+            onPressed: () => cubit.cancelSwap(swap),
+          ),
+        );
       }
     }
     if (buttons.isEmpty) return const [];
     return [
       const SizedBox(height: AppSpacing.md),
-      Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.xs, children: buttons),
+      Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
+        children: buttons,
+      ),
     ];
+  }
+}
+
+class _SwapSectionTitle extends StatelessWidget {
+  const _SwapSectionTitle(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+    child: Text(label, style: AppTypography.labelSmall),
+  );
+}
+
+/// Why a decision was refused, stated where the decision was taken. The queue
+/// is usually a modal sheet, and a snackbar renders behind it — see the note on
+/// [SwapListView].
+class _SwapActionError extends StatelessWidget {
+  const _SwapActionError({required this.message, required this.onDismiss});
+
+  final String message;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.error.withAlpha(28),
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: AppColors.error.withAlpha(110)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 18,
+            color: AppColors.error,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Not applied',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.error,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: AppColors.textTertiary,
+            ),
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Dismiss',
+            onPressed: onDismiss,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Names the manager/admin who approved the exchange, with when they decided.
+///
+/// The attribution is written **only** by the server-authoritative `approveSwap`
+/// Cloud Function, which stamps `managerApprovedById/Name/At` inside the same
+/// transaction as the roster exchange — the client never forges it. Records
+/// approved before that write existed carry no name, and this never invents one
+/// for them; it says the approver was not recorded, so a blank line reads as the
+/// data gap it is instead of a broken card.
+class _ApprovalLine extends StatelessWidget {
+  const _ApprovalLine({this.name, this.approvedAt});
+  final String? name;
+  final DateTime? approvedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final approver = (name ?? '').trim();
+    final recorded = approver.isNotEmpty;
+    final time = approvedAt == null ? null : _relativeTime(approvedAt!);
+    return Row(
+      children: [
+        Icon(
+          recorded ? Icons.verified_rounded : Icons.help_outline_rounded,
+          size: 15,
+          color: recorded ? AppColors.success : AppColors.textTertiary,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            recorded ? 'Approved by $approver' : 'Approver not recorded',
+            style: AppTypography.caption.copyWith(
+              color: recorded
+                  ? AppColors.textSecondary
+                  : AppColors.textTertiary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (time != null) Text(time, style: AppTypography.caption),
+      ],
+    );
   }
 }
 
@@ -274,13 +492,19 @@ class _ExchangeRow extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.swap_horiz_rounded,
-                size: 16, color: AppColors.textSecondary),
+            child: const Icon(
+              Icons.swap_horiz_rounded,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
         Expanded(
           child: _ExchangeParty(
-              name: targetName, shift: targetShift, alignEnd: true),
+            name: targetName,
+            shift: targetShift,
+            alignEnd: true,
+          ),
         ),
       ],
     );
@@ -301,8 +525,9 @@ class _ExchangeParty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         UserAvatar(name: name, size: 38),
         const SizedBox(height: AppSpacing.xs),
@@ -345,9 +570,10 @@ class _ShiftPill extends StatelessWidget {
             color: morning ? AppColors.textPrimary : AppColors.textSecondary,
           ),
           const SizedBox(width: 5),
-          Text(shift.label,
-              style: AppTypography.caption
-                  .copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            shift.label,
+            style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -369,11 +595,16 @@ class _SwapStatusTimeline extends StatelessWidget {
       final color = rejected ? AppColors.error : AppColors.textTertiary;
       return Row(
         children: [
-          Icon(rejected ? Icons.cancel_rounded : Icons.do_not_disturb_on_rounded,
-              size: 15, color: color),
+          Icon(
+            rejected ? Icons.cancel_rounded : Icons.do_not_disturb_on_rounded,
+            size: 15,
+            color: color,
+          ),
           const SizedBox(width: 6),
-          Text(rejected ? 'Swap rejected' : 'Swap cancelled',
-              style: AppTypography.caption.copyWith(color: color)),
+          Text(
+            rejected ? 'Swap rejected' : 'Swap cancelled',
+            style: AppTypography.caption.copyWith(color: color),
+          ),
         ],
       );
     }
@@ -389,23 +620,30 @@ class _SwapStatusTimeline extends StatelessWidget {
     final children = <Widget>[];
     for (var i = 0; i < 3; i++) {
       if (i > 0) {
-        children.add(Expanded(
-          child: Container(
-            height: 2,
-            margin: const EdgeInsets.only(bottom: 14),
-            color: reached > i ? done : AppColors.darkBorder,
+        children.add(
+          Expanded(
+            child: Container(
+              height: 2,
+              margin: const EdgeInsets.only(bottom: 14),
+              color: reached > i ? done : AppColors.darkBorder,
+            ),
           ),
-        ));
+        );
       }
-      children.add(_TimelineNode(
-        label: _labels[i],
-        state: i < reached
-            ? _NodeState.done
-            : (i == reached ? _NodeState.active : _NodeState.upcoming),
-        doneColor: done,
-      ));
+      children.add(
+        _TimelineNode(
+          label: _labels[i],
+          state: i < reached
+              ? _NodeState.done
+              : (i == reached ? _NodeState.active : _NodeState.upcoming),
+          doneColor: done,
+        ),
+      );
     }
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
   }
 }
 
@@ -432,8 +670,11 @@ class _TimelineNode extends StatelessWidget {
           width: 16,
           height: 16,
           decoration: BoxDecoration(color: doneColor, shape: BoxShape.circle),
-          child: const Icon(Icons.check_rounded,
-              size: 11, color: AppColors.onPrimary),
+          child: const Icon(
+            Icons.check_rounded,
+            size: 11,
+            color: AppColors.onPrimary,
+          ),
         );
         labelColor = AppColors.textSecondary;
       case _NodeState.active:
@@ -462,8 +703,13 @@ class _TimelineNode extends StatelessWidget {
       children: [
         dot,
         const SizedBox(height: 4),
-        Text(label,
-            style: AppTypography.caption.copyWith(color: labelColor, fontSize: 10)),
+        Text(
+          label,
+          style: AppTypography.caption.copyWith(
+            color: labelColor,
+            fontSize: 10,
+          ),
+        ),
       ],
     );
   }
@@ -478,13 +724,19 @@ class _NoteLine extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.format_quote_rounded,
-            size: 15, color: AppColors.textTertiary),
+        const Icon(
+          Icons.format_quote_rounded,
+          size: 15,
+          color: AppColors.textTertiary,
+        ),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(note,
-              style: AppTypography.bodySmall
-                  .copyWith(fontStyle: FontStyle.italic)),
+          child: Text(
+            note,
+            style: AppTypography.bodySmall.copyWith(
+              fontStyle: FontStyle.italic,
+            ),
+          ),
         ),
       ],
     );
@@ -512,13 +764,17 @@ class _BranchLine extends StatelessWidget {
     return BlocBuilder<BranchCubit, BranchState>(
       builder: (context, state) {
         final branch = context.read<BranchCubit>().branchById(branchId);
-        final name = branch?.name ??
-            (branchId.isEmpty ? 'Unassigned branch' : branchId);
+        final name =
+            branch?.name ?? (branchId.isEmpty ? 'Unassigned branch' : branchId);
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             BranchAvatar(
-                logoUrl: branch?.logoUrl, name: name, size: 18, radius: 6),
+              logoUrl: branch?.logoUrl,
+              name: name,
+              size: 18,
+              radius: 6,
+            ),
             const SizedBox(width: 6),
             Text(name, style: AppTypography.caption),
           ],
@@ -569,8 +825,10 @@ class _SwapStatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.full),
         border: Border.all(color: color.withAlpha(120)),
       ),
-      child: Text(status.label,
-          style: AppTypography.caption.copyWith(color: color)),
+      child: Text(
+        status.label,
+        style: AppTypography.caption.copyWith(color: color),
+      ),
     );
   }
 }
@@ -650,7 +908,10 @@ class _SwapRequestSheetState extends State<_SwapRequestSheet> {
   /// The branch's swap rules (role compatibility / rest hours), resolved from
   /// the app-wide [BranchCubit] directory; permissive default when none.
   SwapPolicy get _policy =>
-      context.read<BranchCubit>().branchById(widget.branchId)?.effectiveSwapPolicy ??
+      context
+          .read<BranchCubit>()
+          .branchById(widget.branchId)
+          ?.effectiveSwapPolicy ??
       SwapPolicy.permissive;
 
   void _send() {
@@ -661,7 +922,10 @@ class _SwapRequestSheetState extends State<_SwapRequestSheet> {
     }
     // Immediate feedback (spec §2): can't swap a past/in-progress shift.
     if (!SwapEligibility.isRequestable(
-        widget.weekStart, widget.day, widget.shift)) {
+      widget.weekStart,
+      widget.day,
+      widget.shift,
+    )) {
       AppSnackbar.error(context, SwapEligibility.pastShiftMessage);
       return;
     }
@@ -698,8 +962,9 @@ class _SwapRequestSheetState extends State<_SwapRequestSheet> {
   @override
   Widget build(BuildContext context) {
     final policy = _policy;
-    final others =
-        widget.coworkers.where((u) => u.uid != widget.requester.uid).toList();
+    final others = widget.coworkers
+        .where((u) => u.uid != widget.requester.uid)
+        .toList();
     return Padding(
       padding: EdgeInsets.only(
         left: AppSpacing.pagePadding,
@@ -725,8 +990,10 @@ class _SwapRequestSheetState extends State<_SwapRequestSheet> {
             ),
             const Text('Request a shift swap', style: AppTypography.h3),
             const SizedBox(height: AppSpacing.xs),
-            Text('${widget.day.label} · trade your shift with a coworker',
-                style: AppTypography.bodySmall),
+            Text(
+              '${widget.day.label} · trade your shift with a coworker',
+              style: AppTypography.bodySmall,
+            ),
             const SizedBox(height: AppSpacing.lg),
 
             // Exchange preview — what you give ⇄ what you get.
@@ -739,9 +1006,10 @@ class _SwapRequestSheetState extends State<_SwapRequestSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 child: Text(
-                    'No coworkers on the ${widget.shift.opposite.label} shift '
-                    'to swap with.',
-                    style: AppTypography.bodySmall),
+                  'No coworkers on the ${widget.shift.opposite.label} shift '
+                  'to swap with.',
+                  style: AppTypography.bodySmall,
+                ),
               )
             else
               ConstrainedBox(
@@ -754,7 +1022,9 @@ class _SwapRequestSheetState extends State<_SwapRequestSheet> {
                   itemBuilder: (context, i) {
                     final u = others[i];
                     final compatible = policy.positionsCompatible(
-                        widget.requester.position, u.position);
+                      widget.requester.position,
+                      u.position,
+                    );
                     return _CoworkerTile(
                       user: u,
                       shift: widget.shift.opposite,
@@ -797,19 +1067,26 @@ class _ExchangePreview extends StatelessWidget {
         children: [
           Expanded(
             child: _PreviewSlot(
-                caption: 'You give', shift: yourShift, day: day),
+              caption: 'You give',
+              shift: yourShift,
+              day: day,
+            ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Icon(Icons.swap_horiz_rounded,
-                size: 18, color: AppColors.textSecondary),
+            child: Icon(
+              Icons.swap_horiz_rounded,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
           ),
           Expanded(
             child: _PreviewSlot(
-                caption: 'You get',
-                shift: yourShift.opposite,
-                day: day,
-                alignEnd: true),
+              caption: 'You get',
+              shift: yourShift.opposite,
+              day: day,
+              alignEnd: true,
+            ),
           ),
         ],
       ),
@@ -833,12 +1110,17 @@ class _PreviewSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Text(caption.toUpperCase(),
-            style: AppTypography.caption
-                .copyWith(color: AppColors.textTertiary, letterSpacing: 0.5)),
+        Text(
+          caption.toUpperCase(),
+          style: AppTypography.caption.copyWith(
+            color: AppColors.textTertiary,
+            letterSpacing: 0.5,
+          ),
+        ),
         const SizedBox(height: 4),
         _ShiftPill(shift: shift),
         const SizedBox(height: 4),
@@ -899,17 +1181,20 @@ class _CoworkerTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(userDisplayName(user),
-                          style: AppTypography.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        userDisplayName(user),
+                        style: AppTypography.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         enabled ? subtitle : '$subtitle · different role',
                         style: AppTypography.caption.copyWith(
-                            color: enabled
-                                ? AppColors.textTertiary
-                                : AppColors.warning),
+                          color: enabled
+                              ? AppColors.textTertiary
+                              : AppColors.warning,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -920,8 +1205,7 @@ class _CoworkerTile extends StatelessWidget {
                   selected
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_off_rounded,
-                  color:
-                      selected ? AppColors.primary : AppColors.textTertiary,
+                  color: selected ? AppColors.primary : AppColors.textTertiary,
                 ),
               ],
             ),

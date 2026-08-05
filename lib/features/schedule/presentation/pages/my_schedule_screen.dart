@@ -26,6 +26,7 @@ import 'package:drop/features/schedule/domain/shift_window.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
 import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:drop/features/schedule/presentation/widgets/swap_roster_sync.dart';
 import 'package:drop/features/schedule/presentation/widgets/swap_view.dart';
 
 /// Employee schedule screen — premium design. Two tabs: "My Week" (greeting,
@@ -65,44 +66,51 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
     // Device identity, not window class: a phone rotated to landscape must not
     // flip to the legacy tablet body mid-session.
     final phone = MediaQuery.sizeOf(context).shortestSide < Breakpoints.tablet;
-    return DefaultTabController(
-      length: 2,
-      child: AdaptiveScaffold(
-        title: 'My Schedule',
-        subtitle: 'Your week and shift swaps',
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.refresh_rounded,
-              color: AppColors.textSecondary,
-            ),
-            tooltip: 'Refresh',
-            onPressed: _load,
+    return SwapRosterSync(
+      child: DefaultTabController(length: 2, child: _scaffold(phone)),
+    );
+  }
+
+  /// The week + swaps scaffold. Split out so [SwapRosterSync] can wrap it —
+  /// an approved swap rewrites this employee's week on the server, and without
+  /// that refetch the roster on screen stays pre-swap, which is how a swap gets
+  /// requested for a shift its requester no longer holds.
+  Widget _scaffold(bool phone) {
+    return AdaptiveScaffold(
+      title: 'My Schedule',
+      subtitle: 'Your week and shift swaps',
+      actions: [
+        IconButton(
+          icon: const Icon(
+            Icons.refresh_rounded,
+            color: AppColors.textSecondary,
+          ),
+          tooltip: 'Refresh',
+          onPressed: _load,
+        ),
+      ],
+      bottom: TabBar(
+        labelColor: AppColors.textPrimary,
+        unselectedLabelColor: AppColors.textTertiary,
+        indicatorColor: AppColors.primary,
+        indicatorSize: TabBarIndicatorSize.label,
+        indicatorWeight: 2,
+        tabs: [
+          const Tab(text: 'My Week'),
+          Tab(child: _SwapsTabLabel(showDot: phone)),
+        ],
+      ),
+      body: TabBarView(
+        children: [
+          _MyWeekTab(),
+          // Resolve the uid at build time — caching it from the post-frame
+          // _load() without setState left it '' until an incidental rebuild,
+          // hiding every Accept/Decline/Cancel action on the Swaps tab.
+          SwapListView(
+            isManager: false,
+            currentUid: context.currentUser?.uid ?? '',
           ),
         ],
-        bottom: TabBar(
-          labelColor: AppColors.textPrimary,
-          unselectedLabelColor: AppColors.textTertiary,
-          indicatorColor: AppColors.primary,
-          indicatorSize: TabBarIndicatorSize.label,
-          indicatorWeight: 2,
-          tabs: [
-            const Tab(text: 'My Week'),
-            Tab(child: _SwapsTabLabel(showDot: phone)),
-          ],
-        ),
-        body: TabBarView(
-          children: [
-            _MyWeekTab(),
-            // Resolve the uid at build time — caching it from the post-frame
-            // _load() without setState left it '' until an incidental rebuild,
-            // hiding every Accept/Decline/Cancel action on the Swaps tab.
-            SwapListView(
-              isManager: false,
-              currentUid: context.currentUser?.uid ?? '',
-            ),
-          ],
-        ),
       ),
     );
   }

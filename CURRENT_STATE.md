@@ -5,6 +5,61 @@
 >
 > **Last verified against the code:** 2026-08-05.
 
+> **Branch Monthly Sales Target — design locked, not built (2026-08-05):** A new
+> planned feature is fully designed in
+> [docs/design/SALES_TARGETS.md](docs/design/SALES_TARGETS.md) +
+> [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md): per-branch monthly
+> targets, daily employee sales submissions, manager/admin approval, derived-on-read
+> progress. Architecture: a **derived ledger** (deterministic month/day docs, approved
+> total re-summed on read, no stored accumulation, no rollup — stays inside
+> ADR-009/010), **server-authoritative** callables for every monetary transition
+> (ADR-005), **`Africa/Cairo`** keys (ADR-015), piastres money, reused audit +
+> notification seams. **No `lib/features/sales/` code exists yet** — P0 is blocked on
+> owner sign-off of two policy questions (peer visibility of approved amounts;
+> back-date window). Do not start P1 before those are ruled.
+
+> **Swap workflow reliability + history (2026-08-05):** The manager/admin swap
+> sheet captures its height before opening, avoiding the deactivated-context
+> `MediaQuery` crash during a schedule rebuild. It is always reachable as **Swap
+> history**, separates open requests from resolved records, and approved swaps
+> name the manager/admin and decision time. `approveSwap` persists that reviewer
+> attribution atomically with the roster exchange and includes it in the employee
+> approval notification.
+> Legacy records without stored actor attribution intentionally show no invented
+> person; a real name is shown only when it was persisted with the decision.
+> The mobile schedule always exposes the Swap history control, including when
+> there are no pending requests.
+> ✅ **The server half is DEPLOYED (2026-08-05 00:35 UTC).** It was the reason no
+> name appeared on device: the attribution write landed in `functions/index.js`
+> at `b76cbac` (00:04 UTC) while production still ran `approveswap-00013-taz`
+> from **2026-08-04 13:16 UTC**, so approvals were stored with no
+> `managerApprovedById/Name/At` and the card honestly rendered nobody.
+> `firebase deploy --only functions:approveSwap` rolled it to
+> **`approveswap-00014-ceq`, state `ACTIVE`** — verified via
+> `gcloud functions describe`, not just reported by the CLI.
+> ⚠️ **Swaps approved before that moment stay unattributed forever** — the
+> fields are written only at decision time and there is no backfill source. The
+> first *newly* approved swap is the real end-to-end confirmation. Those records
+> now read **Approver not recorded** instead of showing nothing at all.
+>
+> **The "sometimes it approves, sometimes it doesn't" bug is FIXED (2026-08-05,
+> client-only).** It was never the callable failing at random: a **stale roster**
+> produced requests the server can never approve, and the refusal was invisible.
+> `ScheduleCubit` is a one-shot read and only refreshed on a *local* mutation
+> settling, so the device that did not press Approve kept the pre-swap week; a
+> swap requested off it names a shift its requester no longer holds and
+> `approveSwap`'s slot-integrity check refuses it permanently. Verified in
+> production: the 00:23:33Z approval rewrote
+> `weekly_schedules/DDwedTHvI1sPHrMz06PI_2026-08-02` (Thursday night ⇄ morning),
+> and the 00:46:39Z request still claimed the requester's old night slot. New
+> `SwapRosterSync` refetches the week whenever a swap on the loaded
+> (branch, week) reaches `managerApproved`, off the **realtime** swap stream, so
+> both parties update — mounted on the manager/admin view and on
+> `MyScheduleScreen`, which had no refresh at all. The swap list now states a
+> refused decision **inline** (`Not applied` + the server's sentence): the queue
+> is a modal sheet and its snackbar was rendering in the page `Scaffold`
+> underneath it, so Approve looked like it did nothing. **Not device-verified.**
+
 > **Project identity alignment (2026-08-05):** The repository folder is
 > **`Drop-operations`** and the user-facing product name is **Drop Operation**.
 > Android/Linux use the valid identifier `com.example.dropoperation`; iOS/macOS
@@ -115,7 +170,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-04** after the Task Management production polish pass |
-| **Tests** | **1574 pass · 0 fail** (~33s) — **green**, re-run and verified **2026-08-04** after the Task Management production polish pass (+19: `task_browser_groups_test.dart` is new; `task_feed_row_test.dart` and `task_browser_test.dart` gained the two-line row, search-state, lens-count and narrow-width cases). Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1585 pass · 1 fail** (~40s) — re-run **2026-08-05** after the swap-approval reliability pass (`swap_roster_sync_test.dart` is new; `swap_approval_attribution_test.dart` gained the refusal-surfacing case). ⚠️ **The one failure is `splash_visual_centering_test.dart`, pre-existing and unrelated to swaps**: it `base64Decode`s the Lottie's embedded WebP frames and now throws `FormatException: Invalid character (at character 65630)` — the data URI carries trailing whitespace after its padding, which strict `base64Decode` rejects. It regressed with the branding/asset churn in `b260c39`/`b76cbac`, not with any swap change. Cloud Functions: **86 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

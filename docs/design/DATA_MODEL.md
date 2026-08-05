@@ -132,6 +132,24 @@ claims; role and branch are read from the caller's own `users/{uid}` doc.
 | `usageStats/{doc}` | admin | any signed-in (increment) | any signed-in | false |
 | `{path=**}/reporter/{doc}` (collection-group) | admin · `createdByUserId==uid` | signed-in, `identity` doc, self-claimed uid | false | false |
 
+### Swap reviewer attribution
+
+`shift_swaps` records the final reviewer as `managerApprovedById`,
+`managerApprovedByName` and `managerApprovedAt`. They are written **only** by
+`approveSwap`, inside the same transaction as the atomic roster exchange, so the
+name on a card is a server fact the client cannot forge. A record written before
+these fields existed carries none of them and is rendered with **no** actor —
+never "a manager"; the card states *Approver not recorded* so the gap reads as
+data, not as a broken widget. Swap lists sort by latest decision/update, so
+today's resolutions lead the history ahead of last week's requests.
+
+`approveSwap` re-validates slot integrity against the freshest roster, so a swap
+requested off a **stale** week (its requester has since been moved by another
+approved swap) is refused permanently. The clients therefore refetch the weekly
+schedule whenever a swap on the loaded (branch, week) reaches `managerApproved`
+— driven by the realtime swap stream, so **both** parties' devices update, not
+only the one that pressed Approve (`presentation/widgets/swap_roster_sync.dart`).
+
 ### Isolation invariants
 
 - **Admin-provisioned identity.** `createUserAccount` (Admin SDK) is the only user-doc

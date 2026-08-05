@@ -160,7 +160,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles | [AUTH](docs/design/AUTH.md) |
 | `profile` | View/edit profile, image uploads, contact & payment details | [AUTH](docs/design/AUTH.md) |
 | `task` | The operations task workflow: create → execute → review | [TASKS](docs/design/TASKS.md) |
-| `schedule` | Admin Today coverage across branches, weekly roster, shift swaps, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
+| `schedule` | Admin Today coverage across branches, weekly roster, attributed swap approval/history, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `requests` | Employee → manager yes/no approvals | [REQUESTS](docs/design/REQUESTS.md) |
 | `cases` | Private employee ↔ manager/admin conversations | [CASES](docs/design/CASES.md) |

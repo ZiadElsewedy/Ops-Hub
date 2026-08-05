@@ -9,23 +9,22 @@ import 'package:drop/features/schedule/presentation/widgets/swap_view.dart';
 /// Floating alert that surfaces pending swap requests inside the schedule
 /// workflow (Phase 7 redesign) — replacing the separate "Swap Requests" tab.
 /// Swaps are part of schedule operations, so they live here as a glanceable
-/// pill: tap to open the review queue. Renders nothing when [count] is zero.
+/// pill: tap to open the review queue or settled-request history.
 class SwapAlertCard extends StatelessWidget {
-  const SwapAlertCard({
-    super.key,
-    required this.count,
-    required this.onReview,
-  });
+  const SwapAlertCard({super.key, required this.count, required this.onReview});
 
   final int count;
   final VoidCallback onReview;
 
   @override
   Widget build(BuildContext context) {
-    if (count <= 0) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, 0,
-          AppSpacing.pagePadding, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pagePadding,
+        0,
+        AppSpacing.pagePadding,
+        AppSpacing.md,
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -33,7 +32,9 @@ class SwapAlertCard extends StatelessWidget {
           borderRadius: AppRadius.cardAll,
           child: Container(
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.md),
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.md,
+            ),
             decoration: BoxDecoration(
               color: AppColors.darkSurfaceElevated,
               borderRadius: AppRadius.cardAll,
@@ -48,20 +49,28 @@ class SwapAlertCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        count == 1
+                        count == 0
+                            ? 'Swap history'
+                            : count == 1
                             ? '1 swap request pending'
                             : '$count swap requests pending',
                         style: AppTypography.label,
                       ),
                       const SizedBox(height: 1),
-                      const Text('Tap to review and approve',
-                          style: AppTypography.caption),
+                      Text(
+                        count == 0
+                            ? 'Review previous requests and decisions'
+                            : 'Tap to review and approve',
+                        style: AppTypography.caption,
+                      ),
                     ],
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md, vertical: 6),
+                    horizontal: AppSpacing.md,
+                    vertical: 6,
+                  ),
                   decoration: const BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: AppRadius.fullAll,
@@ -69,11 +78,17 @@ class SwapAlertCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Review',
-                          style: AppTypography.labelSmall
-                              .copyWith(color: AppColors.onPrimary)),
-                      const Icon(Icons.arrow_forward_rounded,
-                          size: 15, color: AppColors.onPrimary),
+                      Text(
+                        count == 0 ? 'History' : 'Review',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.onPrimary,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 15,
+                        color: AppColors.onPrimary,
+                      ),
                     ],
                   ),
                 ),
@@ -100,8 +115,11 @@ class _CountBadge extends StatelessWidget {
         color: AppColors.primarySurface,
         shape: BoxShape.circle,
       ),
-      child: Icon(Icons.swap_horiz_rounded,
-          size: 20, color: AppColors.primary.withAlpha(230)),
+      child: Icon(
+        Icons.swap_horiz_rounded,
+        size: 20,
+        color: AppColors.primary.withAlpha(230),
+      ),
     );
   }
 }
@@ -132,15 +150,21 @@ Future<void> showSwapQueueSheet({
           const SizedBox(height: AppSpacing.md),
           const SheetHandle(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
-                AppSpacing.md, AppSpacing.pagePadding, AppSpacing.sm),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding,
+              AppSpacing.md,
+              AppSpacing.pagePadding,
+              AppSpacing.sm,
+            ),
             child: Row(
               children: [
-                const Text('Swap Requests', style: AppTypography.h3),
+                const Text('Swap requests & history', style: AppTypography.h3),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                   onPressed: () => Navigator.of(sheetContext).pop(),
                 ),
               ],

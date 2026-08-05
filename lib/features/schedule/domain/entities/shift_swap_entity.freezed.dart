@@ -40,6 +40,12 @@ mixin _$ShiftSwapEntity {
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt => throw _privateConstructorUsedError;
 
+  /// The manager/admin who atomically approved the exchange. Written only by
+  /// the server-authoritative `approveSwap` Cloud Function.
+  String? get managerApprovedById => throw _privateConstructorUsedError;
+  String? get managerApprovedByName => throw _privateConstructorUsedError;
+  DateTime? get managerApprovedAt => throw _privateConstructorUsedError;
+
   /// Create a copy of ShiftSwapEntity
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -68,6 +74,9 @@ abstract class $ShiftSwapEntityCopyWith<$Res> {
     String? note,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? managerApprovedById,
+    String? managerApprovedByName,
+    DateTime? managerApprovedAt,
   });
 }
 
@@ -99,6 +108,9 @@ class _$ShiftSwapEntityCopyWithImpl<$Res, $Val extends ShiftSwapEntity>
     Object? note = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? managerApprovedById = freezed,
+    Object? managerApprovedByName = freezed,
+    Object? managerApprovedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -154,6 +166,18 @@ class _$ShiftSwapEntityCopyWithImpl<$Res, $Val extends ShiftSwapEntity>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime?,
+            managerApprovedById: freezed == managerApprovedById
+                ? _value.managerApprovedById
+                : managerApprovedById // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            managerApprovedByName: freezed == managerApprovedByName
+                ? _value.managerApprovedByName
+                : managerApprovedByName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            managerApprovedAt: freezed == managerApprovedAt
+                ? _value.managerApprovedAt
+                : managerApprovedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -183,6 +207,9 @@ abstract class _$$ShiftSwapEntityImplCopyWith<$Res>
     String? note,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? managerApprovedById,
+    String? managerApprovedByName,
+    DateTime? managerApprovedAt,
   });
 }
 
@@ -213,6 +240,9 @@ class __$$ShiftSwapEntityImplCopyWithImpl<$Res>
     Object? note = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
+    Object? managerApprovedById = freezed,
+    Object? managerApprovedByName = freezed,
+    Object? managerApprovedAt = freezed,
   }) {
     return _then(
       _$ShiftSwapEntityImpl(
@@ -268,6 +298,18 @@ class __$$ShiftSwapEntityImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime?,
+        managerApprovedById: freezed == managerApprovedById
+            ? _value.managerApprovedById
+            : managerApprovedById // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        managerApprovedByName: freezed == managerApprovedByName
+            ? _value.managerApprovedByName
+            : managerApprovedByName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        managerApprovedAt: freezed == managerApprovedAt
+            ? _value.managerApprovedAt
+            : managerApprovedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
@@ -290,6 +332,9 @@ class _$ShiftSwapEntityImpl implements _ShiftSwapEntity {
     this.note,
     this.createdAt,
     this.updatedAt,
+    this.managerApprovedById,
+    this.managerApprovedByName,
+    this.managerApprovedAt,
   });
 
   @override
@@ -329,9 +374,18 @@ class _$ShiftSwapEntityImpl implements _ShiftSwapEntity {
   @override
   final DateTime? updatedAt;
 
+  /// The manager/admin who atomically approved the exchange. Written only by
+  /// the server-authoritative `approveSwap` Cloud Function.
+  @override
+  final String? managerApprovedById;
+  @override
+  final String? managerApprovedByName;
+  @override
+  final DateTime? managerApprovedAt;
+
   @override
   String toString() {
-    return 'ShiftSwapEntity(id: $id, branchId: $branchId, weekStart: $weekStart, day: $day, shift: $shift, requesterId: $requesterId, requesterName: $requesterName, targetId: $targetId, targetName: $targetName, status: $status, note: $note, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'ShiftSwapEntity(id: $id, branchId: $branchId, weekStart: $weekStart, day: $day, shift: $shift, requesterId: $requesterId, requesterName: $requesterName, targetId: $targetId, targetName: $targetName, status: $status, note: $note, createdAt: $createdAt, updatedAt: $updatedAt, managerApprovedById: $managerApprovedById, managerApprovedByName: $managerApprovedByName, managerApprovedAt: $managerApprovedAt)';
   }
 
   @override
@@ -359,7 +413,13 @@ class _$ShiftSwapEntityImpl implements _ShiftSwapEntity {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.managerApprovedById, managerApprovedById) ||
+                other.managerApprovedById == managerApprovedById) &&
+            (identical(other.managerApprovedByName, managerApprovedByName) ||
+                other.managerApprovedByName == managerApprovedByName) &&
+            (identical(other.managerApprovedAt, managerApprovedAt) ||
+                other.managerApprovedAt == managerApprovedAt));
   }
 
   @override
@@ -378,6 +438,9 @@ class _$ShiftSwapEntityImpl implements _ShiftSwapEntity {
     note,
     createdAt,
     updatedAt,
+    managerApprovedById,
+    managerApprovedByName,
+    managerApprovedAt,
   );
 
   /// Create a copy of ShiftSwapEntity
@@ -407,6 +470,9 @@ abstract class _ShiftSwapEntity implements ShiftSwapEntity {
     final String? note,
     final DateTime? createdAt,
     final DateTime? updatedAt,
+    final String? managerApprovedById,
+    final String? managerApprovedByName,
+    final DateTime? managerApprovedAt,
   }) = _$ShiftSwapEntityImpl;
 
   @override
@@ -444,6 +510,15 @@ abstract class _ShiftSwapEntity implements ShiftSwapEntity {
   DateTime? get createdAt;
   @override
   DateTime? get updatedAt;
+
+  /// The manager/admin who atomically approved the exchange. Written only by
+  /// the server-authoritative `approveSwap` Cloud Function.
+  @override
+  String? get managerApprovedById;
+  @override
+  String? get managerApprovedByName;
+  @override
+  DateTime? get managerApprovedAt;
 
   /// Create a copy of ShiftSwapEntity
   /// with the given fields replaced by the non-null parameter values.
