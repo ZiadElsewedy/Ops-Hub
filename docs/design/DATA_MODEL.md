@@ -110,7 +110,7 @@ claims; role and branch are read from the caller's own `users/{uid}` doc.
 
 | Collection | Read | Create | Update | Delete |
 | --- | --- | --- | --- | --- |
-| `users/{uid}` | **any signed-in user** — flat directory ([ADR-012](../decisions/ADR-012-chat-directory-is-flat.md)); chat is org-wide, so branch/role read scoping was removed. Compensation is unaffected (private subdoc, next row) | **false** — `createUserAccount` only | admin (all) · owner (profile + first-login flags + fcmToken; **privileged fields frozen**) | **false** — deactivate via `isActive` |
+| `users/{uid}` | **any signed-in user** — flat directory ([ADR-012](../decisions/ADR-012-chat-directory-is-flat.md)); chat is org-wide, so branch/role read scoping was removed. Compensation is unaffected (private subdoc, next row) | **false** — `createUserAccount` only | admin (all) · owner (profile + first-login flags + fcmToken; **privileged fields frozen**) | **false** for clients — deactivate via `isActive`; hard delete is Admin-SDK-only (`deleteUserAccount`, §5) |
 | `users/{uid}/private/{doc}` | owner · admin | admin · owner (`compensation`/`paymentNumber` only) | admin · owner (`paymentNumber` diff only) | false |
 | `tasks/{id}` | branch-reachable · assignee · shift-task-in-my-branch | branch-reachable (never `missed` / `missedAt`, never `cancelled` / cancel fields) | **admin**: `missed`\|`cancelled` → `pending` clearing the terminal evidence (the §6.4 correction) · branch-reachable (approved locked except admin reopen; missed + **cancelled** locked; → `cancelled` allowed only **from `pending`/`started`** with a picklist `cancelReason` + `cancelledAt`, and the cancel record is immutable outside that one transition) **or** assignee (can't reassign / move branch / forge review / set terminal **incl. `cancelled`**; may file an incorrect-task report **only under their own uid**, never over an open one and never clearing one; `activityLog` non-decreasing) | branch-reachable & not approved / missed / cancelled |
 | `attendance/{id}` | own · own-branch manager · admin | own | own (clock fields) · manager/admin | false |
@@ -167,14 +167,17 @@ only the one that pressed Approve (`presentation/widgets/swap_roster_sync.dart`)
 
 ## 5. Cloud Functions
 
-24 functions, all in `functions/index.js`. `dispatchBroadcast(params)` is shared by
-the callable and the scheduler.
+30 functions, all in `functions/index.js`. `dispatchBroadcast(params)` is shared by
+the callable and the scheduler. The pure decision helpers for a few of them live
+beside it (`recurring_task_deadline.js`, `task_reminders.js`, `sales_target.js`,
+`user_deletion.js`, …) so the risky logic is unit-testable without an emulator.
 
 | Function | Trigger | Purpose |
 | --- | --- | --- |
 | `sendBroadcast` | `onCall` | Validate sender → resolve recipients → persist → fan out inbox + FCM → prune dead tokens |
 | `createUserAccount` | `onCall` (admin) | Provision Auth user + seed `users/{uid}` |
 | `adminResetPassword` | `onCall` (admin) | Temp password + force change |
+| `deleteUserAccount` | `onCall` (admin) | **Hard delete**: revoke Auth first, then cascade — see below. The only path that removes a `users/{uid}` doc |
 | `approveSwap` | `onCall` | Re-validate + **atomically exchange** a coworker-approved swap |
 | `claimFcmToken` | `onDocumentUpdated users/{uid}` | Enforce **exclusive** token ownership — strips the token from every other user |
 | `sendNotification` | `onCall` | The only client path to create a notification (type whitelist, branch-reach check, server-stamped sender) |
@@ -200,6 +203,35 @@ Push carries `data.recipientUid` per token so the client can **drop** a message
 addressed to a different user (defence against token drift). Dead tokens are pruned
 on FCM error codes `registration-token-not-registered` /
 `invalid-registration-token` / `invalid-argument`.
+
+### `deleteUserAccount` cascade — clean active, keep history
+
+A user doc is `delete: if false` (client-denied), so a hard delete happens only
+here. Deactivation (`isActive = false`) keeps the record; delete removes it.
+Guard: **can't delete the last usable admin** (`canDeleteAdmin`). Auth user is
+deleted **first** (revoke access; idempotent, `auth/user-not-found` ignored), then
+the Firestore cascade — each step re-runnable on a partial failure.
+
+| Collection | uid field | On delete |
+| --- | --- | --- |
+| `weekly_schedules` | `assignments[day][shift][]` · `leave[day][uid]` | Strip uid from **current+future** weeks (past = history) |
+| `tasks` | `assigneeIds[]` (+ `assignedEmployeeId` mirror) | **Active** tasks only: unassign; if no assignee remains → `status = cancelled` (`management_decision`, activity entry). Terminal tasks kept |
+| `shift_swaps` | `requesterId` · `targetId` | Delete **open** (non-terminal) swaps; resolved kept |
+| `requests` | `requesterId` | Delete **pending** only; decided kept |
+| `branch_sales_submissions` | `submittedById` | Delete **open** (`pending`/`correctionRequested`); approved/rejected kept |
+| `attendance_expectations` | `userId` | Delete **today-onward**; past kept |
+| `notifications` | `recipientUid` | Delete all (their inbox). `senderUid` copies in others' inboxes kept |
+| `broadcastSchedules` | `targetUserIds[]` | Remove uid from active custom targeting |
+| `users/{uid}/private/*` | (path) | Deleted (subcollections don't auto-delete) |
+| `users/{uid}` | (id) | Deleted last, then a `user.deleted` `audit_logs` row is written |
+
+**Kept, by design** (finished history / owned by others; render as "Deleted user"
+via the member directory): `audit_logs`, terminal tasks, past schedules, resolved
+swaps/requests, approved sales, `attendance` actuals, `cases`, authored-template
+`createdBy`, and scalar actor stamps (`createdBy`/`decidedBy`/`approvedBy`/…) on
+kept docs. The pure keep-vs-purge decisions live in `functions/user_deletion.js`
+(unit-tested). No `firestore.rules` change and no new composite index (every
+cascade query is single-field; statuses are filtered in code).
 
 ## 6. Storage
 

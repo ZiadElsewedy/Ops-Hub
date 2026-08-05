@@ -78,6 +78,7 @@ class AuthCubit extends Cubit<AuthState> {
           emit(const AuthState.unauthenticated());
         } else {
           emit(AuthState.authenticated(user));
+          watchCurrentUser();
         }
       } catch (_) {
         emit(AuthState.authenticated(firebaseUser));
@@ -118,16 +119,23 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  /// Live-watches the signed-in user's document and re-emits on every change. An
-  /// admin deactivating the account mid-session signs the user out instantly.
+  /// Live-watches the signed-in user's document and re-emits on every change, so
+  /// an admin revoking access mid-session takes effect instantly. Started
+  /// automatically once a session settles on authenticated (cold-start restore
+  /// and fresh sign-in). Two access-revoked cases both sign the user out:
+  ///  - **deactivated** — the doc still exists but `isActive == false`;
+  ///  - **hard-deleted** — the doc is gone, so [watchUser] emits `null` (without
+  ///    this, `restoreSession`'s fallback would treat the still-present Auth user
+  ///    as active). Deleting the Auth user also ends the session via
+  ///    [authStateChanges]; this is the Firestore-side backstop.
   void watchCurrentUser() {
     final firebaseUser = _repository.currentUser;
     if (firebaseUser == null) return;
     _userWatchSub?.cancel();
     _userWatchSub = _repository.watchUser(firebaseUser.uid).listen(
       (user) async {
-        if (user == null) return;
-        if (!user.isActive) {
+        if (user == null || !user.isActive) {
+          stopWatchingUser();
           await _signOut();
           emit(const AuthState.unauthenticated());
         } else {
@@ -166,6 +174,7 @@ class AuthCubit extends Cubit<AuthState> {
         return;
       }
       emit(AuthState.authenticated(user));
+      watchCurrentUser();
     } on AuthFailure catch (e) {
       emit(AuthState.error(e.message));
     }
@@ -267,6 +276,9 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> signOut() async {
+    // Stop the live user watcher first — a deleted/deactivated doc emission
+    // during teardown would otherwise re-run the sign-out path redundantly.
+    stopWatchingUser();
     // Drop this device's FCM token FIRST, while still authenticated — the
     // post-sign-out listener can't (rules require `isOwner`).
     try {

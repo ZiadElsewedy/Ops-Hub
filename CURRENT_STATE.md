@@ -3,7 +3,31 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-05.
+> **Last verified against the code:** 2026-08-06.
+
+> **User deactivation hardening + hard delete (2026-08-06, NOT deployed / NOT
+> device-verified):** Deactivation now removes a person from the schedule
+> assign/reassign/leave pickers and the task assignee picker (they were unfiltered
+> — a deactivated employee could still be newly assigned), and the previously
+> **unwired** `AuthCubit.watchCurrentUser` is now started on authenticated /
+> stopped on sign-out, so deactivating — or hard-deleting — a signed-in user
+> bounces them to Login live (a deleted user doc emitting `null` is treated as
+> access-revoked, closing the fallback-looks-active hole). New admin-only Cloud
+> Function **`deleteUserAccount`** hard-deletes an account: Auth user first
+> (idempotent), then a cascade that **cleans active/forward-looking data and keeps
+> finished history** — current+future schedule slots, active task assignments (an
+> open task left with no assignee is **cancelled**), pending swaps/requests/sales,
+> forward attendance expectations, the notification inbox, active broadcast
+> targeting, private subcollections + the user doc, and a `user.deleted` audit
+> row. Guard: **can't delete the last usable admin.** Risky decisions are the pure,
+> tested `functions/user_deletion.js`. Client mirrors `resetPassword`; a
+> destructive **Delete** action (shared `confirmAndDeleteAccount` +
+> `showConfirmDialog`) is on the employee list, manager list and desktop inspector.
+> ⚠️ **Requires a `firebase deploy --only functions:deleteUserAccount` + a client
+> build before it does anything** — the callable does not exist in production yet,
+> and the live sign-out is inert until the client build ships. No rules change, no
+> new index. Known kept-not-purged (documented in DATA_MODEL): `cases`,
+> authored-template `createdBy`, and scalar actor stamps on kept history docs.
 
 > 🚦 **V1 RELEASE GATE — [docs/RELEASE_V1.md](docs/RELEASE_V1.md).** The full
 > release runbook, audited against code *and* live production on 2026-08-05.
@@ -410,7 +434,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-05**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1684 pass · 0 fail** (~40s) — re-run **2026-08-05** (+14: the final-schedule shift-row grid + Excel export, and the Today-coverage skeleton-hang fix + active-branch filter). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1688 pass · 0 fail** (~48s) — re-run **2026-08-06** (+4: the task assignee-picker `isActive` filter, and `AdminUsersCubit.deleteAccount` + repo-impl delegation for hard delete). Cloud Functions now **127 pass** (+15: the pure `functions/user_deletion.js` cascade decisions). *(Earlier 2026-08-05: +14 — the final-schedule shift-row grid + Excel export, and the Today-coverage skeleton-hang fix + active-branch filter.)* ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **127 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -1386,8 +1410,8 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1670 pass, 0 fail — GREEN; any red is a real regression
-(cd functions && node --test)            # expect: 112 pass
+flutter test                             # expect: 1688 pass, 0 fail — GREEN; any red is a real regression
+(cd functions && node --test)            # expect: 127 pass
 (cd firestore-tests && npm test)         # expect: 68 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 59
 ls lib/features | wc -l                  # expect: 19

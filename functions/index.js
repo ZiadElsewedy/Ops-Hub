@@ -123,6 +123,18 @@ const {
   correctionMatchesExistingRecordOwner,
 } = require("./attendance_correction_target");
 const { attendanceNotificationSubject } = require("./attendance_notification_subject");
+const {
+  canDeleteAdmin,
+  weekIsCurrentOrFuture,
+  cleanScheduleForUser,
+  isActiveTaskStatus,
+  remainingAssignees,
+  shouldCancelTask,
+  shouldDeleteSwap,
+  shouldDeleteRequest,
+  shouldDeleteSubmission,
+  isFutureExpectation,
+} = require("./user_deletion");
 
 // `branchId` marker for a direct message — never a real branch id and never ''
 // (mirrors BroadcastModel.directBranchMarker), so a DM never appears in a
@@ -719,6 +731,259 @@ exports.adminResetPassword = onCall(async (request) => {
   );
 
   logger.info("account reset", { uid, by: callerAuth.uid });
+  return { success: true };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// deleteUserAccount — admin-only HARD delete of an account. Deactivation
+// (`isActive = false`) keeps the record; THIS removes it. `users` docs are
+// `delete: if false` in firestore.rules, so a hard delete can only happen here,
+// through the Admin SDK.
+//
+// Policy (owner-ruled): **clean active/forward-looking data, keep finished
+// history.** The person is removed from everything that still points at them —
+// the login, current+future schedule slots, open task assignments, pending
+// swaps/requests/sales, their notification inbox, active scheduled-broadcast
+// targeting — while finished history (audit log, terminal tasks, past weeks,
+// resolved swaps/requests, approved sales, attendance actuals, cases) is KEPT
+// and renders the person as "Deleted user" via the member-directory fallback.
+//
+// An open task whose only assignee was the deleted user is **cancelled** (it
+// leaves the active board but stays as a record), reason `management_decision`.
+//
+// Order: revoke Auth access FIRST (so the live session ends via
+// authStateChanges even if the cascade below is interrupted), then run the
+// Firestore cascade. Every step is idempotent, so a retry after a partial
+// failure safely finishes the job.
+exports.deleteUserAccount = onCall(async (request) => {
+  const callerAuth = request.auth;
+  if (!callerAuth) {
+    throw new HttpsError("unauthenticated", "Please sign in.");
+  }
+
+  // ── Only an admin may delete accounts ──
+  const callerSnap = await db.collection(USERS).doc(callerAuth.uid).get();
+  const caller = callerSnap.exists ? callerSnap.data() || {} : {};
+  if ((caller.role || "employee") !== "admin") {
+    throw new HttpsError("permission-denied", "Only an admin can delete accounts.");
+  }
+
+  const uid = String((request.data || {}).uid || "").trim();
+  if (!uid) throw new HttpsError("invalid-argument", "Missing the account to delete.");
+
+  const targetSnap = await db.collection(USERS).doc(uid).get();
+  const userData = targetSnap.exists ? targetSnap.data() || {} : {};
+  const targetBranchId = String(userData.branchId || "").trim();
+
+  // ── Last-admin guard: never leave the org with no usable administrator ──
+  if ((userData.role || "") === "admin") {
+    const admins = await db.collection(USERS).where("role", "==", "admin").get();
+    const adminDocs = admins.docs.map((d) => ({
+      id: d.id,
+      isActive: (d.data() || {}).isActive,
+    }));
+    if (!canDeleteAdmin(adminDocs, uid)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "You can't delete the last administrator.",
+      );
+    }
+  }
+
+  const actorName =
+    String(caller.displayName || caller.fullName || "Admin");
+
+  // ── 1. Revoke access first ──
+  try {
+    await auth.deleteUser(uid);
+  } catch (err) {
+    if (!(err && err.code === "auth/user-not-found")) {
+      logger.error("deleteUserAccount: auth.deleteUser failed", { uid, error: String(err) });
+      throw new HttpsError("internal", "Could not remove the sign-in. Please try again.");
+    }
+  }
+
+  // Paged delete respecting the 500-write batch cap (mirrors broadcastHousekeeping).
+  const deleteQuery = async (query, label) => {
+    let removed = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const snap = await query.limit(BATCH_LIMIT).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      removed += snap.size;
+      if (snap.size < BATCH_LIMIT) break;
+    }
+    if (removed > 0) logger.info(`deleteUserAccount removed ${removed} ${label}`, { uid });
+  };
+
+  try {
+    // ── 2. Weekly schedules — drop the uid from current + future weeks only ──
+    if (targetBranchId) {
+      const currentWeekKey = weekStartKey(Date.now());
+      const schedules = await db
+        .collection(WEEKLY_SCHEDULES)
+        .where("branchId", "==", targetBranchId)
+        .get();
+      for (const doc of schedules.docs) {
+        // Past weeks are history — leave them.
+        if (!weekIsCurrentOrFuture(doc.id, currentWeekKey)) continue;
+        const { assignments, leave, changed } = cleanScheduleForUser(doc.data() || {}, uid);
+        if (changed) {
+          await doc.ref.set(
+            { assignments, leave, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+            { merge: true },
+          );
+        }
+      }
+    }
+
+    // ── 3. Tasks — unassign from active tasks; cancel if left with no assignee ──
+    const tasks = await db
+      .collection(TASKS)
+      .where("assigneeIds", "array-contains", uid)
+      .get();
+    for (const doc of tasks.docs) {
+      const t = doc.data() || {};
+      if (!isActiveTaskStatus(t.status)) continue;
+      const remaining = remainingAssignees(t.assigneeIds, uid);
+      const update = {
+        assigneeIds: remaining,
+        assignedEmployeeId: remaining.length ? remaining[0] : null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (shouldCancelTask(t.assigneeIds, uid)) {
+        update.status = "cancelled";
+        update.cancelledBy = callerAuth.uid;
+        update.cancelledAt = admin.firestore.FieldValue.serverTimestamp();
+        update.cancelReason = "management_decision";
+        update.cancelNote = "Assignee account deleted";
+        update.activityLog = admin.firestore.FieldValue.arrayUnion({
+          status: "cancelled",
+          actorId: callerAuth.uid,
+          actorName,
+          at: admin.firestore.Timestamp.now(),
+          note: "Assignee account deleted",
+          attachments: [],
+        });
+      }
+      await doc.ref.set(update, { merge: true });
+    }
+
+    // ── 4. Shift swaps — delete only still-open ones (either side) ──
+    for (const field of ["requesterId", "targetId"]) {
+      const swaps = await db.collection(SHIFT_SWAPS).where(field, "==", uid).get();
+      const stale = swaps.docs.filter((d) => shouldDeleteSwap((d.data() || {}).status));
+      for (const slice of chunked(stale, BATCH_LIMIT)) {
+        const batch = db.batch();
+        slice.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    }
+
+    // ── 5. Requests — delete the user's still-pending requests (status filtered
+    //         in code so no composite index is needed) ──
+    const requests = await db.collection(REQUESTS).where("requesterId", "==", uid).get();
+    const stalePending = requests.docs.filter(
+      (d) => shouldDeleteRequest((d.data() || {}).status),
+    );
+    for (const slice of chunked(stalePending, BATCH_LIMIT)) {
+      const batch = db.batch();
+      slice.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    // ── 6. Sales submissions — delete the user's in-flight (open) closes;
+    //         approved/rejected are financial history and are kept ──
+    const submissions = await db
+      .collection(BRANCH_SALES_SUBMISSIONS)
+      .where("submittedById", "==", uid)
+      .get();
+    const openSubmissions = submissions.docs.filter(
+      (d) => shouldDeleteSubmission((d.data() || {}).status),
+    );
+    for (const slice of chunked(openSubmissions, BATCH_LIMIT)) {
+      const batch = db.batch();
+      slice.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    // ── 7. Attendance expectations — delete forward-looking rows (today onward) ──
+    const todayKey = isoDate(Date.now());
+    const expectations = await db
+      .collection(ATTENDANCE_EXPECTATIONS)
+      .where("userId", "==", uid)
+      .get();
+    const futureExp = expectations.docs.filter(
+      (d) => isFutureExpectation((d.data() || {}).businessDate, todayKey),
+    );
+    for (const slice of chunked(futureExp, BATCH_LIMIT)) {
+      const batch = db.batch();
+      slice.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    // ── 8. Notifications — the deleted user's inbox is pure garbage ──
+    await deleteQuery(
+      db.collection(NOTIFICATIONS).where("recipientUid", "==", uid),
+      "notifications",
+    );
+
+    // ── 9. Scheduled broadcasts — drop the uid from active custom targeting ──
+    const schedules = await db
+      .collection(BROADCAST_SCHEDULES)
+      .where("targetUserIds", "array-contains", uid)
+      .get();
+    for (const doc of schedules.docs) {
+      await doc.ref.update({
+        targetUserIds: admin.firestore.FieldValue.arrayRemove(uid),
+      });
+    }
+
+    // ── 10. Private subcollections (compensation, …) — Firestore keeps these
+    //         when the parent doc is deleted, so remove them explicitly ──
+    const subcollections = await db.collection(USERS).doc(uid).listCollections();
+    for (const col of subcollections) {
+      const docs = await col.listDocuments();
+      for (const slice of chunked(docs, BATCH_LIMIT)) {
+        const batch = db.batch();
+        slice.forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
+    }
+
+    // ── 11. The account record itself ──
+    await db.collection(USERS).doc(uid).delete();
+
+    // ── 12. Audit (kept) — record who removed whom ──
+    await db.collection(AUDIT_LOGS).add({
+      eventType: "user.deleted",
+      entityType: "user",
+      entityId: uid,
+      actorId: callerAuth.uid,
+      actorName,
+      actorRole: "admin",
+      branchId: targetBranchId || null,
+      metadata: {
+        email: userData.email || null,
+        role: userData.role || null,
+        targetName: userData.displayName || userData.fullName || null,
+      },
+      schemaVersion: 1,
+      isDeleted: false,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    logger.error("deleteUserAccount: cascade failed", { uid, error: String(err) });
+    throw new HttpsError(
+      "internal",
+      "The sign-in was removed but cleanup did not finish. Please run delete again.",
+    );
+  }
+
+  logger.info("account deleted", { uid, by: callerAuth.uid });
   return { success: true };
 });
 

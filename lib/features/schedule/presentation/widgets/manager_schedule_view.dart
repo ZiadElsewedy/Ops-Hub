@@ -1025,7 +1025,10 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
       context: context,
       title: '${day.label} · ${shift.label}',
       subtitle: 'Tap an employee to assign',
-      employees: members.where((u) => u.role.isEmployee).toList(),
+      // Only active employees can be newly assigned — a deactivated account is
+      // off the roster (already-assigned members still resolve for display).
+      employees:
+          members.where((u) => u.role.isEmployee && u.isActive).toList(),
       isAssigned: (u) => schedule.isAssigned(u.uid, day, shift),
       // Leave is a caution, not a wall — the row says it, the manager decides.
       subtitleFor: (u) {

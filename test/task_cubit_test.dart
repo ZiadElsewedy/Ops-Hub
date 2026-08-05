@@ -447,6 +447,34 @@ void main() {
       },
     );
   });
+
+  group('assignee picker', () {
+    test('branchEmployees excludes deactivated accounts', () async {
+      final active = UserEntity(
+        uid: 'e_active',
+        email: 'active@x.com',
+        authProvider: 'password',
+        role: UserRole.employee,
+        branchId: 'branch1',
+        displayName: 'Active',
+      );
+      final inactive = UserEntity(
+        uid: 'e_inactive',
+        email: 'inactive@x.com',
+        authProvider: 'password',
+        role: UserRole.employee,
+        branchId: 'branch1',
+        displayName: 'Inactive',
+        isActive: false,
+      );
+      // A manager in the branch must never appear in the employee picker either.
+      final harness = _build(branchUsers: [active, inactive, manager]);
+
+      final pickable = await harness.cubit.branchEmployees('branch1');
+
+      expect(pickable.map((u) => u.uid), ['e_active']);
+    });
+  });
 }
 
 // ─── Fakes (hand-written, matching the repo's test convention) ───────────────
@@ -475,7 +503,7 @@ class _Harness {
   void seed(List<TaskEntity> tasks) => repo.controller.add(tasks);
 }
 
-_Harness _build({EventTrackingService? audit}) {
+_Harness _build({EventTrackingService? audit, List<UserEntity> branchUsers = const []}) {
   final repo = _RecordingTaskRepository();
   final schedule = _FakeSchedule();
   final notify = _RecordingNotify();
@@ -488,7 +516,7 @@ _Harness _build({EventTrackingService? audit}) {
     deleteTask: DeleteTask(repo),
     assignTask: AssignTask(repo),
     uploadTaskAttachment: UploadTaskAttachment(repo),
-    getUsersByBranch: _FakeGetUsers(),
+    getUsersByBranch: _FakeGetUsers(branchUsers),
     notifyTaskEvent: notify,
     eventTracking: audit,
   );
@@ -590,8 +618,10 @@ class _FakeSchedule implements ScheduleRepository {
 }
 
 class _FakeGetUsers implements GetUsersByBranch {
+  _FakeGetUsers([this.users = const []]);
+  final List<UserEntity> users;
   @override
-  Future<List<UserEntity>> call(String branchId) async => const [];
+  Future<List<UserEntity>> call(String branchId) async => users;
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }

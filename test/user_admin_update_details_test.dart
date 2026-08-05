@@ -13,6 +13,7 @@ class _CapturingDataSource implements UserAdminRemoteDataSource {
   Map<String, dynamic>? lastData;
   String? lastCompensationUid;
   UserCompensation? lastCompensation;
+  String? deletedUid;
 
   @override
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
@@ -41,6 +42,10 @@ class _CapturingDataSource implements UserAdminRemoteDataSource {
     required String uid,
     required String tempPassword,
   }) async {}
+  @override
+  Future<void> deleteAccount(String uid) async {
+    deletedUid = uid;
+  }
   @override
   Future<UserCompensation> getCompensation(String uid) async =>
       UserCompensation.empty;
@@ -127,6 +132,20 @@ void main() {
       // The public user-doc write path was NOT used.
       expect(ds.lastData, isNull,
           reason: 'compensation must never land on users/{uid}');
+    });
+  });
+
+  group('UserAdminRepository.deleteAccount', () {
+    test('delegates the uid to the datasource (deleteUserAccount callable)',
+        () async {
+      final ds = _CapturingDataSource();
+      final repo = UserAdminRepositoryImpl(ds);
+
+      await repo.deleteAccount('gone1');
+
+      expect(ds.deletedUid, 'gone1');
+      // Hard delete never routes through the ordinary field-update path.
+      expect(ds.lastData, isNull);
     });
   });
 

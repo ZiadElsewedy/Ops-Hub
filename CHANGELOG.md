@@ -14,6 +14,48 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-06 — User deactivation hardening + hard delete account (feature; MED risk)
+
+Two gaps around removing people are closed.
+
+**Deactivation now actually takes a person off the roster.** `isActive` gated
+sign-in and the chat directory, but the **schedule assign/reassign/leave pickers**
+and the **task assignee picker** (`TaskCubit.branchEmployees`) did not — a
+deactivated employee could still be newly assigned a shift or a task. All those
+pickers now filter `isActive` (already-assigned inactive people still resolve for
+display). The long-built-but-**never-wired** live watcher `AuthCubit.watchCurrentUser`
+is now started when a session settles on authenticated (cold-start restore + fresh
+sign-in) and stopped on sign-out, so deactivating a signed-in user bounces them to
+Login in real time — and a **deleted** user doc (`watchUser` emits `null`) is now
+treated the same, closing the hole where `restoreSession`'s Auth-user fallback made
+a hard-deleted account look active.
+
+**Hard delete (new).** New admin-only Cloud Function `deleteUserAccount` — a user
+doc is `delete: if false` in rules, so this only happens through the Admin SDK.
+Policy (owner-ruled): **clean active/forward-looking data, keep finished history.**
+It deletes the Auth user first (revoke access even if the cascade is interrupted;
+idempotent on retry), then removes the uid from current+future weekly-schedule
+assignments/leave, unassigns active tasks (an open task left with **no** assignee
+is **cancelled**, reason `management_decision`), deletes pending swaps, pending
+requests, in-flight sales closes, forward-looking attendance expectations, the
+notification inbox, and active scheduled-broadcast targeting, then the private
+subcollections + the user doc, and writes a `user.deleted` audit row. Finished
+history (audit log, terminal tasks, past weeks, resolved swaps/requests, approved
+sales, attendance actuals, cases) is kept and renders as "Deleted user". Guard:
+**can't delete the last usable admin**. The risky cascade decisions live in a pure,
+unit-tested `functions/user_deletion.js` (mirrors the repo's pure-module test
+convention). Client wiring mirrors `resetPassword` end-to-end
+(repository → datasource callable → repo impl → `AdminUsersCubit.deleteAccount`);
+UI adds a destructive **Delete** action (behind the shared `showConfirmDialog`) to
+the employee list, manager list and desktop inspector, via one shared
+`confirmAndDeleteAccount` helper.
+
+Gates: `flutter analyze` clean · `flutter test` **1688 pass** (+4) · `functions`
+`node --test` **127 pass** (+15, the `user_deletion` module). **Needs a functions
+deploy of `deleteUserAccount` + a client build; not deployed, not device-verified.**
+No `firestore.rules` change (Admin SDK bypasses rules; client delete stays denied)
+and no new index (all cascade queries are single-field).
+
 ## 2026-08-05 — Task reminder wording: the 24h rung no longer says "due soon" (copy; LOW risk)
 
 A task ending **tomorrow** hits the `due24h` reminder rung on the next 30-minute

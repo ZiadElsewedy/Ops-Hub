@@ -1662,7 +1662,9 @@ class TaskCubit extends Cubit<TaskState> {
   Future<List<UserEntity>> branchEmployees(String branchId) async {
     try {
       final users = await _getUsersByBranch(branchId);
-      return users.where((u) => u.role.isEmployee).toList();
+      // Deactivated accounts are off the roster — they can't be newly assigned
+      // a task (an already-assigned inactive user still resolves for display).
+      return users.where((u) => u.role.isEmployee && u.isActive).toList();
     } catch (_) {
       return const [];
     }

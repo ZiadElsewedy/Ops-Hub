@@ -260,7 +260,8 @@ class _ResolveBrokenSheet extends StatelessWidget {
       context: context,
       title: 'Reassign ${slot.day.label} · ${slot.shift.label}',
       subtitle: 'Pick an employee to replace the former one',
-      employees: members.where((u) => u.role.isEmployee).toList(),
+      employees:
+          members.where((u) => u.role.isEmployee && u.isActive).toList(),
       isAssigned: (_) => false,
       onPick: (u) async {
         await cubit.assign(slot.day, slot.shift, u.uid);

@@ -52,6 +52,13 @@ class ManagerManagementScreen extends StatelessWidget {
             color: AppColors.warning,
             onPressed: () => cubit.changeRole(user, UserRole.employee),
           ),
+          AdminActionButton(
+            label: 'Delete',
+            icon: Icons.delete_forever_outlined,
+            color: AppColors.error,
+            onPressed: () =>
+                confirmAndDeleteAccount(context: context, cubit: cubit, user: user),
+          ),
         ];
       },
     );

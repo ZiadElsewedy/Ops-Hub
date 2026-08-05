@@ -3,6 +3,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/validators.dart';
+import 'package:drop/core/widgets/app_dialog.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/auth/presentation/widgets/app_button.dart';
@@ -45,6 +46,38 @@ Future<void> showSetPositionSheet({
   required UserEntity user,
 }) =>
     _sheet(context, _SetPositionSheet(cubit: cubit, user: user));
+
+/// Confirms and permanently deletes an account. Shared by every admin surface
+/// that offers Delete (employee list, manager list, desktop inspector) so the
+/// warning copy and the destructive confirmation never drift. The refreshed list
+/// (the person disappears) is the success signal; a failure surfaces through the
+/// list's error snackbar. Irreversible — hence the destructive confirm. Returns
+/// `true` only when the delete was confirmed and dispatched (so a caller like the
+/// inspector can close itself only then, not on cancel).
+Future<bool> confirmAndDeleteAccount({
+  required BuildContext context,
+  required AdminUsersCubit cubit,
+  required UserEntity user,
+}) async {
+  final name = (user.displayName != null && user.displayName!.isNotEmpty)
+      ? user.displayName!
+      : user.email;
+  final confirmed = await showConfirmDialog(
+    context,
+    title: 'Delete account',
+    message:
+        'Permanently delete $name. This removes their sign-in and takes them '
+        'off the schedule and any open task (a task left with no one assigned '
+        'is cancelled), drops pending swaps, requests and sales closes, and '
+        'clears their notifications. Finished history is kept. This cannot be '
+        'undone.',
+    confirmLabel: 'Delete',
+    destructive: true,
+  );
+  if (!confirmed) return false;
+  await cubit.deleteAccount(user);
+  return true;
+}
 
 Future<void> showEditDetailsSheet({
   required BuildContext context,

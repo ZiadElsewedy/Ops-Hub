@@ -66,6 +66,10 @@ class UserAdminRepositoryImpl implements UserAdminRepository {
       _run(() => _remote.resetPassword(uid: uid, tempPassword: temporaryPassword));
 
   @override
+  Future<void> deleteAccount(String uid) =>
+      _run(() => _remote.deleteAccount(uid));
+
+  @override
   Future<void> setUserActive(String uid, bool isActive) =>
       _run(() => _remote.updateUser(uid, {'isActive': isActive}));
 
