@@ -5,13 +5,17 @@ sales at the end of a working day; a manager approves or rejects it; **only appr
 sales count** toward the branch's monthly progress. Remaining, progress %, and
 forecast are **derived on read — never stored**.
 
-> **Status: designed, not yet built.** This is the locked design for a planned
-> feature; no `lib/features/sales/` code exists yet. Read
+> **Status: implemented (P1–P6) on `feature/branch-sales-target` — not merged, not
+> deployed.** The full vertical slice is built under `lib/features/sales/`: domain +
+> data reads, server callables + `firestore.rules` + indexes, the client write path,
+> employee submit + Home card, manager dashboard / approval / history, admin
+> management + notification routing, and derived KPIs. Read
 > **[ADR-022](../decisions/ADR-022-branch-sales-monthly-ledger.md) before changing
-> anything here** — the ledger shape, the derive-don't-store rule, and the
-> server-authoritative boundary are settled there. When the feature is built, its
-> live collections move into [DATA_MODEL.md](DATA_MODEL.md) and this doc becomes the
-> behaviour reference (the shape of Requests/Attendance docs).
+> anything here.** ⚠️ **Before it ships, deploy in order — Cloud Functions →
+> `firestore.rules` + `firestore.indexes.json` → verify the deployed revisions → the
+> client build that calls them** (the standing deploy-lag hazard: a client shipped
+> ahead of its functions/rules is broken). This doc is the behaviour reference; the
+> live collections are summarised in [DATA_MODEL.md](DATA_MODEL.md).
 
 ## Rules of the shape
 

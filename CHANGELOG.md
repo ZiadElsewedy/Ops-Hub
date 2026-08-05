@@ -14,6 +14,26 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-05 — Branch Monthly Sales Target: implemented P1–P6 (feature; on `feature/branch-sales-target`)
+
+Built the full feature per [SALES_TARGETS.md](docs/design/SALES_TARGETS.md) /
+[ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md), eight commits on its
+own branch (not merged, **not deployed**). **P1** domain + data reads (deterministic
+`branch_sales_months/{branchId_yyyyMM}` + `branch_sales_submissions/{branchId_yyyyMMdd}`,
+piastres money, pure calculator). **P2** server boundary — three callables + a create
+trigger in `functions/index.js` (pure `functions/sales_target.js`: Cairo/IANA keys,
+transition matrix, self-approval + double-approval guards, target-achieved crossing),
+`firestore.rules` (create-only pending, approved-only peer visibility) + indexes. **Write
+path** — datasource writes + repo (`NetworkGuard`) + 8 use cases + audit enums + employee
+`resubmitCorrectedSales` callable. **P3** employee submit screen + Home sales card
+(role-scoped reads). **P4** manager dashboard / approval detail / history. **P5** admin
+all-branches management + notification deep-link (`sales_submission`) + admin-only reopen.
+**P6** derived KPIs (run-rate, forecast, completion estimate) + a recent-approved trend
+list. Owner sign-off locked peer visibility = approved-only and back-date = current + 3
+Cairo days. Gates: `flutter analyze` clean, `flutter test` 1606 pass / 1 known-fail
+(pre-existing splash), `functions` node --test 93, `firestore-tests` 66. ⚠️ **Deploy
+functions → rules + indexes → verify → client, in that order, before shipping.**
+
 ## 2026-08-05 — Branch Monthly Sales Target: design locked (docs only; no code)
 
 Added [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md) and

@@ -5,18 +5,22 @@
 >
 > **Last verified against the code:** 2026-08-05.
 
-> **Branch Monthly Sales Target — design locked, not built (2026-08-05):** A new
-> planned feature is fully designed in
-> [docs/design/SALES_TARGETS.md](docs/design/SALES_TARGETS.md) +
+> **Branch Monthly Sales Target — implemented (P1–P6), not merged, NOT deployed
+> (2026-08-05):** The full feature is built on **`feature/branch-sales-target`** (8
+> commits) per [SALES_TARGETS.md](docs/design/SALES_TARGETS.md) +
 > [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md): per-branch monthly
-> targets, daily employee sales submissions, manager/admin approval, derived-on-read
-> progress. Architecture: a **derived ledger** (deterministic month/day docs, approved
-> total re-summed on read, no stored accumulation, no rollup — stays inside
-> ADR-009/010), **server-authoritative** callables for every monetary transition
-> (ADR-005), **`Africa/Cairo`** keys (ADR-015), piastres money, reused audit +
-> notification seams. **No `lib/features/sales/` code exists yet** — P0 is blocked on
-> owner sign-off of two policy questions (peer visibility of approved amounts;
-> back-date window). Do not start P1 before those are ruled.
+> targets, daily employee submissions, manager/admin approval, derived-on-read progress,
+> admin all-branches management, notification routing, and derived KPIs. A **derived
+> ledger** — deterministic `branch_sales_months` / `branch_sales_submissions` docs,
+> approved total re-summed on read, no stored accumulation (stays inside ADR-009/010);
+> **server-authoritative** callables for every monetary transition (ADR-005),
+> **`Africa/Cairo`** keys, piastres money, reused audit + notification seams. Owner
+> sign-off (P0): peer visibility = **approved-only**; employee back-date =
+> **current + 3 Cairo days**. Gates green: `flutter analyze` clean · `flutter test`
+> **1606 pass / 1 known-fail** (pre-existing splash) · `functions` node --test **93** ·
+> `firestore-tests` **66**. ⚠️ **Remaining before it ships: merge decision, then deploy
+> in order — Cloud Functions → `firestore.rules` + `firestore.indexes.json` → verify
+> revisions → the client build — then on-device QA.** Not device-verified.
 
 > **Swap workflow reliability + history (2026-08-05):** The manager/admin swap
 > sheet captures its height before opening, avoiding the deactivated-context
