@@ -43,6 +43,9 @@ import 'package:drop/features/branch/data/datasources/branch_remote_datasource.d
 import 'package:drop/features/branch/data/repositories/branch_repository_impl.dart';
 import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:drop/features/sales/data/datasources/sales_remote_datasource.dart';
+import 'package:drop/features/sales/data/repositories/sales_repository_impl.dart';
+import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
 import 'package:drop/features/admin/data/datasources/user_admin_remote_datasource.dart';
 import 'package:drop/features/admin/data/repositories/user_admin_repository_impl.dart';
 import 'package:drop/features/admin/domain/repositories/user_admin_repository.dart';
@@ -450,6 +453,10 @@ class AppDependencies {
   static late final ScheduleRepository _scheduleRepositoryRef;
   static late final BranchRepository _branchRepositoryRef;
 
+  /// Branch Sales Target — read-only ledger seam (P1). P3 constructs the sales
+  /// cubits and read use cases from this once presentation consumers exist.
+  static late final SalesRepository salesRepository;
+
   /// Builds a fresh Attendance History ledger cubit — the employee's own history
   /// ([AttendanceHistoryMode.self]) or a manager/admin branch review
   /// ([AttendanceHistoryMode.review]). Owned + disposed by its `BlocProvider`.
@@ -619,6 +626,12 @@ class AppDependencies {
         FirebaseFirestore.instance, FirebaseStorage.instance);
     final BranchRepository branchRepository =
         BranchRepositoryImpl(branchRemoteDataSource);
+
+    // Branch Sales Target P1 — read-only ledger seam. P3 wires its cubits and
+    // read use cases here once presentation consumers exist.
+    salesRepository = SalesRepositoryImpl(
+      SalesRemoteDataSourceImpl(FirebaseFirestore.instance),
+    );
 
     // Notification repository is built early — the TaskCubit needs the
     // NotifyTaskEvent use case for its automatic task-event notifications.
