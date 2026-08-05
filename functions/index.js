@@ -1153,6 +1153,36 @@ exports.editApprovedDailySalesSubmission = onCall(async (request) => {
   return { success: true, revision: result.revision };
 });
 
+exports.resubmitCorrectedSales = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Please sign in.");
+  const data = request.data || {}; const submissionId = String(data.submissionId || "").trim();
+  if (!submissionId || !isValidMoney(data.amountPiastres)) throw new HttpsError("invalid-argument", "Invalid corrected sales amount.");
+  const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
+  if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+  const initialSub = initial.data() || {};
+  if (initialSub.status !== "correctionRequested") throw new HttpsError("failed-precondition", "This sales submission is not awaiting correction.");
+  if (initialSub.submittedById !== request.auth.uid) throw new HttpsError("permission-denied", "You can only correct your own sales submission.");
+  const userSnap = await db.collection(USERS).doc(request.auth.uid).get();
+  const actor = salesActor(userSnap.exists ? (userSnap.data() || {}) : {}, request.auth.uid); let result;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+    const sub = snap.data() || {};
+    if (sub.status !== "correctionRequested") throw new HttpsError("failed-precondition", "This sales submission is no longer awaiting correction.");
+    if (sub.submittedById !== request.auth.uid) throw new HttpsError("permission-denied", "You can only correct your own sales submission.");
+    const transition = nextStatus(String(sub.status || ""), "resubmit", "employee");
+    if (transition.error) throw new HttpsError("failed-precondition", "This sales submission cannot be resubmitted now.");
+    const revision = Number(sub.revision) || 1;
+    tx.update(ref, { status: transition.status, amountPiastres: data.amountPiastres, revision: revision + 1,
+      submittedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      decisionById: admin.firestore.FieldValue.delete(), decisionByName: admin.firestore.FieldValue.delete(), decisionByRole: admin.firestore.FieldValue.delete(), decisionAt: admin.firestore.FieldValue.delete(), decisionReason: admin.firestore.FieldValue.delete() });
+    result = { sub, revision: revision + 1 };
+  });
+  try { await writeSalesAudit({ eventType: "sales.resubmitted", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId: result.sub.branchId, metadata: { branchId: result.sub.branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.sub.amountPiastres, newAmountPiastres: data.amountPiastres, oldStatus: result.sub.status, newStatus: "pending", revision: result.revision, schemaVersion: 1 } });
+    await writeSalesNotifications(await salesRecipients(String(result.sub.branchId || ""), { managersOnly: true, adminsFallback: true }), { title: "Corrected sales submission", body: "A corrected daily sales submission is ready for review.", submissionId, monthKey: result.sub.monthKey });
+  } catch (err) { logger.warn("failed to write sales resubmit side effects", { error: String(err), submissionId }); }
+  return { success: true, status: "pending", revision: result.revision };
+});
+
 exports.onDailySalesSubmissionCreated = onDocumentCreated(`${BRANCH_SALES_SUBMISSIONS}/{submissionId}`, async (event) => {
   const sub = event.data && event.data.data(); if (!sub || sub.status !== "pending") return;
   try { await writeSalesNotifications(await salesRecipients(String(sub.branchId || ""), { managersOnly: true, adminsFallback: true }), { title: "New sales submission", body: "A daily sales submission is ready for review.", submissionId: event.params.submissionId, monthKey: sub.monthKey }); }

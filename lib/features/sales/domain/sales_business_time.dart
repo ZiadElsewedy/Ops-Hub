@@ -41,6 +41,19 @@ String businessDateKey(
   return '${cairo.year.toString().padLeft(4, '0')}${cairo.month.toString().padLeft(2, '0')}${cairo.day.toString().padLeft(2, '0')}';
 }
 
+/// True when [dateKey] is today or one of the previous three Cairo civil days.
+/// This is a client guardrail: Firestore rules cannot derive Cairo's date from
+/// request time; manager approval remains the authoritative financial control.
+bool isWithinSalesSubmissionWindow(String dateKey, {required DateTime now}) {
+  if (!RegExp(r'^\d{8}$').hasMatch(dateKey)) return false;
+  final target = DateTime.utc(int.parse(dateKey.substring(0, 4)), int.parse(dateKey.substring(4, 6)), int.parse(dateKey.substring(6, 8)));
+  if (businessDateKey(target) != dateKey) return false;
+  final today = businessDateKey(now);
+  final todayUtc = DateTime.utc(int.parse(today.substring(0, 4)), int.parse(today.substring(4, 6)), int.parse(today.substring(6, 8)));
+  final delta = todayUtc.difference(target).inDays;
+  return delta >= 0 && delta <= 3;
+}
+
 int calendarDaysInMonth(
   DateTime now, {
   String timeZone = salesBusinessTimeZone,

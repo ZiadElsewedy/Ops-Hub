@@ -31,11 +31,11 @@ test("status transition matrix allows only the ledger transitions", () => {
   const legal = [
     ["pending", "approve", "manager", "approved"], ["pending", "reject", "admin", "rejected"],
     ["pending", "requestCorrection", "manager", "correctionRequested"], ["approved", "reopen", "admin", "pending"],
-    ["rejected", "reopen", "admin", "pending"], ["correctionRequested", "resubmit", "manager", "pending"],
+    ["rejected", "reopen", "admin", "pending"], ["correctionRequested", "resubmit", "employee", "pending"],
     ["approved", "editApproved", "manager", "approved"],
   ];
   for (const [status, action, role, next] of legal) assert.equal(sales.nextStatus(status, action, role).status, next);
-  for (const row of [["approved", "approve", "admin"], ["pending", "reopen", "admin"], ["rejected", "resubmit", "manager"], ["approved", "reopen", "manager"], ["pending", "approve", "employee"]]) assert.ok(sales.nextStatus(...row).error);
+  for (const row of [["approved", "approve", "admin"], ["pending", "reopen", "admin"], ["rejected", "resubmit", "employee"], ["correctionRequested", "resubmit", "manager"], ["correctionRequested", "resubmit", "admin"], ["approved", "reopen", "manager"], ["pending", "approve", "employee"]]) assert.ok(sales.nextStatus(...row).error);
 });
 test("self approval is rejected by the pure decision guard", () => {
   assert.equal(sales.canDecideSubmission("employee1", "employee1"), false);

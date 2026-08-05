@@ -48,13 +48,18 @@ function isValidMoney(value) {
     && value >= 0 && value <= MAX_MONEY_PIASTRES;
 }
 function nextStatus(current, action, actorRole) {
+  // Resubmission is intentionally employee-facing. Ownership is enforced by
+  // the callable; this pure transition policy only answers role + state.
+  if (action === "resubmit") {
+    return current === "correctionRequested" && actorRole === "employee"
+      ? { status: "pending" } : { error: current === "correctionRequested" ? "unauthorized_role" : "illegal_transition" };
+  }
   if (!["manager", "admin"].includes(actorRole)) return { error: "unauthorized_role" };
   if (action === "reopen" && actorRole !== "admin") return { error: "unauthorized_role" };
   const map = {
     pending: { approve: "approved", reject: "rejected", requestCorrection: "correctionRequested" },
     approved: { reopen: "pending", editApproved: "approved" },
     rejected: { reopen: "pending" },
-    correctionRequested: { resubmit: "pending" },
   };
   const status = map[current] && map[current][action];
   return status ? { status } : { error: "illegal_transition" };
