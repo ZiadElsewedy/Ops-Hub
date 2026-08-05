@@ -238,13 +238,17 @@ ADR decision, not a default (ADR-009/010, ADR-022).
 | Missing target | employee sees "Target not set"; cannot submit until set |
 | Resubmission after correction | must be `correctionRequested` + expected revision; increments and returns to `pending` |
 
-## Open decisions (rule at P0 sign-off, before any code)
+## Locked decisions (owner sign-off 2026-08-05)
 
-1. **Peer visibility.** May an employee read peers' **approved** daily amounts for
-   their own branch/month (needed for the Home "achieved" number)? *Recommended: yes
-   for approved only; never others' pending/rejected.*
-2. **Back-date window.** *Recommended: employee may submit for the current + previous
-   three completed Cairo days; managers/admins may reopen/correct older with a reason.*
+1. **Peer visibility — approved only.** An employee MAY read own-branch **approved**
+   daily records (so Home shows the live achieved total), and NEVER other employees'
+   `pending` / `rejected` / `correctionRequested` records. This is the read rule P2
+   enforces.
+2. **Back-date window — current + previous 3 Cairo days.** An employee may submit a
+   close for the current business day or any of the previous three completed Africa/
+   Cairo days. Older records are entered/changed only by a manager/admin, always with
+   a reason. This is the create-window validation P2 enforces (callable-side; rules are
+   defense-in-depth).
 
 ## Implementation plan
 
