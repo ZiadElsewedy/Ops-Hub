@@ -214,17 +214,31 @@ class _SituationHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 46,
+          height: 46,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: color.withAlpha(28),
-            border: Border.all(color: color.withAlpha(90)),
+            // A soft top-lit fill + a low glow gives the status glyph real depth
+            // instead of a flat tinted disc — the premium touch, still monochrome
+            // per status (ADR-004: colour expresses status only).
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [color.withAlpha(48), color.withAlpha(18)],
+            ),
+            border: Border.all(color: color.withAlpha(110)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withAlpha(28),
+                blurRadius: 16,
+                spreadRadius: -3,
+              ),
+            ],
           ),
           // The activity icon set already gives every status a distinct glyph
           // shape (check / hourglass / replay / event-busy / block …) — reused
           // rather than forking a fifth icon map for one header.
-          child: Icon(activityIcon(task.status.value), size: 18, color: color),
+          child: Icon(activityIcon(task.status.value), size: 20, color: color),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
@@ -398,7 +412,7 @@ class _FactRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 9),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: last
           ? null
           : const BoxDecoration(
@@ -408,8 +422,21 @@ class _FactRow extends StatelessWidget {
             ),
       child: Row(
         children: [
-          Icon(icon, size: 15, color: AppColors.textTertiary),
-          const SizedBox(width: AppSpacing.sm),
+          // The leading glyph sits in its own soft tile — the same premium
+          // settings-row language used across the app, in place of a bare
+          // low-contrast icon.
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.darkSurfaceElevated,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.darkBorder),
+            ),
+            child: Icon(icon, size: 15, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: AppSpacing.md),
           Expanded(child: child),
         ],
       ),

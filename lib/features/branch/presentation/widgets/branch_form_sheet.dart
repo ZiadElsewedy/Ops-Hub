@@ -29,6 +29,9 @@ Future<void> showBranchFormSheet({
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      // Keep the sheet below the status bar / notch (so its title never collides
+      // with the clock) and leave a tappable strip of scrim above it to dismiss.
+      useSafeArea: true,
       backgroundColor: AppColors.darkSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -159,15 +162,38 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
                 ),
               ),
             ),
-            Text(isNew ? 'New branch' : 'Edit branch', style: AppTypography.h3),
-            const SizedBox(height: 2),
-            Text(
-              isNew
-                  ? 'Name the branch and set how it runs. Media and swap rules '
-                      'unlock once it’s saved.'
-                  : 'Configure how this branch runs — attendance, sales, swaps '
-                      'and branding.',
-              style: AppTypography.caption,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(isNew ? 'New branch' : 'Edit branch',
+                          style: AppTypography.h3),
+                      const SizedBox(height: 2),
+                      Text(
+                        isNew
+                            ? 'Name the branch and set how it runs. Media and '
+                                'swap rules unlock once it’s saved.'
+                            : 'Configure how this branch runs — attendance, '
+                                'sales, swaps and branding.',
+                        style: AppTypography.caption,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                // An explicit dismiss — a full-height scrollable sheet can eat the
+                // swipe-down gesture, so the close control is never left implicit.
+                IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.close_rounded),
+                  color: AppColors.textSecondary,
+                  tooltip: 'Close',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
             ),
 
             // ── Details ──────────────────────────────────────────────────
