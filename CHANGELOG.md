@@ -14,6 +14,43 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-06 — Navigation icons moved to Phosphor, self-hosted (polish; LOW risk)
+
+Owner: *"is there anyway to change the icons in better design?"* → *"match the
+bottom nav for consistency too"*.
+
+Every navigation destination's `IconData` was swapped from stock Material Icons to
+the **Phosphor** set — across both the desktop `AppShell.sectionsForRole`
+([lib/core/widgets/app_shell.dart](lib/core/widgets/app_shell.dart)) and the mobile
+`RoleScaffold` chrome ([lib/core/widgets/role_scaffold.dart](lib/core/widgets/role_scaffold.dart)):
+the four `AppBottomNav` items **and** the AppBar action icons (Communications,
+Attendance, Requests, Notifications bell). The inactive→active pattern is preserved
+by mapping to `PhosphorIconsRegular.*` (inactive) and `PhosphorIconsFill.*` (active).
+
+- **Self-hosted, NOT the `phosphor_flutter` package.** The package's public
+  `class PhosphorIconData extends IconData` fails to compile on our SDK (Dart 3.12+),
+  where `IconData` is a `final class` and can't be extended outside its library —
+  `flutter analyze` on our files passed but the app crashed at build with *"The class
+  'IconData' can't be extended…"*. Its latest release (2.1.0) has no fix. So, like the
+  hand-rolled xlsx/pdf writers, we vendor only what we use: the two font weights
+  (`assets/fonts/Phosphor-Regular.ttf` + `Phosphor-Fill.ttf`, registered as font
+  families `PhosphorRegular`/`PhosphorFill` in `pubspec.yaml`) and plain `const
+  IconData` constants in [core/theme/phosphor_icons.dart](lib/core/theme/phosphor_icons.dart)
+  (classes named `PhosphorIconsRegular`/`PhosphorIconsFill` so call sites read the
+  same). No runtime dependency added.
+- **Mapping:** Dashboard→`squaresFour`, Tasks/Operations/My Tasks→`listChecks`,
+  Schedule→`calendarDots`, Attendance→`fingerprint`, Communications→`megaphone`,
+  Chat→`chatCircle`, Cases→`chatsCircle`, Requests→`stamp`, Notifications→`bell`,
+  Analytics→`chartBar`, Branches→`storefront`, Branch Sales→`trendUp`,
+  Managers→`identificationBadge`, Employees→`usersThree`, Home→`house`.
+- **Fixed inconsistency:** desktop Attendance previously used `fingerprint_rounded`
+  for *both* states (no outline→filled swap); it now gets the regular→fill transition
+  every other row has.
+- The **⌘K command palette** reads the same `sectionsForRole`, so its icons updated
+  in lockstep. `flutter analyze` clean. **Note:** adding fonts requires a full app
+  relaunch (hot reload/restart won't load new font assets — they render as tofu boxes
+  until a cold start).
+
 ## 2026-08-06 — Submission overlay reworked around an animated Lottie loader (polish; LOW risk)
 
 Owner: *"i have added lottie file instead of this bad loading so use it when

@@ -115,7 +115,6 @@ dependencies:
   # one colour, which turned Gmail's four-colour M into a flat red glyph, and a
   # wrong logo reads worse than no logo.
   flutter_svg: ^2.0.10
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -174,6 +173,17 @@ flutter:
           weight: 600
         - asset: assets/fonts/Inter-Bold.ttf
           weight: 700
+    # Phosphor navigation icons — self-hosted rather than via the
+    # `phosphor_flutter` package, whose `PhosphorIconData extends IconData` no
+    # longer compiles on Dart 3.12+ (IconData is now a final class). Two weights:
+    # Regular (inactive nav) and Fill (active nav). Glyphs are addressed by
+    # codepoint in `core/theme/phosphor_icons.dart`.
+    - family: PhosphorRegular
+      fonts:
+        - asset: assets/fonts/Phosphor-Regular.ttf
+    - family: PhosphorFill
+      fonts:
+        - asset: assets/fonts/Phosphor-Fill.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

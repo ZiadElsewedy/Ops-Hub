@@ -8,6 +8,7 @@ import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
+import 'package:drop/core/theme/phosphor_icons.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_sidebar.dart';
@@ -54,39 +55,39 @@ class AppShell extends StatefulWidget {
   /// present the same list with the same ⌘n ordering.
   static List<SidebarSection> sectionsForRole(UserRole role) {
     const notifications = SidebarItem(
-      icon: Icons.notifications_none_rounded,
-      activeIcon: Icons.notifications_rounded,
+      icon: PhosphorIconsRegular.bell,
+      activeIcon: PhosphorIconsFill.bell,
       label: 'Notifications',
       route: RouteNames.notifications,
     );
     const communications = SidebarItem(
-      icon: Icons.campaign_outlined,
-      activeIcon: Icons.campaign_rounded,
+      icon: PhosphorIconsRegular.megaphone,
+      activeIcon: PhosphorIconsFill.megaphone,
       label: 'Communications',
       route: RouteNames.communications,
     );
     const chat = SidebarItem(
-      icon: Icons.chat_bubble_outline_rounded,
-      activeIcon: Icons.chat_bubble_rounded,
+      icon: PhosphorIconsRegular.chatCircle,
+      activeIcon: PhosphorIconsFill.chatCircle,
       label: 'Chat',
       route: RouteNames.chat,
       trailingBuilder: _chatUnreadBadge,
     );
     const cases = SidebarItem(
-      icon: Icons.forum_outlined,
-      activeIcon: Icons.forum_rounded,
+      icon: PhosphorIconsRegular.chatsCircle,
+      activeIcon: PhosphorIconsFill.chatsCircle,
       label: 'Cases',
       route: RouteNames.cases,
     );
     const requests = SidebarItem(
-      icon: Icons.approval_outlined,
-      activeIcon: Icons.approval_rounded,
+      icon: PhosphorIconsRegular.stamp,
+      activeIcon: PhosphorIconsFill.stamp,
       label: 'Requests',
       route: RouteNames.requests,
     );
     const attendance = SidebarItem(
-      icon: Icons.fingerprint_rounded,
-      activeIcon: Icons.fingerprint_rounded,
+      icon: PhosphorIconsRegular.fingerprint,
+      activeIcon: PhosphorIconsFill.fingerprint,
       label: 'Attendance',
       route: RouteNames.attendance,
     );
@@ -95,14 +96,14 @@ class AppShell extends StatefulWidget {
     // that have targets switched off render an explicit "off" state rather than
     // an empty ledger, so the destination is safe for every role to see.
     const salesAdmin = SidebarItem(
-      icon: Icons.trending_up_outlined,
-      activeIcon: Icons.trending_up_rounded,
+      icon: PhosphorIconsRegular.trendUp,
+      activeIcon: PhosphorIconsFill.trendUp,
       label: 'Branch Sales',
       route: RouteNames.salesAdminOverview,
     );
     const salesManager = SidebarItem(
-      icon: Icons.trending_up_outlined,
-      activeIcon: Icons.trending_up_rounded,
+      icon: PhosphorIconsRegular.trendUp,
+      activeIcon: PhosphorIconsFill.trendUp,
       label: 'Branch Sales',
       route: RouteNames.salesManage,
     );
@@ -111,8 +112,8 @@ class AppShell extends StatefulWidget {
     // daily close toward a number the whole team shares, so labelling their
     // destination "My Sales" mis-stated what the feature measures.
     const salesEmployee = SidebarItem(
-      icon: Icons.trending_up_outlined,
-      activeIcon: Icons.trending_up_rounded,
+      icon: PhosphorIconsRegular.trendUp,
+      activeIcon: PhosphorIconsFill.trendUp,
       label: 'Branch Sales',
       route: RouteNames.salesMine,
     );
@@ -123,26 +124,26 @@ class AppShell extends StatefulWidget {
           const SidebarSection(
             items: [
               SidebarItem(
-                icon: Icons.dashboard_outlined,
-                activeIcon: Icons.dashboard_rounded,
+                icon: PhosphorIconsRegular.squaresFour,
+                activeIcon: PhosphorIconsFill.squaresFour,
                 label: 'Dashboard',
                 route: RouteNames.adminDashboard,
               ),
               SidebarItem(
-                icon: Icons.fact_check_outlined,
-                activeIcon: Icons.fact_check_rounded,
+                icon: PhosphorIconsRegular.listChecks,
+                activeIcon: PhosphorIconsFill.listChecks,
                 label: 'Tasks',
                 route: RouteNames.adminTasks,
               ),
               SidebarItem(
-                icon: Icons.calendar_view_week_outlined,
-                activeIcon: Icons.calendar_view_week_rounded,
+                icon: PhosphorIconsRegular.calendarDots,
+                activeIcon: PhosphorIconsFill.calendarDots,
                 label: 'Schedule',
                 route: RouteNames.adminSchedule,
               ),
               SidebarItem(
-                icon: Icons.fingerprint_rounded,
-                activeIcon: Icons.fingerprint_rounded,
+                icon: PhosphorIconsRegular.fingerprint,
+                activeIcon: PhosphorIconsFill.fingerprint,
                 label: 'Attendance & Reports',
                 route: RouteNames.attendanceReports,
               ),
@@ -157,27 +158,27 @@ class AppShell extends StatefulWidget {
             title: 'Administration',
             items: [
               SidebarItem(
-                icon: Icons.analytics_outlined,
-                activeIcon: Icons.analytics_rounded,
+                icon: PhosphorIconsRegular.chartBar,
+                activeIcon: PhosphorIconsFill.chartBar,
                 label: 'Analytics',
                 route: RouteNames.adminAnalytics,
               ),
               SidebarItem(
-                icon: Icons.store_outlined,
-                activeIcon: Icons.store_rounded,
+                icon: PhosphorIconsRegular.storefront,
+                activeIcon: PhosphorIconsFill.storefront,
                 label: 'Branches',
                 route: RouteNames.adminBranches,
               ),
               salesAdmin,
               SidebarItem(
-                icon: Icons.badge_outlined,
-                activeIcon: Icons.badge_rounded,
+                icon: PhosphorIconsRegular.identificationBadge,
+                activeIcon: PhosphorIconsFill.identificationBadge,
                 label: 'Managers',
                 route: RouteNames.adminManagers,
               ),
               SidebarItem(
-                icon: Icons.people_outline_rounded,
-                activeIcon: Icons.people_rounded,
+                icon: PhosphorIconsRegular.usersThree,
+                activeIcon: PhosphorIconsFill.usersThree,
                 label: 'Employees',
                 route: RouteNames.adminEmployees,
               ),
@@ -189,26 +190,26 @@ class AppShell extends StatefulWidget {
           const SidebarSection(
             items: [
               SidebarItem(
-                icon: Icons.dashboard_outlined,
-                activeIcon: Icons.dashboard_rounded,
+                icon: PhosphorIconsRegular.squaresFour,
+                activeIcon: PhosphorIconsFill.squaresFour,
                 label: 'Dashboard',
                 route: RouteNames.managerHome,
               ),
               SidebarItem(
-                icon: Icons.fact_check_outlined,
-                activeIcon: Icons.fact_check_rounded,
+                icon: PhosphorIconsRegular.listChecks,
+                activeIcon: PhosphorIconsFill.listChecks,
                 label: 'Operations',
                 route: RouteNames.managerTasks,
               ),
               SidebarItem(
-                icon: Icons.calendar_view_week_outlined,
-                activeIcon: Icons.calendar_view_week_rounded,
+                icon: PhosphorIconsRegular.calendarDots,
+                activeIcon: PhosphorIconsFill.calendarDots,
                 label: 'Schedule',
                 route: RouteNames.managerSchedule,
               ),
               SidebarItem(
-                icon: Icons.fingerprint_rounded,
-                activeIcon: Icons.fingerprint_rounded,
+                icon: PhosphorIconsRegular.fingerprint,
+                activeIcon: PhosphorIconsFill.fingerprint,
                 label: 'Attendance & Reports',
                 route: RouteNames.attendanceReports,
               ),
@@ -226,20 +227,20 @@ class AppShell extends StatefulWidget {
           const SidebarSection(
             items: [
               SidebarItem(
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home_rounded,
+                icon: PhosphorIconsRegular.house,
+                activeIcon: PhosphorIconsFill.house,
                 label: 'Home',
                 route: RouteNames.home,
               ),
               SidebarItem(
-                icon: Icons.fact_check_outlined,
-                activeIcon: Icons.fact_check_rounded,
+                icon: PhosphorIconsRegular.listChecks,
+                activeIcon: PhosphorIconsFill.listChecks,
                 label: 'My Tasks',
                 route: RouteNames.myTasks,
               ),
               SidebarItem(
-                icon: Icons.calendar_view_week_outlined,
-                activeIcon: Icons.calendar_view_week_rounded,
+                icon: PhosphorIconsRegular.calendarDots,
+                activeIcon: PhosphorIconsFill.calendarDots,
                 label: 'My Schedule',
                 route: RouteNames.mySchedule,
               ),
