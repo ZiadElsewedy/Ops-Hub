@@ -90,6 +90,12 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
   Future<void> setActive(UserEntity user, bool isActive) =>
       _mutate(() => _users.setUserActive(user.uid, isActive));
 
+  /// Permanently delete an account and clean up its active references (schedule,
+  /// open tasks, pending swaps/requests/sales, notifications). Irreversible.
+  /// Goes through [_mutate] so the deleted user drops out of the refreshed list.
+  Future<void> deleteAccount(UserEntity user) =>
+      _mutate(() => _users.deleteAccount(user.uid));
+
   Future<void> changeBranch(UserEntity user, String? branchId) =>
       _mutate(() => _users.changeUserBranch(user.uid, branchId));
 

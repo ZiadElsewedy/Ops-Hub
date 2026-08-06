@@ -12,9 +12,13 @@
 
 Most failures below are one of these, not a bug.
 
+> Release gating (signing, store identity, backups, channel) lives in
+> [RELEASE_V1.md](RELEASE_V1.md), not here. This file is the **device test
+> script** only.
+
 | # | Step | Without it |
 | --- | --- | --- |
-| P1 | **Deploy:** `firebase deploy --only functions,firestore:rules,firestore:indexes,storage` (Blaze) | Attendance audit, corrections, cases, requests, automation, and **all push** are inert. Shift-task streams fail `failed-precondition` |
+| P1 | **Deploy:** `firebase deploy --only functions,firestore:rules,firestore:indexes,storage` (Blaze). ✅ As of **2026-08-05 18:32–18:40 UTC** rules, all 24 functions, indexes and storage rules are **live and verified in sync** — re-run only after a server change | Attendance audit, corrections, cases, requests, automation, and **all push** are inert. Shift-task streams fail `failed-precondition` |
 | P2 | **Enable Firebase Storage** in the console | Every media upload fails with "not authorized" — this is *not* a code bug |
 | P3 | **Bootstrap the first admin** — set `role: admin`, `isActive: true` on one user doc | No one can provision accounts |
 | P4 | **Auth providers:** Email/Password **only** | — |
@@ -86,6 +90,9 @@ Minutes feed payroll. Test this properly.
 | M8 | Create a **shift task** (not a person) | Only today's rostered crew sees it |
 | M9 | Review a submission → Approve / Rework | Status moves; the timeline records actor + note |
 | M10 | Two managers approve the **same** task at once | One wins; the other gets a conflict, **no lost decision** |
+| M11 | Manager Home on an **opted-in** branch | A **Branch monthly sales** card under *On shift today*: target · achieved · remaining. Tapping it opens `/sales` |
+| M12 | Approve a sales close, return Home | The **achieved** figure moved without a manual refresh |
+| M13 | Manager Home on an **opted-out** branch (`salesTargetEnabled: false`) | **No sales card and no gap where it was.** Operations still lists *Branch attendance*, and there is no *Branch sales* row anywhere |
 
 ## 5 · Admin
 
@@ -120,7 +127,8 @@ Minutes feed payroll. Test this properly.
 - **Schedule / admin / swap / branch lists** refresh on pull, not push. Deliberate.
 - **iOS push** does not work — unconfigured, tracked in
   [CURRENT_STATE](../CURRENT_STATE.md).
-- **`splash_centering_test.dart`** fails (2 cases). Known and unrelated.
+- ~~**`splash_centering_test.dart`** fails (2 cases).~~ Fixed 2026-08-03; the
+  suite is green (1665 pass, 0 fail).
 - **Managers cannot administer users.** Admin-only by design.
 - **Account deletion** leaves the `users/{uid}` doc behind.
 - **A recurring task** spawns as **Pending** and needs assigning if assignees change.
@@ -133,7 +141,7 @@ Minutes feed payroll. Test this properly.
 - [ ] Every P-precondition done.
 - [ ] Sections 1–6 pass on a real device, both platforms.
 - [ ] Attendance §3 verified **on real hardware** (§T1–T12).
-- [ ] `flutter analyze` clean · `flutter test` green (fix the splash failures first).
+- [ ] `flutter analyze` clean · `flutter test` green.
 - [ ] No monochrome violations.
 - [ ] No crash reports in `last_crash.log` after a full pass.
 

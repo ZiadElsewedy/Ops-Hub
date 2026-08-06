@@ -62,6 +62,8 @@ const COUNTERS = "counters";
 const ATTENDANCE = "attendance";
 const ATTENDANCE_CORRECTIONS = "attendance_corrections";
 const ATTENDANCE_EXPECTATIONS = "attendance_expectations";
+const BRANCH_SALES_MONTHS = "branch_sales_months";
+const BRANCH_SALES_SUBMISSIONS = "branch_sales_submissions";
 
 // Auto-close grace — mirrors AttendanceConfig.defaults.autoCloseGraceMinutes on
 // the client (the single knob until per-branch attendance config lands).
@@ -82,12 +84,15 @@ const ATTENDANCE_AUTO_CLOSE_GRACE_MINUTES = AUTO_CLOSE_GRACE_MINUTES;
 // Max session cap (R7 safety net) — mirrors AttendanceConfig.defaults.maxSessionMinutes.
 const ATTENDANCE_MAX_SESSION_MINUTES = 16 * 60;
 const {
+  AUTO_END_ELIGIBLE_STATUSES,
   BUSINESS_TIME_ZONE,
   TASK_GRACE_MS,
   businessCivilMidnightMs,
   businessDayParts,
+  businessHourOf,
   businessWeekStartKey,
   isTerminalTaskStatus,
+  recurringInstanceId,
   resolveRecurringTaskWindow,
   selectMissedNotifyTargets,
   shouldAutoEndRecurringTask,
@@ -102,14 +107,34 @@ const {
   correlationId,
   buildExecutionSnapshot,
 } = require("./automation_run");
-const { isReminderEligibleStatus } = require("./task_reminders");
+const {
+  reminderDueKind,
+  reminderWindowFloorMs,
+  shouldRemindTask,
+} = require("./task_reminders");
 const { isRetryableBroadcastPushError, resolveSendsPush } = require("./broadcast_delivery");
 const { canClaimScheduledBroadcast } = require("./broadcast_schedule");
+const {
+  BUSINESS_TIME_ZONE: SALES_TIME_ZONE, businessMonthKey, isMonthKey, isValidMoney,
+  nextStatus, targetAchievedCrossing, canDecideSubmission,
+} = require("./sales_target");
 const {
   correctionTargetsOwnRecord,
   correctionMatchesExistingRecordOwner,
 } = require("./attendance_correction_target");
 const { attendanceNotificationSubject } = require("./attendance_notification_subject");
+const {
+  canDeleteAdmin,
+  weekIsCurrentOrFuture,
+  cleanScheduleForUser,
+  isActiveTaskStatus,
+  remainingAssignees,
+  shouldCancelTask,
+  shouldDeleteSwap,
+  shouldDeleteRequest,
+  shouldDeleteSubmission,
+  isFutureExpectation,
+} = require("./user_deletion");
 
 // `branchId` marker for a direct message — never a real branch id and never ''
 // (mirrors BroadcastModel.directBranchMarker), so a DM never appears in a
@@ -710,6 +735,259 @@ exports.adminResetPassword = onCall(async (request) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// deleteUserAccount — admin-only HARD delete of an account. Deactivation
+// (`isActive = false`) keeps the record; THIS removes it. `users` docs are
+// `delete: if false` in firestore.rules, so a hard delete can only happen here,
+// through the Admin SDK.
+//
+// Policy (owner-ruled): **clean active/forward-looking data, keep finished
+// history.** The person is removed from everything that still points at them —
+// the login, current+future schedule slots, open task assignments, pending
+// swaps/requests/sales, their notification inbox, active scheduled-broadcast
+// targeting — while finished history (audit log, terminal tasks, past weeks,
+// resolved swaps/requests, approved sales, attendance actuals, cases) is KEPT
+// and renders the person as "Deleted user" via the member-directory fallback.
+//
+// An open task whose only assignee was the deleted user is **cancelled** (it
+// leaves the active board but stays as a record), reason `management_decision`.
+//
+// Order: revoke Auth access FIRST (so the live session ends via
+// authStateChanges even if the cascade below is interrupted), then run the
+// Firestore cascade. Every step is idempotent, so a retry after a partial
+// failure safely finishes the job.
+exports.deleteUserAccount = onCall(async (request) => {
+  const callerAuth = request.auth;
+  if (!callerAuth) {
+    throw new HttpsError("unauthenticated", "Please sign in.");
+  }
+
+  // ── Only an admin may delete accounts ──
+  const callerSnap = await db.collection(USERS).doc(callerAuth.uid).get();
+  const caller = callerSnap.exists ? callerSnap.data() || {} : {};
+  if ((caller.role || "employee") !== "admin") {
+    throw new HttpsError("permission-denied", "Only an admin can delete accounts.");
+  }
+
+  const uid = String((request.data || {}).uid || "").trim();
+  if (!uid) throw new HttpsError("invalid-argument", "Missing the account to delete.");
+
+  const targetSnap = await db.collection(USERS).doc(uid).get();
+  const userData = targetSnap.exists ? targetSnap.data() || {} : {};
+  const targetBranchId = String(userData.branchId || "").trim();
+
+  // ── Last-admin guard: never leave the org with no usable administrator ──
+  if ((userData.role || "") === "admin") {
+    const admins = await db.collection(USERS).where("role", "==", "admin").get();
+    const adminDocs = admins.docs.map((d) => ({
+      id: d.id,
+      isActive: (d.data() || {}).isActive,
+    }));
+    if (!canDeleteAdmin(adminDocs, uid)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "You can't delete the last administrator.",
+      );
+    }
+  }
+
+  const actorName =
+    String(caller.displayName || caller.fullName || "Admin");
+
+  // ── 1. Revoke access first ──
+  try {
+    await auth.deleteUser(uid);
+  } catch (err) {
+    if (!(err && err.code === "auth/user-not-found")) {
+      logger.error("deleteUserAccount: auth.deleteUser failed", { uid, error: String(err) });
+      throw new HttpsError("internal", "Could not remove the sign-in. Please try again.");
+    }
+  }
+
+  // Paged delete respecting the 500-write batch cap (mirrors broadcastHousekeeping).
+  const deleteQuery = async (query, label) => {
+    let removed = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const snap = await query.limit(BATCH_LIMIT).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      removed += snap.size;
+      if (snap.size < BATCH_LIMIT) break;
+    }
+    if (removed > 0) logger.info(`deleteUserAccount removed ${removed} ${label}`, { uid });
+  };
+
+  try {
+    // ── 2. Weekly schedules — drop the uid from current + future weeks only ──
+    if (targetBranchId) {
+      const currentWeekKey = weekStartKey(Date.now());
+      const schedules = await db
+        .collection(WEEKLY_SCHEDULES)
+        .where("branchId", "==", targetBranchId)
+        .get();
+      for (const doc of schedules.docs) {
+        // Past weeks are history — leave them.
+        if (!weekIsCurrentOrFuture(doc.id, currentWeekKey)) continue;
+        const { assignments, leave, changed } = cleanScheduleForUser(doc.data() || {}, uid);
+        if (changed) {
+          await doc.ref.set(
+            { assignments, leave, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+            { merge: true },
+          );
+        }
+      }
+    }
+
+    // ── 3. Tasks — unassign from active tasks; cancel if left with no assignee ──
+    const tasks = await db
+      .collection(TASKS)
+      .where("assigneeIds", "array-contains", uid)
+      .get();
+    for (const doc of tasks.docs) {
+      const t = doc.data() || {};
+      if (!isActiveTaskStatus(t.status)) continue;
+      const remaining = remainingAssignees(t.assigneeIds, uid);
+      const update = {
+        assigneeIds: remaining,
+        assignedEmployeeId: remaining.length ? remaining[0] : null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (shouldCancelTask(t.assigneeIds, uid)) {
+        update.status = "cancelled";
+        update.cancelledBy = callerAuth.uid;
+        update.cancelledAt = admin.firestore.FieldValue.serverTimestamp();
+        update.cancelReason = "management_decision";
+        update.cancelNote = "Assignee account deleted";
+        update.activityLog = admin.firestore.FieldValue.arrayUnion({
+          status: "cancelled",
+          actorId: callerAuth.uid,
+          actorName,
+          at: admin.firestore.Timestamp.now(),
+          note: "Assignee account deleted",
+          attachments: [],
+        });
+      }
+      await doc.ref.set(update, { merge: true });
+    }
+
+    // ── 4. Shift swaps — delete only still-open ones (either side) ──
+    for (const field of ["requesterId", "targetId"]) {
+      const swaps = await db.collection(SHIFT_SWAPS).where(field, "==", uid).get();
+      const stale = swaps.docs.filter((d) => shouldDeleteSwap((d.data() || {}).status));
+      for (const slice of chunked(stale, BATCH_LIMIT)) {
+        const batch = db.batch();
+        slice.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    }
+
+    // ── 5. Requests — delete the user's still-pending requests (status filtered
+    //         in code so no composite index is needed) ──
+    const requests = await db.collection(REQUESTS).where("requesterId", "==", uid).get();
+    const stalePending = requests.docs.filter(
+      (d) => shouldDeleteRequest((d.data() || {}).status),
+    );
+    for (const slice of chunked(stalePending, BATCH_LIMIT)) {
+      const batch = db.batch();
+      slice.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    // ── 6. Sales submissions — delete the user's in-flight (open) closes;
+    //         approved/rejected are financial history and are kept ──
+    const submissions = await db
+      .collection(BRANCH_SALES_SUBMISSIONS)
+      .where("submittedById", "==", uid)
+      .get();
+    const openSubmissions = submissions.docs.filter(
+      (d) => shouldDeleteSubmission((d.data() || {}).status),
+    );
+    for (const slice of chunked(openSubmissions, BATCH_LIMIT)) {
+      const batch = db.batch();
+      slice.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    // ── 7. Attendance expectations — delete forward-looking rows (today onward) ──
+    const todayKey = isoDate(Date.now());
+    const expectations = await db
+      .collection(ATTENDANCE_EXPECTATIONS)
+      .where("userId", "==", uid)
+      .get();
+    const futureExp = expectations.docs.filter(
+      (d) => isFutureExpectation((d.data() || {}).businessDate, todayKey),
+    );
+    for (const slice of chunked(futureExp, BATCH_LIMIT)) {
+      const batch = db.batch();
+      slice.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    // ── 8. Notifications — the deleted user's inbox is pure garbage ──
+    await deleteQuery(
+      db.collection(NOTIFICATIONS).where("recipientUid", "==", uid),
+      "notifications",
+    );
+
+    // ── 9. Scheduled broadcasts — drop the uid from active custom targeting ──
+    const schedules = await db
+      .collection(BROADCAST_SCHEDULES)
+      .where("targetUserIds", "array-contains", uid)
+      .get();
+    for (const doc of schedules.docs) {
+      await doc.ref.update({
+        targetUserIds: admin.firestore.FieldValue.arrayRemove(uid),
+      });
+    }
+
+    // ── 10. Private subcollections (compensation, …) — Firestore keeps these
+    //         when the parent doc is deleted, so remove them explicitly ──
+    const subcollections = await db.collection(USERS).doc(uid).listCollections();
+    for (const col of subcollections) {
+      const docs = await col.listDocuments();
+      for (const slice of chunked(docs, BATCH_LIMIT)) {
+        const batch = db.batch();
+        slice.forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
+    }
+
+    // ── 11. The account record itself ──
+    await db.collection(USERS).doc(uid).delete();
+
+    // ── 12. Audit (kept) — record who removed whom ──
+    await db.collection(AUDIT_LOGS).add({
+      eventType: "user.deleted",
+      entityType: "user",
+      entityId: uid,
+      actorId: callerAuth.uid,
+      actorName,
+      actorRole: "admin",
+      branchId: targetBranchId || null,
+      metadata: {
+        email: userData.email || null,
+        role: userData.role || null,
+        targetName: userData.displayName || userData.fullName || null,
+      },
+      schemaVersion: 1,
+      isDeleted: false,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    logger.error("deleteUserAccount: cascade failed", { uid, error: String(err) });
+    throw new HttpsError(
+      "internal",
+      "The sign-in was removed but cleanup did not finish. Please run delete again.",
+    );
+  }
+
+  logger.info("account deleted", { uid, by: callerAuth.uid });
+  return { success: true };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // approveSwap — the server-authoritative shift-swap exchange (2026-06-25
 // hardening). A coworker-approved swap is finalized HERE, never by a direct
 // client write (firestore.rules deny a client setting status==managerApproved).
@@ -809,6 +1087,7 @@ exports.approveSwap = onCall(async (request) => {
   const caller = callerSnap.data() || {};
   const callerRole = caller.role || "employee";
   const callerBranch = caller.branchId || "";
+  const approverName = String(caller.displayName || caller.fullName || caller.email || "Manager").trim();
   const canApprove =
     callerRole === "admin" ||
     (callerRole === "manager" && callerBranch === branchId);
@@ -957,6 +1236,9 @@ exports.approveSwap = onCall(async (request) => {
 
     tx.update(swapRef, {
       status: "managerApproved",
+      managerApprovedById: auth.uid,
+      managerApprovedByName: approverName,
+      managerApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     tx.update(schedRef, {
@@ -992,7 +1274,7 @@ exports.approveSwap = onCall(async (request) => {
         senderUid: auth.uid,
         type: "swapApproved",
         title: "Swap Approved",
-        body: `Your ${dayLabel} shift swap was approved — the schedule is updated.`,
+        body: `${approverName} approved your ${dayLabel} shift swap — the schedule is updated.`,
         readAt: null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         payload: { swapId, route: "schedule" },
@@ -1007,6 +1289,193 @@ exports.approveSwap = onCall(async (request) => {
   }
 
   return { success: true };
+});
+
+// ── Branch monthly sales ledger (server-authoritative decisions) ──────────
+function salesActor(user, uid) {
+  return { id: uid, name: String(user.displayName || user.fullName || user.email || "User").trim(), role: String(user.role || "employee") };
+}
+async function requireSalesManager(request, branchId) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Please sign in.");
+  const snap = await db.collection(USERS).doc(request.auth.uid).get();
+  if (!snap.exists) throw new HttpsError("permission-denied", "Your account profile was not found.");
+  const user = snap.data() || {};
+  const role = String(user.role || "employee");
+  if (user.isActive === false || !(role === "admin" || (role === "manager" && user.branchId === branchId))) {
+    throw new HttpsError("permission-denied", "Only the branch manager or an admin can make this change.");
+  }
+  return salesActor(user, request.auth.uid);
+}
+// A branch opts in to the monthly sales target workflow. When the flag is off
+// the feature must not exist for that branch, so NEW work is refused here at the
+// server boundary as well as hidden in the client. Decisions on records that
+// already exist stay allowed — switching a branch off must not strand a pending
+// submission an employee is waiting on.
+async function requireSalesEnabledBranch(branchId) {
+  const snap = await db.collection(BRANCHES).doc(String(branchId || "")).get();
+  const branch = snap.exists ? (snap.data() || {}) : null;
+  if (!branch || branch.salesTargetEnabled !== true) {
+    throw new HttpsError("failed-precondition", "This branch does not use monthly sales targets.");
+  }
+  return branch;
+}
+function salesReason(value, required = true) {
+  const reason = typeof value === "string" ? value.trim() : "";
+  if (required && !reason) throw new HttpsError("invalid-argument", "A reason is required.");
+  return reason;
+}
+async function writeSalesAudit({ eventType, entityType, entityId, actor, branchId, metadata }) {
+  const ref = db.collection(AUDIT_LOGS).doc();
+  await ref.set({ eventType, entityType, entityId, actorId: actor.id,
+    actorName: actor.name, actorRole: actor.role, branchId, metadata, schemaVersion: 1,
+    isDeleted: false, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+}
+async function salesRecipients(branchId, { managersOnly = false, adminsFallback = false } = {}) {
+  const snap = await db.collection(USERS).where("branchId", "==", branchId).where("isActive", "==", true).get();
+  let ids = snap.docs.filter((d) => !managersOnly || d.data().role === "manager").map((d) => d.id);
+  if (!ids.length && adminsFallback) {
+    const admins = await db.collection(USERS).where("role", "==", "admin").where("isActive", "==", true).get();
+    ids = admins.docs.map((d) => d.id);
+  }
+  return ids;
+}
+async function writeSalesNotifications(recipientUids, { title, body, submissionId = null, monthKey = null }) {
+  const ids = [...new Set(recipientUids.filter(Boolean))];
+  if (!ids.length) return;
+  const batch = db.batch();
+  for (const recipientUid of ids) {
+    const ref = db.collection(NOTIFICATIONS).doc();
+    batch.set(ref, { id: ref.id, recipientUid, senderUid: "", type: "salesSubmission",
+      title: String(title).slice(0, 120), body: String(body).slice(0, 500), readAt: null,
+      // `sales_submission` opens the exact submission; a MONTH event (target
+      // changed / achieved) has no submission to open, so it rides its own
+      // route and the resolver sends each role to the sales surface it owns.
+      payload: { route: submissionId ? "sales_submission" : "sales_target", ...(submissionId ? { salesSubmissionId: submissionId } : {}), ...(monthKey ? { monthKey } : {}) },
+      createdAt: admin.firestore.FieldValue.serverTimestamp() });
+  }
+  await batch.commit();
+}
+async function approvedTotal(tx, branchId, monthKey) {
+  const snap = await tx.get(db.collection(BRANCH_SALES_SUBMISSIONS)
+    .where("branchId", "==", branchId).where("monthKey", "==", monthKey).where("status", "==", "approved"));
+  return snap.docs.reduce((sum, doc) => sum + (Number(doc.data().amountPiastres) || 0), 0);
+}
+
+exports.setBranchSalesTarget = onCall(async (request) => {
+  const data = request.data || {};
+  const branchId = String(data.branchId || "").trim();
+  const monthKey = String(data.monthKey || "").trim();
+  if (!branchId || !isMonthKey(monthKey) || monthKey !== businessMonthKey(`${monthKey.slice(0, 4)}-${monthKey.slice(4, 6)}-15T12:00:00Z`) || !isValidMoney(data.targetPiastres)) {
+    throw new HttpsError("invalid-argument", "Invalid branch, Cairo month, or target amount.");
+  }
+  const reason = salesReason(data.reason);
+  const actor = await requireSalesManager(request, branchId);
+  await requireSalesEnabledBranch(branchId);
+  const ref = db.collection(BRANCH_SALES_MONTHS).doc(`${branchId}_${monthKey}`);
+  let result;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref); const now = admin.firestore.FieldValue.serverTimestamp();
+    if (!snap.exists) {
+      result = { oldTarget: null, targetRevision: 1 };
+      tx.create(ref, { id: ref.id, branchId, monthKey, timeZone: SALES_TIME_ZONE, targetPiastres: data.targetPiastres, targetRevision: 1,
+        createdAt: now, updatedAt: now, createdById: actor.id, createdByName: actor.name, createdByRole: actor.role,
+        updatedById: actor.id, updatedByName: actor.name, updatedByRole: actor.role, lastChangeReason: reason, schemaVersion: 1 });
+    } else {
+      const old = snap.data() || {}; const currentRevision = Number(old.targetRevision) || 1;
+      if (data.expectedTargetRevision != null && data.expectedTargetRevision !== currentRevision) throw new HttpsError("failed-precondition", "Target revision is stale.");
+      result = { oldTarget: old.targetPiastres, targetRevision: currentRevision + 1 };
+      tx.update(ref, { targetPiastres: data.targetPiastres, targetRevision: currentRevision + 1, updatedAt: now,
+        updatedById: actor.id, updatedByName: actor.name, updatedByRole: actor.role, lastChangeReason: reason });
+    }
+  });
+  try { await writeSalesAudit({ eventType: "sales.target_changed", entityType: "sales_month", entityId: ref.id, actor, branchId, metadata: { branchId, monthKey, targetId: ref.id, oldTargetPiastres: result.oldTarget, newTargetPiastres: data.targetPiastres, targetRevision: result.targetRevision, reason, schemaVersion: 1 } });
+    await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target updated", body: "Your branch monthly sales target was updated.", monthKey });
+  } catch (err) { logger.warn("failed to write sales target side effects", { error: String(err), branchId, monthKey }); }
+  return { success: true, targetRevision: result.targetRevision };
+});
+
+exports.decideDailySalesSubmission = onCall(async (request) => {
+  const data = request.data || {}; const submissionId = String(data.submissionId || "").trim();
+  const action = String(data.action || "");
+  if (!submissionId || !["approve", "reject", "requestCorrection", "reopen"].includes(action)) throw new HttpsError("invalid-argument", "Invalid sales decision.");
+  const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
+  if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+  const branchId = String((initial.data() || {}).branchId || ""); const actor = await requireSalesManager(request, branchId);
+  const reason = salesReason(data.reason, ["reject", "requestCorrection", "reopen"].includes(action)); let result;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+    const sub = snap.data() || {}; if (String(sub.branchId || "") !== branchId) throw new HttpsError("failed-precondition", "Submission branch changed.");
+    if (!canDecideSubmission(actor.id, sub.submittedById)) throw new HttpsError("failed-precondition", "You cannot approve your own sales submission.");
+    const transition = nextStatus(String(sub.status || ""), action, actor.role);
+    if (transition.error) throw new HttpsError("failed-precondition", "This sales submission cannot take that action now.");
+    const revision = Number(sub.revision) || 1; const update = { status: transition.status, decisionById: actor.id, decisionByName: actor.name, decisionByRole: actor.role, decisionAt: admin.firestore.FieldValue.serverTimestamp(), decisionReason: reason || null, updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+    if (action === "approve") update.approvedRevision = revision;
+    let crossing = false;
+    if (action === "approve") { const month = await tx.get(db.collection(BRANCH_SALES_MONTHS).doc(`${branchId}_${sub.monthKey}`)); const total = await approvedTotal(tx, branchId, sub.monthKey); crossing = month.exists && targetAchievedCrossing(total, total + sub.amountPiastres, Number((month.data() || {}).targetPiastres)); }
+    tx.update(ref, update); result = { sub, nextStatus: transition.status, revision, crossing };
+  });
+  const event = { approve: "sales.approved", reject: "sales.rejected", requestCorrection: "sales.correction_requested", reopen: "sales.reopened" }[action];
+  try { await writeSalesAudit({ eventType: event, entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldStatus: result.sub.status, newStatus: result.nextStatus, revision: result.revision, reason: reason || null, schemaVersion: 1 } });
+    await writeSalesNotifications([result.sub.submittedById], { title: "Sales submission updated", body: `Your sales submission was ${result.nextStatus}.`, submissionId });
+    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
+  } catch (err) { logger.warn("failed to write sales decision side effects", { error: String(err), submissionId }); }
+  return { success: true, status: result.nextStatus };
+});
+
+exports.editApprovedDailySalesSubmission = onCall(async (request) => {
+  const data = request.data || {}; const submissionId = String(data.submissionId || "").trim();
+  if (!submissionId || !isValidMoney(data.amountPiastres) || !Number.isInteger(data.expectedRevision)) throw new HttpsError("invalid-argument", "Invalid sales edit.");
+  const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
+  if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+  const branchId = String((initial.data() || {}).branchId || ""); const actor = await requireSalesManager(request, branchId); const reason = salesReason(data.reason); let result;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists."); const sub = snap.data() || {};
+    const revision = Number(sub.revision) || 1; if (sub.status !== "approved" || revision !== data.expectedRevision) throw new HttpsError("failed-precondition", "Sales submission revision is stale or not approved.");
+    const month = await tx.get(db.collection(BRANCH_SALES_MONTHS).doc(`${branchId}_${sub.monthKey}`)); const totalAfter = await approvedTotal(tx, branchId, sub.monthKey); const before = totalAfter; const after = before - Number(sub.amountPiastres || 0) + data.amountPiastres;
+    const crossing = month.exists && targetAchievedCrossing(before, after, Number((month.data() || {}).targetPiastres));
+    tx.update(ref, { amountPiastres: data.amountPiastres, revision: revision + 1, lastEditedById: actor.id, lastEditedByName: actor.name, lastEditedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    result = { sub, oldAmount: sub.amountPiastres, revision: revision + 1, crossing };
+  });
+  try { await writeSalesAudit({ eventType: "sales.approved_amount_edited", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.oldAmount, newAmountPiastres: data.amountPiastres, revision: result.revision, reason, schemaVersion: 1 } });
+    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
+  } catch (err) { logger.warn("failed to write sales edit side effects", { error: String(err), submissionId }); }
+  return { success: true, revision: result.revision };
+});
+
+exports.resubmitCorrectedSales = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Please sign in.");
+  const data = request.data || {}; const submissionId = String(data.submissionId || "").trim();
+  if (!submissionId || !isValidMoney(data.amountPiastres)) throw new HttpsError("invalid-argument", "Invalid corrected sales amount.");
+  const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
+  if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+  const initialSub = initial.data() || {};
+  if (initialSub.status !== "correctionRequested") throw new HttpsError("failed-precondition", "This sales submission is not awaiting correction.");
+  if (initialSub.submittedById !== request.auth.uid) throw new HttpsError("permission-denied", "You can only correct your own sales submission.");
+  const userSnap = await db.collection(USERS).doc(request.auth.uid).get();
+  const actor = salesActor(userSnap.exists ? (userSnap.data() || {}) : {}, request.auth.uid); let result;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
+    const sub = snap.data() || {};
+    if (sub.status !== "correctionRequested") throw new HttpsError("failed-precondition", "This sales submission is no longer awaiting correction.");
+    if (sub.submittedById !== request.auth.uid) throw new HttpsError("permission-denied", "You can only correct your own sales submission.");
+    const transition = nextStatus(String(sub.status || ""), "resubmit", "employee");
+    if (transition.error) throw new HttpsError("failed-precondition", "This sales submission cannot be resubmitted now.");
+    const revision = Number(sub.revision) || 1;
+    tx.update(ref, { status: transition.status, amountPiastres: data.amountPiastres, revision: revision + 1,
+      submittedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      decisionById: admin.firestore.FieldValue.delete(), decisionByName: admin.firestore.FieldValue.delete(), decisionByRole: admin.firestore.FieldValue.delete(), decisionAt: admin.firestore.FieldValue.delete(), decisionReason: admin.firestore.FieldValue.delete() });
+    result = { sub, revision: revision + 1 };
+  });
+  try { await writeSalesAudit({ eventType: "sales.resubmitted", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId: result.sub.branchId, metadata: { branchId: result.sub.branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.sub.amountPiastres, newAmountPiastres: data.amountPiastres, oldStatus: result.sub.status, newStatus: "pending", revision: result.revision, schemaVersion: 1 } });
+    await writeSalesNotifications(await salesRecipients(String(result.sub.branchId || ""), { managersOnly: true, adminsFallback: true }), { title: "Corrected sales submission", body: "A corrected daily sales submission is ready for review.", submissionId, monthKey: result.sub.monthKey });
+  } catch (err) { logger.warn("failed to write sales resubmit side effects", { error: String(err), submissionId }); }
+  return { success: true, status: "pending", revision: result.revision };
+});
+
+exports.onDailySalesSubmissionCreated = onDocumentCreated(`${BRANCH_SALES_SUBMISSIONS}/{submissionId}`, async (event) => {
+  const sub = event.data && event.data.data(); if (!sub || sub.status !== "pending") return;
+  try { await writeSalesNotifications(await salesRecipients(String(sub.branchId || ""), { managersOnly: true, adminsFallback: true }), { title: "New sales submission", body: "A daily sales submission is ready for review.", submissionId: event.params.submissionId, monthKey: sub.monthKey }); }
+  catch (err) { logger.warn("failed to write new sales submission notification", { error: String(err), submissionId: event.params.submissionId }); }
 });
 
 /**
@@ -1224,8 +1693,14 @@ exports.onNotificationCreated = onDocumentCreated(
     // feeds them to the shared deep-link resolver. EVERY target id the resolver
     // reads must be forwarded here or the deep link is lost on a background /
     // cold-start tap: taskId · caseId · requestId · broadcastId · swapId
-    // (schedule route) · recordId (attendance route). `route` selects which id
-    // the resolver uses.
+    // (schedule route) · recordId (attendance route) · salesSubmissionId (sales
+    // route). `route` selects which id the resolver uses.
+    //
+    // ⚠️ A key missing here is a deep link LOST on every background / cold-start
+    // tap while the in-app inbox still works — the notification quietly opens the
+    // list instead of the record. That is exactly how `salesSubmissionId` went
+    // unnoticed: the inbox reads the Firestore payload directly, the push does
+    // not. Add every new payload id to BOTH.
     const message = {
       notification: { title, body },
       data: {
@@ -1242,6 +1717,10 @@ exports.onNotificationCreated = onDocumentCreated(
         // background tap can only reach the ledger, not the exact record.
         recordId: String(payload.recordId || ""),
         correctionId: String(payload.correctionId || ""),
+        // Branch sales. Without salesSubmissionId a "New sales submission" push
+        // could only reach the branch dashboard, never the record to review.
+        salesSubmissionId: String(payload.salesSubmissionId || ""),
+        monthKey: String(payload.monthKey || ""),
         category: String(payload.category || ""),
         revisionNumber:
           payload.revisionNumber == null ? "" : String(payload.revisionNumber),
@@ -1456,31 +1935,62 @@ exports.broadcastHousekeeping = onSchedule("every 24 hours", async () => {
 });
 
 // ── Task reminder rules (mirrors lib/features/task/domain/reminder_rules.dart) ──
-const REMINDER_ORDER = ["due24h", "due1h", "overdue"];
+// The pure decisions live in `task_reminders.js` so they are unit-testable
+// without Firebase; this file only does the I/O around them.
 
-function reminderInQuietHours(hour, startHour, endHour) {
-  if (startHour === endHour) return false;
-  if (startHour < endHour) return hour >= startHour && hour < endHour;
-  return hour >= startHour || hour < endHour; // wraps midnight
-}
+/**
+ * Who a reminder for [task] should reach.
+ *
+ * An individual/team task names its assignees. A generated shift task never
+ * does — it is a broadcast to whoever is rostered, so `assigneeIds` is `[]` by
+ * construction. That is why reminders used to skip them entirely (`if
+ * (assignees.length === 0) continue`), leaving the app's most important task
+ * class with exactly ONE notification, fired at 01:00, and then silence until
+ * the manager was told it had been Missed.
+ *
+ * The roster is resolved through the same `eligibleRecipients` used at
+ * generation time (rostered · not on leave · active), against the week of the
+ * task's own occurrence — never "today", or a reminder sent just after midnight
+ * for a night shift would resolve the wrong day's crew.
+ *
+ * [scheduleCache] memoizes weekly-schedule reads across one sweep, since a
+ * branch's tasks all share a document.
+ */
+async function reminderRecipients(task, scheduleCache) {
+  const assignees = Array.isArray(task.assigneeIds)
+    ? task.assigneeIds.filter(Boolean)
+    : [];
+  if (String(task.assignmentType || "individual") !== "shift") return assignees;
 
-function reminderDueKind(deadline, now, lastKind, count, cfg) {
-  if (!cfg.enabled) return null;
-  if (count >= cfg.maxReminders) return null;
-  if (reminderInQuietHours(now.getUTCHours(), cfg.quietStartHour, cfg.quietEndHour)) {
-    return null;
+  const branchId = String(task.branchId || "");
+  const shift = task.shift === "night" ? "night" : "morning";
+  const occurrence = task.instanceDate || task.deadline;
+  if (!branchId || !occurrence) return [];
+
+  const day = occurrence.toDate ? occurrence.toDate() : occurrence;
+  const scheduleId = `${branchId}_${weekStartKey(day)}`;
+  if (!scheduleCache.has(scheduleId)) {
+    try {
+      const snap = await db.collection(WEEKLY_SCHEDULES).doc(scheduleId).get();
+      scheduleCache.set(scheduleId, snap.exists ? (snap.data() || {}) : null);
+    } catch (err) {
+      // A roster we cannot read means we cannot name a recipient. Cache the
+      // miss so one broken week doesn't re-read on every task in the branch.
+      logger.warn("reminder roster lookup failed", {
+        scheduleId,
+        error: String(err),
+      });
+      scheduleCache.set(scheduleId, null);
+    }
   }
-  const diffMs = deadline.getTime() - now.getTime();
-  let kind;
-  if (diffMs < 0) kind = "overdue";
-  else if (diffMs <= 60 * 60 * 1000) kind = "due1h";
-  else if (diffMs <= 24 * 60 * 60 * 1000) kind = "due24h";
-  else return null;
-  // Only escalate forward.
-  if (lastKind && REMINDER_ORDER.indexOf(kind) <= REMINDER_ORDER.indexOf(lastKind)) {
-    return null;
-  }
-  return kind;
+  const scheduleData = scheduleCache.get(scheduleId);
+  if (!scheduleData) return [];
+  const resolved = await eligibleRecipients(
+    scheduleData,
+    scheduleDayName(day),
+    shift,
+  );
+  return resolved.map((r) => r.uid);
 }
 
 /**
@@ -1519,18 +2029,44 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
     return;
   }
 
-  // Tasks due within 24h or already overdue (single-field inequality).
-  const soon = admin.firestore.Timestamp.fromMillis(now.getTime() + 24 * 60 * 60 * 1000);
-  const snap = await db.collection(TASKS).where("deadline", "<=", soon).get();
+  // The staff wall-clock hour, for quiet hours. Resolved ONCE per sweep — every
+  // task in the run shares it, and it must never be `getUTCHours()` (see
+  // `reminderInQuietHours`).
+  const businessHour = businessHourOf(now);
 
+  // Tasks whose deadline sits inside the reminder window: at most 24h ahead,
+  // and no further back than the lookback floor. Both ends are the same
+  // single-field inequality, so this stays auto-indexed — no composite to
+  // deploy — while bounding a scan that was previously unbounded and growing.
+  const soon = admin.firestore.Timestamp.fromMillis(now.getTime() + 24 * 60 * 60 * 1000);
+  const floor = admin.firestore.Timestamp.fromMillis(
+    reminderWindowFloorMs(now.getTime()),
+  );
+  const snap = await db
+    .collection(TASKS)
+    .where("deadline", ">=", floor)
+    .where("deadline", "<=", soon)
+    .orderBy("deadline", "asc")
+    .limit(BATCH_LIMIT)
+    .get();
+  if (snap.size === BATCH_LIMIT) {
+    // Not fatal (the next tick picks up where the deadline ordering left off),
+    // but it means the window no longer fits one page — worth seeing before it
+    // becomes a starvation problem rather than after.
+    logger.warn("task reminder scan hit the page limit", { limit: BATCH_LIMIT });
+  }
+
+  const scheduleCache = new Map();
   let sent = 0;
   for (const doc of snap.docs) {
     const t = doc.data() || {};
-    if (!isReminderEligibleStatus(t.status)) continue;
+    const isGeneratedShiftTask =
+      String(t.assignmentType || "individual") === "shift" &&
+      String(t.sourceTemplateId || "").trim().length > 0;
+    if (!shouldRemindTask(t.status, isGeneratedShiftTask)) continue;
+    if (t.archivedAt != null) continue;
     const deadline = t.deadline && t.deadline.toDate ? t.deadline.toDate() : null;
     if (!deadline) continue;
-    const assignees = Array.isArray(t.assigneeIds) ? t.assigneeIds.filter(Boolean) : [];
-    if (assignees.length === 0) continue;
 
     // Per-task reminder ledger.
     const ledgerRef = db.collection(TASK_REMINDERS).doc(doc.id);
@@ -1547,19 +2083,49 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
       // best-effort
     }
 
-    const kind = reminderDueKind(deadline, now, lastKind, count, cfg);
+    const kind = reminderDueKind(deadline, now, lastKind, count, cfg, businessHour);
     if (!kind) continue;
 
+    // Resolved only once a reminder is actually owed. A shift task's roster
+    // costs a schedule read (memoized) plus one read per rostered employee, so
+    // doing it for every task in the window on every 30-minute tick would
+    // recreate the unbounded-read problem this pass exists to remove.
+    const assignees = await reminderRecipients(t, scheduleCache);
+    if (assignees.length === 0) continue;
+
+    // A rejected shift instance is a different message from a task nobody has
+    // started: the work came back and the wall is still coming. Saying "is due
+    // soon" would hide the one fact the employee has to act on.
+    const isRework = String(t.status || "") === "rejected";
     const type = kind === "overdue" ? "taskOverdue" : "taskReminder";
-    const title = kind === "overdue" ? "Task Late" : "Task Reminder";
-    const dueLabel = kind === "overdue" ? "is late" : "is due soon";
-    const body = `${t.title || "A task"} ${dueLabel}`;
+    const title = isRework
+      ? "Rework Needed"
+      : kind === "overdue"
+        ? "Task Late"
+        : "Task Reminder";
+    // Each rung says how far off the wall actually is. "is due soon" used to
+    // cover both the 24h-out and the 1h-out rung, so a task ending tomorrow read
+    // as if it were due any minute — the one thing a reminder must get right.
+    const dueLabel =
+      kind === "overdue"
+        ? "is late"
+        : kind === "due1h"
+          ? "is due within the hour"
+          : "is due within 24 hours";
+    const body = isRework
+      ? `${t.title || "A task"} was sent back and ${dueLabel}`
+      : `${t.title || "A task"} ${dueLabel}`;
     const payload = { taskId: doc.id, route: "task_details", kind };
 
     try {
       const batch = db.batch();
       for (const uid of assignees) {
-        const ref = db.collection(NOTIFICATIONS).doc();
+        // Deterministic id — (task, rung, recipient) identifies one reminder, so
+        // a retried sweep or a partially-committed batch converges on the same
+        // notice instead of stacking duplicates in the inbox.
+        const ref = db
+          .collection(NOTIFICATIONS)
+          .doc(`taskreminder_${doc.id}_${kind}_${uid}`);
         batch.set(ref, {
           id: ref.id,
           recipientUid: uid,
@@ -1614,13 +2180,6 @@ function scheduleDayName(d) {
 // yyyy-MM-dd key — mirrors ScheduleWeek.startOf/docId (`<branchId>_<key>`).
 function weekStartKey(d) {
   return businessWeekStartKey(d);
-}
-
-function legacyUtcDateKey(d) {
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 function addCivilDays(year, month, day, days) {
@@ -1774,9 +2333,7 @@ exports.generateShiftTaskInstances = onSchedule(
       const branchId = String(t.branchId || "");
       if (!branchId) continue;
       const shift = t.shift === "night" ? "night" : "morning";
-      const instanceId = `rt_${doc.id}_${todayKey}`;
-      const legacyTodayKey = legacyUtcDateKey(now);
-      const legacyInstanceId = `rt_${doc.id}_${legacyTodayKey}`;
+      const instanceId = recurringInstanceId(doc.id, todayKey);
       const runId = `${doc.id}_${todayKey}`;
       // Deterministic correlation id for this execution (§Correlation ID) —
       // stamped on the run, the generated task, its notifications and its audit
@@ -1875,29 +2432,22 @@ exports.generateShiftTaskInstances = onSchedule(
         });
 
         stage("generate");
-        // Temporary transition guard for the UTC-key → business-date-key
-        // convention change. If today's occurrence already exists under the
-        // legacy UTC-derived id, this business occurrence is already spent; skip
-        // exactly like an ALREADY_EXISTS on the new id. Delete once no live
-        // UTC-keyed generated instance can remain.
-        if (legacyTodayKey !== todayKey) {
-          const legacySnap = await db.collection(TASKS).doc(legacyInstanceId).get();
-          if (legacySnap.exists) {
-            status = "skipped";
-            outcome = "alreadyExists";
-            step(SEVERITY.info, "Skipped — task already generated for today", {
-              taskId: legacyInstanceId,
-              legacyUtcDateKey: legacyTodayKey,
-              businessDateKey: todayKey,
-              windowBackfilled: false,
-            });
-          }
-        }
         // Atomic create — the ENTIRE duplicate guarantee. `create()` rejects with
         // ALREADY_EXISTS if the deterministic id is already present (an overlapping
         // run / retry / the client materializer beat us), so we never double-create
         // and never double-notify.
-        if (outcome !== "alreadyExists") {
+        //
+        // There is deliberately NO "legacy UTC date key" pre-check here. One
+        // existed and it silently disabled every DAILY routine: this function is
+        // pinned to 01:00 Africa/Cairo, where the UTC date is ALWAYS the previous
+        // day (UTC+2 and UTC+3 alike), and both key formats are the same
+        // `rt_{templateId}_{yyyy-MM-dd}` string — so the "legacy id" it probed was
+        // simply YESTERDAY'S perfectly normal instance. It existed, every run
+        // recorded `skipped / alreadyExists`, and no task was ever created again.
+        // The premise was wrong to begin with: the pre-fix generator ran at a
+        // UTC-anchored hour where the UTC and Cairo dates agreed, so one
+        // occurrence was never written under two different keys.
+        {
           try {
             await ref.create({
               id: instanceId,
@@ -2356,7 +2906,11 @@ exports.autoEndRecurringShiftTasks = onSchedule(
       due = await db
         .collection(TASKS)
         .where("assignmentType", "==", "shift")
-        .where("status", "in", ["pending", "started"])
+        // Must stay in lockstep with `shouldAutoEndRecurringTask` — the query
+        // selects candidates and the transaction re-checks them, so a status the
+        // predicate accepts but the query omits is simply never closed. That is
+        // exactly how `rejected` instances leaked before 2026-08-05.
+        .where("status", "in", AUTO_END_ELIGIBLE_STATUSES)
         .where("deadline", "<=", graceCutoffTs)
         .orderBy("deadline", "asc")
         .limit(BATCH_LIMIT)
@@ -2390,6 +2944,13 @@ exports.autoEndRecurringShiftTasks = onSchedule(
 
           const currentVersion = Number(task.version);
           const activityLog = Array.isArray(task.activityLog) ? task.activityLog : [];
+          // Name the actual reason. A task closed while REJECTED was not simply
+          // never picked up — rework had been asked for and was still outstanding
+          // at the wall, and the timeline should say so rather than imply nobody
+          // ever touched it.
+          const note = task.status === "rejected"
+            ? "Automatically marked missed — rework was still owed when the shift ended and the grace period passed."
+            : "Automatically marked missed — the shift ended and the grace period passed.";
           tx.update(doc.ref, {
             status: "missed",
             missedAt: nowTs,
@@ -2400,7 +2961,7 @@ exports.autoEndRecurringShiftTasks = onSchedule(
                 actorId: "system",
                 actorName: "Automation",
                 at: nowTs,
-                note: "Automatically marked missed — the shift ended and the grace period passed.",
+                note,
                 attachments: [],
               },
             ],
@@ -2412,6 +2973,9 @@ exports.autoEndRecurringShiftTasks = onSchedule(
             deadline: task.deadline || null,
             templateId: String(task.sourceTemplateId || ""),
             title: String(task.title || ""),
+            // Which open state it was closed FROM — the audit trail's only record
+            // of whether this was work never done or rework never returned.
+            fromStatus: String(task.status || ""),
           };
         });
       } catch (transitionErr) {
@@ -2432,6 +2996,7 @@ exports.autoEndRecurringShiftTasks = onSchedule(
       await writeAutomationAudit("task.auto_missed", "task", doc.id, ended.branchId, {
         deadline: ended.deadline,
         templateId: ended.templateId,
+        fromStatus: ended.fromStatus,
       });
       // A task that fails automatically must be visible to a HUMAN (spec §9.1).
       // Before this, the sweep closed work silently and the only trace was the

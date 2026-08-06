@@ -8,7 +8,8 @@ import 'package:drop/core/widgets/drop_logo.dart';
 /// A scaffold that adapts its chrome to the platform width.
 ///
 /// * **Mobile / tablet** → the familiar [AppBar] (title + actions + automatic
-///   back button), exactly like the screens used before.
+///   back button). On iOS the native left-edge swipe-back works **in addition**
+///   to the button (see `core/routes/app_page_route.dart`).
 /// * **Desktop / macOS** → no mobile app bar. Instead a calm, generously-spaced
 ///   in-body **page header** (large title, optional subtitle, right-aligned
 ///   actions, hairline divider) sits beside the persistent [AppShell] sidebar,

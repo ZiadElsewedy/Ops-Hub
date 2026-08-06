@@ -343,7 +343,8 @@ class ShiftDetailsSheet extends StatelessWidget {
       context: context,
       title: '${day.label} · ${shift.label}',
       subtitle: 'Tap an employee to assign',
-      employees: members.where((u) => u.role.isEmployee).toList(),
+      employees:
+          members.where((u) => u.role.isEmployee && u.isActive).toList(),
       isAssigned: (u) => schedule.isAssigned(u.uid, day, shift),
       // Leave is a caution, not a wall — the row says it, the manager decides.
       subtitleFor: (u) {
@@ -366,7 +367,8 @@ class ShiftDetailsSheet extends StatelessWidget {
       context: context,
       title: 'Reassign shift',
       subtitle: 'Pick an employee to replace the former one',
-      employees: members.where((u) => u.role.isEmployee).toList(),
+      employees:
+          members.where((u) => u.role.isEmployee && u.isActive).toList(),
       isAssigned: (_) => false,
       onPick: (u) async {
         await cubit.assign(day, shift, u.uid);

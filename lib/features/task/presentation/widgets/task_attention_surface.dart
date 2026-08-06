@@ -162,18 +162,16 @@ class _TaskAttentionSurfaceState extends State<TaskAttentionSurface>
     ];
   }
 
+  /// Long enough to read as a transition, short enough that the card has
+  /// settled before the action button finishing its own swap.
+  static const _toneShift = Duration(milliseconds: 240);
+
   @override
   Widget build(BuildContext context) {
     // The painted edge + the card itself never rebuild — they are handed to the
     // AnimatedBuilder as a pre-built child.
     final surface = RepaintBoundary(
-      child: CustomPaint(
-        foregroundPainter: _EdgePainter(
-          borderRadius: widget.borderRadius,
-          tone: widget.tone,
-          attention: _fade,
-          phase: _shimmer,
-        ),
+      child: _tonedPaint(
         child: ClipRRect(
           borderRadius: widget.borderRadius,
           child: Stack(
@@ -209,6 +207,27 @@ class _TaskAttentionSurfaceState extends State<TaskAttentionSurface>
       child: surface,
     );
   }
+
+  /// The hairline **is** the state, so a state change must not cut it. The
+  /// edge eases from the old tone to the new one over [_toneShift], in step
+  /// with the card's action button swapping. Only the painter rebuilds during
+  /// the shift — [child] is passed through untouched — and once settled the
+  /// tween is idle, so a resting card still costs nothing per frame.
+  Widget _tonedPaint({required Widget child}) => TweenAnimationBuilder<Color?>(
+    tween: ColorTween(end: widget.tone),
+    duration: _reduceMotion ? Duration.zero : _toneShift,
+    curve: Curves.easeOut,
+    child: child,
+    builder: (context, tone, child) => CustomPaint(
+      foregroundPainter: _EdgePainter(
+        borderRadius: widget.borderRadius,
+        tone: tone ?? widget.tone,
+        attention: _fade,
+        phase: _shimmer,
+      ),
+      child: child,
+    ),
+  );
 
   /// Light sitting on the top bevel — 3% at the very top, gone by 46% down.
   LinearGradient? _bevel(double a) {

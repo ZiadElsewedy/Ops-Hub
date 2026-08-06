@@ -20,6 +20,11 @@ import 'package:drop/features/chat/presentation/cubit/chat_list_state.dart';
 import 'package:drop/features/manager/presentation/pages/manager_home_screen.dart';
 import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
 import 'package:drop/features/requests/presentation/cubit/requests_list_state.dart';
+import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_target_card.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
 import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
@@ -136,8 +141,27 @@ class _FakeChatListCubit extends Cubit<ChatListState> implements ChatListCubit {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget _host(_FakeTaskCubit taskCubit, {_FakeShiftSwapCubit? swaps}) =>
-    MultiBlocProvider(
+class _FakeSalesMonthCubit extends Cubit<SalesMonthState>
+    implements SalesMonthCubit {
+  _FakeSalesMonthCubit(super.initial);
+  @override
+  Future<void> loadForBranch({
+    required String branchId,
+    DateTime? now,
+    bool force = false,
+  }) async {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Defaults to **disabled** — the branch in these fixtures does not run sales
+/// targets, so the module renders nothing and every pre-existing expectation
+/// about this page still describes it.
+Widget _host(
+  _FakeTaskCubit taskCubit, {
+  _FakeShiftSwapCubit? swaps,
+  SalesMonthState sales = const SalesMonthState.disabled(),
+}) => MultiBlocProvider(
       providers: [
         BlocProvider<AuthCubit>(create: (_) => _FakeAuthCubit()),
         BlocProvider<StatisticsCubit>(create: (_) => _FakeStatisticsCubit()),
@@ -149,6 +173,7 @@ Widget _host(_FakeTaskCubit taskCubit, {_FakeShiftSwapCubit? swaps}) =>
         BlocProvider<CaseListCubit>(create: (_) => _FakeCaseListCubit()),
         BlocProvider<BranchCubit>(create: (_) => _FakeBranchCubit()),
         BlocProvider<ChatListCubit>(create: (_) => _FakeChatListCubit()),
+        BlocProvider<SalesMonthCubit>(create: (_) => _FakeSalesMonthCubit(sales)),
       ],
       // ManagerHomeScreen is a RoleScaffold child and builds no Scaffold of its
       // own — the shell is what puts a Material ancestor above it in the real
@@ -462,6 +487,59 @@ void main() {
           .last,
     );
     expect(rail.width, 360);
+    await _unmount(tester);
+  });
+
+  // ── Branch monthly sales ─────────────────────────────────────────
+  testWidgets('an opted-in branch states its month on Home', (tester) async {
+    final taskCubit = _FakeTaskCubit(const []);
+    addTearDown(taskCubit.close);
+
+    await tester.pumpWidget(
+      _host(
+        taskCubit,
+        sales: const SalesMonthState.loaded(
+          snapshot: SalesMonthSnapshot(
+            target: BranchSalesMonthEntity(
+              id: 'arkan_202608',
+              branchId: 'arkan',
+              monthKey: '202608',
+              targetPiastres: 100000000,
+            ),
+          ),
+          todayDateKey: '20260805',
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    // The manager sets this target and approves every day that moves it — Home
+    // must state the figure, not just offer a door labelled "Branch sales".
+    expect(find.byType(SalesTargetCard), findsOneWidget);
+    expect(find.text('BRANCH MONTHLY SALES'), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('an opted-out branch renders no sales module at all', (
+    tester,
+  ) async {
+    // Desktop, so the Operations rail is mounted rather than lazily built far
+    // below the fold — the point of this test is that sales is gone *and*
+    // nothing else in Operations went with it.
+    _desktop(tester);
+    final taskCubit = _FakeTaskCubit(const []);
+    addTearDown(taskCubit.close);
+
+    await tester.pumpWidget(_host(taskCubit));
+    await _settle(tester);
+
+    // Not a disabled card, and not the row that used to sit in the digest
+    // ignoring the opt-in and landing on a "not enabled" screen.
+    expect(find.byType(SalesTargetCard), findsNothing);
+    expect(find.text('Branch sales'), findsNothing);
+    // The rest of Operations is untouched.
+    expect(find.byType(DigestPanel), findsOneWidget);
+    expect(find.text('Branch attendance'), findsOneWidget);
     await _unmount(tester);
   });
 }

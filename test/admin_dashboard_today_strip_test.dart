@@ -17,6 +17,8 @@ import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart'
 import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
+import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
 import 'package:drop/features/task/presentation/cubit/task_state.dart';
@@ -87,8 +89,20 @@ class _FakeCaseListCubit extends Cubit<CaseListState> implements CaseListCubit {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// No branch opts in to sales targets here, so the Branch sales module on Admin
+/// Home renders nothing — and, deliberately, never builds its own cubit. That is
+/// what keeps this host free of the sales dependency graph.
+class _FakeBranchCubit extends Cubit<BranchState> implements BranchCubit {
+  _FakeBranchCubit() : super(const BranchState.loaded([]));
+  @override
+  Future<void> loadIfNeeded() async {}
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 Widget _host(_FakeTaskCubit taskCubit) => MultiBlocProvider(
   providers: [
+    BlocProvider<BranchCubit>(create: (_) => _FakeBranchCubit()),
     BlocProvider<AuthCubit>(create: (_) => _FakeAuthCubit()),
     BlocProvider<StatisticsCubit>(create: (_) => _FakeStatisticsCubit()),
     BlocProvider<TaskCubit>.value(value: taskCubit),

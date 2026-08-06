@@ -21,6 +21,9 @@ class ShiftSwapModel {
   final String? note;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? managerApprovedById;
+  final String? managerApprovedByName;
+  final DateTime? managerApprovedAt;
 
   const ShiftSwapModel({
     required this.id,
@@ -36,14 +39,16 @@ class ShiftSwapModel {
     this.note,
     this.createdAt,
     this.updatedAt,
+    this.managerApprovedById,
+    this.managerApprovedByName,
+    this.managerApprovedAt,
   });
 
   factory ShiftSwapModel.fromMap(Map<String, dynamic> map, {String? id}) =>
       ShiftSwapModel(
         id: id ?? map['id'] as String? ?? '',
         branchId: map['branchId'] as String? ?? '',
-        weekStart:
-            map.date('weekStart') ?? DateTime(1970),
+        weekStart: map.date('weekStart') ?? DateTime(1970),
         day: ScheduleDay.fromString(map['day'] as String?),
         shift: ScheduleShift.fromString(map['shift'] as String?),
         requesterId: map['requesterId'] as String? ?? '',
@@ -54,69 +59,86 @@ class ShiftSwapModel {
         note: map['note'] as String?,
         createdAt: map.date('createdAt'),
         updatedAt: map.date('updatedAt'),
+        managerApprovedById: map['managerApprovedById'] as String?,
+        managerApprovedByName: map['managerApprovedByName'] as String?,
+        managerApprovedAt: map.date('managerApprovedAt'),
       );
 
   factory ShiftSwapModel.fromEntity(ShiftSwapEntity e) => ShiftSwapModel(
-        id: e.id,
-        branchId: e.branchId,
-        weekStart: e.weekStart,
-        day: e.day,
-        shift: e.shift,
-        requesterId: e.requesterId,
-        requesterName: e.requesterName,
-        targetId: e.targetId,
-        targetName: e.targetName,
-        status: e.status,
-        note: e.note,
-        createdAt: e.createdAt,
-        updatedAt: e.updatedAt,
-      );
+    id: e.id,
+    branchId: e.branchId,
+    weekStart: e.weekStart,
+    day: e.day,
+    shift: e.shift,
+    requesterId: e.requesterId,
+    requesterName: e.requesterName,
+    targetId: e.targetId,
+    targetName: e.targetName,
+    status: e.status,
+    note: e.note,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+    managerApprovedById: e.managerApprovedById,
+    managerApprovedByName: e.managerApprovedByName,
+    managerApprovedAt: e.managerApprovedAt,
+  );
 
   /// Persisted fields. `createdAt`/`updatedAt` are written by the datasource as
   /// server timestamps, so they're intentionally not included here.
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'branchId': branchId,
-        'weekStart': Timestamp.fromDate(weekStart),
-        'day': day.value,
-        'shift': shift.value,
-        'requesterId': requesterId,
-        'requesterName': requesterName,
-        'targetId': targetId,
-        'targetName': targetName,
-        'status': status.value,
-        'note': note,
-      };
+    'id': id,
+    'branchId': branchId,
+    'weekStart': Timestamp.fromDate(weekStart),
+    'day': day.value,
+    'shift': shift.value,
+    'requesterId': requesterId,
+    'requesterName': requesterName,
+    'targetId': targetId,
+    'targetName': targetName,
+    'status': status.value,
+    'note': note,
+    'managerApprovedById': managerApprovedById,
+    'managerApprovedByName': managerApprovedByName,
+    'managerApprovedAt': managerApprovedAt == null
+        ? null
+        : Timestamp.fromDate(managerApprovedAt!),
+  };
 
   ShiftSwapModel copyWithId(String id) => ShiftSwapModel(
-        id: id,
-        branchId: branchId,
-        weekStart: weekStart,
-        day: day,
-        shift: shift,
-        requesterId: requesterId,
-        requesterName: requesterName,
-        targetId: targetId,
-        targetName: targetName,
-        status: status,
-        note: note,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-      );
+    id: id,
+    branchId: branchId,
+    weekStart: weekStart,
+    day: day,
+    shift: shift,
+    requesterId: requesterId,
+    requesterName: requesterName,
+    targetId: targetId,
+    targetName: targetName,
+    status: status,
+    note: note,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    managerApprovedById: managerApprovedById,
+    managerApprovedByName: managerApprovedByName,
+    managerApprovedAt: managerApprovedAt,
+  );
 
   ShiftSwapEntity toEntity() => ShiftSwapEntity(
-        id: id,
-        branchId: branchId,
-        weekStart: weekStart,
-        day: day,
-        shift: shift,
-        requesterId: requesterId,
-        requesterName: requesterName,
-        targetId: targetId,
-        targetName: targetName,
-        status: status,
-        note: note,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-      );
+    id: id,
+    branchId: branchId,
+    weekStart: weekStart,
+    day: day,
+    shift: shift,
+    requesterId: requesterId,
+    requesterName: requesterName,
+    targetId: targetId,
+    targetName: targetName,
+    status: status,
+    note: note,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    managerApprovedById: managerApprovedById,
+    managerApprovedByName: managerApprovedByName,
+    managerApprovedAt: managerApprovedAt,
+  );
 }

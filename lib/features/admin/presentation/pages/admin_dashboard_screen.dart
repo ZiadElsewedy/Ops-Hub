@@ -5,6 +5,7 @@ import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/routes/route_names.dart';
+import 'package:drop/features/sales/presentation/widgets/admin_branch_sales_summary.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
@@ -543,6 +544,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       label: 'Attendance & reports',
                       onTap: () => context.push(RouteNames.attendanceReports),
                     ),
+                    DigestEntry(
+                      icon: Icons.payments_outlined,
+                      label: 'Branch sales',
+                      onTap: () => context.push(RouteNames.salesAdminOverview),
+                    ),
                   ],
                 );
               },
@@ -610,6 +616,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: AppSpacing.xl),
         sec('today-h', const AdminSectionHeader(title: 'Today')),
         sec('today', _today()),
+        // Gates itself entirely: no opted-in branch ⇒ no heading, no box, no gap.
+        sec('sales', const AdminBranchSalesSummary()),
         const SizedBox(height: AppSpacing.xl),
         sec('activity-h', _activityHeader()),
         sec('activity', const RecentActivityFeed()),
@@ -663,6 +671,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             const AdminSectionHeader(title: 'Today'),
                           ),
                           sec('today', _today()),
+                          // Gates itself entirely: no opted-in branch ⇒ no
+                          // heading, no box, and no gap where it would be.
+                          sec('sales', const AdminBranchSalesSummary()),
                           const SizedBox(height: AppSpacing.xl),
                           sec('activity-h', _activityHeader()),
                           sec('activity', const RecentActivityFeed()),

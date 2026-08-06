@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `settings`
 
-> `lib/features/settings/` · **3 files** · layer-complete clean-architecture slice
+> `lib/features/settings/` · **3 files** · presentation-only account slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -26,27 +26,29 @@
 ## Tests
 _None matched by name — verify before assuming uncovered._
 
-## Standard data flow (this feature follows the universal pattern)
+## Standard data flow
 ```
-UI (page/widget)
-  → Cubit.method()            presentation/cubit/
-    → UseCase.call()          domain/usecases/
-      → Repository (contract) domain/repositories/
-        → RepositoryImpl      data/repositories/
-          → RemoteDatasource  data/datasources/   → Firestore/Functions/API
-  ← Model.fromJson → Entity ← Stream/Future ← Cubit emits state → UI rebuilds
+AuthCubit state → SettingsPage identity
+Settings actions → GoRouter destinations
+Sign out → AuthCubit.signOut()
 ```
 
 <!-- ═══════════════ HAND-AUTHORED INTELLIGENCE (edit freely) ═══════════════ -->
 
 ## Purpose
-_TODO: one-paragraph what & why. See `docs/design/` spec above if present._
+Presentation-only account hub: signed-in identity/profile access, password
+security, the Cases workspace shortcut, product/support information, version and
+sign-out. It owns no data; authentication state comes from the app-wide AuthCubit.
 
 ## ⚠️ Dangerous areas / invariants
-_TODO: what breaks if you touch this. Cross-check `.nav/05_DANGER.md`._
+Keep Profile, Change Password, Cases and About routed through RouteNames. Sign
+out must continue through AuthCubit. Reuse the shared glass, avatar and motion
+primitives; Settings must not become a second profile editor.
 
 ## 🧩 Extension points
-_TODO: where to plug in new behavior without forking._
+Add account/workspace destinations as Settings rows. Product/support detail
+belongs on AboutPage; security forms belong on their dedicated routed pages.
 
 ## 🔗 Related
-_TODO: sibling features, shared core widgets, ADRs._
+`auth` supplies the session identity and sign-out; `profile` owns profile edits;
+`cases` owns private operational conversations.

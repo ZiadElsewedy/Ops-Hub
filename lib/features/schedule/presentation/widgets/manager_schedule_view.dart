@@ -40,6 +40,7 @@ import 'package:drop/features/schedule/presentation/widgets/schedule_grid.dart';
 import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
 import 'package:drop/features/schedule/presentation/widgets/schedule_inspector_drawer.dart';
 import 'package:drop/features/schedule/presentation/widgets/shift_details_sheet.dart';
+import 'package:drop/features/schedule/presentation/widgets/swap_roster_sync.dart';
 import 'package:drop/features/schedule/presentation/widgets/swap_alert_card.dart'
     show showSwapQueueSheet;
 
@@ -101,8 +102,8 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
   /// The rail collapse/expand transition, honouring reduced-motion.
   Duration _railMotion(BuildContext context) =>
       (MediaQuery.maybeOf(context)?.disableAnimations ?? false)
-          ? Duration.zero
-          : const Duration(milliseconds: 220);
+      ? Duration.zero
+      : const Duration(milliseconds: 220);
 
   /// Drives the undo bar's auto-dismiss explicitly instead of relying on
   /// [SnackBar]'s built-in `duration` — that timer pauses while the bar is
@@ -126,7 +127,9 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
     _user = context.currentUser;
     if (widget.isAdmin) {
       context.read<BranchCubit>().load();
-      context.read<ScheduleCubit>().load(branchId: widget.initialBranchId ?? '');
+      context.read<ScheduleCubit>().load(
+        branchId: widget.initialBranchId ?? '',
+      );
     } else {
       // Branch directory for the header logo (§8b) — the manager's own branch.
       context.read<BranchCubit>().loadIfNeeded();
@@ -136,13 +139,11 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
 
   @override
   Widget build(BuildContext context) {
-    // An approved swap rewrites the roster — refresh the grid the moment a swap
-    // action settles (busy → idle), so coverage updates without a manual pull.
-    return BlocListener<ShiftSwapCubit, ShiftSwapState>(
-      listenWhen: (prev, curr) =>
-          prev.maybeWhen(loaded: (_, busy) => busy, orElse: () => false) &&
-          curr.maybeWhen(loaded: (_, busy) => !busy, orElse: () => false),
-      listener: (context, _) => context.read<ScheduleCubit>().refresh(),
+    // An approved swap rewrites the roster — refresh the grid when one lands.
+    // Keyed on the approval itself, not on a local mutation settling, so a swap
+    // approved on ANOTHER device updates this one too (a stale roster is what
+    // produces swap requests the server can never approve).
+    return SwapRosterSync(
       child: BlocConsumer<ScheduleCubit, ScheduleState>(
         listener: (context, state) =>
             state.whenOrNull(error: (m) => AppSnackbar.error(context, m)),
@@ -215,7 +216,11 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
       // week line up and the schedule gets the full desktop width (item:
       // use more screen width).
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 16),
+        AppSpacing.pagePadding,
+        16,
+        AppSpacing.pagePadding,
+        16,
+      ),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.darkBorder)),
       ),
@@ -260,9 +265,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
             ),
           ),
           child: Icon(
-            open
-                ? Icons.view_sidebar_rounded
-                : Icons.view_sidebar_outlined,
+            open ? Icons.view_sidebar_rounded : Icons.view_sidebar_outlined,
             size: 18,
             color: open ? AppColors.textPrimary : AppColors.textSecondary,
           ),
@@ -280,8 +283,10 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
         behavior: HitTestBehavior.translucent,
         onHorizontalDragStart: (_) => setState(() => _draggingRail = true),
         onHorizontalDragUpdate: (d) => setState(() {
-          _InspectorPrefs.width = (_InspectorPrefs.width - d.delta.dx)
-              .clamp(_InspectorPrefs.minWidth, _InspectorPrefs.maxWidth);
+          _InspectorPrefs.width = (_InspectorPrefs.width - d.delta.dx).clamp(
+            _InspectorPrefs.minWidth,
+            _InspectorPrefs.maxWidth,
+          );
         }),
         onHorizontalDragEnd: (_) => setState(() => _draggingRail = false),
         onHorizontalDragCancel: () => setState(() => _draggingRail = false),
@@ -412,8 +417,9 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
               members: members,
               branch: context.read<BranchCubit>().branchById(branchId),
               filter: _filter,
-              previousSaturdayNight:
-                  context.read<ScheduleCubit>().previousSaturdayNight,
+              previousSaturdayNight: context
+                  .read<ScheduleCubit>()
+                  .previousSaturdayNight,
             ),
       icon: const Icon(Icons.visibility_outlined, size: 17),
       label: const Text('Final view'),
@@ -629,11 +635,8 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
         canEdit: true,
       ),
       // Day header / leave-and-notes strip → the day sheet (note + leave).
-      onDayTap: (day) => showDayDetailsSheet(
-        context: context,
-        day: day,
-        canEdit: true,
-      ),
+      onDayTap: (day) =>
+          showDayDetailsSheet(context: context, day: day, canEdit: true),
       // Every edit path funnels through the validated helpers below —
       // blocked edits state their reason, successful ones offer UNDO.
       onMoveChip: (data, toDay, toShift) =>
@@ -687,16 +690,12 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
                 // same signal.
                 BlocBuilder<ShiftSwapCubit, ShiftSwapState>(
                   builder: (context, state) {
-                    final count = state.maybeWhen(
-                      loaded: (swaps, _) =>
-                          swaps.where((s) => !s.status.isResolved).length,
-                      orElse: () => 0,
-                    );
-                    if (count == 0) return const SizedBox.shrink();
                     return Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.md),
                       child: Align(
-                          alignment: Alignment.centerLeft, child: _swapChip()),
+                        alignment: Alignment.centerLeft,
+                        child: _swapChip(),
+                      ),
                     );
                   },
                 ),
@@ -725,7 +724,10 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
                   onPersonTap: (day, shift, uid) =>
                       _openChipActions(schedule, members, day, shift, uid),
                   onDayDetails: (day) => showDayDetailsSheet(
-                      context: context, day: day, canEdit: true),
+                    context: context,
+                    day: day,
+                    canEdit: true,
+                  ),
                 ),
               ],
             ),
@@ -1023,7 +1025,10 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
       context: context,
       title: '${day.label} · ${shift.label}',
       subtitle: 'Tap an employee to assign',
-      employees: members.where((u) => u.role.isEmployee).toList(),
+      // Only active employees can be newly assigned — a deactivated account is
+      // off the roster (already-assigned members still resolve for display).
+      employees:
+          members.where((u) => u.role.isEmployee && u.isActive).toList(),
       isAssigned: (u) => schedule.isAssigned(u.uid, day, shift),
       // Leave is a caution, not a wall — the row says it, the manager decides.
       subtitleFor: (u) {
@@ -1268,8 +1273,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
     );
   }
 
-  /// Pending-swap queue chip — replaces the old floating footer card, so swap
-  /// management lives on the same line as every other week fact.
+  /// Swap control stays available for both actions and settled-request history.
   Widget _swapChip() {
     return BlocBuilder<ShiftSwapCubit, ShiftSwapState>(
       builder: (context, state) {
@@ -1277,7 +1281,6 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
           loaded: (swaps, _) => swaps.where((s) => !s.status.isResolved).length,
           orElse: () => 0,
         );
-        if (count == 0) return const SizedBox.shrink();
         return GestureDetector(
           onTap: () => showSwapQueueSheet(
             context: context,
@@ -1301,14 +1304,16 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '$count ',
+                  count > 0 ? '$count ' : '',
                   style: AppTypography.labelSmall.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
-                  count == 1 ? 'swap waiting' : 'swaps waiting',
+                  count > 0
+                      ? (count == 1 ? 'swap waiting' : 'swaps waiting')
+                      : 'Swap history',
                   style: AppTypography.caption.copyWith(
                     color: AppColors.textSecondary,
                   ),

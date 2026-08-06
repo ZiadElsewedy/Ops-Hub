@@ -14,6 +14,9 @@ class AppConstants {
   /// Function (server-authoritative); the client reads it for the run timeline.
   static const String automationRunsCollection = 'automationRuns';
   static const String branchesCollection = 'branches';
+  static const String branchSalesMonthsCollection = 'branch_sales_months';
+  static const String branchSalesSubmissionsCollection =
+      'branch_sales_submissions';
   static const String weeklySchedulesCollection = 'weekly_schedules';
   static const String shiftTemplatesCollection = 'shift_templates';
   static const String shiftSwapsCollection = 'shift_swaps';

@@ -6,6 +6,7 @@ import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/theme/phosphor_icons.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_bottom_nav.dart';
 import 'package:drop/core/widgets/drop_logo.dart';
@@ -32,23 +33,23 @@ class RoleScaffold extends StatelessWidget {
 
   static const List<AppNavItem> _items = [
     AppNavItem(
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home_rounded,
+      icon: PhosphorIconsRegular.house,
+      activeIcon: PhosphorIconsFill.house,
       label: 'Home',
     ),
     AppNavItem(
-      icon: Icons.fact_check_outlined,
-      activeIcon: Icons.fact_check_rounded,
+      icon: PhosphorIconsRegular.listChecks,
+      activeIcon: PhosphorIconsFill.listChecks,
       label: 'Tasks',
     ),
     AppNavItem(
-      icon: Icons.calendar_view_week_outlined,
-      activeIcon: Icons.calendar_view_week_rounded,
+      icon: PhosphorIconsRegular.calendarDots,
+      activeIcon: PhosphorIconsFill.calendarDots,
       label: 'Schedule',
     ),
     AppNavItem(
-      icon: Icons.chat_bubble_outline_rounded,
-      activeIcon: Icons.chat_bubble_rounded,
+      icon: PhosphorIconsRegular.chatCircle,
+      activeIcon: PhosphorIconsFill.chatCircle,
       label: 'Chat',
     ),
   ];
@@ -104,7 +105,7 @@ class RoleScaffold extends StatelessWidget {
           // Communications Center — admin + manager only (employees can't access).
           if (role.isAdmin || role.isManager)
             IconButton(
-              icon: const Icon(Icons.campaign_outlined,
+              icon: const Icon(PhosphorIconsRegular.megaphone,
                   color: AppColors.textSecondary),
               tooltip: 'Communications',
               onPressed: () => context.push(RouteNames.communications),
@@ -112,14 +113,14 @@ class RoleScaffold extends StatelessWidget {
           // Attendance — GPS clock in/out, for the roles that work shifts.
           if (role.isEmployee || role.isManager)
             IconButton(
-              icon: const Icon(Icons.fingerprint_rounded,
+              icon: const Icon(PhosphorIconsRegular.fingerprint,
                   color: AppColors.textSecondary),
               tooltip: 'Attendance',
               onPressed: () => context.push(RouteNames.attendance),
             ),
           // Operations Requests — available to every role (the list self-scopes).
           IconButton(
-            icon: const Icon(Icons.approval_outlined,
+            icon: const Icon(PhosphorIconsRegular.stamp,
                 color: AppColors.textSecondary),
             tooltip: 'Requests',
             onPressed: () => context.push(RouteNames.requests),
@@ -176,7 +177,7 @@ class _NotificationBell extends StatelessWidget {
           icon: Stack(
             clipBehavior: Clip.none,
             children: [
-              const Icon(Icons.notifications_none_rounded,
+              const Icon(PhosphorIconsRegular.bell,
                   color: AppColors.textSecondary),
               if (unread > 0)
                 Positioned(

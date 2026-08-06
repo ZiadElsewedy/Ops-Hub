@@ -82,7 +82,8 @@ Future<void> _pumpSheet(
 
 void main() {
   group('FinalScheduleSheet', () {
-    testWidgets('renders a premium spreadsheet-style roster', (tester) async {
+    testWidgets('renders a shift-row × day-column roster with names in cells',
+        (tester) async {
       await _pumpSheet(
         tester,
         FinalScheduleSheet(
@@ -101,23 +102,25 @@ void main() {
       expect(find.text('MANAGER'), findsOneWidget);
       expect(find.text('Rana Fouad'), findsOneWidget);
 
-      // Employee names lead (full names, prominent), position beneath.
-      expect(find.text('Salah Ahmed'), findsOneWidget);
-      expect(find.text('Cashier'), findsOneWidget);
+      // The grid is keyed by SHIFT down the side, days across the top.
+      expect(find.text('SHIFT'), findsOneWidget);
+      expect(find.text('Morning'), findsWidgets);
+      expect(find.text('Night'), findsWidgets);
+      expect(find.text('Off'), findsWidgets);
 
       // Day columns Sun→Sat.
       for (final d in ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']) {
         expect(find.text(d), findsOneWidget);
       }
 
-      // Every token kind appears (in cells and/or the legend).
-      for (final t in ['M', 'N', 'OFF', 'LEAVE', 'VAC']) {
-        expect(find.text(t), findsWidgets);
-      }
-      // Legend meanings.
-      for (final l in ['Morning', 'Night', 'Off', 'Leave', 'Vacation']) {
-        expect(find.text(l), findsOneWidget);
-      }
+      // People are named inside the cells (u1 works Sun morning / Mon night, and
+      // is off on the other days, so appears repeatedly).
+      expect(find.text('Salah Ahmed'), findsWidgets);
+      expect(find.text('Mona Adel'), findsWidgets);
+
+      // The Off row tags vacation (V) and leave (L) inline.
+      expect(find.textContaining('Salah Ahmed (V)'), findsWidgets); // Tue = annual
+      expect(find.textContaining('Salah Ahmed (L)'), findsWidgets); // Wed = sick
 
       // Notes row present with the day note.
       expect(find.text('NOTES'), findsOneWidget);
@@ -144,9 +147,9 @@ void main() {
         ),
       );
       // The scheduled people are on the sheet…
-      expect(find.text('Salah Ahmed'), findsOneWidget);
-      expect(find.text('Mona Adel'), findsOneWidget);
-      // …but a member with no shift this week is not a phantom row.
+      expect(find.text('Salah Ahmed'), findsWidgets);
+      expect(find.text('Mona Adel'), findsWidgets);
+      // …but a member with no shift this week is not a phantom row/cell.
       expect(find.text('Unscheduled Person'), findsNothing);
     });
 
@@ -160,8 +163,9 @@ void main() {
         ),
       );
       expect(find.text('NOTES'), findsNothing);
-      // The roster itself still renders.
-      expect(find.text('Salah Ahmed'), findsOneWidget);
+      // The roster itself still renders (the shift rows are present).
+      expect(find.text('Morning'), findsWidgets);
+      expect(find.text('Salah Ahmed'), findsWidgets);
     });
 
     testWidgets('handles a large roster without overflowing', (tester) async {
@@ -182,10 +186,10 @@ void main() {
         ),
         window: const Size(1800, 3200),
       );
-      // No layout exception, and rows render top to bottom.
+      // No layout exception, and names render inside the shift-row cells.
       expect(tester.takeException(), isNull);
-      expect(find.text('Employee Number 0'), findsOneWidget);
-      expect(find.text('Employee Number 21'), findsOneWidget);
+      expect(find.text('Employee Number 0'), findsWidgets);
+      expect(find.text('Employee Number 21'), findsWidgets);
     });
 
     testWidgets('is a fixed-width landscape export document', (tester) async {

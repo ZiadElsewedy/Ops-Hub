@@ -13,6 +13,7 @@ import 'package:drop/core/config/app_environment.dart';
 import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/observability/crash_reporter.dart';
 import 'package:drop/core/routes/app_router.dart';
+import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/services/usage_tracker.dart';
 import 'package:drop/core/theme/app_colors.dart';
@@ -21,11 +22,14 @@ import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
+import 'package:drop/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
 import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
 import 'package:drop/features/auth/presentation/pages/splash_page.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
 import 'package:drop/features/notifications/domain/notification_deep_link.dart';
+import 'package:drop/features/notifications/presentation/notification_navigation.dart';
 import 'package:drop/firebase_options.dart';
 
 /// Background FCM handler. The push carries a `notification` block, so the OS
@@ -143,6 +147,17 @@ class _LaunchAppState extends State<LaunchApp> {
   }
 }
 
+/// Ceilings for the cold-start bootstrap so a slow or unreachable backend can
+/// never freeze the launch screen on its final static frame. The splash is
+/// shown until `_initializeRuntime` returns a router (main's rendezvous), so an
+/// unbounded await here is an indefinite hang on the frozen logo. Each phase
+/// either degrades (session/warm-up: enter the app anyway and let the auth
+/// stream + lazy screens catch up) or surfaces the retryable startup-error
+/// screen (Firebase: the one hard precondition) — never an endless hang.
+const Duration _firebaseInitTimeout = Duration(seconds: 20);
+const Duration _sessionRestoreTimeout = Duration(seconds: 10);
+const Duration _warmupTimeout = Duration(seconds: 8);
+
 Future<GoRouter> _initializeRuntime() async {
   // Startup banner — states which backend this build targets. The URL is a pure
   // function of build mode (see AppEnvironment), so this is the ground truth:
@@ -151,13 +166,17 @@ Future<GoRouter> _initializeRuntime() async {
   debugPrint(AppEnvironment.current.startupBanner);
 
   if (Firebase.apps.isEmpty) {
+    // Firebase is the one true precondition — everything downstream needs it.
+    // Bound it so it can't hang the splash forever; on timeout the throw flows
+    // to `_startBootstrap`'s catchError and surfaces the startup-error screen
+    // (with Try again), never an endless static logo.
     await AppLog.time(
       'boot',
       'Firebase.initializeApp',
       () => Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       ),
-    );
+    ).timeout(_firebaseInitTimeout);
   }
 
   if (!_dependenciesInitialized) {
@@ -172,11 +191,20 @@ Future<GoRouter> _initializeRuntime() async {
     _dependenciesInitialized = true;
   }
 
-  await AppLog.time(
-    'auth',
-    'restoreSession',
-    AppDependencies.authCubit.restoreSession,
-  );
+  // Session restore is best-effort *for rendering*: a stalled profile read must
+  // not freeze the splash. On timeout we enter the app with whatever auth state
+  // exists (worst case the router lands on login); the AuthCubit finishes the
+  // read on its own and the router — refreshed by the auth stream — re-routes to
+  // the correct home once it lands.
+  try {
+    await AppLog.time(
+      'auth',
+      'restoreSession',
+      AppDependencies.authCubit.restoreSession,
+    ).timeout(_sessionRestoreTimeout);
+  } on TimeoutException {
+    AppLog.warning('boot', 'restoreSession timed out — entering app anyway');
+  }
 
   final user = AppDependencies.authCubit.state.maybeWhen(
     authenticated: (value) => value,
@@ -185,11 +213,29 @@ Future<GoRouter> _initializeRuntime() async {
   if (user != null && user.hasAppAccess) {
     // Only the existing home-critical, cache-backed scopes are warmed. Feature
     // screens such as schedule, swaps, cases, and templates remain lazy.
-    await Future.wait<void>([
+    //
+    // Warm-up is an optimization, never a gate: bound it so a slow backend can't
+    // hold the splash on its final static frame. On timeout we enter the app
+    // anyway — these scopes keep loading in the background and their screens
+    // render as soon as they land. A genuine load *error* (not a hang) still
+    // propagates to the startup-error screen, exactly as before.
+    final warmup = Future.wait<void>([
       AppDependencies.statisticsCubit.load(user),
       AppDependencies.taskCubit.load(user),
       AppDependencies.branchCubit.loadIfNeeded(),
     ]);
+    // Observe the combined future independently so a failure that lands *after*
+    // the timeout branch has already moved on can't become an unobserved async
+    // error (which the zone funnel would report as a crash). `ignore()` silences
+    // only this listener; the `await` below still surfaces an error that arrives
+    // *before* the timeout, exactly as the original unguarded
+    // `await Future.wait(...)` did.
+    warmup.ignore();
+    try {
+      await warmup.timeout(_warmupTimeout);
+    } on TimeoutException {
+      AppLog.warning('boot', 'home-critical warm-up timed out — entering app');
+    }
   }
 
   final router = _router ??= createRouter(
@@ -242,11 +288,7 @@ void _configureNotificationService() {
                   onPressed: () {
                     final router = _router;
                     if (router == null) return;
-                    if (_isChatDestination(destination)) {
-                      _openChatNotification(router, destination);
-                    } else {
-                      router.push(destination);
-                    }
+                    _openTapDestination(router, destination);
                   },
                 ),
         ),
@@ -261,19 +303,11 @@ void _configureNotificationService() {
       final router = _router;
       if (router == null) return;
       // One shared resolver for every tap surface (foreground / background /
-      // cold-start / in-app). A resolvable target is pushed onto the current
-      // stack; anything unresolved falls back to the inbox — navigation never
-      // crashes on a stale or unknown notification.
-      final destination = _resolveTapLocation(data);
-      if (destination != null) {
-        if (_isChatDestination(destination)) {
-          _openChatNotification(router, destination);
-        } else {
-          router.push(destination);
-        }
-      } else {
-        router.go(RouteNames.notifications);
-      }
+      // cold-start / in-app), then one shared *navigator*. Both the resolved
+      // target and the unresolved fallback are opened on top of the role home,
+      // so a tap can never strand the user on a page with no way back — which
+      // is what the old `go(notifications)` fallback did.
+      _openTapDestination(router, _resolveTapLocation(data));
     };
   unawaited(AppDependencies.notificationService.init());
 }
@@ -281,12 +315,33 @@ void _configureNotificationService() {
 bool _isChatDestination(String destination) =>
     destination.startsWith('${RouteNames.chat}/');
 
+/// The single navigator behind every push-notification tap. [destination] is
+/// whatever [_resolveTapLocation] produced — `null` when nothing safe resolved.
+///
+/// A chat thread keeps its own opener (its natural parent is the inbox, so it
+/// builds home ← inbox ← thread); everything else goes through
+/// [openNotificationDeepLink], which guarantees Home sits under the target.
+void _openTapDestination(GoRouter router, String? destination) {
+  if (destination != null && _isChatDestination(destination)) {
+    _openChatNotification(router, destination);
+    return;
+  }
+  openNotificationDeepLink(
+    router,
+    destination: destination,
+    role: _currentRole(),
+  );
+}
+
+/// The signed-in user's role, or `null` when no session is restored.
+UserRole? _currentRole() => AppDependencies.authCubit.state.maybeWhen(
+  authenticated: (user) => user.role,
+  orElse: () => null,
+);
+
 void _openChatNotification(GoRouter router, String destination) {
   final conversationId = Uri.parse(destination).pathSegments.last;
-  final role = AppDependencies.authCubit.state.maybeWhen(
-    authenticated: (user) => user.role,
-    orElse: () => null,
-  );
+  final role = _currentRole();
   if (role == null) return;
   openChatDeepLink(
     router,
@@ -416,6 +471,9 @@ class App extends StatelessWidget {
         BlocProvider.value(value: AppDependencies.requestsListCubit),
         BlocProvider.value(value: AppDependencies.attendanceCubit),
         BlocProvider.value(value: AppDependencies.attendanceAdminCubit),
+        BlocProvider<SalesMonthCubit>.value(
+          value: AppDependencies.salesMonthCubit,
+        ),
       ],
       // Register / clear the FCM token as the auth session changes.
       child: BlocListener<AuthCubit, AuthState>(
@@ -439,7 +497,15 @@ class App extends StatelessWidget {
             child: OfflineBar(
               child: ChatNotificationListener(
                 router: router,
-                child: child ?? const SizedBox.shrink(),
+                // The once-per-launch unread hint sits under the incoming-message
+                // listener: same inbox load, but it reads the *first settled*
+                // one and slides a self-dismissing banner from the top. Inside
+                // OfflineBar, so an offline launch stacks bar-then-hint rather
+                // than overlapping.
+                child: ChatUnreadLaunchHint(
+                  router: router,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),

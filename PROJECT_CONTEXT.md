@@ -17,6 +17,7 @@ Each document has **one** responsibility. A fact lives in exactly one of them.
 | [docs/design/](docs/design/) | How does *this feature* work? | Touching that feature |
 | [docs/decisions/](docs/decisions/) | Why, and don't re-litigate | Proposing a change that reverses something |
 | [docs/QA.md](docs/QA.md) | How do we verify a release? | Before shipping |
+| [docs/RELEASE_V1.md](docs/RELEASE_V1.md) | What still blocks v1, in what order? | Planning or doing release work. **Temporary — delete when v1 ships** |
 
 **If code and docs disagree, the code wins.** Verify against the code, then fix the
 doc in the same task. Never leave a doc contradicting the code — that is how the
@@ -26,9 +27,13 @@ previous documentation set grew to 11,000 lines of partly-false claims.
 
 ## 1. What DROP is
 
-**DROP — Operations Management System.** An internal, role-based operations tool for
+**Drop Operation — Operations Management System.** An internal, role-based operations tool for
 **DROP THE SHOP**: branches, shifts, tasks, attendance, approvals, and employee
 activity. Three roles — **admin · manager · employee**.
+
+The repository folder is **`Drop-operations`**. The Dart package remains `drop`
+(valid package identifiers cannot contain a hyphen); platform-safe identifiers use
+`dropoperation` where needed.
 
 It is **not** a social network, an ERP, an analytics engine, or a SaaS product. It
 has no buyers, only users: a small, known set of people across a handful of
@@ -113,8 +118,8 @@ features/<feature>/
 └── presentation/    # Cubits, pages, widgets. Sees entities only.
 ```
 
-`domain/` depends on nothing. This is why ~880 tests run in ~16 seconds with no
-Firebase and no widget tree — business rules are pure functions.
+`domain/` depends on nothing. This is why the full 1665-test suite runs in ~40
+seconds with no Firebase and no live backend — business rules are pure functions.
 
 Full rationale and costs: [ADR-003](docs/decisions/ADR-003-clean-architecture.md).
 
@@ -125,9 +130,13 @@ wires every datasource, repository, use case, and cubit **by hand** — no DI pa
 
 - **App-wide cubits** are provided in `main.dart` via `MultiBlocProvider`:
   `auth` · `profile` · `task` · `branch` · `adminUsers` · `statistics` · `schedule` ·
-  `shiftSwap` · `branchOperations` · `broadcast` · `broadcastTemplate` ·
-  `broadcastSchedule` · `notification` · `caseList` · `chatList` ·
-  `requestsList` · `attendance` · `attendanceAdmin`.
+  `todayCoverage` · `shiftSwap` · `branchOperations` · `broadcast` ·
+  `broadcastTemplate` · `broadcastSchedule` · `notification` · `caseList` ·
+  `chatList` · `requestsList` · `attendance` · `attendanceAdmin` · `salesMonth`
+  (Employee Home, both employee sales screens **and Manager Home** share it, so
+  opening a sales page costs no extra reads and the surfaces cannot disagree
+  about "today"; managers enter through `loadForBranch`, which drops the
+  own-submissions stream).
 - **Per-entity cubits** are built on demand by `AppDependencies.create*` —
   `createCaseConversationCubit`, `createRequestDetailCubit`.
 
@@ -149,28 +158,29 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 
 ## 4. Module map
 
-18 features in `lib/features/`. Detail lives in the linked design doc — not here.
+19 features in `lib/features/`. Detail lives in the linked design doc — not here.
 
 | Module | Owns | Design doc |
 | --- | --- | --- |
 | `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles | [AUTH](docs/design/AUTH.md) |
 | `profile` | View/edit profile, image uploads, contact & payment details | [AUTH](docs/design/AUTH.md) |
-| `task` | The operations task workflow: create → execute → review | [TASKS](docs/design/TASKS.md) |
-| `schedule` | Admin Today coverage across branches, weekly roster, shift swaps, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
+| `task` | Operations tasks: create → execute → review, templates and recurring automation | [TASKS](docs/design/TASKS.md) · [AUTOMATION](docs/design/AUTOMATION_ENGINE.md) |
+| `schedule` | Admin Today coverage across branches, weekly roster, attributed swap approval/history, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `requests` | Employee → manager yes/no approvals | [REQUESTS](docs/design/REQUESTS.md) |
 | `cases` | Private employee ↔ manager/admin conversations | [CASES](docs/design/CASES.md) |
-| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox; room membership follows app lifecycle so push suppression is honest) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync); REST is the source of truth) | — |
+| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox; room membership follows app lifecycle so push suppression is honest) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync) + a once-per-launch unread hint banner (no nav badge, by decision); REST is the source of truth) | — |
 | `communications` | Broadcasts, templates, schedules, reminders | [COMMUNICATIONS](docs/design/COMMUNICATIONS.md) |
 | `notifications` | Notification inbox + deep-link resolver | [NOTIFICATIONS](docs/design/NOTIFICATIONS.md) |
 | `operations` | Branch Operations cockpit: workload, KPI drills | [TASKS](docs/design/TASKS.md) |
 | `admin` | User administration, Admin Home command center | [DESIGN_SYSTEM](docs/design/DESIGN_SYSTEM.md) |
-| `branch` | Branch CRUD, geofences, swap policy, manager clock policy | [ATTENDANCE](docs/design/ATTENDANCE.md) |
+| `branch` | Branch CRUD, geofences, swap policy, manager clock policy, **sales-target opt-in** | [ATTENDANCE](docs/design/ATTENDANCE.md) |
+| `sales` | Per-branch monthly sales target, daily employee closes, manager approval, derived pace KPIs. Opt-in per branch (`branches/{id}.salesTargetEnabled`) | [SALES_TARGETS](docs/design/SALES_TARGETS.md) |
 | `statistics` | Role-scoped counts powering all three dashboards | — |
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |
 | `employee` | EmployeeShell + employee home | — |
-| `settings` | Settings + change password (presentation-only) | — |
+| `settings` | Premium account hub, profile/security/workspace links, sign-out, About + change password, per-device notification switches (presentation-only) | — |
 
 `manager`, `employee`, and `settings` are **presentation-only** — they reuse other
 features' cubits.
@@ -188,8 +198,8 @@ features' cubits.
 | `network/` | `ApiClient` — the single authenticated HTTP seam for the NestJS chat API (+ `NetworkConfig`). Consumed only by `features/chat/` |
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
-| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (49 routes) |
-| `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
+| `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (59 routes) · `app_page_route.dart` (the back-navigation contract) · `router_extensions.dart` (navigating safely from outside the tree + reading where the user is) |
+| `services/` | `notification_service.dart` (FCM) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
@@ -213,12 +223,17 @@ Reuse these. Do not re-implement or duplicate them.
 | Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Drift holds metadata only; the repository session-caches brokered attachment URLs through `ChatAttachmentDownload.isExpired`; **never image bytes** |
 | Task status → colour | `core/widgets/status_badge.dart` (`taskStatusColor`) |
 | Structured logging | `core/utils/app_logger.dart` (`AppLog`) |
+| Any per-device, per-user preference or read-state | a small uid-namespaced JSON file in the app-support dir, in `core/services/` (`case_seen_store` · `task_seen_store` · `notification_preferences_store`). **Never add `shared_preferences`** — the app already has one local-preference mechanism |
 | Shift slot timing | `schedule/domain/shift_window.dart` |
 | Shift hours resolution | `WeeklyScheduleEntity.hoursFor` ([ADR-006](docs/decisions/ADR-006-schedule-shift-plan-snapshots.md)) |
 | Worked/late/overtime minutes | `attendance/domain/attendance_calculator.dart` |
 | Task visibility | `task/domain/task_access.dart` (`canUserAccessTask`) |
+| Was a task made by a person or by the server? | `task/domain/task_origin.dart` (`taskOrigin`) — **never read `createdBy` for this**: a generated instance inherits its template's creator |
+| Naming an activity-event actor | `task/presentation/activity_format.dart` (`activityActorName` / `activityActorRole`) — `actorId: "system"` is not a uid and must not fall through to the directory |
 | Notification routing | `notifications/domain/notification_deep_link.dart` |
+| **What screen is the user actually on?** | `core/routes/router_extensions.dart` → `topLocationOrNull`. **Never** the match list's own `uri` (`currentLocationOrNull`): an imperative `push` does not rewrite it, and every chat/notification destination is reached by `push`, so the two disagree exactly when it matters. `currentLocationOrNull` remains the duplicate-push guard it was written for |
 | Sidebar + command palette | `AppShell.sectionsForRole` |
+| How a screen is pushed / how the user gets back | `core/routes/app_page_route.dart` (`appPageRoute`) |
 
 ---
 
@@ -231,6 +246,7 @@ Reuse these. Do not re-implement or duplicate them.
 | A new action in any feature | `domain/usecases/` → repository contract + impl → datasource → cubit → **`core/di/injection.dart`** |
 | Any entity or state shape | the `freezed` file, **then run codegen** |
 | Routes / navigation guards | `core/routes/app_router.dart` + `route_names.dart` |
+| **Any imperative `Navigator.push` of a page** | `appPageRoute` (`core/routes/app_page_route.dart`) — a raw `PageRouteBuilder` silently has no iOS swipe-back |
 | Role chrome (bottom nav) | `core/widgets/role_scaffold.dart` + `app_bottom_nav.dart` |
 | Desktop chrome (sidebar, ⌘K) | `core/widgets/app_shell.dart` + `app_sidebar.dart` + `command_palette.dart` |
 | Colours / type / spacing / radius | `core/theme/` — never inline a `Color(...)` or `TextStyle(...)` |
@@ -360,6 +376,12 @@ colour.
   a panel as `Skeleton` blocks — not a centred `CircularProgressIndicator`, which
   tells the user nothing and makes the screen jump when data lands. Spinners are
   fine *inside* a button or a sheet action, where the shape is already known.
+- **A write in flight is not a disabled control.** Every lifecycle action is a
+  server round trip (100ms–1s). A button that dims to the disabled 50% and then
+  is replaced in one frame reads as a lag, not as work — that is exactly how
+  Start task was reported. The tapped control keeps full weight and shows its
+  own progress ring (`isLoading`), and the action it becomes arrives through
+  `ActionSwap`. Never dim the control the user just pressed.
 - **Offline gates the writes, never the app.** Reads stay available from cache
   under a permanent `OfflineBar` that says *when* the connection dropped.
   **Clock in / out is the one write allowed offline** — it happens at a branch,
@@ -378,7 +400,8 @@ colour.
 
 | Need | Use |
 | --- | --- |
-| Buttons | `AppButton` (`primary`/`secondary`/`ghost`, built-in `isLoading`) · `PremiumButton` (compact inline) |
+| Buttons | `AppButton` (`primary`/`secondary`/`ghost`, built-in `isLoading`) · `PremiumButton` (compact inline, also `isLoading`) |
+| Handing one action to the next | `ActionSwap` (`core/widgets/app_motion.dart`) — the seam a status change crosses; the child must be **keyed** |
 | Card surface | `GlassContainer` — the shared gradient/border/depth surface |
 | Page header | `PageHero` (eyebrow · title · subtitle · one CTA) |
 | A hero's one CTA | `PrimaryCta` (filled monochrome, hover-lift/press-scale) |
@@ -403,10 +426,35 @@ New surfaces compose the Design System V2 primitives — see
 
 ### Adaptive shell
 
-- **Mobile/tablet:** AppBar + `AppBottomNav` via `RoleScaffold`.
+- **Mobile/tablet:** `RoleScaffold` owns the role-home AppBar (DROP mark + one
+  glass role-action capsule + separate account avatar) and `AppBottomNav`.
+  Actions remain role-scoped; the manager's five-control worst case must fit at
+  320px with every target ≥44px.
 - **Desktop:** persistent role-aware `AppSidebar` via `AppShell` (a `ShellRoute`),
   ⌘1–⌘9 jump to destinations, ⌘K opens the command palette.
 - Pages use `AdaptiveScaffold` (mobile AppBar ⇄ desktop page header).
+
+### Going back is platform-native
+
+**Every screen keeps its back button.** On iOS the native interactive left-edge
+swipe-back works **in addition to** it, exactly as in Apple's own apps — never
+instead of it. Android keeps its Material transition and system back gesture;
+desktop keeps `AdaptiveScaffold`'s in-header control. The decision lives in
+`core/routes/app_page_route.dart`.
+
+The gesture is the half that rots silently, because nothing *looks* broken
+without it: it exists only on Cupertino routes. So **push every page through
+`appPageRoute`**, or route it in `app_router.dart` (iOS gets `CupertinoPage`).
+Never hand-roll a `PageRouteBuilder` for a page — that screen loses the swipe
+while every other screen keeps it.
+
+iOS itself gives no gesture to a `fullscreenDialog`, a media viewer (a zoomed
+`InteractiveViewer` competes with the edge drag), or a screen blocking pop with
+`PopScope(canPop: false)`. Those rely on their button alone, which is correct.
+
+> ⚠️ The platform branch is on **`TargetPlatform`, never on window width**. A
+> `Page` subtype is part of route identity; flipping it at runtime (an iPad
+> resized into Split View) tears the route down and rebuilds it mid-gesture.
 
 > ⚠️ **Never wrap the `ShellRoute` child in an `AnimatedSwitcher` or keyed
 > cross-fade.** It is go_router's shell Navigator (a `GlobalKey`); mounting it twice

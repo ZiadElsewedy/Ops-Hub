@@ -30,6 +30,9 @@ import 'package:drop/features/cases/presentation/cubit/case_list_state.dart';
 import 'package:drop/features/chat/presentation/widgets/recent_messages_card.dart';
 import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
 import 'package:drop/features/requests/presentation/cubit/requests_list_state.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_target_card.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
 import 'package:drop/features/schedule/presentation/widgets/today_roster_sheet.dart';
@@ -54,9 +57,10 @@ import 'package:drop/features/task/presentation/widgets/task_template_sheets.dar
 /// CTA) → **Needs attention** (the dominant layer: one grouped box of triage
 /// rows — late · pending review · sent back · unassigned · swaps,
 /// most-urgent-first, each a filtered drill) → **Today** (four `MetricTile`
-/// doors) → **On shift today** (one card into the schedule) → **Recent
-/// activity** → **Operations**. Desktop moves Operations and the recent-messages
-/// card into a fixed 360px right rail beside the story.
+/// doors) → **On shift today** (one card into the schedule) → **Branch monthly
+/// sales** (only where the branch opted in) → **Recent activity** →
+/// **Operations**. Desktop moves Operations and the recent-messages card into a
+/// fixed 360px right rail beside the story.
 ///
 /// This replaced a flat wall of ten equal-weight stat cards plus an embedded
 /// task browser (2026-08-03). Two things drove the rewrite:
@@ -141,6 +145,14 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
           context.read<ShiftSwapCubit>().loadBranch(_branchId, force: force),
         context.read<RequestsListCubit>().load(user, forceRefresh: force),
         context.read<CaseListCubit>().load(user, forceRefresh: force),
+        // Branch mode: the target and the approved total, no own-submissions
+        // stream. Self-guarding, and it resolves `salesTargetEnabled` before
+        // reading the ledger — an opted-out branch never issues a sales read.
+        if (_branchId.isNotEmpty)
+          context.read<SalesMonthCubit>().loadForBranch(
+            branchId: _branchId,
+            force: force,
+          ),
         // The branch directory, for the hero's identity line. Cheap + cached.
         context.read<BranchCubit>().loadIfNeeded(),
       ]);
@@ -532,6 +544,55 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     );
   }
 
+  // ── Branch monthly sales ─────────────────────────────────────────
+  /// The branch's month — **target · achieved · remaining** — and a tap into
+  /// the manager dashboard where the target is set and every close is decided.
+  ///
+  /// The manager owns this number: they set the target and approve every day
+  /// that moves it. Until now Home stated it nowhere — Employee Home and Admin
+  /// Home both carried the figures while the one role accountable for them got
+  /// a text row reading *Branch sales*, with no amount, at the foot of the
+  /// Operations digest. That row is gone; this replaces it, and reaches the
+  /// same route.
+  ///
+  /// **It gates itself and its own spacing.** An opted-out branch renders
+  /// nothing at all — not a disabled card, not a gap where one would be, which
+  /// is the same rule Employee Home follows. That also closes a real leak: the
+  /// digest row it replaces never consulted `salesTargetEnabled`, so a manager
+  /// of an opted-out branch was offered a door onto a "not enabled" screen.
+  Widget _sales() {
+    return BlocBuilder<SalesMonthCubit, SalesMonthState>(
+      builder: (context, state) {
+        if (state is SalesMonthDisabled || state is SalesMonthInitial) {
+          return const SizedBox.shrink();
+        }
+        final Widget card;
+        if (state is SalesMonthError) {
+          card = SalesTargetCard.error(
+            errorMessage: state.message,
+            onRetry: () => context.read<SalesMonthCubit>().loadForBranch(
+              branchId: _branchId,
+              force: true,
+            ),
+          );
+        } else if (state is SalesMonthLoaded) {
+          card = SalesTargetCard(
+            state: state,
+            onOpen: () => context.push(RouteNames.salesManage),
+          );
+        } else {
+          card = const SalesTargetCard.loading();
+        }
+        // The module owns the space above it, so gating the card gates the
+        // rhythm with it.
+        return Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          child: card,
+        );
+      },
+    );
+  }
+
   // ── Operations digest ────────────────────────────────────────────
   Widget _digest() {
     return BlocSelector<RequestsListCubit, RequestsListState, int>(
@@ -570,6 +631,11 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   label: 'Branch attendance',
                   onTap: () => context.push(RouteNames.attendanceReports),
                 ),
+                // No **Branch sales** row here. It said the words and no
+                // figure, and — unlike every other sales surface — it did not
+                // gate on `salesTargetEnabled`, so an opted-out branch was
+                // offered a door onto a "not enabled" screen. `_sales()` above
+                // states the month and opens the same route.
               ],
             );
           },
@@ -637,6 +703,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         // No header: the card names itself ("on shift today"), so a section
         // label above it would be the same words twice.
         sec('cover', _coverage()),
+        // Owns its leading space and disappears whole on an opted-out branch.
+        sec('sales', _sales()),
         const SizedBox(height: AppSpacing.xl),
         sec('activity-h', _activityHeader()),
         sec(
@@ -696,6 +764,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                           sec('today', _today()),
                           const SizedBox(height: AppSpacing.lg),
                           sec('cover', _coverage()),
+                          sec('sales', _sales()),
                           const SizedBox(height: AppSpacing.xl),
                           sec('activity-h', _activityHeader()),
                           sec(

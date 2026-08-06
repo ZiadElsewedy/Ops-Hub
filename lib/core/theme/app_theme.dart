@@ -1,3 +1,6 @@
+// `CupertinoPageTransitionsBuilder` lives in the Cupertino library, not
+// Material — it is the transition that carries the iOS back gesture.
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app_colors.dart';
@@ -251,10 +254,17 @@ class AppTheme {
         return base;
       });
 
+  /// iOS pushes use the Cupertino transition because it is the **only** builder
+  /// that carries the interactive left-edge swipe-back (see
+  /// `core/routes/app_page_route.dart`). The previous
+  /// `ZoomPageTransitionsBuilder` was overriding Flutter's own iOS default and
+  /// left every `MaterialPageRoute` push gesture-less — the app bar's back
+  /// button was the only way out, which is not how an iOS app behaves. Android
+  /// is untouched: the zoom transition and the system back gesture stay.
   static const PageTransitionsTheme _pageTransitions = PageTransitionsTheme(
     builders: {
       TargetPlatform.android: ZoomPageTransitionsBuilder(),
-      TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
     },
   );
 }

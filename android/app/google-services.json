@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:450092605249:android:e462dcff08e47ca85a0bc0",
         "android_client_info": {
-          "package_name": "com.example.fbro"
+          "package_name": "com.example.dropoperation"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "450092605249-5qi6k65qr5n8l4dpoom1e2e11h8k3lad.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.fbro",
+            "package_name": "com.example.dropoperation",
             "certificate_hash": "5a058416e0d2201223a980cb4724ef5de6cfa04f"
           }
         },
@@ -42,7 +42,7 @@
               "client_id": "450092605249-o0nlpkiot7t8mlpatiauss38rrnad780.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.fbro"
+                "bundle_id": "com.example.dropoperation"
               }
             }
           ]

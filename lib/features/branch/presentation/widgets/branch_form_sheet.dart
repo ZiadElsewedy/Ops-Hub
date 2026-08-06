@@ -60,6 +60,10 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
   // Branch attendance policy, seeded from the loaded entity for safe form saves.
   late bool _managersCanClock = widget.existing?.managersCanClock ?? true;
 
+  // Whether this branch runs the monthly sales target workflow. Seeded from the
+  // loaded entity; a new branch is opted OUT until an admin turns it on.
+  late bool _salesTargetEnabled = widget.existing?.salesTargetEnabled ?? false;
+
   @override
   void dispose() {
     _name.dispose();
@@ -81,6 +85,7 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
         name: name,
         location: location,
         managersCanClock: _managersCanClock,
+        salesTargetEnabled: _salesTargetEnabled,
       );
     } else {
       widget.cubit.editBranch(existing.copyWith(
@@ -91,6 +96,7 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
           minRestHours: _minRestHours > 0 ? _minRestHours : null,
         ),
         managersCanClock: _managersCanClock,
+        salesTargetEnabled: _salesTargetEnabled,
       ));
     }
     Navigator.of(context).pop();
@@ -165,6 +171,19 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
               onChanged: (value) => setState(() => _managersCanClock = value),
             ),
 
+            const SizedBox(height: AppSpacing.xl),
+            Text('SALES',
+                style: AppTypography.caption.copyWith(
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textTertiary,
+                )),
+            const SizedBox(height: AppSpacing.md),
+            _SalesTargetSection(
+              enabled: _salesTargetEnabled,
+              onChanged: (value) => setState(() => _salesTargetEnabled = value),
+            ),
+
             // ── Branch media (editing only — needs an existing branch id) ──
             const SizedBox(height: AppSpacing.xl),
             Text('BRANCH MEDIA',
@@ -226,6 +245,47 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Opts a branch in or out of the monthly sales target workflow. Off is the
+/// default: a branch that does not run targets shows no sales surface at all.
+class _SalesTargetSection extends StatelessWidget {
+  const _SalesTargetSection({required this.enabled, required this.onChanged});
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.darkSurface,
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _RuleLabel(
+              title: 'Monthly sales target',
+              subtitle: enabled
+                  ? 'Employees submit a daily close and the manager approves it '
+                      'against this branch\u2019s monthly target.'
+                  : 'Off \u2014 this branch has no sales target, no daily '
+                      'submissions, and no sales screens.',
+            ),
+          ),
+          Switch(
+            value: enabled,
+            onChanged: onChanged,
+            activeThumbColor: AppColors.primary,
+          ),
+        ],
       ),
     );
   }

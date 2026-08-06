@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/routes/app_page_route.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/widgets/app_dialog.dart';
@@ -60,23 +61,8 @@ class ManagerTaskCard extends StatelessWidget {
     final cubit = context.read<TaskCubit>();
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
-        PageRouteBuilder(
-          pageBuilder: (ctx, anim, secAnim) =>
-              TaskDetailsScreen(task: task, directory: directory),
-          transitionsBuilder: (ctx, anim, secAnim, child) => SlideTransition(
-            position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-                .animate(
-                  CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
-                ),
-            child: FadeTransition(
-              opacity: CurvedAnimation(
-                parent: anim,
-                curve: const Interval(0, 0.6),
-              ),
-              child: child,
-            ),
-          ),
-          transitionDuration: const Duration(milliseconds: 320),
+        appPageRoute<void>(
+          builder: (_) => TaskDetailsScreen(task: task, directory: directory),
         ),
       ),
       child: Builder(

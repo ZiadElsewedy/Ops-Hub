@@ -58,7 +58,11 @@ Future<void> showManageRecurringShiftTasksSheet({
     if (action.detailsTemplate != null) {
       final result = await showSheet<_RecurringDetailsResult>(
         context,
-        _AutomationDetailsSheet(cubit: cubit, template: action.detailsTemplate!),
+        _AutomationDetailsSheet(
+          cubit: cubit,
+          template: action.detailsTemplate!,
+        ),
+        useSafeArea: true,
       );
       if (!context.mounted) return;
       if (result?.openTaskId != null) {
@@ -271,11 +275,19 @@ class _AutomationSkeleton extends StatelessWidget {
                     children: [
                       Expanded(child: Skeleton(width: 160, height: 14)),
                       SizedBox(width: AppSpacing.md),
-                      Skeleton(width: 44, height: 24, borderRadius: AppRadius.fullAll),
+                      Skeleton(
+                        width: 44,
+                        height: 24,
+                        borderRadius: AppRadius.fullAll,
+                      ),
                     ],
                   ),
                   SizedBox(height: AppSpacing.md),
-                  Skeleton(width: 72, height: 22, borderRadius: AppRadius.fullAll),
+                  Skeleton(
+                    width: 72,
+                    height: 22,
+                    borderRadius: AppRadius.fullAll,
+                  ),
                   SizedBox(height: AppSpacing.md),
                   Skeleton(width: double.infinity, height: 11),
                   SizedBox(height: 8),
@@ -756,9 +768,14 @@ class _AutomationDetailsSheetState extends State<_AutomationDetailsSheet> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await widget.cubit.setRecurringTemplateActive(_template, !_template.active);
+      await widget.cubit.setRecurringTemplateActive(
+        _template,
+        !_template.active,
+      );
       if (mounted) {
-        setState(() => _template = _template.copyWith(active: !_template.active));
+        setState(
+          () => _template = _template.copyWith(active: !_template.active),
+        );
       }
     } catch (_) {
       if (mounted) {
@@ -798,151 +815,275 @@ class _AutomationDetailsSheetState extends State<_AutomationDetailsSheet> {
     final failing = _AutomationOutcome.isFailing(t);
     final steps = t.checklistItems.length;
 
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(t.title, style: AppTypography.h3),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              _AutomationStatusPill(template: t),
-            ],
-          ),
-          if (t.description != null && t.description!.trim().isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(t.description!.trim(), style: AppTypography.bodySmall),
-          ],
-          if (_busy) ...[
-            const SizedBox(height: AppSpacing.md),
-            const LinearProgressIndicator(minHeight: 2),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-
-          _DetailSection(
-            title: 'Overview',
-            children: [
-              _DetailRow(
-                icon: Icons.flag_outlined,
-                label: 'Priority',
-                value: t.priority.value,
-              ),
-              _DetailRow(
-                icon: Icons.checklist_rounded,
-                label: 'Checklist steps',
-                value: steps == 0
-                    ? 'None'
-                    : '$steps ${steps == 1 ? 'step' : 'steps'}',
-              ),
-              _DetailRow(
-                icon: Icons.storefront_outlined,
-                label: 'Applies to',
-                value: '${t.shift.label} shift roster',
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          _DetailSection(
-            title: 'Schedule',
-            children: [
-              _DetailRow(
-                icon: Icons.event_repeat_rounded,
-                label: 'Repeats',
-                value: _repeatLabel(t),
-              ),
-              _DetailRow(
-                icon: Icons.access_time_rounded,
-                label: 'Shift window',
-                value: _shiftWindowLabel(t),
-                detail: _shiftWindowNote(t),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          _DetailSection(
-            title: 'Next execution',
-            children: [
-              _DetailRow(
-                icon: Icons.schedule_send_rounded,
-                label: 'Next automation check',
-                value: t.active
-                    ? _nextAutomationLabel(t.nextRunAt)
-                    : 'Paused',
-                detail: t.active
-                    ? 'Advisory. The generator runs on its own schedule.'
-                    : 'Resume the routine to schedule generation.',
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          _DetailSection(
-            title: 'History',
-            children: [
-              _DetailRow(
-                icon: outcome.icon,
-                label: 'Last outcome',
-                value: outcome.label,
-                valueColor: outcome.color,
-                detail: outcome.detail,
-              ),
-              _DetailRow(
-                icon: Icons.history_rounded,
-                label: 'Last run',
-                value: _lastRunLabel(t.lastRunAt),
-              ),
-            ],
-          ),
-
-          if (failing) ...[
-            const SizedBox(height: AppSpacing.md),
-            _FailureNote(template: t),
-          ],
-
-          if (t.lastGeneratedTaskId != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            _DetailSection(
-              title: 'Generated task',
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _AutomationDetailsHeader(
+          template: t,
+          onClose: () =>
+              Navigator.of(context).pop(const _RecurringDetailsResult()),
+        ),
+        if (_busy) const LinearProgressIndicator(minHeight: 2),
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _LastGeneratedTaskLink(
-                  key: ValueKey('automation-last-task-${t.id}'),
-                  title: t.title,
-                  meta: _lastGeneratedTaskMeta(t),
-                  onTap: _busy ? null : _openTask,
+                _AutomationSnapshotCard(template: t),
+                const SizedBox(height: AppSpacing.md),
+                _AutomationOutcomeCard(
+                  outcome: outcome,
+                  lastRunAt: t.lastRunAt,
+                  failing: failing,
+                  failureCount: t.failureCount,
+                ),
+                if (t.lastGeneratedTaskId != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _LastGeneratedTaskLink(
+                    key: ValueKey('automation-last-task-${t.id}'),
+                    title: t.title,
+                    meta: _lastGeneratedTaskMeta(t),
+                    onTap: _busy ? null : _openTask,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.md),
+                _AutomationMoreDetails(template: t, checklistSteps: steps),
+                const SizedBox(height: AppSpacing.lg),
+                AppButton(
+                  label: t.active ? 'Pause automation' : 'Resume automation',
+                  variant: AppButtonVariant.secondary,
+                  icon: Icon(
+                    t.active ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    size: 20,
+                    color: AppColors.textPrimary,
+                  ),
+                  onPressed: _busy ? null : _toggle,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Center(
+                  child: TextButton.icon(
+                    key: ValueKey('automation-details-delete-${t.id}'),
+                    onPressed: _busy ? null : _delete,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Delete automation'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                    ),
+                  ),
                 ),
               ],
             ),
-          ],
-
-          const SizedBox(height: AppSpacing.lg),
-          const _MissedPolicyNote(),
-          const SizedBox(height: AppSpacing.lg),
-
-          AppButton(
-            label: t.active ? 'Pause automation' : 'Resume automation',
-            variant: AppButtonVariant.secondary,
-            icon: Icon(
-              t.active ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              size: 20,
-              color: AppColors.textPrimary,
-            ),
-            onPressed: _busy ? null : _toggle,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AutomationDetailsHeader extends StatelessWidget {
+  const _AutomationDetailsHeader({
+    required this.template,
+    required this.onClose,
+  });
+
+  final RecurringTaskTemplateEntity template;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final description = template.description?.trim() ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AUTOMATION',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    template.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.h2,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            IconButton(
+              key: ValueKey('automation-details-close-${template.id}'),
+              onPressed: onClose,
+              tooltip: 'Close automation details',
+              icon: const Icon(Icons.close_rounded, size: 22),
+              style: IconButton.styleFrom(
+                fixedSize: const Size.square(44),
+                backgroundColor: AppColors.darkSurfaceElevated,
+                foregroundColor: AppColors.textSecondary,
+                shape: const CircleBorder(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _AutomationStatusPill(template: template),
+        if (description.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.center,
-            child: TextButton.icon(
-              key: ValueKey('automation-details-delete-${t.id}'),
-              onPressed: _busy ? null : _delete,
-              icon: const Icon(Icons.delete_outline_rounded, size: 18),
-              label: const Text('Delete automation'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+          Text(
+            description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _AutomationSnapshotCard extends StatelessWidget {
+  const _AutomationSnapshotCard({required this.template});
+
+  final RecurringTaskTemplateEntity template;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassContainer(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        children: [
+          _SnapshotRow(
+            icon: Icons.event_repeat_rounded,
+            label: 'Schedule',
+            value: '${_repeatLabel(template)} · ${template.shift.label} shift',
+            detail: _shiftWindowLabel(template),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Divider(height: 1, color: AppColors.darkBorder),
+          ),
+          _SnapshotRow(
+            icon: Icons.schedule_send_rounded,
+            label: 'Next check',
+            value: template.active
+                ? _nextAutomationLabel(template.nextRunAt)
+                : 'Paused',
+            detail: template.active
+                ? 'The routine runs automatically.'
+                : 'Resume it when this routine is needed again.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SnapshotRow extends StatelessWidget {
+  const _SnapshotRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.detail,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primarySurface,
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: AppColors.darkBorder),
+          ),
+          child: Icon(icon, size: 18, color: AppColors.textSecondary),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: AppTypography.caption),
+              const SizedBox(height: 2),
+              Text(value, style: AppTypography.label),
+              const SizedBox(height: 2),
+              Text(detail, style: AppTypography.caption),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AutomationOutcomeCard extends StatelessWidget {
+  const _AutomationOutcomeCard({
+    required this.outcome,
+    required this.lastRunAt,
+    required this.failing,
+    required this.failureCount,
+  });
+
+  final _AutomationOutcome outcome;
+  final DateTime? lastRunAt;
+  final bool failing;
+  final int failureCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final failureDetail = failureCount > 1
+        ? '$failureCount consecutive failures · retries automatically'
+        : 'The routine will retry automatically';
+    final detail = failing && lastRunAt != null
+        ? '$failureDetail · ${_lastRunLabel(lastRunAt)}'
+        : failing
+        ? failureDetail
+        : outcome.detail;
+    return GlassContainer(
+      glow: failing ? AppColors.error : null,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            outcome.icon,
+            size: 20,
+            color: failing ? AppColors.error : AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Latest outcome', style: AppTypography.caption),
+                const SizedBox(height: 3),
+                Text(
+                  outcome.label,
+                  style: AppTypography.label.copyWith(color: outcome.color),
+                ),
+                const SizedBox(height: 3),
+                Text(detail, style: AppTypography.caption),
+              ],
             ),
           ),
         ],
@@ -951,36 +1092,74 @@ class _AutomationDetailsSheetState extends State<_AutomationDetailsSheet> {
   }
 }
 
-class _DetailSection extends StatelessWidget {
-  const _DetailSection({required this.title, required this.children});
+class _AutomationMoreDetails extends StatelessWidget {
+  const _AutomationMoreDetails({
+    required this.template,
+    required this.checklistSteps,
+  });
 
-  final String title;
-  final List<Widget> children;
+  final RecurringTaskTemplateEntity template;
+  final int checklistSteps;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.darkBg,
-        borderRadius: AppRadius.mdAll,
-        border: Border.all(color: AppColors.darkBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title.toUpperCase(),
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.7,
-            ),
+    return GlassContainer(
+      elevated: false,
+      padding: EdgeInsets.zero,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          key: ValueKey('automation-more-details-${template.id}'),
+          tilePadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xs,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          ...children,
-        ],
+          childrenPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          leading: const Icon(
+            Icons.tune_rounded,
+            size: 19,
+            color: AppColors.textSecondary,
+          ),
+          title: const Text('More details', style: AppTypography.label),
+          subtitle: const Text(
+            'Priority, checklist and task policy',
+            style: AppTypography.caption,
+          ),
+          children: [
+            const Divider(height: 1, color: AppColors.darkBorder),
+            const SizedBox(height: AppSpacing.sm),
+            _DetailRow(
+              icon: Icons.flag_outlined,
+              label: 'Priority',
+              value: template.priority.value,
+            ),
+            _DetailRow(
+              icon: Icons.checklist_rounded,
+              label: 'Checklist',
+              value: checklistSteps == 0
+                  ? 'No required steps'
+                  : '$checklistSteps ${checklistSteps == 1 ? 'step' : 'steps'}',
+            ),
+            _DetailRow(
+              icon: Icons.storefront_outlined,
+              label: 'Assigned to',
+              value: '${template.shift.label} shift roster',
+            ),
+            _DetailRow(
+              icon: Icons.access_time_rounded,
+              label: 'Shift timing',
+              value: _shiftWindowLabel(template),
+              detail: _shiftWindowNote(template),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const _MissedPolicyNote(),
+          ],
+        ),
       ),
     );
   }
@@ -992,14 +1171,12 @@ class _DetailRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.detail,
-    this.valueColor,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final String? detail;
-  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1016,66 +1193,11 @@ class _DetailRow extends StatelessWidget {
               children: [
                 Text(label, style: AppTypography.caption),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: valueColor ?? AppColors.textPrimary,
-                  ),
-                ),
+                Text(value, style: AppTypography.labelSmall),
                 if (detail != null) ...[
                   const SizedBox(height: 2),
                   Text(detail!, style: AppTypography.caption),
                 ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FailureNote extends StatelessWidget {
-  const _FailureNote({required this.template});
-
-  final RecurringTaskTemplateEntity template;
-
-  @override
-  Widget build(BuildContext context) {
-    final count = template.failureCount;
-    final detail = count > 1
-        ? '$count consecutive generation failures. The routine keeps '
-              'retrying on its schedule.'
-        : 'The last generation attempt failed. It will retry on schedule.';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.error.withAlpha(20),
-        borderRadius: AppRadius.mdAll,
-        border: Border.all(color: AppColors.error.withAlpha(72)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            size: 18,
-            color: AppColors.error,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Needs attention',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.error,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(detail, style: AppTypography.caption),
               ],
             ),
           ),
@@ -1119,8 +1241,14 @@ class _MissedPolicyNote extends StatelessWidget {
                   // States the grace explicitly. A manager judging a Missed
                   // record needs to know the record already allowed for
                   // finishing a little over (ADR-013).
-                  'Generated tasks are due at shift end. Unfinished tasks end as '
-                  'Missed ${kTaskGracePeriod.inMinutes} minutes after that.',
+                  //
+                  // Rework is named because a manager who sends a task back is
+                  // starting a clock they cannot see: from 2026-08-05 a rejected
+                  // instance is closed by the same sweep, so "I rejected it" is
+                  // no longer a way to leave work permanently open.
+                  'Generated tasks are due at shift end. Unfinished tasks — '
+                  'including any sent back for rework — end as Missed '
+                  '${kTaskGracePeriod.inMinutes} minutes after that.',
                   style: AppTypography.caption,
                 ),
               ],
@@ -1249,8 +1377,7 @@ class _AutomationOutcome {
     if (status == 'skipped') {
       return _AutomationOutcome(
         label: 'Already generated',
-        detail:
-            'No duplicate task was created • ${_lastRunLabel(t.lastRunAt)}',
+        detail: 'No duplicate task was created • ${_lastRunLabel(t.lastRunAt)}',
         icon: Icons.task_alt_rounded,
         color: AppColors.textSecondary,
       );
@@ -1304,8 +1431,7 @@ String _shiftWindowLabel(RecurringTaskTemplateEntity t) {
 
 /// A qualifier when the concrete window can vary by day.
 String? _shiftWindowNote(RecurringTaskTemplateEntity t) {
-  if (t.repeat == TemplateRepeatMode.daily &&
-      t.shift == ScheduleShift.night) {
+  if (t.repeat == TemplateRepeatMode.daily && t.shift == ScheduleShift.night) {
     return 'Runs later on weekends (Thu–Sat).';
   }
   return 'Standard hours. A week can override this per day.';

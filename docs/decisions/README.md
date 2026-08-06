@@ -29,6 +29,7 @@ probably already weighed. Reversing one is fine; doing it *unknowingly* is not.
 | [ADR-019](ADR-019-operational-exports-and-week-review.md) | Exports are operational documents, and a week is *reviewed*, never locked | Accepted |
 | [ADR-020](ADR-020-location-policy-is-real.md) | The location policy governs the punch; no geofence means a time clock, not a lock-out | Accepted |
 | [ADR-021](ADR-021-attendance-today-first.md) | Attendance & Reports starts with Today, not reports | Accepted |
+| [ADR-022](ADR-022-branch-sales-monthly-ledger.md) | Branch monthly sales is a derived ledger, not a stored running total | Accepted |
 
 ## Writing a new one
 

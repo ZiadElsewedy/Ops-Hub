@@ -199,6 +199,19 @@ function offsetMsForBusinessInstant(value) {
   return asUtcMs - toEpochMs(value);
 }
 
+/**
+ * The hour-of-day (0–23) at [value] in the business timezone.
+ *
+ * Anything that gates on "what time is it for the staff" must use this, never
+ * `Date#getUTCHours()`: Egypt runs UTC+2/UTC+3, so a UTC hour is 2–3 hours
+ * behind the wall clock the rule was written against. Returns null for an
+ * unparseable value so callers can fail open rather than guess.
+ */
+function businessHourOf(value) {
+  const parts = businessDateTimeParts(value);
+  return parts ? parts.hour : null;
+}
+
 function businessDayParts(value) {
   const ms = toEpochMs(value);
   if (ms == null) return null;
@@ -327,6 +340,23 @@ function resolveRecurringTaskWindow({
   };
 }
 
+/**
+ * The deterministic document id of one routine's occurrence on one business day
+ * — the whole duplicate guarantee (spec §4.2: one instance per routine per day).
+ *
+ * [dateKey] **must** be the Africa/Cairo business civil day (`businessDayParts`
+ * ⇒ `dateKey`). There is exactly one id format, so a key derived any other way
+ * does not produce "the same occurrence under an older convention" — it names a
+ * DIFFERENT DAY's occurrence. A generator that probed a UTC-derived key at the
+ * 01:00 Cairo tick was therefore reading yesterday's instance, finding it, and
+ * skipping generation forever; see the tests pinning this.
+ *
+ * Mirrored client-side by `TaskCubit._materializeTodayInstance`.
+ */
+function recurringInstanceId(templateId, dateKey) {
+  return `rt_${templateId}_${dateKey}`;
+}
+
 // The closed lifecycle outcomes (Automated Tasks spec §2). Mirrors
 // `TaskStatus.isTerminal` in lib/core/enums/task_status.dart.
 const TERMINAL_TASK_STATUSES = Object.freeze([
@@ -381,12 +411,45 @@ function missedEvaluationMs(deadline) {
 }
 
 /**
+ * The lifecycle states a generated shift instance can be auto-closed FROM — the
+ * states in which work is still owed when the shift wall arrives.
+ *
+ * `rejected` belongs here (ruled 2026-08-05) even though it is the reviewer who
+ * sent the task back. The reasons:
+ *
+ * - **It is the truth.** A rejected instance at shift end is unfinished work at
+ *   the shift wall — the exact thing Missed exists to record (spec §3.2).
+ * - **It closed a gaming vector.** While `rejected` was excluded, the task never
+ *   reached a terminal at all, so it fell out of Approved ÷ (Approved + Missed)
+ *   entirely — meaning a rejection quietly *improved* a branch's completion rate
+ *   versus letting the same work be missed. §10.1 requires that rate to be
+ *   ungameable.
+ * - **It stopped an unbounded leak.** A rejected instance never closed: it read
+ *   Late forever, stayed inside `isTaskInActiveWindow` forever, and — because the
+ *   shift task stream has no date filter — kept surfacing for whoever was
+ *   rostered on that shift days later.
+ *
+ * Rework inside the window is unaffected: a task rejected at 14:00 against a
+ * 16:30 wall is only evaluated at 17:00, so there is real time to redo it, and
+ * resubmitting moves it to `waitingReview`, which is never auto-closed.
+ *
+ * `waitingReview` and `completed` stay OUT: the employee has done their part and
+ * the next move is the reviewer's — auto-failing there would record an employee
+ * failure for a manager's delay.
+ */
+const AUTO_END_ELIGIBLE_STATUSES = Object.freeze([
+  "pending",
+  "started",
+  "rejected",
+]);
+
+/**
  * Whether a generated recurring shift task may be terminally auto-ended.
  *
- * This is intentionally conservative: only a source-template instance that is
- * still pending/started, live (not soft-archived), and past its deadline **plus
- * the grace period** qualifies. Review and completed lifecycle states are never
- * rewritten.
+ * This is intentionally conservative: only a source-template instance in one of
+ * [AUTO_END_ELIGIBLE_STATUSES], live (not soft-archived), and past its deadline
+ * **plus the grace period** qualifies. Review and completed lifecycle states are
+ * never rewritten.
  *
  * The grace is what stops an employee who stayed to finish at 16:35 from getting
  * the same record as one who walked away at 16:00.
@@ -403,7 +466,7 @@ function shouldAutoEndRecurringTask({
   if (typeof sourceTemplateId !== "string" || sourceTemplateId.trim().length === 0) {
     return false;
   }
-  if (status !== "pending" && status !== "started") return false;
+  if (!AUTO_END_ELIGIBLE_STATUSES.includes(String(status || ""))) return false;
   if (archivedAt != null) return false;
 
   const evaluateAtMs = missedEvaluationMs(deadlineMs ?? deadline);
@@ -439,6 +502,7 @@ function selectMissedNotifyTargets({ managers = [], admins = [] } = {}) {
 }
 
 module.exports = {
+  AUTO_END_ELIGIBLE_STATUSES,
   BUSINESS_TIME_ZONE,
   DAY_NAMES,
   TASK_GRACE_MINUTES,
@@ -446,9 +510,11 @@ module.exports = {
   TERMINAL_TASK_STATUSES,
   businessCivilMidnightMs,
   businessDayParts,
+  businessHourOf,
   businessWeekStartKey,
   isTerminalTaskStatus,
   missedEvaluationMs,
+  recurringInstanceId,
   selectMissedNotifyTargets,
   standardShiftHours,
   resolveShiftHours,

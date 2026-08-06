@@ -282,23 +282,55 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('OVERVIEW'), findsOneWidget);
-    expect(find.text('SCHEDULE'), findsOneWidget);
-    expect(find.text('Shift window'), findsOneWidget);
+    expect(find.text('AUTOMATION'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('automation-details-close-open-shift')),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Close automation details'), findsOneWidget);
+    expect(find.text('Schedule'), findsOneWidget);
     expect(find.text('08:30 – 16:30'), findsOneWidget);
+    expect(find.text('Next check'), findsOneWidget);
+    expect(find.text('Latest outcome'), findsOneWidget);
+    expect(find.text('More details'), findsOneWidget);
+    expect(find.text('Missed policy · Enabled'), findsNothing);
+
+    await tester.tap(find.text('More details'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Priority'), findsOneWidget);
+    expect(find.text('Checklist'), findsOneWidget);
+    expect(find.text('Assigned to'), findsOneWidget);
+    expect(find.text('Shift timing'), findsOneWidget);
     expect(find.text('Missed policy · Enabled'), findsOneWidget);
     // The copy states the grace period explicitly (ADR-013) — a manager judging
     // a Missed record has to know it already allowed for finishing a little
     // over. Asserted against the constant so the two can never drift.
+    //
+    // It also names rework (ruled 2026-08-05): a manager who sends a generated
+    // instance back is starting a clock they cannot otherwise see, since the
+    // same sweep now closes `rejected` as Missed.
     expect(
       find.text(
-        'Generated tasks are due at shift end. Unfinished tasks end as '
-        'Missed ${kTaskGracePeriod.inMinutes} minutes after that.',
+        'Generated tasks are due at shift end. Unfinished tasks — including any '
+        'sent back for rework — end as Missed '
+        '${kTaskGracePeriod.inMinutes} minutes after that.',
       ),
       findsOneWidget,
     );
     expect(find.text('Last task'), findsOneWidget);
     expect(find.text('Tap to open'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('automation-details-close-open-shift')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Automation Center'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('automation-details-close-open-shift')),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -376,12 +408,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Needs attention'), findsOneWidget);
-      expect(
-        find.textContaining('3 consecutive generation failures'),
-        findsOneWidget,
-      );
+      expect(find.text('Latest outcome'), findsOneWidget);
+      expect(find.text('Last generation failed'), findsOneWidget);
+      expect(find.textContaining('3 consecutive failures'), findsOneWidget);
       // The night-daily window carries its weekend qualifier.
+      expect(find.textContaining('later on weekends'), findsNothing);
+      await tester.tap(find.text('More details'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('later on weekends'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -452,12 +485,28 @@ void main() {
     await tester.tap(find.text('Open automation'));
     await tester.pumpAndSettle();
 
-    // Delete now asks for confirmation before removing the routine.
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('automation-delete-routine-1')),
+    // The details sheet keeps its own actions reachable inside the new compact
+    // scroll hierarchy. Resume updates in place rather than closing the sheet.
+    await tester.tap(
+      find.byKey(const ValueKey('automation-details-routine-1')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('automation-delete-routine-1')));
+    expect(find.byTooltip('Close automation details'), findsOneWidget);
+    await tester.ensureVisible(find.text('Resume automation'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Resume automation'));
+    await tester.pumpAndSettle();
+    expect(repository.lastUpdated?.active, isTrue);
+    expect(find.text('Pause automation'), findsOneWidget);
+
+    // Delete from details asks for confirmation before removing the routine.
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('automation-details-delete-routine-1')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('automation-details-delete-routine-1')),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Delete automation?'), findsOneWidget);
     expect(repository.lastDeletedId, isNull);

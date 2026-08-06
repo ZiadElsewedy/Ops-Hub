@@ -127,10 +127,13 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
   // ── Weekly schedules ───────────────────────────────────────────
   @override
   Future<WeeklyScheduleModel?> getSchedule(
-      String branchId, DateTime weekStart) async {
+    String branchId,
+    DateTime weekStart,
+  ) async {
     try {
-      final doc =
-          await _schedules.doc(ScheduleWeek.docId(branchId, weekStart)).get();
+      final doc = await _schedules
+          .doc(ScheduleWeek.docId(branchId, weekStart))
+          .get();
       if (!doc.exists || doc.data() == null) return null;
       return WeeklyScheduleModel.fromMap(doc.data()!, id: doc.id);
     } on FirebaseException catch (e) {
@@ -163,8 +166,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
     try {
       // Single-field query (no composite index); sorted client-side, newest week
       // first — same pattern as the statistics datasource.
-      final snap =
-          await _schedules.where('branchId', isEqualTo: branchId).get();
+      final snap = await _schedules
+          .where('branchId', isEqualTo: branchId)
+          .get();
       return _sortByWeek(snap.docs);
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to load branch schedules.');
@@ -183,10 +187,12 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
 
   @override
   Future<WeeklyScheduleModel> createSchedule(
-      WeeklyScheduleModel schedule) async {
+    WeeklyScheduleModel schedule,
+  ) async {
     try {
-      final docRef =
-          _schedules.doc(ScheduleWeek.docId(schedule.branchId, schedule.weekStart));
+      final docRef = _schedules.doc(
+        ScheduleWeek.docId(schedule.branchId, schedule.weekStart),
+      );
       await docRef.set({
         ...schedule.toMap(),
         'id': docRef.id,
@@ -210,8 +216,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
       // Targeted nested-array update — no read/modify/write race. The dotted
       // path creates intermediate maps/arrays if they don't exist yet.
       await _schedules.doc(scheduleId).update({
-        'assignments.${day.value}.${shift.value}':
-            FieldValue.arrayUnion([employeeId]),
+        'assignments.${day.value}.${shift.value}': FieldValue.arrayUnion([
+          employeeId,
+        ]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
@@ -228,8 +235,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
   }) async {
     try {
       await _schedules.doc(scheduleId).update({
-        'assignments.${day.value}.${shift.value}':
-            FieldValue.arrayRemove([employeeId]),
+        'assignments.${day.value}.${shift.value}': FieldValue.arrayRemove([
+          employeeId,
+        ]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
@@ -247,8 +255,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
       // Same targeted dotted-path pattern as assignEmployee — an empty note
       // deletes the field so absent days stay absent in the doc.
       await _schedules.doc(scheduleId).update({
-        'dayNotes.${day.value}':
-            note.trim().isEmpty ? FieldValue.delete() : note.trim(),
+        'dayNotes.${day.value}': note.trim().isEmpty
+            ? FieldValue.delete()
+            : note.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
@@ -265,8 +274,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
   }) async {
     try {
       await _schedules.doc(scheduleId).update({
-        'leave.${day.value}.$employeeId':
-            type == null ? FieldValue.delete() : type.value,
+        'leave.${day.value}.$employeeId': type == null
+            ? FieldValue.delete()
+            : type.value,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
@@ -283,8 +293,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
   }) async {
     try {
       await _schedules.doc(scheduleId).update({
-        'shiftHours.${day.value}.${shift.value}':
-            hours == null ? FieldValue.delete() : hours.toMap(),
+        'shiftHours.${day.value}.${shift.value}': hours == null
+            ? FieldValue.delete()
+            : hours.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
@@ -299,8 +310,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
     required ShiftPlan plan,
   }) async {
     try {
-      final snap =
-          await _schedules.where('branchId', isEqualTo: branchId).get();
+      final snap = await _schedules
+          .where('branchId', isEqualTo: branchId)
+          .get();
       final planMap = plan.toMap();
       final batch = _firestore.batch();
       var touched = 0;
@@ -326,7 +338,8 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
     try {
       final snap = await _swaps.where('branchId', isEqualTo: branchId).get();
       return _sortSwaps(
-          snap.docs.map((d) => ShiftSwapModel.fromMap(d.data(), id: d.id)));
+        snap.docs.map((d) => ShiftSwapModel.fromMap(d.data(), id: d.id)),
+      );
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to load swap requests.');
     }
@@ -336,7 +349,9 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
   Future<List<ShiftSwapModel>> getEmployeeSwaps(String uid) async {
     try {
       // Firestore has no OR across fields; query each side and merge by id.
-      final asRequester = await _swaps.where('requesterId', isEqualTo: uid).get();
+      final asRequester = await _swaps
+          .where('requesterId', isEqualTo: uid)
+          .get();
       final asTarget = await _swaps.where('targetId', isEqualTo: uid).get();
       final byId = <String, ShiftSwapModel>{};
       for (final d in [...asRequester.docs, ...asTarget.docs]) {
@@ -353,7 +368,8 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
     try {
       final snap = await _swaps.get();
       return _sortSwaps(
-          snap.docs.map((d) => ShiftSwapModel.fromMap(d.data(), id: d.id)));
+        snap.docs.map((d) => ShiftSwapModel.fromMap(d.data(), id: d.id)),
+      );
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to load swap requests.');
     }
@@ -364,14 +380,20 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
     return _swaps
         .where('branchId', isEqualTo: branchId)
         .snapshots()
-        .map((snap) => _sortSwaps(
-            snap.docs.map((d) => ShiftSwapModel.fromMap(d.data(), id: d.id))));
+        .map(
+          (snap) => _sortSwaps(
+            snap.docs.map((d) => ShiftSwapModel.fromMap(d.data(), id: d.id)),
+          ),
+        );
   }
 
   @override
   Stream<List<ShiftSwapModel>> watchAllSwaps() {
-    return _swaps.snapshots().map((snap) => _sortSwaps(
-        snap.docs.map((d) => ShiftSwapModel.fromMap(d.data(), id: d.id))));
+    return _swaps.snapshots().map(
+      (snap) => _sortSwaps(
+        snap.docs.map((d) => ShiftSwapModel.fromMap(d.data(), id: d.id)),
+      ),
+    );
   }
 
   @override
@@ -397,8 +419,11 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
       controller.add(_sortSwaps(byId.values));
     }
 
-    Map<String, ShiftSwapModel> toMap(QuerySnapshot<Map<String, dynamic>> s) =>
-        {for (final d in s.docs) d.id: ShiftSwapModel.fromMap(d.data(), id: d.id)};
+    Map<String, ShiftSwapModel> toMap(
+      QuerySnapshot<Map<String, dynamic>> s,
+    ) => {
+      for (final d in s.docs) d.id: ShiftSwapModel.fromMap(d.data(), id: d.id),
+    };
 
     controller = StreamController<List<ShiftSwapModel>>(
       onListen: () {
@@ -464,9 +489,12 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
         'scheduleId': scheduleId,
       });
     } on FirebaseFunctionsException catch (e, st) {
-      AppLog.error('schedule',
-          'approveSwap callable failed: code=${e.code} message=${e.message}',
-          e, st);
+      AppLog.error(
+        'schedule',
+        'approveSwap callable failed: code=${e.code} message=${e.message}',
+        e,
+        st,
+      );
       throw ServerException(_friendlyFunctionsError(e));
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to approve the swap.');
@@ -494,18 +522,25 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
   }
 
   List<WeeklyScheduleModel> _sortByWeek(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
-    final models =
-        docs.map((d) => WeeklyScheduleModel.fromMap(d.data(), id: d.id)).toList();
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final models = docs
+        .map((d) => WeeklyScheduleModel.fromMap(d.data(), id: d.id))
+        .toList();
     models.sort((a, b) => b.weekStart.compareTo(a.weekStart));
     return models;
   }
 
   List<ShiftSwapModel> _sortSwaps(Iterable<ShiftSwapModel> swaps) {
     final list = swaps.toList();
-    // Newest first (null createdAt — just-written — sorts to the top).
-    list.sort((a, b) => (b.createdAt ?? DateTime.now())
-        .compareTo(a.createdAt ?? DateTime.now()));
+    // Newest activity first: this puts decisions made today ahead of requests
+    // created earlier in the week, making resolved swaps a useful history.
+    DateTime activityAt(ShiftSwapModel swap) =>
+        swap.managerApprovedAt ??
+        swap.updatedAt ??
+        swap.createdAt ??
+        DateTime.now();
+    list.sort((a, b) => activityAt(b).compareTo(activityAt(a)));
     return list;
   }
 }

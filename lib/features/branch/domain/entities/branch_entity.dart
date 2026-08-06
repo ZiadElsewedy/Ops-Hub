@@ -41,6 +41,15 @@ class BranchEntity with _$BranchEntity {
     /// accuracy). Null = GPS attendance not configured here yet. Stored as a
     /// nested map under `geofence`.
     BranchGeofence? geofence,
+
+    /// Whether this branch runs the **monthly sales target** workflow. Not every
+    /// branch sells: when this is false the feature behaves as if it does not
+    /// exist — no Home card, no sales pages, no target management, no
+    /// submissions. Admin-only to toggle (branch writes are admin-only).
+    ///
+    /// Defaults to **false** so a branch is opted in deliberately rather than
+    /// inheriting a workflow it does not run.
+    @Default(false) bool salesTargetEnabled,
   }) = _BranchEntity;
 
   bool get isDeleted => deletedAt != null;

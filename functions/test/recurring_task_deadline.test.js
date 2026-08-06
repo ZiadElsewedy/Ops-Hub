@@ -3,17 +3,37 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const {
+  AUTO_END_ELIGIBLE_STATUSES,
   BUSINESS_TIME_ZONE,
   TASK_GRACE_MINUTES,
   businessCivilMidnightMs,
   businessDayParts,
+  businessHourOf,
   businessWeekStartKey,
   isTerminalTaskStatus,
   missedEvaluationMs,
+  recurringInstanceId,
   selectMissedNotifyTargets,
   resolveRecurringTaskWindow,
   shouldAutoEndRecurringTask,
 } = require("../recurring_task_deadline");
+
+// The exact instants Cloud Scheduler fires `generateShiftTaskInstances` on
+// (`schedule: "0 1 * * *"`, `timeZone: "Africa/Cairo"`) for four consecutive
+// days — two on DST (UTC+03:00), two on standard time (UTC+02:00).
+const CAIRO_0100_TICKS_DST = [
+  Date.parse("2026-08-03T22:00:00Z"), // 01:00 Cairo, Tue 2026-08-04
+  Date.parse("2026-08-04T22:00:00Z"), // 01:00 Cairo, Wed 2026-08-05
+  Date.parse("2026-08-05T22:00:00Z"), // 01:00 Cairo, Thu 2026-08-06
+];
+const CAIRO_0100_TICK_STANDARD = Date.parse("2026-01-14T23:00:00Z"); // Thu 2026-01-15
+
+// What the deleted transition guard computed: the HOST's UTC calendar date.
+function utcDateKey(ms) {
+  const d = new Date(ms);
+  const two = (n) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${two(d.getUTCMonth() + 1)}-${two(d.getUTCDate())}`;
+}
 
 const MINUTE_MS = 60 * 1000;
 const GRACE_MS = TASK_GRACE_MINUTES * MINUTE_MS;
@@ -37,6 +57,63 @@ test("business day parts use the Cairo civil date, not the UTC date", () => {
       isoWeekday: 5,
     },
   );
+});
+
+// ── The generation-key invariant (P0 regression, 2026-08-05) ──────────────
+//
+// A "temporary UTC→business-key transition guard" in `generateShiftTaskInstances`
+// probed `rt_{templateId}_{utcDateKey}` before creating and skipped when it
+// existed. At the 01:00 Cairo tick the UTC date is ALWAYS the previous day, and
+// both keys share one id format — so it was reading yesterday's ordinary
+// instance. For every DAILY routine it found one, recorded
+// `skipped / alreadyExists`, and created nothing. Silently, with the Automation
+// Center reporting "Already generated" and `failureCount` at 0.
+//
+// These tests pin the two facts that make any such probe wrong.
+
+test("at the 01:00 Cairo tick the UTC date is always the PREVIOUS business day", () => {
+  for (const tick of [...CAIRO_0100_TICKS_DST, CAIRO_0100_TICK_STANDARD]) {
+    const businessKey = businessDayParts(tick).dateKey;
+    assert.notStrictEqual(
+      utcDateKey(tick),
+      businessKey,
+      "a UTC-derived key at this tick is never the business day",
+    );
+    const yesterday = businessDayParts(tick - 24 * HOUR_MS).dateKey;
+    assert.strictEqual(
+      utcDateKey(tick),
+      yesterday,
+      "it is precisely yesterday's key — which is why probing it skipped forever",
+    );
+  }
+});
+
+test("consecutive daily ticks produce distinct instance ids", () => {
+  const ids = CAIRO_0100_TICKS_DST.map((tick) =>
+    recurringInstanceId("tpl1", businessDayParts(tick).dateKey),
+  );
+  assert.deepStrictEqual(ids, [
+    "rt_tpl1_2026-08-04",
+    "rt_tpl1_2026-08-05",
+    "rt_tpl1_2026-08-06",
+  ]);
+  assert.strictEqual(new Set(ids).size, ids.length, "no day may reuse an id");
+
+  // The collision the guard walked into: the UTC key at day N's tick builds
+  // exactly day N-1's id, so `create()` on it would always lose.
+  assert.strictEqual(
+    recurringInstanceId("tpl1", utcDateKey(CAIRO_0100_TICKS_DST[1])),
+    ids[0],
+  );
+});
+
+test("the business hour at the 01:00 Cairo tick is 1, not the UTC hour", () => {
+  for (const tick of CAIRO_0100_TICKS_DST) {
+    assert.strictEqual(businessHourOf(tick), 1);
+    assert.strictEqual(new Date(tick).getUTCHours(), 22);
+  }
+  assert.strictEqual(businessHourOf(CAIRO_0100_TICK_STANDARD), 1);
+  assert.strictEqual(businessHourOf("not a date"), null);
 });
 
 test("business civil midnight resolves Egypt standard time and DST", () => {
@@ -374,4 +451,69 @@ test("the weekend-night window's grace crosses into the next calendar day", () =
     }),
     true,
   );
+});
+
+// ── Rejected shift instances close at the wall (ruled 2026-08-05) ─────────
+//
+// `rejected` was excluded from the auto-end sweep, so a generated instance sent
+// back for rework NEVER reached a terminal: Late forever, inside the active
+// window forever, still surfacing for later days' crews — and, worst, absent
+// from Approved ÷ (Approved + Missed) entirely, so rejecting work quietly
+// improved a branch's completion rate versus letting it be missed (§10.1
+// requires that rate to be ungameable).
+
+test("a rejected generated instance is auto-ended like unfinished work", () => {
+  const deadlineMs = Date.UTC(2026, 6, 20, 16, 30);
+  const base = {
+    sourceTemplateId: "tpl1",
+    deadlineMs,
+    nowMs: deadlineMs + GRACE_MS,
+  };
+  assert.strictEqual(
+    shouldAutoEndRecurringTask({ ...base, status: "rejected" }),
+    true,
+    "rework still owed at the wall is unfinished work",
+  );
+  // ...and it obeys the same grace as every other open state.
+  assert.strictEqual(
+    shouldAutoEndRecurringTask({
+      ...base,
+      status: "rejected",
+      nowMs: deadlineMs + GRACE_MS - MINUTE_MS,
+    }),
+    false,
+    "grace applies to rework exactly as it does to pending/started",
+  );
+});
+
+test("the reviewer's own states are never auto-failed", () => {
+  const deadlineMs = Date.UTC(2026, 6, 20, 16, 30);
+  const base = {
+    sourceTemplateId: "tpl1",
+    deadlineMs,
+    nowMs: deadlineMs + GRACE_MS,
+  };
+  // The employee has done their part; the next move belongs to the manager.
+  // Auto-failing here would record an employee failure for a reviewer's delay.
+  for (const status of ["waitingReview", "completed"]) {
+    assert.strictEqual(
+      shouldAutoEndRecurringTask({ ...base, status }),
+      false,
+      `${status} must never be auto-closed as missed`,
+    );
+  }
+});
+
+test("the auto-end status set is exactly the states where work is still owed", () => {
+  assert.deepStrictEqual(
+    [...AUTO_END_ELIGIBLE_STATUSES],
+    ["pending", "started", "rejected"],
+  );
+  // The sweep's Firestore query filters on this same constant. If the two ever
+  // drift, the predicate accepts a status the query never fetches and those
+  // tasks silently stop closing — the exact shape of the `rejected` leak.
+  for (const status of AUTO_END_ELIGIBLE_STATUSES) {
+    assert.strictEqual(isTerminalTaskStatus(status), false,
+      "an auto-endable state must not already be terminal");
+  }
 });

@@ -68,26 +68,55 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
     }
   }
 
+  /// Returning to Today after using the editor **must** re-derive: a board still
+  /// reporting "Nobody is on night" for a shift just filled is worse than no
+  /// board at all. This is the one entry that bypasses the freshness window.
   void _reloadCoverage() {
+    context.read<BranchCubit>().state.maybeWhen(
+      loaded: (branches, _) => _loadCoverage(branches, force: true),
+      orElse: () {},
+    );
+  }
+
+  /// Screen entry. Both cubits are app-wide and self-guarding: the branch
+  /// directory is fetched only if it isn't already loaded, and the swap stream
+  /// is idempotent per scope. An unconditional `load()` here was refetching the
+  /// whole branch directory — and emitting `loading()`, which blanked every
+  /// branch-identity surface in the app — on every single visit to Schedule.
+  void _load() {
+    context.read<BranchCubit>().loadIfNeeded();
+    context.read<ShiftSwapCubit>().loadAll();
+    // If the branch directory is **already** loaded (common — the admin opened
+    // Dashboard/Branches first this session), `loadIfNeeded()` is a no-op and
+    // emits nothing, so the branch listener — which reacts to a state *change* —
+    // never fires and Today coverage would sit on its skeletons forever. Kick
+    // coverage off here for that case. When the directory isn't loaded yet,
+    // `loadIfNeeded()` emits `loaded` and the listener takes it; the coverage
+    // cubit's freshness window makes the double-trigger a no-op either way.
     context.read<BranchCubit>().state.maybeWhen(
       loaded: (branches, _) => _loadCoverage(branches),
       orElse: () {},
     );
   }
 
-  void _load() {
-    context.read<BranchCubit>().load();
-    context.read<ShiftSwapCubit>().loadAll();
+  /// Today's coverage is only meaningful for branches that are **operating**.
+  /// An inactive branch (e.g. a closed or paused location) has no shift to
+  /// cover today, so loading it is pure first-entry cost — one schedule + one
+  /// roster read each — and an extra "nobody on" row nobody acts on. The full
+  /// directory (inactive included) still drives the Week editor, which can edit
+  /// any branch.
+  void _loadCoverage(List<BranchEntity> branches, {bool force = false}) {
+    final active = [for (final b in branches) if (b.isActive) b];
+    context.read<TodayCoverageCubit>().load(active, force: force);
   }
 
-  void _loadCoverage(List<BranchEntity> branches) {
-    context.read<TodayCoverageCubit>().load(branches);
-  }
-
+  /// The explicit Refresh action — everything refetches, freshness windows and
+  /// all. The branch listener re-derives Today off the reloaded directory.
   void _refresh() {
     context.read<ScheduleCubit>().refresh();
     context.read<ShiftSwapCubit>().refresh();
     context.read<BranchCubit>().load(forceRefresh: true);
+    _reloadCoverage();
   }
 
   /// Open the weekly editor **on the branch whose row was tapped**.

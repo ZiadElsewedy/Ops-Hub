@@ -69,8 +69,47 @@ void main() {
     });
   });
 
+  group('AppDateFormatter.relativeDay / relativeDayShort', () {
+    final now = DateTime(2026, 7, 18, 10, 0);
+
+    test('the three relative words are identical in both variants', () {
+      for (final (day, word) in [
+        (DateTime(2026, 7, 18, 8), 'Today'),
+        (DateTime(2026, 7, 19, 8), 'Tomorrow'),
+        (DateTime(2026, 7, 17, 8), 'Yesterday'),
+      ]) {
+        expect(AppDateFormatter.relativeDay(day, now: now), word);
+        expect(AppDateFormatter.relativeDayShort(day, now: now), word);
+      }
+    });
+
+    test('only the absolute branch differs — long weekday vs compact date', () {
+      final soon = DateTime(2026, 7, 20, 16, 30);
+      expect(AppDateFormatter.relativeDay(soon, now: now), 'Monday, 20 Jul');
+      // The narrow-slot variant: `Thursday, 6…` says less than `6 Aug`.
+      expect(AppDateFormatter.relativeDayShort(soon, now: now), '20 Jul');
+
+      final nextYear = DateTime(2027, 1, 2, 8, 30);
+      expect(AppDateFormatter.relativeDay(nextYear, now: now), '2 Jan 2027');
+      expect(
+        AppDateFormatter.relativeDayShort(nextYear, now: now),
+        '2 Jan 2027',
+      );
+    });
+  });
+
   group('AppDateFormatter.relativeDayTime', () {
     final now = DateTime(2026, 7, 18, 10, 0);
+
+    test('a recent past execution reads Yesterday, not a bare weekday', () {
+      expect(
+        AppDateFormatter.relativeDayTime(
+          DateTime(2026, 7, 17, 8, 30),
+          now: now,
+        ),
+        'Yesterday • 8:30 AM',
+      );
+    });
 
     test('uses Today and Tomorrow for the next two local dates', () {
       expect(

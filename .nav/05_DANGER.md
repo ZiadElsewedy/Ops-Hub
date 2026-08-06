@@ -9,6 +9,8 @@ Read this before editing anything load-bearing. Each entry: **what it is · what
 | How anything is constructed/wired | `lib/core/di/injection.dart` (`AppDependencies`) | ad-hoc `new` in screens |
 | Navigation + auth/role gate | `lib/core/routes/app_router.dart` `_redirect` + guards | scattered `if (role)` nav checks |
 | Route strings | `lib/core/routes/route_names.dart` | hard-coded path literals |
+| How a page is pushed / how the user gets back | `lib/core/routes/app_page_route.dart` (`appPageRoute`) | a hand-rolled `PageRouteBuilder` (silently loses the iOS swipe-back) |
+| Where a notification tap lands **and its back stack** | `notifications/presentation/notification_navigation.dart` | a bare `go`/`push` from a tap handler |
 | Backend security | `firestore.rules` / `storage.rules` | client-side "trust" |
 | Privileged writes | `functions/index.js` (🖥️) | client writing server-owned fields |
 | Date → String formatting | `lib/core/utils/app_date_formatter.dart` | inline month arrays (18 were deleted — don't re-add) |
@@ -54,6 +56,22 @@ Not configurable. There is no "Completed-Late" state.
 Direct chat lives on the **NestJS API** + **Drift** cache. REST = truth, socket = delivery only.
 ⚠️ **Never cache image bytes** in Drift. Never fabricate presence. Imports in chat are confined to
 `dio` · `socket_io_client` · `drift`.
+
+### 8. A pushed page must carry the iOS swipe-back
+Every screen keeps its app-bar back button; on iOS the native left-edge swipe works **in addition** to it.
+The gesture exists only on Cupertino routes, so push pages with `appPageRoute`
+(`core/routes/app_page_route.dart`) or route them in `app_router.dart` (iOS gets a `CupertinoPage`).
+A hand-rolled `PageRouteBuilder` silently loses the swipe — nothing looks broken, the app is just
+inconsistent. Android/desktop unchanged. Pinned by `test/back_navigation_contract_test.dart`.
+
+### 9. A notification tap must never `go` to a leaf page
+`go` replaces the whole stack, so the page becomes the only route: it cannot pop, only the three role
+shells carry the bottom nav, and the user is stuck. Every tap goes through `openNotificationDeepLink`
+(or `openChatDeepLink`), which does `go(home)` **then** `push(target)`.
+⚠️ And never read `router.state` from a tap handler — a cold-start tap runs before the router attaches,
+where it throws `Bad state: No element` and kills the navigation. Use
+`router.currentLocationOrNull` / `router.whenReady` (`core/routes/router_extensions.dart`).
+Pinned by `test/notification_tap_navigation_test.dart`.
 
 ## 🚫 Do-NOT-EDIT / handle-with-care
 

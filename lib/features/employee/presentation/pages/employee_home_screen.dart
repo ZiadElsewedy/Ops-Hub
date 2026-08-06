@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drop/core/routes/app_page_route.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
@@ -25,6 +26,9 @@ import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/attendance/domain/attendance_calculator.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
 import 'package:drop/features/attendance/presentation/cubit/attendance_state.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_target_card.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
@@ -97,6 +101,15 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   void _load({bool force = false}) {
     final user = context.currentUser;
     if (user != null) {
+      final branchId = user.branchId;
+      if (branchId != null && branchId.isNotEmpty) {
+        unawaited(
+          context.read<SalesMonthCubit>().loadForEmployee(
+            branchId: branchId,
+            uid: user.uid,
+          ),
+        );
+      }
       unawaited(_loadSeen(user.uid));
       context.read<StatisticsCubit>().load(user, forceRefresh: force);
       context.read<TaskCubit>().load(user, forceRefresh: force);
@@ -228,6 +241,48 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                 },
               ),
             ),
+
+            if (user?.branchId != null)
+              BlocBuilder<SalesMonthCubit, SalesMonthState>(
+                builder: (context, state) {
+                  // A branch that does not run monthly targets shows nothing at
+                  // all — the feature must not exist for those employees. The
+                  // module gates its own spacing too, so an opted-out Home has
+                  // no unexplained gap where the card would have been.
+                  if (state is SalesMonthDisabled ||
+                      state is SalesMonthInitial) {
+                    return const SizedBox.shrink();
+                  }
+                  final Widget card;
+                  if (state is SalesMonthError) {
+                    card = SalesTargetCard.error(
+                      errorMessage: state.message,
+                      onRetry: () =>
+                          context.read<SalesMonthCubit>().loadForEmployee(
+                            branchId: user!.branchId!,
+                            uid: user.uid,
+                            force: true,
+                          ),
+                    );
+                  } else if (state is SalesMonthLoaded) {
+                    card = SalesTargetCard(
+                      state: state,
+                      onOpen: () => context.push(RouteNames.salesMine),
+                    );
+                  } else {
+                    card = const SalesTargetCard.loading();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.xl,
+                      AppSpacing.pagePadding,
+                      0,
+                    ),
+                    child: card,
+                  );
+                },
+              ),
 
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -1290,9 +1345,11 @@ class _TaskSection extends StatelessWidget {
   void _openTask(BuildContext context, TaskEntity task) {
     seen.onSeen(task);
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (ctx, anim, _) =>
-            TaskDetailsScreen(task: task, directory: directory),
+      appPageRoute<void>(
+        builder: (_) => TaskDetailsScreen(task: task, directory: directory),
+        // Home's own rise-and-fade opening, kept for Android/desktop. iOS uses
+        // the Cupertino push instead, because that is what carries the
+        // swipe-back the app bar no longer offers.
         transitionsBuilder: (ctx, anim, _, child) => FadeTransition(
           opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
           child: SlideTransition(
@@ -1480,7 +1537,17 @@ class _HomeTaskCard extends StatelessWidget {
 
 // ─── Card footer action ──────────────────────────────────────────────
 
-class _CardFooter extends StatelessWidget {
+/// The one action a card offers, and the animated seam between one action and
+/// the next.
+///
+/// Starting a task is a server round trip (100ms–1s). It used to look like the
+/// app had hung: the button dimmed to the disabled 50%, sat dead, and then
+/// *Start task* was replaced by *Continue* in a single frame. Now the tapped
+/// button acknowledges the press immediately — full weight, a progress ring
+/// where its glyph was — and the arriving action cross-fades in through
+/// [ActionSwap]. The wait is the same length; it is no longer mistaken for a
+/// fault.
+class _CardFooter extends StatefulWidget {
   const _CardFooter({
     required this.task,
     required this.busy,
@@ -1504,48 +1571,82 @@ class _CardFooter extends StatelessWidget {
   final bool isMissed;
 
   @override
+  State<_CardFooter> createState() => _CardFooterState();
+}
+
+class _CardFooterState extends State<_CardFooter> {
+  /// This card's own start is in flight. Local, not from the cubit: `busy` is
+  /// global, so a shared flag would spin every card on the screen.
+  bool _starting = false;
+
+  @override
+  void didUpdateWidget(_CardFooter old) {
+    super.didUpdateWidget(old);
+    // Settled — either the new status arrived (the stream carries it while the
+    // write is still finishing) or the mutation ended without one, which is a
+    // refusal. Both must clear the ring; only the first also swaps the action.
+    if (_starting &&
+        (!widget.busy || widget.task.status != TaskStatus.pending)) {
+      _starting = false;
+    }
+  }
+
+  void _start() {
+    setState(() => _starting = true);
+    widget.onStart!();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final Widget action;
-    if (isMissed) {
+    if (widget.isMissed) {
       action = const _MutedFooter(
+        key: ValueKey('missed'),
         icon: Icons.event_busy_rounded,
         label: 'Missed — task closed',
       );
-    } else if (isReview) {
+    } else if (widget.isReview) {
       action = const _MutedFooter(
+        key: ValueKey('review'),
         icon: Icons.hourglass_top_rounded,
         label: 'Awaiting review',
       );
-    } else if (startBlockedReason != null) {
+    } else if (widget.startBlockedReason != null) {
       action = _MutedFooter(
+        key: const ValueKey('blocked'),
         icon: Icons.schedule_rounded,
-        label: startBlockedReason!,
+        label: widget.startBlockedReason!,
         iconColor: AppColors.textTertiary,
       );
-    } else if (onStart != null) {
+    } else if (widget.onStart != null) {
       action = _ActionButton(
+        key: const ValueKey('start'),
         icon: Icons.play_arrow_rounded,
         label: 'Start task',
         primary: true,
-        onTap: busy ? null : onStart!,
+        loading: _starting,
+        onTap: widget.busy ? null : _start,
       );
-    } else if (isStarted) {
+    } else if (widget.isStarted) {
       action = _ActionButton(
+        key: const ValueKey('continue'),
         icon: Icons.arrow_forward_rounded,
         label: 'Continue',
-        onTap: onOpen,
+        onTap: widget.onOpen,
       );
-    } else if (isRejected) {
+    } else if (widget.isRejected) {
       action = _ActionButton(
+        key: const ValueKey('feedback'),
         icon: Icons.feedback_outlined,
         label: 'View feedback',
-        onTap: onOpen,
+        onTap: widget.onOpen,
       );
     } else {
       action = _ActionButton(
+        key: const ValueKey('open'),
         icon: Icons.arrow_forward_rounded,
         label: 'Open',
-        onTap: onOpen,
+        onTap: widget.onOpen,
       );
     }
 
@@ -1559,23 +1660,27 @@ class _CardFooter extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.sm,
       ),
-      child: action,
+      // The action lives against the right edge, so it must grow leftwards.
+      child: ActionSwap(alignment: Alignment.centerRight, child: action),
     );
   }
 }
 
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
     this.primary = false,
+    this.loading = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final bool primary;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -1587,6 +1692,7 @@ class _ActionButton extends StatelessWidget {
         label: label,
         icon: icon,
         onPressed: onTap,
+        isLoading: loading,
         style: primary ? PremiumButtonStyle.filled : PremiumButtonStyle.tonal,
       ),
     );
@@ -1595,6 +1701,7 @@ class _ActionButton extends StatelessWidget {
 
 class _MutedFooter extends StatelessWidget {
   const _MutedFooter({
+    super.key,
     required this.icon,
     required this.label,
     this.iconColor = AppColors.warning,
@@ -1644,7 +1751,8 @@ class _StatusPill extends StatelessWidget {
       TaskStatus.cancelled => ('Cancelled', AppColors.textSecondary),
     };
 
-    return Container(
+    final pill = Container(
+      key: ValueKey(status),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withAlpha(20),
@@ -1660,6 +1768,10 @@ class _StatusPill extends StatelessWidget {
         ),
       ),
     );
+
+    // The pill changes in the same instant as the footer's action (Pending →
+    // In progress), so it has to move with it rather than cut underneath it.
+    return ActionSwap(alignment: Alignment.centerRight, child: pill);
   }
 }
 

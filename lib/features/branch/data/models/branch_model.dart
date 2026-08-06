@@ -17,6 +17,7 @@ class BranchModel {
   final SwapPolicy? swapPolicy;
   final bool managersCanClock;
   final BranchGeofence? geofence;
+  final bool salesTargetEnabled;
 
   const BranchModel({
     required this.id,
@@ -31,6 +32,7 @@ class BranchModel {
     this.swapPolicy,
     this.managersCanClock = true,
     this.geofence,
+    this.salesTargetEnabled = false,
   });
 
   factory BranchModel.fromMap(Map<String, dynamic> map, {String? id}) =>
@@ -53,6 +55,7 @@ class BranchModel {
             ? null
             : BranchGeofence.fromMap(
                 (map['geofence'] as Map).cast<String, dynamic>()),
+        salesTargetEnabled: map['salesTargetEnabled'] as bool? ?? false,
       );
 
   factory BranchModel.fromEntity(BranchEntity e) => BranchModel(
@@ -68,6 +71,7 @@ class BranchModel {
         swapPolicy: e.swapPolicy,
         managersCanClock: e.managersCanClock,
         geofence: e.geofence,
+        salesTargetEnabled: e.salesTargetEnabled,
       );
 
   /// Writable fields. Timestamps + `deletedAt` are managed by the datasource
@@ -76,8 +80,8 @@ class BranchModel {
   /// edit-form save never clobbers an existing logo/cover. [swapPolicy] **is**
   /// included — it is edited inside the same branch form, which always carries the
   /// loaded policy, so a save can't clobber it; null = permissive.
-  /// [managersCanClock] is also included because the same form always carries
-  /// its loaded value. [geofence] is **omitted** here so a general branch-form
+  /// [managersCanClock] and [salesTargetEnabled] are also included because the
+  /// same form always carries their loaded values. [geofence] is **omitted** here so a general branch-form
   /// save never clobbers it — the
   /// attendance geofence is written by its own dedicated editor path
   /// (`BranchRepository.setGeofence`).
@@ -88,6 +92,7 @@ class BranchModel {
         'isActive': isActive,
         'swapPolicy': swapPolicy?.toMap(),
         'managersCanClock': managersCanClock,
+        'salesTargetEnabled': salesTargetEnabled,
       };
 
   BranchModel copyWithId(String id) => BranchModel(
@@ -103,6 +108,7 @@ class BranchModel {
         swapPolicy: swapPolicy,
         managersCanClock: managersCanClock,
         geofence: geofence,
+        salesTargetEnabled: salesTargetEnabled,
       );
 
   BranchEntity toEntity() => BranchEntity(
@@ -118,5 +124,6 @@ class BranchModel {
         swapPolicy: swapPolicy,
         managersCanClock: managersCanClock,
         geofence: geofence,
+        salesTargetEnabled: salesTargetEnabled,
       );
 }

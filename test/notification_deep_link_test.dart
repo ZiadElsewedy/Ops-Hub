@@ -185,6 +185,125 @@ void main() {
     });
   });
 
+  group('resolveNotificationRoute — sales submission', () {
+    test('with a salesSubmissionId opens the exact submission', () {
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesSubmission,
+          payload: const {'salesSubmissionId': 'b1_20260805'},
+          role: UserRole.employee,
+        ),
+        RouteNames.salesSubmissionDetail('b1_20260805'),
+      );
+    });
+
+    test('without an id falls back to the role sales area', () {
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesSubmission,
+          payload: const {},
+          role: UserRole.admin,
+        ),
+        RouteNames.salesManage,
+      );
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesSubmission,
+          payload: const {},
+          role: UserRole.manager,
+        ),
+        RouteNames.salesManage,
+      );
+      // The employee's own sales page — NOT Home. An employee has a sales area
+      // of their own now, and `/sales/mine` is where their records live.
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesSubmission,
+          payload: const {},
+          role: UserRole.employee,
+        ),
+        RouteNames.salesMine,
+      );
+    });
+  });
+
+  group('resolveNotificationRoute — sales target', () {
+    test('a target event opens the role sales area', () {
+      // "Your branch monthly sales target was updated" / "…target achieved":
+      // a MONTH event with no submission to open.
+      const payload = {'monthKey': '202608'};
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesTarget,
+          payload: payload,
+          role: UserRole.manager,
+        ),
+        RouteNames.salesManage,
+      );
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesTarget,
+          payload: payload,
+          role: UserRole.admin,
+        ),
+        RouteNames.salesManage,
+      );
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesTarget,
+          payload: payload,
+          role: UserRole.employee,
+        ),
+        RouteNames.salesMine,
+      );
+    });
+
+    test('an unknown role is a guarded no-op', () {
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesTarget,
+          payload: const {'monthKey': '202608'},
+          role: null,
+        ),
+        isNull,
+      );
+    });
+
+    test('a stray salesSubmissionId on a target event is ignored — the month '
+        'is the subject, not a record', () {
+      expect(
+        resolveNotificationRoute(
+          route: NotificationRoute.salesTarget,
+          payload: const {'salesSubmissionId': 'b1_20260805'},
+          role: UserRole.manager,
+        ),
+        RouteNames.salesManage,
+      );
+    });
+
+    test('a PRE-REDEPLOY target notification (route sales_submission, no id) '
+        'still lands in the same place', () {
+      // The docs already in every inbox were written before the producer split
+      // the two routes. Both must resolve identically or yesterday's
+      // notifications go dead the moment the function rolls.
+      for (final role in [UserRole.manager, UserRole.employee]) {
+        expect(
+          resolveNotificationRoute(
+            route: NotificationRoute.salesSubmission,
+            payload: const {'monthKey': '202608'},
+            role: role,
+          ),
+          resolveNotificationRoute(
+            route: NotificationRoute.salesTarget,
+            payload: const {'monthKey': '202608'},
+            role: role,
+          ),
+          reason: 'both sales routes must agree for a month-only payload',
+        );
+      }
+    });
+  });
+
   group('resolveNotificationRoute — attendance', () {
     // Regression: `writeAttendanceNotifications` has always stamped
     // `route: "attendance"`, but the resolver had no case for it — so every

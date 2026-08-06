@@ -44,6 +44,10 @@ abstract class UserAdminRemoteDataSource {
   /// password change on next login, via the admin-only `adminResetPassword`
   /// Cloud Function.
   Future<void> resetPassword({required String uid, required String tempPassword});
+
+  /// Permanently deletes an account (Auth user + Firestore doc) and cleans up its
+  /// active references, via the admin-only `deleteUserAccount` Cloud Function.
+  Future<void> deleteAccount(String uid);
 }
 
 class UserAdminRemoteDataSourceImpl implements UserAdminRemoteDataSource {
@@ -164,6 +168,16 @@ class UserAdminRemoteDataSourceImpl implements UserAdminRemoteDataSource {
       });
     } on FirebaseFunctionsException catch (e) {
       throw ServerException(e.message ?? 'Failed to reset the account.');
+    }
+  }
+
+  @override
+  Future<void> deleteAccount(String uid) async {
+    try {
+      final callable = _functions.httpsCallable('deleteUserAccount');
+      await callable.call<Map<String, dynamic>>({'uid': uid});
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Failed to delete the account.');
     }
   }
 }

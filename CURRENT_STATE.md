@@ -3,7 +3,423 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-04.
+> **Last verified against the code:** 2026-08-06.
+
+> 🚦 **V1 RELEASE GATE — [docs/RELEASE_V1.md](docs/RELEASE_V1.md).** The full
+> release runbook, audited against code *and* live production on 2026-08-05.
+> Read it before planning any release work; it is the authority on what blocks
+> v1 and in what order. Short version: every automated gate is green, both
+> platforms build a release artifact, and **the rules + functions deploy is now
+> done and verified** — what still blocks v1 is the Android application ID
+> (`com.example.*`, Play-rejected) and debug signing, the missing APNs
+> credential, **no Firestore backups/PITR at all**, no production crash
+> reporting, and QA that has never run on real hardware.
+
+> ✅ **AUTOMATION P0 — FIXED *AND* DEPLOYED (2026-08-05).** Daily recurring
+> routines had generated **nothing** since the 2026-07-31 functions deploy.
+> `generateShiftTaskInstances`'s "temporary UTC-key transition guard" probed a
+> legacy-keyed id before creating; at the pinned 01:00 Africa/Cairo tick the UTC
+> date is always *yesterday*, and both key conventions share one id format — so
+> it was reading **yesterday's ordinary instance**, finding it, and recording
+> `skipped / alreadyExists`. Every run looked healthy: clean `automationRuns`
+> row, `failureCount` 0, Automation Center saying "Already generated". Weekly
+> routines were unaffected. The guard is deleted and the id convention now has
+> one source (`recurringInstanceId`), pinned by tests.
+> **The deploy landed 2026-08-05 13:16 UTC** — `generateShiftTaskInstances`
+> (`00014-rob`), `runTaskReminders` (`00021-ges`) and
+> `autoEndRecurringShiftTasks` (`00010-sab`) are all `ACTIVE`, verified via
+> `gcloud functions describe`; the fix commit (`71792e7`) is 02:38 UTC, so the
+> deployed source carries it.
+> ⚠️ **Never observed working in production.** Watch one 01:00 Africa/Cairo tick
+> end to end before calling it closed. Days missed before the deploy cannot be
+> backfilled: generation is per-business-day and there is no catch-up path.
+>
+> **Automated shift tasks now get reminders (2026-08-05, deployed 13:16 UTC):**
+> `runTaskReminders` skipped every task with an empty `assigneeIds` — which is
+> every generated shift task — so the most important task class had one 01:00
+> notification and nothing after. It now resolves the rostered crew via the
+> generator's own `eligibleRecipients`, against the task's `instanceDate`. Quiet
+> hours moved from UTC to Africa/Cairo (the 22→07 default was silencing
+> 00:00–09:00 Cairo, i.e. the 08:30 morning-shift start) and fail **open**. The
+> unbounded 30-minute scan is floored at 7 days and paged at 500. Notification
+> ids are deterministic.
+>
+> **Rejected shift instances now close (2026-08-05, deployed 13:16 UTC, owner-ruled):**
+> They previously reached no terminal at all — Late forever, never out of the
+> active window, still surfacing for later days' crews, and absent from
+> Approved ÷ (Approved + Missed), which made rejection score better than a miss.
+> `rejected` joins `pending`/`started` in `AUTO_END_ELIGIBLE_STATUSES`, one
+> constant now shared by the predicate **and** the sweep's query (drift between
+> them is what caused the leak). `waitingReview`/`completed` deliberately stay
+> out. `task.auto_missed` carries `fromStatus`. Second ruling: a rejected shift
+> instance is the sole exception to "rejected is reminder-ineligible" — it gets a
+> **Rework Needed** nudge on the existing ladder, because closing work
+> automatically against an unsent message is not acceptable. Spec §3.7 + §9.5.
+> No index change.
+>
+> ⚠️ **Still open from the same audit, not fixed** (reported 2026-08-05): the
+> **auto-end sweep can starve**: one
+> `limit(500)` slice ordered by deadline, from which manually-created shift tasks
+> (no `sourceTemplateId`) are skipped but never leave — accumulate ~500 and Missed
+> stops working. A **failed generation pages nobody** (a Missed task does).
+> Routines **cannot be edited** (add/pause/delete only) though the server-side
+> config-diff audit fully supports it. The ADR-011 execution record is **written
+> daily and read by no screen**.
+>
+> **iOS swipe-back added; every back button kept (2026-08-05, NOT
+> device-verified):** A pushed screen on iOS now carries the native interactive
+> left-edge swipe **in addition to** its app-bar back button — both, always, as
+> in Apple's own apps. The theme had been overriding Flutter's iOS default with
+> `ZoomPageTransitionsBuilder`, which carries no gesture, and the 85 go_router
+> pushes used `CustomTransitionPage`, which cannot. Seam:
+> `core/routes/app_page_route.dart` (`appPageRoute`) + `CupertinoPage` in the
+> router. Android and desktop unchanged.
+> ⚠️ **What rots silently:** the gesture exists only on Cupertino routes, so a
+> page pushed on a hand-rolled `PageRouteBuilder` loses it while every other
+> screen keeps it — nothing *looks* broken. Pinned by
+> `test/back_navigation_contract_test.dart`.
+> Needs on-device QA: the edge swipe over horizontally scrolling content
+> (`SegmentedTabBar` tabs, the schedule week strip) and inside the chat thread.
+
+> **Notification taps: dead end, cold-start crash, silent drop — all fixed
+> (2026-08-05, NOT device-verified):** Three reported symptoms, one root area —
+> navigating a router that has no stack yet.
+> - **"It opens the notifications page and I can't get Home."** The unresolved-tap
+>   fallback was `go('/notifications')`, which replaces the whole stack. The inbox
+>   carries no bottom nav (only the three role shells do) and could not pop, so no
+>   back button was drawn on any platform. Every tap now goes through
+>   `openNotificationDeepLink` — `go(home)` **then** `push(target)`.
+> - **"Sometimes it errors."** `router.state` throws `Bad state: No element` on an
+>   empty match list. Both tap paths read it, so the handler died mid-way.
+> - **"Sometimes it doesn't open at all."** A cold start resolves the tap before
+>   the routed app mounts (the splash intro is ~2s), and `push` onto an unattached
+>   router is dropped — while `go` works, which is why the dead-end fallback was
+>   the one path that landed.
+> New `core/routes/router_extensions.dart`: `currentLocationOrNull` (never
+> throws) + `whenReady` (defers the tap until the router has a stack, bounded at
+> 120 frames). `openChatDeepLink` had the same two faults and is fixed with it.
+> Pinned by `test/notification_tap_navigation_test.dart`.
+
+> **Schedule stops re-reading on every visit (2026-08-05):** The admin Today
+> board fired one **uncached roster query per branch** on every entry, behind a
+> skeleton that blanked it each time, and screen entry called
+> `BranchCubit.load()` unconditionally — emitting `loading()`, which blanked
+> every branch-identity surface in the app. Entry now uses `loadIfNeeded()`;
+> `TodayCoverageCubit` has a 5-minute window keyed on the branch set **and** the
+> day, and a forced refresh no longer blanks the board it is refreshing.
+> `ScheduleCubit._freshFor` 60s → 5 min (a minute is shorter than one trip
+> through the app, so every return still paid for a full reload). Refresh,
+> pull-to-refresh, a scope change, any local mutation, and `SwapRosterSync` on an
+> approved swap all still bypass the windows. Returning to the Today tab after
+> editing forces a re-derive, deliberately. Pinned by
+> `test/schedule_read_caching_test.dart`.
+
+> **Premium mobile role-home bar (2026-08-05, presentation only):** The shared
+> admin/manager/employee `RoleScaffold` header now uses a restrained gradient +
+> bottom hairline, groups daily actions inside one flat glass capsule, and gives
+> the account avatar its own surfaced control. Every destination and role-based
+> action remains unchanged. All controls have ≥44px targets and tooltips;
+> notifications announce their unread count and the avatar announces whose
+> settings it opens. The manager worst case (four actions + avatar) is covered at
+> 320px with no overflow. Desktop chrome is untouched.
+
+> **Automation details sheet redesign (2026-08-05, presentation only):** The
+> routine details sheet now respects the device safe area and keeps a labelled
+> 44px Close action pinned above its scrollable content. Its first view is a
+> compact schedule/next-check snapshot, latest outcome and last generated task;
+> priority, checklist, assignment, timing notes and the Missed policy move under
+> collapsed **More details**. Pause/resume, confirmed delete and last-task
+> navigation keep their existing behavior and data paths.
+
+> **Task Details attributes and schedules honestly (2026-08-06, presentation +
+> one new pure domain file, NOT device-verified):** A generated shift task now
+> says it was made by **System · Automated task** (with the template's owner kept
+> as a *"Set up by …"* footnote) instead of showing only `Morning Shift`, and the
+> activity timeline signs the server's own events *System* + an **AUTOMATED**
+> chip instead of the anonymous *"Someone"* — `actorId: "system"` is not a uid and
+> never resolved in the directory. Origin is decided by the new pure
+> `task/domain/task_origin.dart`, because `createdBy` is inherited from the
+> template and therefore cannot answer the question. The three date-only schedule
+> chips (`Starts 6 Aug 2026 · Due 6 Aug 2026 · Est. 8h`) became one banded
+> **Starts · Due · Window** row with 24-hour clock times and a relative day line
+> (new shared `AppDateFormatter.relativeDay`); *Window* replaces the misleading
+> *Est.*, since the value is `dueAt − startsAt`, not an effort estimate. Pinned by
+> `test/task_origin_test.dart` + `test/task_details_origin_test.dart`.
+
+> **Submission overlay is now just an animated Lottie loader (2026-08-06,
+> presentation only, NOT device-verified):** The full-screen "Submitting task"
+> overlay shown while a completion's media uploads
+> (`task/presentation/widgets/submission_loading_overlay.dart`) was stripped
+> (owner: *"just … put the lottie file no text nothing else"*) to **only** the
+> centered Lottie over the input-absorbing dim barrier — no title, progress bar,
+> stage text, dot indicator, or Cancel. Owner-supplied `assets/LKSRCGVJH6.json`
+> was renamed to `assets/submission_loading.json` and registered in
+> `pubspec.yaml`. The export's animated fill colours are forced to
+> `AppColors.primary` via `LottieDelegates` so it stays monochrome (ADR-004);
+> reduced motion collapses it to a still frame. The cubit-driven
+> `SubmissionProgress` contract is retained on the widget but unused visually.
+> Only appears during a real upload, so it is not device-verified.
+>
+> **Branch-sales notifications were impersonating tasks, and their push lost the
+> record (2026-08-06; client half live, ⚠️ SERVER HALF NEEDS A FUNCTIONS
+> DEPLOY):** `writeSalesNotifications` stamps `type: "salesSubmission"`, which the
+> `NotificationType` enum never had — so `NotificationModel.fromMap`'s
+> unknown-type fallback made every sales notification a `taskAssigned`: clipboard
+> glyph, **Tasks** filter pill, `high` priority above genuinely overdue work.
+> Fixed with the enum value, a **Sales** pill, a point-of-sale glyph and `normal`
+> priority. Two server-side halves went with it and are **inert until
+> `firebase deploy --only functions`**: a month event ("target updated" /
+> "achieved") now writes `route: "sales_target"` instead of a `sales_submission`
+> route it had no id for (the id-less `sales_submission` case is kept, so inbox
+> docs written before today still resolve), and `onNotificationCreated` now
+> forwards `salesSubmissionId` + `monthKey` in the push `data` — without them a
+> *New sales submission* tapped from the OS reached the branch dashboard, never
+> the record to review, while the in-app inbox worked because it reads the
+> Firestore payload directly.
+
+> **Starting a task reads as instant (2026-08-06, presentation only, NOT
+> device-verified):** The reported "delay that seems like lag but works" was the
+> UI, not the write: for the 100ms–1s of the Firestore transaction the **Start
+> task** button dimmed to the disabled 50% and sat dead, then the new action
+> replaced it in a single frame. The tapped button now acknowledges the press on
+> the frame it happens — full weight, a progress ring where its glyph was
+> (`PremiumButton.isLoading`, new; `AppButton` already had one) — and the next
+> action arrives through the new `ActionSwap` (`core/widgets/app_motion.dart`,
+> 200ms in / 130ms out over an `AnimatedSize`). It carries Start → Continue on
+> Employee Home, Start Task → Mark Complete → Submit for Review on Task Details,
+> the *Mark Complete* → submission-form expansion, and the card status pill;
+> `TaskAttentionSurface` eases its 1px tone over 240ms instead of cutting.
+> **The round trip is unchanged — no status is written optimistically.** The
+> in-flight ring is per-card local state (the cubit's `busy` is global) and ends
+> on whichever arrives first, the new status or the mutation ending without one,
+> so a refused start cannot strand a spinner. Reduced motion collapses every one
+> of these to an instant swap. Pinned by
+> `test/task_start_transition_test.dart`.
+
+> **Settings — Notifications preferences + Appearance placeholder (2026-08-06,
+> NOT device-verified):** A **Preferences** section under the account card opens
+> a new `NotificationsSettingsScreen` (`/settings/notifications`) with six
+> switches — Enable Notifications · Task Reminders · Schedule Updates · Case
+> Messages · Announcements · Sound. The master switch dims and disables the
+> other five **without clearing them**.
+> ⚠️ **Local-only and not yet connected to delivery.** Values live in a
+> uid-namespaced JSON file via `core/services/notification_preferences_store.dart`
+> (the `CaseSeenStore` mechanism; no `shared_preferences`, no Firestore, no
+> rules change). **Nothing consumes them** — an employee who turns Task
+> Reminders off still receives them. Wiring `NotificationService` / the server
+> reminder ladder to the store is the open follow-up, and the moment
+> preferences must survive a reinstall or apply across devices they need a
+> Firestore home.
+> **Appearance is a deliberately inert row** — a monochrome COMING SOON label,
+> no screen, no theme switching (DROP is dark-only, ADR-004).
+> The Settings row widgets moved unchanged to
+> `features/settings/presentation/widgets/settings_tiles.dart` so both screens
+> share one row. Pinned by `test/features/settings/` and the extended
+> `test/settings_page_test.dart`.
+
+> **Launch hint: "You have N unread messages" (2026-08-06, presentation +
+> one additive router-extension getter, NOT device-verified):** Unread chat had
+> no launch-time signal at all — the bottom nav carries no badge (deliberately,
+> and it must not grow one), so a message that arrived while the app was closed
+> was invisible until the user opened Chat. New `ChatUnreadLaunchHint`
+> (`features/chat/presentation/widgets/`) is mounted above the router beside
+> `ChatNotificationListener`: on the **first settled** `ChatListState.loaded` of
+> a launch it slides one small glass banner down from the top — *"You have 4
+> unread messages." · "Tap to open Chat."* — holds 3.5s, then dismisses itself.
+> Tapping pushes `/chat`, the same destination the bottom nav's Chat tab pushes,
+> so Back returns where the launch landed. **Zero new reads:** it observes the
+> inbox load `ChatNotificationListener` already triggers on authentication.
+> - It waits for the *settled* load on purpose — the durable-cache paint arrives
+>   first with `refreshing: true` and no server counts, so announcing off it
+>   would read "no unread" on every cold start that had a cache.
+> - Consuming exactly one settled emission is also what makes it once-per-launch;
+>   a message arriving later is `ChatNotificationListener`'s banner, not this one.
+>   A sign-out + second sign-in inside one launch does **not** re-arm it.
+> - Reduced motion collapses the slide to an instant show/hide.
+> ⚠️ **The suppression check needed a new router reader.** "Don't show it if the
+> user is already on Chat" cannot be answered by `currentLocationOrNull`: it
+> reports the match list's `uri`, which an imperative `push` never rewrites, and
+> **every** chat destination is reached by `push` — so after the cold-start chat
+> deep link (`go(home) → push(/chat) → push(thread)`) it still says `/manager`
+> while the thread is on screen. New additive `topLocationOrNull` reads the top
+> match instead; `currentLocationOrNull` is untouched and keeps its duplicate-push
+> guard. Pinned by `test/chat_unread_launch_hint_test.dart` (8 tests, including
+> the pushed-on-top-of-home case the old reader gets wrong).
+
+> **Premium Settings account hub (2026-08-05, presentation only):** Settings now
+> leads with a tappable signed-in identity card (real avatar, name, email and
+> role), then separates Security, Workspace and Drop Operation information into
+> shared glass surfaces with clearer supporting copy. Sign out is isolated as a
+> deliberate destructive action, version metadata stays visible, and the page
+> enters with the shared restrained stagger motion. All existing routes/actions
+> are unchanged.
+
+> **Branch Monthly Sales Target — built, audited, awaiting redeploy + QA (2026-08-05):**
+> Per-branch monthly targets, daily employee closes, manager/admin approval,
+> derived-on-read progress, admin all-branches management, notification routing and
+> derived pace KPIs. Design: [SALES_TARGETS](docs/design/SALES_TARGETS.md) +
+> [ADR-022](docs/decisions/ADR-022-branch-sales-monthly-ledger.md). A **derived
+> ledger** — deterministic `branch_sales_months` / `branch_sales_submissions` docs,
+> approved total re-summed on read, no stored accumulation; **server-authoritative**
+> callables for every monetary transition; **`Africa/Cairo`** keys; piastres money;
+> reused audit + notification seams.
+>
+> **A post-implementation audit on 2026-08-05 fixed nine real defects** — see the
+> CHANGELOG entry for the full list. The load-bearing ones:
+> - `isManagerArea` matched `/sales` by **prefix**, so `/sales/submit`,
+>   `/sales/mine`, `/sales/history` and `/sales/submission/:id` were all
+>   manager-only. **Every employee was bounced to Home** from their own submit
+>   screen, their own records, and the sales notification deep link. The whole
+>   employee half of the feature was unreachable.
+> - **Resubmit-after-correction had no caller.** `ResubmitCorrectedSales` was wired
+>   into DI but no cubit or screen used it, so `correctionRequested` was a dead end.
+> - **"Needed per day" read `0 EGP` on the last day of every month** while the
+>   branch was still short (exclusive day count), and **"Average per day" divided by
+>   elapsed calendar days**, understating pace daily because approvals lag.
+>
+> **New: per-branch opt-in.** `branches/{id}.salesTargetEnabled` (**admin-only,
+> default `false`**). Off ⇒ the feature does not exist for that branch: no Home
+> card (and no gap where it was), no sales pages, no target management, no
+> submissions. Enforced in the client, in `firestore.rules`, and in
+> `setBranchSalesTarget`. Deciding **already-open** records stays allowed when a
+> branch is switched off, so nothing is stranded.
+>
+> Owner sign-off (P0) stands: peer visibility = **approved-only**; employee
+> back-date = **current + 3 Cairo days**.
+>
+> **UX pass (same day):** everything collapses to **target · achieved ·
+> remaining** via one shared `SalesMoneyRow`; the only statistic left is **Needed
+> per day**, which is also the only colour (today's close vs. what a day needs —
+> ≥100% green, ≥50% amber, below red, monochrome when there is nothing to judge).
+> Progress bars/percentages, the Pace strip, the recent-approved list and the
+> employee history table are gone. Pending/Approved/Rejected/History are now four
+> separately filtered destinations. Admin Home gained a self-gating Branch sales
+> summary. **`formatEgp` shipped a leading-comma bug** (`945000` → `,945,000`) —
+> fixed and regression-tested. Naming corrected throughout: the target belongs to
+> the **branch**, so every role's destination is "Branch Sales" and the employee
+> page reads "TEAM TARGET".
+>
+> Gates green: `flutter analyze` clean · `flutter test` **1670 pass** (1641 when the feature landed) ·
+> `functions` node --test **112** · `firestore-tests` **68**.
+> ✅ **The server half is DEPLOYED and verified (2026-08-05).** Rules released
+> **18:32:57 UTC** and re-read from the Rules API as **byte-identical to
+> `firestore.rules`** (so the `branchRunsSalesTargets()` gate is live); all 5
+> sales callables rolled to revision `…-00002-*`, `ACTIVE`, **18:34 UTC**, after
+> the audit commit. The 4 `branch_sales_submissions` composite indexes were
+> already live and `READY`. **What remains is shipping the client build, then
+> on-device QA** — production carries the server contract already.
+> ⚠️ **Production branch state:** `Drop The shop | Arkan` has
+> `salesTargetEnabled: true`; `Marassi` and `LMD` are opted out **and inactive**.
+> So today the feature exists for exactly one branch.
+> **Manager Home now states the month (2026-08-05, NOT device-verified):**
+> Employee Home and Admin Home both carried the figures while the one role
+> accountable for them — the manager sets the target and approves every close —
+> got a *Branch sales* digest row with **no amount**. Manager Home now renders
+> the same `SalesTargetCard` (target · achieved · remaining) under *On shift
+> today*, on mobile and desktop, opening `/sales`. The digest row is **deleted**:
+> it was duplicated navigation, and it was the one sales surface that never
+> consulted `salesTargetEnabled`, so an opted-out manager was offered a door onto
+> the Disabled screen. The card gates itself **and its spacing** — an opted-out
+> branch shows nothing, not even a gap.
+> Fed by the new `SalesMonthCubit.loadForBranch` — `loadForEmployee` minus the
+> own-submissions stream, since a manager never closes a day, so Home costs two
+> listeners rather than three. ⚠️ The submission getters on `SalesMonthLoaded`
+> are **meaningless in branch mode**: `canSubmitToday` reads `true` off the
+> target alone because it is asking about an employee the cubit does not have.
+> Home renders `snapshot` only; never drive a submit CTA off a branch-mode
+> state. Pinned by `test/features/sales/presentation/sales_month_cubit_test.dart`
+> and `test/manager_home_test.dart`.
+> ⚠️ **Known divergence:** the Dart client hand-rolls Cairo DST (last Friday of
+> April/October) while the callables use `Intl` with real tzdata, which also
+> suspends DST during Ramadan. The two can disagree on the civil date for a few
+> hours a year. The server is authoritative for validation; a shared tz source is
+> the open recommendation.
+
+> **Swap workflow reliability + history (2026-08-05):** The manager/admin swap
+> sheet captures its height before opening, avoiding the deactivated-context
+> `MediaQuery` crash during a schedule rebuild. It is always reachable as **Swap
+> history**, separates open requests from resolved records, and approved swaps
+> name the manager/admin and decision time. `approveSwap` persists that reviewer
+> attribution atomically with the roster exchange and includes it in the employee
+> approval notification.
+> Legacy records without stored actor attribution intentionally show no invented
+> person; a real name is shown only when it was persisted with the decision.
+> The mobile schedule always exposes the Swap history control, including when
+> there are no pending requests.
+> ✅ **The server half is DEPLOYED (2026-08-05 00:35 UTC).** It was the reason no
+> name appeared on device: the attribution write landed in `functions/index.js`
+> at `b76cbac` (00:04 UTC) while production still ran `approveswap-00013-taz`
+> from **2026-08-04 13:16 UTC**, so approvals were stored with no
+> `managerApprovedById/Name/At` and the card honestly rendered nobody.
+> `firebase deploy --only functions:approveSwap` rolled it to
+> **`approveswap-00014-ceq`, state `ACTIVE`** — verified via
+> `gcloud functions describe`, not just reported by the CLI.
+> ⚠️ **Swaps approved before that moment stay unattributed forever** — the
+> fields are written only at decision time and there is no backfill source. The
+> first *newly* approved swap is the real end-to-end confirmation. Those records
+> now read **Approver not recorded** instead of showing nothing at all.
+>
+> **The "sometimes it approves, sometimes it doesn't" bug is FIXED (2026-08-05,
+> client-only).** It was never the callable failing at random: a **stale roster**
+> produced requests the server can never approve, and the refusal was invisible.
+> `ScheduleCubit` is a one-shot read and only refreshed on a *local* mutation
+> settling, so the device that did not press Approve kept the pre-swap week; a
+> swap requested off it names a shift its requester no longer holds and
+> `approveSwap`'s slot-integrity check refuses it permanently. Verified in
+> production: the 00:23:33Z approval rewrote
+> `weekly_schedules/DDwedTHvI1sPHrMz06PI_2026-08-02` (Thursday night ⇄ morning),
+> and the 00:46:39Z request still claimed the requester's old night slot. New
+> `SwapRosterSync` refetches the week whenever a swap on the loaded
+> (branch, week) reaches `managerApproved`, off the **realtime** swap stream, so
+> both parties update — mounted on the manager/admin view and on
+> `MyScheduleScreen`, which had no refresh at all. The swap list now states a
+> refused decision **inline** (`Not applied` + the server's sentence): the queue
+> is a modal sheet and its snackbar was rendering in the page `Scaffold`
+> underneath it, so Approve looked like it did nothing. **Not device-verified.**
+
+> **Project identity alignment (2026-08-05):** The repository folder is
+> **`Drop-operations`** and the user-facing product name is **Drop Operation**.
+> Android/Linux use the valid identifier `com.example.dropoperation`; iOS/macOS
+> continue to use `com.ziad.drop`. The Android Firebase registration/configuration
+> must be regenerated for the new identifier before a Firebase-enabled release.
+
+> **Today coverage: skeleton-hang fixed + inactive branches skipped (2026-08-05,
+> bug + perf):** The admin Schedule *Today* board could sit on its loading
+> skeletons **forever** (reported as "it loads too much the first time"). It was
+> a regression from the same-day read-caching change: `_load()` moved to
+> `BranchCubit.loadIfNeeded()`, but coverage fires only from the branch
+> `BlocListener`, which reacts to a state *change* — so when the directory was
+> already loaded (admin opened another screen first), nothing emitted, the
+> listener never fired, and coverage stayed `Initial`. `_load()` now triggers
+> coverage directly when branches are already present. Same pass: the board now
+> filters to `isActive` branches before loading (inactive branches aren't
+> operating today), cutting first-entry reads. The Week editor still sees the
+> full directory and can edit any branch. Pinned by
+> `test/admin_today_coverage_screen_test.dart`.
+
+> **Final schedule reshaped to the owner's spreadsheet + Excel export
+> (2026-08-05, NOT device-verified):** The published Final view was transposed to
+> **Morning · Night · Off rows down the side, days across the top, people named
+> inside each cell** (previously employee-per-row with `M`/`N`/`OFF` tokens) —
+> owner-approved, matching the spreadsheet they already keep. All three outputs
+> now share one pure source, `schedule/domain/reporting/final_schedule_grid.dart`
+> (`buildFinalScheduleGrid`): the on-screen `FinalScheduleSheet`, the PDF, and a
+> new **Excel (`.xlsx`)** export (third choice in the export chooser). The Off
+> row lists only people **explicitly** marked off/on-leave that day (from the
+> leave record), tagging `(V)` vacation / `(L)` leave — it does not dump everyone
+> not rostered, and is omitted entirely in an all-working week. **On macOS all
+> three exports now open after saving** (Excel/Numbers · Preview) via the same
+> `open` path chat uses — the desktop code previously saved to Downloads but
+> never opened the file, so the export looked inert. The `.xlsx` is
+> hand-written OOXML zipped with `archive` (the `excel` package pins an `archive`
+> major that conflicts with `lottie`), delivered through the ADR-019
+> write-beside + `open_filex` path. One new dependency (`archive`, already
+> transitive). Closes Schedule V2 brief #20 (Excel half; CSV still out). Verified
+> well-formed through a real XML parser; **needs on-device QA of the actual file
+> opening in Numbers/Excel and the share sheet.** Pinned by
+> `test/features/schedule/final_schedule_grid_test.dart`,
+> `test/features/schedule/schedule_final_xlsx_test.dart`, and the rewritten
+> `test/schedule_final_view_test.dart`.
 
 > **Schedule — mobile Final view, exports, caching, roster fix (2026-08-04):**
 > The Final view splits by width: **macOS keeps the landscape print sheet**
@@ -108,9 +524,9 @@
 | | |
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
-| **Build** | `flutter analyze lib test`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-04** after the Task Management production polish pass |
-| **Tests** | **1574 pass · 0 fail** (~33s) — **green**, re-run and verified **2026-08-04** after the Task Management production polish pass (+19: `task_browser_groups_test.dart` is new; `task_feed_row_test.dart` and `task_browser_test.dart` gained the two-line row, search-state, lens-count and narrow-width cases). Cloud Functions: **83 pass** (`cd functions && node --test`); **Firestore rules: 61 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
-| **Blocking release** | ~~Firebase deploy~~ **DONE 2026-07-31 — see below.** Remaining: recurring-template manager read isolation · APNs credential for iOS push · attendance on-device GPS QA. **(Chat P0-1 read-receipts + P1-1 unread counts are now LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
+| **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
+| **Tests** | **1741 pass · 0 fail** (~85s) — re-run **2026-08-06** (+8: the chat unread launch hint; measured baseline 1733, so the previously-recorded 1698 was stale). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
 DROP is **feature-complete for its intended scope** and now gated on QA, not on
@@ -193,9 +609,9 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | Feature | Notes |
 | --- | --- |
 | **Auth** | Admin-provisioned email/password. No registration/Google/OTP/approval. First-login gate: force password change → profile completion → (employees) Welcome → role home |
-| **Roles & routing** | 49 routes, role-guarded. admin ⊇ manager |
+| **Roles & routing** | 59 routes, role-guarded. admin ⊇ manager |
 | **Profile** | View/edit, avatar/cover upload, contact + payment (payment in a private subdoc; hidden for admin) |
-| **Tasks** | Full workflow: create → execute (checklist · notes · proof) → review. Multi-assignee, recurrence, activity timeline, templates, shift assignment, work-type framework, Scheduling V2 (start/due windows + quick deadline presets). Upcoming tasks are visible immediately but `Start Task` / `Start Rework` stays disabled until `startsAt` (client gate + Firestore rules; no rework exception). Generated recurring shift tasks now persist their resolved weekly window and unfinished `pending`/`started` instances automatically close as server-owned **Missed** at shift end; the status is closed, visible, and excluded from active/overdue queues. **Automation business-day fix** (2026-07-30, uncommitted): recurring-shift generation keys and windows now use the Egypt business civil day, the generator is pinned to 01:00 Africa/Cairo, the client refuses to materialize a shift instance after its deadline, and per-task recurrence rolls successors forward until their deadline is future. **Requires a functions deploy for the server path.** **Cancelled** (2026-07-28, uncommitted) is the third terminal outcome — a manager/admin business decision taken from `pending`/`started` only, carrying a mandatory picklist reason, excluded from every count. The recurring-shift Automation Center is productionized: skeleton loading, premium header, slim tap-through cards, a per-routine details sheet (overview/schedule/next execution/history/failure info/generated task/actions), and confirmed delete. |
+| **Tasks** | Full workflow: create → execute (checklist · notes · proof) → review. Multi-assignee, recurrence, activity timeline, templates, shift assignment, work-type framework, Scheduling V2 (start/due windows + quick deadline presets). Upcoming tasks are visible immediately but `Start Task` / `Start Rework` stays disabled until `startsAt` (client gate + Firestore rules; no rework exception). Generated recurring shift tasks now persist their resolved weekly window and unfinished `pending`/`started` instances automatically close as server-owned **Missed** at shift end; the status is closed, visible, and excluded from active/overdue queues. **Automation business-day fix** (2026-07-30, uncommitted): recurring-shift generation keys and windows now use the Egypt business civil day, the generator is pinned to 01:00 Africa/Cairo, the client refuses to materialize a shift instance after its deadline, and per-task recurrence rolls successors forward until their deadline is future. **Requires a functions deploy for the server path.** **Cancelled** (2026-07-28, uncommitted) is the third terminal outcome — a manager/admin business decision taken from `pending`/`started` only, carrying a mandatory picklist reason, excluded from every count. The recurring-shift Automation Center is productionized: skeleton loading, premium header, slim tap-through cards, and a safe-area per-routine details sheet with a pinned Close action, compact schedule/outcome summary, collapsed technical details, last-task navigation, pause/resume and confirmed delete. |
 | **Schedule** | Weekly roster, shift swaps, leave, day notes, configurable shift hours, shift templates, Final View + PNG export |
 | **Branches** | CRUD, soft delete, swap policy, GPS geofences |
 | **Admin** | User administration, account provisioning, Admin Home V2 command center. **Employees P19** (2026-07-27, uncommitted): a presentation-only, scalable directory pass — compact desktop header summary + Create Employee CTA, horizontal Branch/Role/Status/Sort/View controls, lazy list/natural-height two-column rendering (no fixed card extent), inline task KPIs, and Details/Edit with existing secondary actions in an overflow menu. The desktop FAB is removed while mobile keeps it; routing, cubits, repositories, and account semantics remain unchanged. **"Today" strip fix (2026-08-01, committed `fdaf66d`):** `admin_dashboard_screen.dart`'s `_today()` gained an `Open` stat (pending/started/completed/rejected — the same definition Task Management's "Active" uses) to answer "how much is on the table", since `Running now` (`started` only) was being misread as that number. `Delayed` renamed to **`Late`** with `AppColors.error` (was amber) — one concept, one name, one colour with Task Management's `Late` and Operations' `Late tasks`; grepped for other `Delayed` task copy, found none. `Approval rate` (a second, disagreeing completion formula — `Approved ÷ (Approved + Rejected)` from `StatisticsCubit`, next to §10.1's `Approved ÷ (Approved + Missed)`) is removed. `_today()` no longer subscribes to `StatisticsCubit` at all — `Completed today` now derives from the task stream (`completedTodayCount`, new in `task_metrics.dart`, reusing `isTaskInActiveWindow` so it can't drift from what a drill-down would list) instead of the lifetime-scoped `StatisticsCubit.completedTasksToday`. Every cell except `Due soon` is now tappable (`Stat.onTap` → `FilteredTasksScreen`, with a one-line `description`); `Due soon` stays inert on purpose — no `TaskFeedFilter` can reproduce `schedulePhase`'s dueSoon precedence (it excludes `completed`/`waitingReview` even though the active window includes them) without either an over-counting filter or a reverse dependency from `task_feed.dart` into `task_schedule.dart`. `manager_home_screen.dart`'s own `Completed today` (line ~130) reads the same `StatisticsCubit` field but isn't tappable, so it has no count-vs-list risk today — left unchanged, report-only per this pass's scope. |
@@ -208,7 +624,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | **Employee Home** | **Hero reworked 2026-08-01.** The progress ring counted *in review* as finished, so it showed "3 of 3" beside "1 in review · 2 done"; it now uses the same `done = approved + completed` as the strip's Done cell. (It was deleted in the first pass and **owner-restored** the same day at 78px beside the shift — kept on the condition that it counts what the strip counts, and it is the **only** place the ratio is drawn.) The green **"All caught up!"** banner is deleted — third restatement of a finished day, and the only colour on screen; its "Open all tasks" row stays. The card also holds the **clock state** (`Clocked in 8:04 · 6h 30m on shift` / amber `Not clocked in` once the shift is underway / grey `Clocked out`), which had **no presence on Home before** despite being a twice-daily action reachable only via an unlabelled fingerprint icon. The button **hands off to the Attendance screen** — it does not clock in (GPS + geofence rules stay in one place), and Home never calls `previewLocation()` so it can't provoke a location prompt. ⚠️ Home now holds two Firestore attendance listeners while open. Strip zero-columns collapse to *"Nothing to do"* |
 | **Task details** | **Info page reworked 2026-08-03.** The task **title** now leads the body (it lived only in the app bar, above a full-bleed branch cover — the page opened on a status pill and seven metadata chips without ever saying what the work was), with the **description directly under it** (its standalone section is deleted). The meta row is conditional rather than exhaustive: no branch chip when the cover banner already names it, no raw `type` string, no `Normal` priority (the default on every task), no `Active` phase beside a Due chip, no past `Starts` date — seven chips down to two on a typical task. **Assignment** (renamed from "Assigned to") is one lockup: assignee, then an indented `↳ Assigned by **Admin**` handover line, replacing a name/role block, a divider, and an orphan grey caption. The activity timeline is unchanged |
 | **Manager Home** | **Rebuilt 2026-08-03** into the branch command center — the same ranked ladder Admin Home was signed off on, scoped to one branch: hero (greeting · one live state sentence · branch name · one **New Task** CTA) → **Needs attention** (`AttentionPanel`) → **Today** → **On shift today** → **Recent activity** → Operations digest · quick actions · recent messages, with a fixed 360px right rail on desktop. Replaced ten equal-weight stat cards plus an embedded task browser, where nothing was ranked and a hero `Active tasks 4` disagreed with the feed strip beneath it. Every count now comes from the live `TaskCubit` stream via `task_metrics.dart` (a figure and its drill-down list cannot drift); `StatisticsCubit` supplies only roster context. The hero sentence and the panel read the **same** total; **`Late` is drawn exactly once**. The full search/filter/sort browser was **moved, not deleted** — it lives in Branch Operations, reached from *Recent activity → See all*. **Second pass the same day** (owner: *"why everything in 1 page on mobile … way more clear and clickable … too much text"*): Today is four `MetricTile` doors (2×2 on a phone) with `Due soon` replaced by a drillable **`Due today`**; On shift today is **one tappable card** instead of four unclickable cells — and (third pass) it opens a read-only **roster peek** naming who is on each shift with its hours (`showTodayRosterSheet`, backed by the pure `schedule/domain/today_roster.dart`), **not** the weekly editor; the peek restores whatever (branch, week) the app-wide `ScheduleCubit` was showing, so it never moves the Schedule tab behind the user; the hero lost a whole text line (branch moved into the eyebrow, scope line and `Synced just now` dropped) and section subtitles are gone; **Quick actions is deleted** (duplicated the bottom nav + app bar) and **Recent messages is desktop-only**. The **all-clear panel is compact** — one row (check · title · the derived list of what was checked), down from ~230px of check + headline + sentence + zeroes, which made *nothing to do* the tallest thing on a calm board; `AttentionPanel.clearMessage` is gone and Admin Home gets the same treatment. Covered by `test/manager_home_test.dart` (10 tests) on both tiers + `today_roster_test.dart` (7) |
-| **Design system** | Monochrome V2 primitives. Admin Dashboard V2 owner-signed-off. **The V2 command-center chrome is shared as of 2026-08-03** — `PrimaryCta` · `SyncButton` (+ pure `syncLabel`) · `HeroMood` · `AttentionPanel`/`AttentionSignal` · `DigestPanel`/`DigestEntry` · `CommandHint` moved out of `admin_dashboard_screen.dart`'s private classes into `core/widgets/`, with `live_status_border.dart` and `dashboard_mood.dart` following into `core/`. Admin Home renders identically and now composes them. **Task card border language** (ADR-014) live on Employee Home: the 1px edge is the state and never moves; only an unopened `pending` task gets the attention treatment. `RoleScaffold`'s mobile app bar leads with the DROP mark alone — the role word was truncating to "Mana…" and each home's hero already names the user and their scope |
+| **Design system** | Monochrome V2 primitives. Admin Dashboard V2 owner-signed-off. **The V2 command-center chrome is shared as of 2026-08-03** — `PrimaryCta` · `SyncButton` (+ pure `syncLabel`) · `HeroMood` · `AttentionPanel`/`AttentionSignal` · `DigestPanel`/`DigestEntry` · `CommandHint` moved out of `admin_dashboard_screen.dart`'s private classes into `core/widgets/`, with `live_status_border.dart` and `dashboard_mood.dart` following into `core/`. Admin Home renders identically and now composes them. **Task card border language** (ADR-014) live on Employee Home: the 1px edge is the state and never moves; only an unopened `pending` task gets the attention treatment. `RoleScaffold`'s mobile app bar leads with the DROP mark alone — the role word remains hidden because it truncated to "Mana…" and each home's hero already names the user and scope. Its role actions now share one flat glass command capsule beside a surfaced account avatar, with 44px targets and unread/account semantics |
 | **Observability** | `AppLog` + `CrashReporter` (4 funnels, persisted across launches) |
 
 ### In progress
@@ -247,7 +663,7 @@ Optional dev-only LAN override: `--dart-define=DEV_API_BASE_URL=http://<lan-ip>:
 | P3 — cubits | Done, **uncommitted**. `ChatListCubit` (app-wide singleton, mirrors `CaseListCubit`) + per-thread `ChatConversationCubit`; DI-wired |
 | P4 — Conversation List UI | Done, **uncommitted** (2026-07-22). `/chat` inbox (`ChatScreen` + `ChatConversationTile`): loading/empty/error/loaded, pull-to-refresh, scroll-driven cursor pagination, transient-error snackbar |
 | P5 — Conversation (thread) UI | Done, **uncommitted** (2026-07-22). `ChatConversationScreen` (per-thread cubit via DI factory) → shared `ChatConversationView`: `ChatMessageList` (bottom-anchored bubbles, date separators, relative timestamps, tombstone/attachment-chip rendering, "New messages" jump pill, top scroll-back pagination with preserved offset, post-frame visible→mark-read) + text-only `ChatComposer` (send spinner, clear-on-success-only, desktop autofocus + Enter-to-send). REST only |
-| P6 — Realtime (Socket.IO) | Done, **uncommitted** (2026-07-22). Protocol read from the `drop-api` gateway (namespace `/chat`, handshake `auth.token` = Firebase ID token, `conversation:join`/`leave` with `{ok,error?}` acks, server events `message:new`/`read`/`deleted`/`deleted-for-me`, auth reject = `connection:error` + disconnect). New `ChatRealtime` domain port + `ChatSocketService` (`socket_io_client ^3.1.6`, the only file importing it): refcounted connect (first join) / teardown (last leave), **self-owned reconnect** (rebuilt socket + fresh token each attempt, exp. backoff ≤30s, force-refresh after auth reject), room re-join on reconnect. `ChatConversationCubit` (additive `realtime:` param): live `message:new` inserted by `seq` + deduped, `message:read` → status READ, reconnect → newest-page REST reconcile. **REST stays the only write path & source of truth** |
+| P6 — Realtime (Socket.IO) | Done, **uncommitted** (2026-07-22). Protocol read from the `drop-api` gateway (namespace `/chat`, handshake `auth.token` = Firebase ID token, `conversation:join`/`leave` with `{ok,error?}` acks, server events `message:new`/`read`/`deleted`/`deleted-for-me`, auth reject = `connection:error` + disconnect). New `ChatRealtime` domain port + `ChatSocketService` (`socket_io_client ^3.1.6`, the only file importing it): refcounted connect (first join) / teardown (last leave), **self-owned reconnect** (rebuilt socket + fresh token each attempt, exp. backoff ≤30s, force-refresh after auth reject), room re-join on reconnect. A raw transport connect is **not** treated as an authenticated session (the gateway allows connect, then rejects a bad token via `connection:error` + disconnect): the connection is promoted to healthy — backoff reset, `ChatRealtimeConnected` emitted, rooms re-joined — only after an 800 ms grace window with no rejection, so a bad token backs off quietly instead of a ~1/s reconnect+401+crash loop (fix 2026-08-05; `WebSocketConnectionClosed` from the socket-close path is a non-fatal breadcrumb, not a crash). `ChatConversationCubit` (additive `realtime:` param): live `message:new` inserted by `seq` + deduped, `message:read` → status READ, reconnect → newest-page REST reconcile. **REST stays the only write path & source of truth** |
 | P7 — Message deletion UI | Done, **uncommitted** (2026-07-22). Long-press → bottom-sheet menu (`chat_message_actions.dart`) → Cases-style confirm → the existing use cases. **Delete for me** always offered; **Delete for everyone** offered only on own non-deleted messages (identity fact — the real rules, sender-only + 1h window, stay server-enforced; a 403 surfaces the server's message). In-flight delete dims the bubble (`deletingMessageId`, one at a time). Live `message:deleted` now tombstones in place (client mirrors the backend placeholder constant) and `message:deleted-for-me` removes cross-session |
 | P8 — Inbox realtime | Done, **uncommitted** (2026-07-22). Same shared socket (no second service): `ChatRealtime` gains `attachInbox`/`detachInbox` — inbox interest that keeps the connection alive with **no room join** (the personal `user:{id}` room already delivers `message:new` for every conversation). `ChatListCubit` (additive `realtime` seam, attached on first load) bumps the row to top with fresh activity, seeds its unread map from the server-computed `unreadCount` in `GET /conversations`, then applies socket deltas; opening a conversation clears that count via `clearUnread`. It dedupes by per-conversation `seq`, refreshes on an unknown-conversation message or a reconnect, and tombstones a previewed line on live delete-for-everyone. Loaded state carries `previews`/`unreadCounts` maps into the Phase-4 tile slots. **REST stays the source of truth**; pagination unchanged |
 | P9 — New-conversation flow | Done, **uncommitted** (2026-07-22; directory scope superseded by P12). Inbox FAB (always) + empty-state "Start Chat" CTA → `/chat/new` teammate picker (`NewChatScreen`/`NewChatView` + `NewChatCubit` over `GetChatDirectory`): every active user except the current user, search, avatar · name · role. Selecting one calls `StartConversation` and `pushReplacement`s to the thread (Back → inbox); server get-or-create means an existing pair opens the same thread, no duplicate. **Backend contract change (`drop-api`):** `POST /conversations` `targetUserId` is now the teammate's **Firebase uid** (external subject), resolved server-side to the internal participant via the existing identity resolver (get-or-create — provisions a teammate who's never opened chat); clients never hold other users' internal UUIDs. Self-start rejected 400 |
@@ -261,6 +677,7 @@ Optional dev-only LAN override: `--dart-define=DEV_API_BASE_URL=http://<lan-ip>:
 | P17 — Blocker pass + prod verification | Done (Flutter **uncommitted**; backend **committed+pushed**, not yet live), 2026-07-25. Owner re-flagged the original blockers over new features; ran the full matrix on two iOS sims against Railway prod (`ziad@arkandrop.com` ↔ `test@drop.com`). **Composer rebuilt iMessage-style** (`chat_composer.dart`): one hairline-outlined capsule with a **transparent interior** (stroke defines the field, not a filled slab), `+` glyph + 30px send disc both inside, disc inset 4px, focus brightens the stroke without thickening. **Scroll-to-latest fix** (`chat_message_list.dart`): opening a thread landed mid-history because inline images grow after the single first-frame jump; a `NotificationListener<ScrollMetricsNotification>` now re-pins to bottom while the reader is at the bottom. **Backend read-receipt fix** (`drop-api` `9c4cd2a`): "seen" reverted to grey on restart because the history read path dropped the persisted `message_receipt.read_at` and the DTO hardcoded `status:'SENT'` — now joined onto the page (`MessageHistoryPage.readReceipts`), carried via `MessageView.readAt`, derived `status:'READ'`; +3 tests, 87 backend tests pass. **Verified live cross-device:** text both ways, image A→B inline in realtime + green "seen" tick, fullscreen viewer on the receiver, inbox real names/roles/timestamps/`You:` previews with no IDs. **Gated:** "seen survives restart" needs Railway to serve `9c4cd2a` (see below); `GET /conversations` now supplies server-computed `unreadCount`, which seeds persistent inbox and navigation badges while realtime applies deltas |
 | P18 — macOS Chat list polish | Done, **uncommitted** (2026-07-27). Presentation-only. `/chat` keeps its existing list → route-to-thread navigation while its desktop header opts into a compact title area and persistent dark `Search conversations...` field. Rows retain 56px avatars while gaining 16/600 titles, one-line previews, inset dividers, soft hover/selected treatment, and compact circular unread badges; the empty inbox is now icon-led with the requested no-selection copy. Sidebar selection and the profile footer are calmer and lower-depth. `AppSearchField` gains reusable compact/focus support. No cubit, router, API, backend, model, or data-layer behavior changed |
 | P19 — Thread identity + notification-stack polish | Done, **uncommitted** (2026-08-03; gates green — 1501 pass). The thread listens to `ChatListCubit` emits and resolves its header as soon as a cache/inbox summary exists; it starts a load but **never awaits the network to learn identity it already has cached** (the old `await list.load()` returned only after the server round trip, even though the durable-cache paint had filled `_conversations` much earlier — that wait *was* the "Conversation" flash). Route args remain first-paint only; `ChatThreadArgs` has value equality so warm-directory re-resolution no longer rebuilds. Chat notification navigation runs after the authenticated startup rendezvous and constructs the normal `Home → Chat → Conversation` history from `RouteNames.homeForRole`. ⚠️ **The idempotency guard was reading a stale location** (`routeInformationProvider.value`, which an imperative `push` never updates) and so had never actually worked — it now reads `router.state.uri`. Other notification routes are unchanged. **Not device-verified**: the parity test uses a plain router, not the real `ShellRoute`. |
+| P20 — Unread launch hint | Done, **uncommitted** (2026-08-06). `ChatUnreadLaunchHint` above the router: the first *settled* inbox load of a launch slides one self-dismissing banner down from the top (*"You have 4 unread messages." · "Tap to open Chat."*, 3.5s), tapping pushes `/chat`. Once per launch, silent anywhere under `/chat`, no badge anywhere, **no extra reads** (it observes the load `ChatNotificationListener` already triggers). Needed the additive `topLocationOrNull` router reader — `currentLocationOrNull` reports the match list `uri`, which an imperative `push` never rewrites, so it cannot see that a chat deep link put the thread on screen. Pinned by `test/chat_unread_launch_hint_test.dart` (8). **Not device-verified** |
 | Notifications (push) | Done, **uncommitted** (2026-08-03) — **gated on a Railway deploy.** Chat had no push at all: the only foreground surface was the socket-driven in-app banner, so a backgrounded or killed app got nothing. **Backend (`drop-api`, uncommitted):** `ChatPushSubscriber` — a sibling to `ChatRealtimeSubscriber` on the same `MessageSentEvent`, exactly the seam both classes' docs already named — plus a `PushNotificationPort` + `FirebasePushAdapter` (`firebase-admin` stays confined to `src/platform/firebase/`). Reads the recipient's `users/{uid}.fcmTokens` from Firestore with the service account it already holds, prunes dead tokens on `registration-token-not-registered`/`invalid-registration-token`, and titles the push with the sender's real name (`displayName → fullName → email → 'New message'`). Best-effort throughout: a push failure can never fail the committed send. **Suppressed only when the recipient has that conversation open** (`ChatGateway.isUserInRoom`) — a recipient merely elsewhere in the app still gets it, which is the WhatsApp behaviour. **Client:** `NotificationRoute.chat = 'chat_message'` + its resolver branch (no role gate; falls back to `/chat` without a `conversationId`). **⚠️ The server half must be deployed to Railway before this does anything on a device.** OUT of scope this pass: persisted mute, badges, grouping, quick-reply |
 
 > The list endpoint exposes no counterpart display profile or last-message
@@ -798,9 +1215,10 @@ and works against either server; the fallback must stay until the deploy lands.
 The remaining `use_null_aware_elements` info is the pre-existing test-style lint
 in `task_submission_gate_test.dart`. It is not an Automation Center finding.
 
-### Failing tests — none (2026-08-03)
+### Failing tests — none (re-verified 2026-08-05)
 
-**`flutter test` is fully green for the first time in weeks: 1501 pass, 0 fail.**
+**`flutter test` is fully green: 1670 pass, 0 fail** (~40s). It first went green
+on 2026-08-03 at 1501 pass and has stayed green since.
 
 > The three `notification_tap_flow_probe_test.dart` failures were **fixed
 > 2026-07-25** by deleting the temporary `debug_auth_probe.dart` and its two
@@ -950,9 +1368,26 @@ handled as a separate backend/security task before the rules deploy.
 
 ### 🚨 Deploy (the critical path)
 
-Nothing below works in production until it is deployed. The missing live
-`shift_templates` rule was confirmed on 2026-07-18; treat the remaining targets as
-**believed-pending and worth verifying against the console** before assuming.
+> **Deploy state verified read-only against `bazic-d9ad7` on 2026-08-05** — live
+> ruleset diffed against `firestore.rules`, live indexes listed via the Firestore
+> Admin API, every function's revision read with `gcloud functions describe`.
+> This replaces the older "believed-pending, worth verifying" guidance below;
+> the four rows are now known, not assumed.
+>
+> | Target | State |
+> | --- | --- |
+> | `functions` | **Mixed.** The automation P0 trio is deployed (13:16 UTC). The **5 sales functions are stale** — deployed 10:28 UTC, audit commit `2cf7e13` is 12:29 UTC. **`onNotificationCreated` and `writeSalesNotifications` are now stale too** (2026-08-06 notification-routing fix: `salesSubmissionId` + `monthKey` forwarded in the push `data`; `sales_target` route for month events). Everything else rolled 2026-08-04 13:15–13:16 UTC. |
+> | `firestore:rules` | ❌ **STALE.** Live ruleset released 10:28:51 UTC; it is missing `branchRunsSalesTargets()` and the `branch_sales_submissions` create gate. |
+> | `firestore:indexes` | ✅ **IN SYNC.** 19 live composites = 19 in the repo, all `READY`. |
+> | `storage` | ✅ **IN SYNC.** Live ruleset byte-identical to `storage.rules`. |
+>
+> ⚠️ **Also missing at the project level: Firestore has no backup schedule, PITR
+> is disabled, and delete protection is off.** On a database whose attendance
+> minutes feed pay, that is a v1 blocker in its own right — see
+> [RELEASE_V1 §B8](docs/RELEASE_V1.md).
+
+The table below records what each target *carries*, and remains accurate as the
+inventory of what a deploy delivers.
 
 | Target | Carries | Blocks |
 | --- | --- | --- |
@@ -995,7 +1430,7 @@ either way.
 ### Then
 
 1. **On-device attendance QA** — GPS clock in/out on real hardware, both platforms.
-2. **Fix or delete `splash_centering_test.dart`** so the suite is green.
+2. ~~**Fix or delete `splash_centering_test.dart`**~~ — done 2026-08-03; green.
 3. **Supply the iOS APNs credential** — app-side Push/Background-Modes configuration is complete.
 4. **Merge `feature/attendance-management`** once deployed and QA'd.
 5. **Prune ~15 stale branches.**
@@ -1033,10 +1468,13 @@ unknowingly reversed:
 
 ## Current priorities
 
-1. **Deploy.** Everything else is downstream of it. A growing share of the app is
-   inert in production and fails at runtime rather than at compile time.
-2. **Close out attendance** — on-device QA, then merge.
-3. **Get the suite green** — 2 failures is 2 too many to notice a third.
+0. **Ship v1.** [docs/RELEASE_V1.md](docs/RELEASE_V1.md) is the sequenced runbook
+   and supersedes the ordering below for release work.
+1. **Finish the deploy.** `firestore:rules` and the 5 sales functions are stale
+   in production (verified); indexes and storage rules are in sync.
+2. **Turn on Firestore backups + PITR + delete protection.** There are none.
+3. **Close out attendance** — on-device GPS QA, then merge.
+4. ~~**Get the suite green**~~ — done: 1670 pass, 0 fail.
 4. **Recurring shift deadline close — implemented (2026-07-19).** Generator and
    client materializer persist the resolved weekly shift window; the new
    server-authoritative 15-minute sweep changes only unfinished generated shift
@@ -1064,12 +1502,15 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1501 pass, 0 fail — GREEN; any red is a real regression
-(cd functions && node --test)            # expect: 83 pass
-(cd firestore-tests && npm test)         # expect: 61 pass — needs the Firebase CLI + a JDK
-grep -c "static const String" lib/core/routes/route_names.dart   # expect: 53
-ls lib/features | wc -l                  # expect: 18
+flutter test                             # expect: 1688 pass, 0 fail — GREEN; any red is a real regression
+(cd functions && node --test)            # expect: 127 pass
+(cd firestore-tests && npm test)         # expect: 68 pass — needs the Firebase CLI + a JDK
+grep -c "static const String" lib/core/routes/route_names.dart   # expect: 59
+ls lib/features | wc -l                  # expect: 19
 ```
+
+All six re-verified 2026-08-05. To re-check the **deploy** state rather than the
+code, see [docs/RELEASE_V1.md §0](docs/RELEASE_V1.md).
 
 Routes live in [route_names.dart](lib/core/routes/route_names.dart) — read them
 there rather than duplicating the table here. Firestore/Storage schema lives in

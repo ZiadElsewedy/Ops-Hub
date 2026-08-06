@@ -23,13 +23,47 @@ class TodayCoverageCubit extends Cubit<TodayCoverageState> {
   final ScheduleRepository _scheduleRepository;
   final GetUsersByBranch _getUsersByBranch;
 
-  Future<void> load(List<BranchEntity> branches) async {
+  /// Scope + freshness of what is currently on screen. The key folds in the
+  /// branch set **and** the day, so a branch appearing/disappearing or the date
+  /// rolling over always refetches; `null` after an error, so a retry never
+  /// reuses a failed load.
+  String? _loadedKey;
+  DateTime? _loadedAt;
+
+  /// How long a computed Today board stays reusable without refetching.
+  ///
+  /// This board is the most expensive read in the app: one roster query **per
+  /// branch**, none of them cached, fired every time the admin opened Schedule.
+  /// Re-entering the screen inside this window now reuses what is already on
+  /// screen. Every path that can actually change it still bypasses the window —
+  /// the Refresh button, and returning to the Today tab after using the editor.
+  static const Duration _freshFor = Duration(minutes: 5);
+
+  /// Loads today's coverage for [branches].
+  ///
+  /// A re-entry with the same branch set on the same day, inside [_freshFor],
+  /// is a **no-op** — no reads, no skeleton. Pass [force] for the Refresh button
+  /// and for the return to the Today tab (where the admin has just edited the
+  /// roster and must see the new one).
+  Future<void> load(List<BranchEntity> branches, {bool force = false}) async {
     if (branches.isEmpty) {
+      _loadedKey = null;
+      _loadedAt = null;
       emit(const TodayCoverageLoaded([]));
       return;
     }
-    emit(const TodayCoverageLoading());
     final weekStart = ScheduleWeek.currentWeekStart();
+    final key = _scopeKey(branches, weekStart);
+    final fresh =
+        _loadedAt != null && DateTime.now().difference(_loadedAt!) < _freshFor;
+    if (!force && _loadedKey == key && fresh) return;
+
+    // Only a genuinely new scope shows the skeleton. A forced refresh of the
+    // board already on screen keeps it visible while it re-derives, so Refresh
+    // never blanks the list it is refreshing.
+    if (_loadedKey != key || state is! TodayCoverageLoaded) {
+      emit(const TodayCoverageLoading());
+    }
     final rows = await mapPooled<TodayCoverage>(
       3,
       [
@@ -58,6 +92,17 @@ class TodayCoverageCubit extends Cubit<TodayCoverageState> {
           },
       ],
     );
+    _loadedKey = key;
+    _loadedAt = DateTime.now();
     emit(TodayCoverageLoaded(orderTodayCoverage(rows)));
+  }
+
+  /// Identity of a computed board: which branches, for which day. Sorted so the
+  /// same set in a different order is recognised as the same scope.
+  String _scopeKey(List<BranchEntity> branches, DateTime weekStart) {
+    final ids = [for (final b in branches) b.id]..sort();
+    final now = DateTime.now();
+    return '${ids.join(',')}|${weekStart.toIso8601String()}'
+        '|${now.year}-${now.month}-${now.day}';
   }
 }

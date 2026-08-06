@@ -531,6 +531,13 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
         destructive: user.isActive,
         onSelected: () => cubit.setActive(user, !user.isActive),
       ),
+      EmployeeOverflowAction(
+        label: 'Delete Account',
+        icon: Icons.delete_forever_outlined,
+        destructive: true,
+        onSelected: () =>
+            confirmAndDeleteAccount(context: context, cubit: cubit, user: user),
+      ),
     ];
   }
 

@@ -15,6 +15,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_dialog.dart';
+import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
 import 'package:drop/core/widgets/premium_button.dart';
@@ -27,6 +28,7 @@ import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
 import 'package:drop/features/task/domain/entities/checklist_item.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_outcomes.dart';
+import 'package:drop/features/task/domain/task_origin.dart';
 import 'package:drop/features/task/domain/task_schedule.dart';
 import 'package:drop/features/task/domain/work_types/task_work_x.dart';
 import 'package:drop/features/task/presentation/activity_format.dart';
@@ -115,6 +117,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             return (
               task: found.isNotEmpty ? found.first : widget.task,
               directory: directory,
+              busy: busy,
               submitting: isSubmitting,
               progress: submissionProgress,
             );
@@ -122,6 +125,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           orElse: () => (
             task: widget.task,
             directory: widget.directory,
+            busy: false,
             submitting: false,
             progress: null,
           ),
@@ -136,6 +140,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               _DetailsView(
                 task: live.task,
                 directory: live.directory,
+                busy: live.busy,
                 cubit: context.read<TaskCubit>(),
               ),
               if (live.submitting)
@@ -162,11 +167,16 @@ class _DetailsView extends StatelessWidget {
   const _DetailsView({
     required this.task,
     required this.directory,
+    required this.busy,
     required this.cubit,
   });
 
   final TaskEntity task;
   final Map<String, UserEntity> directory;
+
+  /// A lifecycle write is in flight somewhere in the cubit. Drives the
+  /// primary action's in-flight treatment (see [_EmployeeActions]).
+  final bool busy;
   final TaskCubit cubit;
 
   Future<void> _confirmReopen(BuildContext context) async {
@@ -496,7 +506,7 @@ class _DetailsView extends StatelessWidget {
 
                 // ── Employee action area ───────────────────────────────
                 if (isEmployee && !isLocked) ...[
-                  _EmployeeActions(task: task, cubit: cubit),
+                  _EmployeeActions(task: task, cubit: cubit, busy: busy),
                 ],
 
                 // ── Manager / admin action area ────────────────────────
@@ -684,7 +694,7 @@ class _DetailsView extends StatelessWidget {
                 const Divider(color: AppColors.darkBorder),
                 const SizedBox(height: AppSpacing.lg),
                 if (isEmployee)
-                  _EmployeeActions(task: task, cubit: cubit)
+                  _EmployeeActions(task: task, cubit: cubit, busy: busy)
                 else
                   _ReviewBlock(task: task, cubit: cubit),
               ],
@@ -825,6 +835,8 @@ class _StatusHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final description = (task.description ?? '').trim();
     final phase = schedulePhase(task, DateTime.now());
+    final pills = _pills(phase);
+    final hasWindow = _ScheduleWindow.hasAnything(task);
     // Reuses the shared de-flashed [TaskSurface] (same flat surface + whisper
     // shadow as the task card) so the treatment is defined in one place.
     return TaskSurface(
@@ -854,89 +866,242 @@ class _StatusHeader extends StatelessWidget {
             ),
           ],
 
-          const SizedBox(height: AppSpacing.lg),
-          const Divider(color: AppColors.darkBorder, height: 1),
-          const SizedBox(height: AppSpacing.md),
+          // The divider earns its keep only when something follows it. A task
+          // with no window, no priority and no timeliness fact would otherwise
+          // end on a hairline and a gap — a component that looks half-loaded.
+          if (hasWindow || pills.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            const Divider(color: AppColors.darkBorder, height: 1),
+            const SizedBox(height: AppSpacing.md),
+          ],
+
+          // ── When the work happens ──────────────────────────────────
+          // The window gets its own banded lockup rather than three loose
+          // chips: as pills it read "Starts 6 Aug 2026 · Due 6 Aug 2026 ·
+          // Est. 8h", three facts that never said the one thing an employee
+          // needs — that the task runs 09:00 → 17:00 today.
+          if (hasWindow) _ScheduleWindow(task: task),
 
           // ── The facts that change what you do ──────────────────────
-          Wrap(
-            spacing: AppSpacing.lg,
-            runSpacing: AppSpacing.sm,
-            children: [
-              // Only when no cover banner named the branch already.
-              if (showBranch && (branchName ?? '').isNotEmpty)
-                _MetaPill(
-                  icon: Icons.store_mall_directory_outlined,
-                  label: branchName!,
+          if (pills.isNotEmpty) ...[
+            if (hasWindow) const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.lg,
+              runSpacing: AppSpacing.sm,
+              children: pills,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// The meta chips this task actually has. Built as a list (not inline in the
+  /// `Wrap`) so the header can gate its own divider and spacing on whether the
+  /// row will render anything at all.
+  List<Widget> _pills(TaskSchedulePhase phase) => [
+    // Only when no cover banner named the branch already.
+    if (showBranch && (branchName ?? '').isNotEmpty)
+      _MetaPill(
+        icon: Icons.store_mall_directory_outlined,
+        label: branchName!,
+      ),
+    // Start · due · duration are NOT chips any more — they live in the
+    // schedule band above, with their clock times.
+    //
+    // Finished work that missed its deadline — a timeliness signal (ADR-013),
+    // never the error/highlight treatment Missed or an active overdue pill
+    // wear.
+    if (taskLateness(task) case final lateness?)
+      _MetaPill(icon: Icons.timer_outlined, label: formatLateness(lateness)),
+    // The live phase, but only when it says something the band above doesn't:
+    // "Overdue" and "Due soon" are warnings, whereas "Active" merely restates
+    // that an unfinished task with a future deadline is unfinished.
+    if (phase.isActionable &&
+        (phase == TaskSchedulePhase.overdue ||
+            phase == TaskSchedulePhase.dueSoon))
+      _MetaPill(
+        icon: Icons.timelapse_outlined,
+        label: phase.label,
+        highlight: phase == TaskSchedulePhase.overdue,
+      ),
+    // Priority only when it is a decision: `normal` is the default every task
+    // carries, so printing it is noise on every screen.
+    if (task.priority != TaskPriority.normal)
+      _MetaPill(
+        icon: Icons.flag_outlined,
+        label: _priorityLabel(task.priority),
+        highlight: task.priority == TaskPriority.high,
+      ),
+    if (task.approvedAt != null)
+      _MetaPill(
+        icon: Icons.check_circle_outline_rounded,
+        label: 'Completed ${_dateLabel(task.approvedAt!)}',
+      ),
+    if (task.missedAt != null)
+      _MetaPill(
+        icon: Icons.event_busy_rounded,
+        label: 'Missed ${_dateLabel(task.missedAt!)}',
+        highlight: true,
+      ),
+    if (task.recurrence != null && task.recurrence!.frequency.value != 'none')
+      _MetaPill(
+        icon: Icons.repeat_rounded,
+        label: task.recurrence!.frequency.label,
+      ),
+  ];
+}
+
+/// **The schedule window** — start · due · duration, each with its clock time,
+/// on one banded row.
+///
+/// Replaces the three chips this header used to print (2026-08-06, owner: *"the
+/// estimate time to be clear and start and end more clear as well"*). Those
+/// chips carried dates only, so a generated shift task read
+/// `Starts 6 Aug 2026 · Due 6 Aug 2026 · Est. 8h` — the two ends looked
+/// identical, and the one number that distinguished them ("8h") was labelled as
+/// an *estimate* when it is nothing of the sort: it is `dueAt − startsAt`, the
+/// length of the booked window, not a guess at how long the work takes.
+///
+/// So: **times lead** (`09:00`, the actionable fact), the day sits under them
+/// through the shared [AppDateFormatter.relativeDayShort] (`Today` / `Tomorrow`
+/// / `6 Aug` — the *short* variant because three cells leave ~80px each at
+/// 320px), and the third cell is honestly labelled *Window*. A task that crosses
+/// midnight needs no special case — its due cell simply says a different day.
+///
+/// 24-hour clock by the same rule as [startBlockedReason]: this sits beside
+/// shift windows rendered `08:30 – 16:30`, and mixing clock formats on one
+/// screen reads as a bug.
+class _ScheduleWindow extends StatelessWidget {
+  const _ScheduleWindow({required this.task});
+
+  final TaskEntity task;
+
+  /// Whether there is any window to draw. A task with neither end (a legacy
+  /// row, or one created before scheduling) renders nothing rather than a band
+  /// of em-dashes.
+  static bool hasAnything(TaskEntity task) =>
+      task.startsAt != null || task.dueAt != null;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = task.startsAt;
+    final due = task.dueAt;
+    final span = scheduledDuration(task);
+    final spanLabel = span == null ? '' : formatScheduleDuration(span);
+    final overdue = _isOverdue(task);
+
+    final cells = <Widget>[
+      if (start != null)
+        _ScheduleCell(
+          label: 'Starts',
+          value: AppDateFormatter.time24(start),
+          detail: AppDateFormatter.relativeDayShort(start),
+        ),
+      if (due != null)
+        _ScheduleCell(
+          label: 'Due',
+          value: AppDateFormatter.time24(due),
+          detail: AppDateFormatter.relativeDayShort(due),
+          // The one cell that ever tints: a deadline already behind us.
+          tone: overdue ? AppColors.error : null,
+        ),
+      if (spanLabel.isNotEmpty)
+        _ScheduleCell(
+          label: 'Window',
+          value: spanLabel,
+          detail: 'scheduled',
+        ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.darkBg.withAlpha(120),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, cell) in cells.indexed) ...[
+              if (i > 0)
+                const VerticalDivider(
+                  color: AppColors.darkBorder,
+                  width: AppSpacing.md,
+                  thickness: 1,
                 ),
-              // Scheduling V2 — the start of the task's schedule window. Only
-              // while it is still ahead: once work can start, "Starts 3 Aug" is
-              // history the activity timeline already records.
-              if (task.startsAt case final startsAt?)
-                if (startsAt.isAfter(DateTime.now()))
-                  _MetaPill(
-                    icon: Icons.play_circle_outline_rounded,
-                    label: 'Starts ${_dateLabel(startsAt)}',
-                  ),
-              if (task.deadline != null)
-                _MetaPill(
-                  icon: Icons.schedule_outlined,
-                  label: 'Due ${_dateLabel(task.deadline!)}',
-                  highlight: _isOverdue(task),
-                ),
-              // Finished work that missed its deadline — a timeliness signal
-              // (ADR-013), never the error/highlight treatment Missed or an
-              // active overdue pill wear.
-              if (taskLateness(task) case final lateness?)
-                _MetaPill(
-                  icon: Icons.timer_outlined,
-                  label: formatLateness(lateness),
-                ),
-              // The live phase, but only when it says something the Due chip
-              // beside it doesn't: "Overdue" and "Due soon" are warnings,
-              // whereas "Active" merely restates that an unfinished task with a
-              // future deadline is unfinished.
-              if (phase.isActionable &&
-                  (phase == TaskSchedulePhase.overdue ||
-                      phase == TaskSchedulePhase.dueSoon))
-                _MetaPill(
-                  icon: Icons.timelapse_outlined,
-                  label: phase.label,
-                  highlight: phase == TaskSchedulePhase.overdue,
-                ),
-              // Priority only when it is a decision: `normal` is the default
-              // every task carries, so printing it is noise on every screen.
-              if (task.priority != TaskPriority.normal)
-                _MetaPill(
-                  icon: Icons.flag_outlined,
-                  label: _priorityLabel(task.priority),
-                  highlight: task.priority == TaskPriority.high,
-                ),
-              if (scheduledDuration(task) != null &&
-                  formatScheduleDuration(scheduledDuration(task)!).isNotEmpty)
-                _MetaPill(
-                  icon: Icons.hourglass_empty_rounded,
-                  label:
-                      'Est. ${formatScheduleDuration(scheduledDuration(task)!)}',
-                ),
-              if (task.approvedAt != null)
-                _MetaPill(
-                  icon: Icons.check_circle_outline_rounded,
-                  label: 'Completed ${_dateLabel(task.approvedAt!)}',
-                ),
-              if (task.missedAt != null)
-                _MetaPill(
-                  icon: Icons.event_busy_rounded,
-                  label: 'Missed ${_dateLabel(task.missedAt!)}',
-                  highlight: true,
-                ),
-              if (task.recurrence != null &&
-                  task.recurrence!.frequency.value != 'none')
-                _MetaPill(
-                  icon: Icons.repeat_rounded,
-                  label: task.recurrence!.frequency.label,
-                ),
+              Expanded(child: cell),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One cell of the [_ScheduleWindow] band: a quiet uppercase label, the value,
+/// and a grey detail line. Three steps of the ramp, no two adjacent the same.
+class _ScheduleCell extends StatelessWidget {
+  const _ScheduleCell({
+    required this.label,
+    required this.value,
+    required this.detail,
+    this.tone,
+  });
+
+  final String label;
+  final String value;
+  final String detail;
+
+  /// Semantic tint for the value (overdue). Null keeps it monochrome.
+  final Color? tone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$label $value, $detail',
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: AppTypography.caption.copyWith(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.9,
+              color: AppColors.textTertiary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            style: AppTypography.label.copyWith(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
+              color: tone ?? AppColors.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 1),
+          Text(
+            detail,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -1134,28 +1299,53 @@ class _AssigneeBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final assignees = resolveAssignees(task, directory);
+    final credit = _credit();
     if (task.assignmentType == TaskAssignmentType.shift) {
       // Shift Assignment feature: targets whoever's rostered on task.shift,
       // not a named assignee — assigneeIds is always empty here.
-      return Row(
+      //
+      // This branch used to print the shift and stop, so a generated shift task
+      // was the ONE screen in the app that never said where it came from: the
+      // whole Assignment section read "Morning Shift" and nothing else.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.schedule_rounded,
-            size: 16,
-            color: AppColors.textTertiary,
+          Row(
+            children: [
+              const Icon(
+                Icons.schedule_rounded,
+                size: 16,
+                color: AppColors.textTertiary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                task.shift == null
+                    ? 'Shift task'
+                    : '${task.shift!.label} Shift',
+                style: AppTypography.body,
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            task.shift == null ? 'Shift task' : '${task.shift!.label} Shift',
-            style: AppTypography.body,
-          ),
+          if (credit != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _OriginLine(credit: credit),
+          ],
         ],
       );
     }
     if (task.assigneeIds.isEmpty) {
-      return Text(
-        'Unassigned',
-        style: AppTypography.body.copyWith(color: AppColors.textTertiary),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Unassigned',
+            style: AppTypography.body.copyWith(color: AppColors.textTertiary),
+          ),
+          if (credit != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _OriginLine(credit: credit),
+          ],
+        ],
       );
     }
     // One lockup, one relationship (2026-08-03, owner: *"assignment from
@@ -1164,9 +1354,6 @@ class _AssigneeBlock extends StatelessWidget {
     // with nothing tying them together, so the page never said who handed the
     // work to whom. The handover is now a single sentence directly under the
     // person doing the work, with the giver's name reading white.
-    final by = (task.createdBy ?? '').isEmpty
-        ? null
-        : _assignedByName(directory, task.createdBy!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1202,44 +1389,9 @@ class _AssigneeBlock extends StatelessWidget {
             ],
           ),
         ],
-        if (by != null) ...[
+        if (credit != null) ...[
           const SizedBox(height: AppSpacing.md),
-          // Indented to sit under the person, and glyphed as a handover — this
-          // reads as "…and it came from X", not as an unrelated second row.
-          Padding(
-            padding: const EdgeInsets.only(left: 2),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.subdirectory_arrow_right_rounded,
-                  size: 15,
-                  color: AppColors.textTertiary,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: RichText(
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    text: TextSpan(
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                      children: [
-                        const TextSpan(text: 'Assigned by '),
-                        TextSpan(
-                          text: by,
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _OriginLine(credit: credit),
         ],
       ],
     );
@@ -1256,13 +1408,126 @@ class _AssigneeBlock extends StatelessWidget {
     UserRole.employee => 'Employee',
   };
 
-  String _assignedByName(Map<String, UserEntity> dir, String uid) {
-    final u = dir[uid];
-    if (u != null) {
-      final n = _name(u);
-      return '$n · ${_roleLabel(u.role)}';
+  /// Who this task is credited to, and under which verb — or null when the
+  /// record simply doesn't say (a legacy row with no `createdBy`), because a
+  /// guess is worse than a blank.
+  ///
+  /// **Automation is checked first** (2026-08-06, owner: *"whos create the
+  /// task? if it automation task so write System - Automated task"*). A
+  /// generated shift instance inherits its *template's* `createdBy`, so that
+  /// field alone credits a manager for a task the server wrote at 01:00 —
+  /// [taskOrigin] is the only honest signal. The human who set the automation
+  /// up is not discarded; they move to the [_TaskCredit.footnote], which is
+  /// where they actually belong.
+  _TaskCredit? _credit() {
+    final origin = taskOrigin(task);
+    final uid = (task.createdBy ?? '').trim();
+    final person = uid.isEmpty ? null : directory[uid];
+    final personLabel = person == null
+        ? (uid.isEmpty ? null : 'Admin') // known-but-unreachable, never a uid
+        : '${_name(person)} · ${_roleLabel(person.role)}';
+
+    // `label` is non-null exactly when the origin is automated, so the pattern
+    // both branches and proves the interpolation below can't print "null".
+    if (origin.label case final automation?) {
+      return _TaskCredit(
+        label: 'Created by',
+        value: '$kSystemActorName · $automation',
+        footnote: personLabel == null ? null : 'Set up by $personLabel',
+      );
     }
-    return 'Admin';
+    if (personLabel == null) return null;
+    // A shift task has no named assignee, so nobody was "assigned by" anyone.
+    return _TaskCredit(
+      label: task.assignmentType == TaskAssignmentType.shift
+          ? 'Created by'
+          : 'Assigned by',
+      value: personLabel,
+    );
+  }
+}
+
+/// The resolved "where did this task come from" attribution.
+class _TaskCredit {
+  const _TaskCredit({
+    required this.label,
+    required this.value,
+    this.footnote,
+  });
+
+  /// The verb — `Assigned by` / `Created by`.
+  final String label;
+
+  /// Who to credit: `Ziad · Manager`, or `System · Automated task`.
+  final String value;
+
+  /// A second, quieter fact. Only automation has one today: the person who
+  /// built the recurring template the server generated this from.
+  final String? footnote;
+}
+
+/// The attribution row under the assignment. Indented and glyphed as a
+/// handover — it reads as "…and it came from X", not as an unrelated second
+/// row.
+class _OriginLine extends StatelessWidget {
+  const _OriginLine({required this.credit});
+
+  final _TaskCredit credit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.subdirectory_arrow_right_rounded,
+            size: 15,
+            color: AppColors.textTertiary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RichText(
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    children: [
+                      TextSpan(text: '${credit.label} '),
+                      TextSpan(
+                        text: credit.value,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (credit.footnote case final footnote?) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    footnote,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textQuaternary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1682,17 +1947,63 @@ class _ReportedIncorrectBanner extends StatelessWidget {
   }
 }
 
-class _EmployeeActions extends StatelessWidget {
-  const _EmployeeActions({required this.task, required this.cubit});
+/// The employee's single action for the task's current state, and the animated
+/// seam between one state and the next.
+///
+/// Start / Start Rework are server round trips (100ms–1s). The button used to
+/// dim to the disabled 50% for that whole time and then be replaced in one
+/// frame — indistinguishable from the app having lagged. It now acknowledges
+/// the press on the frame it happens (the CTA's own progress ring) and hands
+/// over to the next action through [ActionSwap].
+class _EmployeeActions extends StatefulWidget {
+  const _EmployeeActions({
+    required this.task,
+    required this.cubit,
+    required this.busy,
+  });
   final TaskEntity task;
   final TaskCubit cubit;
+  final bool busy;
+
+  @override
+  State<_EmployeeActions> createState() => _EmployeeActionsState();
+}
+
+class _EmployeeActionsState extends State<_EmployeeActions> {
+  /// This screen's start is in flight. Local, because the cubit's `busy` is
+  /// global — it says *a* write is running, not that this one is.
+  bool _starting = false;
+
+  static bool _isStartable(TaskStatus s) =>
+      s == TaskStatus.pending || s == TaskStatus.rejected;
+
+  @override
+  void didUpdateWidget(_EmployeeActions old) {
+    super.didUpdateWidget(old);
+    // Settled — either the new status arrived (the stream carries it while the
+    // write is still finishing) or the mutation ended without one, which is a
+    // refusal. Both must clear the ring.
+    if (_starting &&
+        (!widget.busy || !_isStartable(widget.task.status))) {
+      _starting = false;
+    }
+  }
+
+  void _start() {
+    setState(() => _starting = true);
+    widget.cubit.startTask(widget.task);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final task = widget.task;
+    final cubit = widget.cubit;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _primaryAction(context),
+        // The action a state entitles the employee to is the one thing on this
+        // screen that changes shape, so it is the one thing that animates.
+        ActionSwap(child: _primaryAction(context)),
         // The release valve (Automated Tasks spec §5.2). An employee can never
         // cancel — but handing them wrong work with no way to say so is what
         // would make manager-only cancellation inhumane. Deliberately quiet: a
@@ -1719,21 +2030,27 @@ class _EmployeeActions extends StatelessWidget {
   }
 
   Widget _primaryAction(BuildContext context) {
+    final task = widget.task;
+    final cubit = widget.cubit;
+
     Widget startButton({
+      required Key key,
       required String label,
       required IconData icon,
       double iconSize = 20,
     }) {
       final blockedReason = startBlockedReason(task, DateTime.now());
       return Column(
+        key: key,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppButton(
             label: label,
             icon: Icon(icon, size: iconSize, color: AppColors.textDark),
-            onPressed: blockedReason == null
-                ? () => cubit.startTask(task)
-                : null,
+            // The ring lands on the frame of the tap and stays until the new
+            // status arrives — the round trip is no longer a dead button.
+            isLoading: _starting,
+            onPressed: blockedReason == null ? _start : null,
           ),
           if (blockedReason != null) ...[
             const SizedBox(height: AppSpacing.xs),
@@ -1743,13 +2060,21 @@ class _EmployeeActions extends StatelessWidget {
       );
     }
 
+    // Every branch is keyed: ActionSwap can only animate a swap it can see,
+    // and two AppButtons without keys are the same widget to Flutter.
     return switch (task.status) {
       TaskStatus.pending => startButton(
+        key: const ValueKey('start'),
         label: 'Start Task',
         icon: Icons.play_arrow_rounded,
       ),
-      TaskStatus.started => _CompleteButton(task: task, cubit: cubit),
+      TaskStatus.started => _CompleteButton(
+        key: const ValueKey('complete'),
+        task: task,
+        cubit: cubit,
+      ),
       TaskStatus.completed => AppButton(
+        key: const ValueKey('submit'),
         label: 'Submit for Review',
         icon: const Icon(
           Icons.send_rounded,
@@ -1762,12 +2087,13 @@ class _EmployeeActions extends StatelessWidget {
         },
       ),
       TaskStatus.rejected => startButton(
+        key: const ValueKey('rework'),
         label: 'Start Rework',
         icon: Icons.replay_rounded,
         iconSize: 18,
       ),
-      TaskStatus.missed => const SizedBox.shrink(),
-      _ => const SizedBox.shrink(),
+      TaskStatus.missed => const SizedBox.shrink(key: ValueKey('none')),
+      _ => const SizedBox.shrink(key: ValueKey('none')),
     };
   }
 }
@@ -1804,7 +2130,7 @@ class _StartGateReason extends StatelessWidget {
 }
 
 class _CompleteButton extends StatefulWidget {
-  const _CompleteButton({required this.task, required this.cubit});
+  const _CompleteButton({super.key, required this.task, required this.cubit});
   final TaskEntity task;
   final TaskCubit cubit;
 
@@ -1839,58 +2165,62 @@ class _CompleteButtonState extends State<_CompleteButton> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!_expanded)
-          AppButton(
-            label: 'Mark Complete',
-            icon: const Icon(
-              Icons.check_rounded,
-              size: 20,
-              color: AppColors.textDark,
-            ),
-            onPressed: () {
-              if (!widget.task.requiredChecklistComplete) {
-                AppSnackbar.error(
-                  context,
-                  'Complete all required checklist items first.',
-                );
-                return;
-              }
-              setState(() => _expanded = true);
-            },
-          )
-        else ...[
-          AppTextField(
-            controller: _notes,
-            label: 'Notes (optional)',
-            prefixIcon: Icons.notes_rounded,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AttachmentPickerField(
-            attachments: _attachments,
-            onChanged: (list) => setState(() => _attachments = list),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            label: 'Complete & Submit',
-            icon: const Icon(
-              Icons.send_rounded,
-              size: 20,
-              color: AppColors.textDark,
-            ),
-            onPressed: _submit,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppButton.ghost(
-            label: 'Cancel',
-            onPressed: () => setState(() => _expanded = false),
-          ),
-        ],
-      ],
+    // Opening the submission form is the same kind of moment as a status
+    // change — one action giving way to another — so it uses the same seam
+    // rather than snapping the page's whole lower half into existence.
+    return ActionSwap(
+      alignment: Alignment.topCenter,
+      child: _expanded ? _form() : _collapsed(context),
     );
   }
+
+  Widget _collapsed(BuildContext context) => AppButton(
+    key: const ValueKey('mark-complete'),
+    label: 'Mark Complete',
+    icon: const Icon(Icons.check_rounded, size: 20, color: AppColors.textDark),
+    onPressed: () {
+      if (!widget.task.requiredChecklistComplete) {
+        AppSnackbar.error(
+          context,
+          'Complete all required checklist items first.',
+        );
+        return;
+      }
+      setState(() => _expanded = true);
+    },
+  );
+
+  Widget _form() => Column(
+    key: const ValueKey('submit-form'),
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      AppTextField(
+        controller: _notes,
+        label: 'Notes (optional)',
+        prefixIcon: Icons.notes_rounded,
+      ),
+      const SizedBox(height: AppSpacing.md),
+      AttachmentPickerField(
+        attachments: _attachments,
+        onChanged: (list) => setState(() => _attachments = list),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      AppButton(
+        label: 'Complete & Submit',
+        icon: const Icon(
+          Icons.send_rounded,
+          size: 20,
+          color: AppColors.textDark,
+        ),
+        onPressed: _submit,
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      AppButton.ghost(
+        label: 'Cancel',
+        onPressed: () => setState(() => _expanded = false),
+      ),
+    ],
+  );
 }
 
 // ─── Manager / admin review block ──────────────────────────────────

@@ -190,13 +190,26 @@ UI (page/widget)
 <!-- ═══════════════ HAND-AUTHORED INTELLIGENCE (edit freely) ═══════════════ -->
 
 ## Purpose
-_TODO: one-paragraph what & why. See `docs/design/` spec above if present._
+Owns operational work from creation through execution and review, including task
+templates and recurring shift automation. The Automation Center is a branch-scoped
+sheet flow inside this feature; it is not a separate route or feature module.
 
 ## ⚠️ Dangerous areas / invariants
-_TODO: what breaks if you touch this. Cross-check `.nav/05_DANGER.md`._
+- Recurring-template health fields (`lastRunAt`, `nextRunAt`, `lastStatus`,
+  `lastGeneratedTaskId`, `failureCount`) are Cloud-Function-owned; client writes
+  must not regress them.
+- Manage → Details uses one modal at a time. The details route alone opts into
+  safe-area chrome and must keep its Close action outside the scroll body.
+- Generated-task status describes employee work; automation outcome describes
+  the generator. Do not merge those meanings in copy or state.
 
 ## 🧩 Extension points
-_TODO: where to plug in new behavior without forking._
+Extend recurring automation through `TaskCubit` and
+`recurring_shift_task_sheets.dart`; reuse `showSheet` with its default behavior
+unless a surface explicitly needs safe-area chrome.
 
 ## 🔗 Related
-_TODO: sibling features, shared core widgets, ADRs._
+[AUTOMATION_ENGINE](../../docs/design/AUTOMATION_ENGINE.md) ·
+[AUTOMATED_TASKS_PRODUCT_SPEC](../../docs/design/AUTOMATED_TASKS_PRODUCT_SPEC.md) ·
+[ADR-011](../../docs/decisions/ADR-011-automation-observability.md) · schedule ·
+operations
