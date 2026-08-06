@@ -1537,7 +1537,17 @@ class _HomeTaskCard extends StatelessWidget {
 
 // ─── Card footer action ──────────────────────────────────────────────
 
-class _CardFooter extends StatelessWidget {
+/// The one action a card offers, and the animated seam between one action and
+/// the next.
+///
+/// Starting a task is a server round trip (100ms–1s). It used to look like the
+/// app had hung: the button dimmed to the disabled 50%, sat dead, and then
+/// *Start task* was replaced by *Continue* in a single frame. Now the tapped
+/// button acknowledges the press immediately — full weight, a progress ring
+/// where its glyph was — and the arriving action cross-fades in through
+/// [ActionSwap]. The wait is the same length; it is no longer mistaken for a
+/// fault.
+class _CardFooter extends StatefulWidget {
   const _CardFooter({
     required this.task,
     required this.busy,
@@ -1561,48 +1571,82 @@ class _CardFooter extends StatelessWidget {
   final bool isMissed;
 
   @override
+  State<_CardFooter> createState() => _CardFooterState();
+}
+
+class _CardFooterState extends State<_CardFooter> {
+  /// This card's own start is in flight. Local, not from the cubit: `busy` is
+  /// global, so a shared flag would spin every card on the screen.
+  bool _starting = false;
+
+  @override
+  void didUpdateWidget(_CardFooter old) {
+    super.didUpdateWidget(old);
+    // Settled — either the new status arrived (the stream carries it while the
+    // write is still finishing) or the mutation ended without one, which is a
+    // refusal. Both must clear the ring; only the first also swaps the action.
+    if (_starting &&
+        (!widget.busy || widget.task.status != TaskStatus.pending)) {
+      _starting = false;
+    }
+  }
+
+  void _start() {
+    setState(() => _starting = true);
+    widget.onStart!();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final Widget action;
-    if (isMissed) {
+    if (widget.isMissed) {
       action = const _MutedFooter(
+        key: ValueKey('missed'),
         icon: Icons.event_busy_rounded,
         label: 'Missed — task closed',
       );
-    } else if (isReview) {
+    } else if (widget.isReview) {
       action = const _MutedFooter(
+        key: ValueKey('review'),
         icon: Icons.hourglass_top_rounded,
         label: 'Awaiting review',
       );
-    } else if (startBlockedReason != null) {
+    } else if (widget.startBlockedReason != null) {
       action = _MutedFooter(
+        key: const ValueKey('blocked'),
         icon: Icons.schedule_rounded,
-        label: startBlockedReason!,
+        label: widget.startBlockedReason!,
         iconColor: AppColors.textTertiary,
       );
-    } else if (onStart != null) {
+    } else if (widget.onStart != null) {
       action = _ActionButton(
+        key: const ValueKey('start'),
         icon: Icons.play_arrow_rounded,
         label: 'Start task',
         primary: true,
-        onTap: busy ? null : onStart!,
+        loading: _starting,
+        onTap: widget.busy ? null : _start,
       );
-    } else if (isStarted) {
+    } else if (widget.isStarted) {
       action = _ActionButton(
+        key: const ValueKey('continue'),
         icon: Icons.arrow_forward_rounded,
         label: 'Continue',
-        onTap: onOpen,
+        onTap: widget.onOpen,
       );
-    } else if (isRejected) {
+    } else if (widget.isRejected) {
       action = _ActionButton(
+        key: const ValueKey('feedback'),
         icon: Icons.feedback_outlined,
         label: 'View feedback',
-        onTap: onOpen,
+        onTap: widget.onOpen,
       );
     } else {
       action = _ActionButton(
+        key: const ValueKey('open'),
         icon: Icons.arrow_forward_rounded,
         label: 'Open',
-        onTap: onOpen,
+        onTap: widget.onOpen,
       );
     }
 
@@ -1616,23 +1660,27 @@ class _CardFooter extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.sm,
       ),
-      child: action,
+      // The action lives against the right edge, so it must grow leftwards.
+      child: ActionSwap(alignment: Alignment.centerRight, child: action),
     );
   }
 }
 
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
     this.primary = false,
+    this.loading = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final bool primary;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -1644,6 +1692,7 @@ class _ActionButton extends StatelessWidget {
         label: label,
         icon: icon,
         onPressed: onTap,
+        isLoading: loading,
         style: primary ? PremiumButtonStyle.filled : PremiumButtonStyle.tonal,
       ),
     );
@@ -1652,6 +1701,7 @@ class _ActionButton extends StatelessWidget {
 
 class _MutedFooter extends StatelessWidget {
   const _MutedFooter({
+    super.key,
     required this.icon,
     required this.label,
     this.iconColor = AppColors.warning,
@@ -1701,7 +1751,8 @@ class _StatusPill extends StatelessWidget {
       TaskStatus.cancelled => ('Cancelled', AppColors.textSecondary),
     };
 
-    return Container(
+    final pill = Container(
+      key: ValueKey(status),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withAlpha(20),
@@ -1717,6 +1768,10 @@ class _StatusPill extends StatelessWidget {
         ),
       ),
     );
+
+    // The pill changes in the same instant as the footer's action (Pending →
+    // In progress), so it has to move with it rather than cut underneath it.
+    return ActionSwap(alignment: Alignment.centerRight, child: pill);
   }
 }
 

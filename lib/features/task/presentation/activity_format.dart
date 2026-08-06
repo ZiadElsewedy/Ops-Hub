@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:drop/features/task/domain/task_origin.dart';
 
 /// Presentation helpers that map a task [ActivityEntry.status] string onto a
 /// human label + dot colour, and format an event time. Shared by the Task
@@ -71,6 +73,39 @@ IconData activityIcon(String status) => switch (status) {
   'noteIssue' => Icons.report_gmailerrorred_rounded,
   _ => Icons.circle_outlined,
 };
+
+/// The display name for an activity event's actor.
+///
+/// Resolution order: the **server automation** (`actorId == "system"`) → the
+/// stamped `actorName` → the directory lookup → the anonymous fallback. The
+/// system branch comes first because `"system"` is not a uid: it can never
+/// resolve in the directory, and every automated event therefore used to sign
+/// itself *"Someone"* — the app crediting an unnamed human for work the sweep
+/// did at 01:00. Pure, so the wording has one home and is unit-tested.
+String activityActorName(
+  String? actorId,
+  String? actorName,
+  UserEntity? actor,
+) {
+  if (isSystemActorId(actorId)) return kSystemActorName;
+  if ((actorName ?? '').trim().isNotEmpty) return actorName!.trim();
+  if (actor != null) return actor.displayName ?? actor.email;
+  return 'Someone';
+}
+
+/// The role chip beside [activityActorName], or null when there is nothing
+/// honest to print. The system gets *Automated* — it has no role, and leaving
+/// the chip off entirely would make an automated event look like a record
+/// whose actor simply failed to load.
+String? activityActorRole(String? actorId, UserEntity? actor) {
+  if (isSystemActorId(actorId)) return 'Automated';
+  return switch (actor?.role) {
+    UserRole.admin => 'Admin',
+    UserRole.manager => 'Manager',
+    UserRole.employee => 'Employee',
+    null => null,
+  };
+}
 
 /// Resolves a **decider** uid (`approvedBy` / `rejectedBy` / `cancelledBy`)
 /// through [directory] to a display name — degrading to the generic "Admin"

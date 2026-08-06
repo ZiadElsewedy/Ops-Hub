@@ -213,6 +213,8 @@ class NotificationTile extends StatelessWidget {
         return Icons.cancel_outlined;
       case NotificationType.attendanceAutoClosed:
         return Icons.timer_off_outlined;
+      case NotificationType.salesSubmission:
+        return Icons.point_of_sale_outlined;
     }
   }
 

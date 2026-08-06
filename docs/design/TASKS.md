@@ -173,6 +173,30 @@ question is answered.
 **denormalized mirror** of the primary that rules and statistics depend on — keep
 them in sync on write.
 
+### Who created it — `createdBy` is not the answer
+
+**`createdBy` alone cannot say who created a task.** A generated shift instance
+inherits its *template's* `createdBy` (`generateShiftTaskInstances` copies it), so
+a task the server wrote at 01:00 is byline-identical to one a manager typed out.
+[`domain/task_origin.dart`](../../lib/features/task/domain/task_origin.dart) is
+the one place that distinction is made — `taskOrigin(task)` reads the markers the
+producers stamp (`sourceTemplateId` / `correlationId` → `recurringShift`;
+`recurrenceRootId` → `recurrenceChain`; neither → `manual`).
+
+Task Details credits accordingly (2026-08-06): an automated task reads
+**"Created by System · Automated task"**, with the human who built the template
+kept as a quieter *"Set up by …"* footnote; a hand-created task keeps its
+*"Assigned by …"* handover. The shift branch of the Assignment section used to
+print the shift and stop, so a generated task was the one screen that never said
+where it came from.
+
+The same rule governs the activity timeline: the server writes
+`activityLog[].actorId: "system"`, which is **not a uid** and therefore never
+resolves in the user directory — every automated event used to sign itself
+*"Someone"*. `activityActorName` / `activityActorRole`
+(`presentation/activity_format.dart`) check the system actor **first** and render
+*System* + an **AUTOMATED** chip with a bolt glyph instead of initials.
+
 ### Recurring shift routines
 
 These use a **template → generated instance** split, *not* the per-task
@@ -223,6 +247,18 @@ compact duration rail and set `startsAt` to the current creation time and `dueAt
 to +1/+2/+7 days. They are deadline presets, not shift suggestions, so
 outside-shift-hours warnings do not apply to those windows. Picking one moves the
 rail thumb and animates the duration rail under the Start/Due rows.
+
+**Task Details renders the window as a band, not as chips** (2026-08-06). Start ·
+Due · Window, each cell a label, a **24-hour clock time**, and the day through the
+shared `AppDateFormatter.relativeDay` (`Today` / `Tomorrow` / `Thursday, 6 Aug`).
+As three loose meta pills it read `Starts 6 Aug 2026 · Due 6 Aug 2026 · Est. 8h`:
+date-only, so the two ends of an 09:00→17:00 shift task looked identical, and the
+one number that distinguished them was labelled an **estimate** when it is
+`dueAt − startsAt` — the length of the booked window, not a guess at the effort.
+The third cell is therefore called **Window**. A task that crosses midnight needs
+no special case: its Due cell simply names a different day. 24-hour by the same
+rule as `startBlockedReason` — this sits beside shift windows rendered
+`08:30 – 16:30`.
 
 **`TaskSchedulePhase` is derived, not persisted** — Scheduled / Active / Due-soon /
 Overdue / Done, computed from the times + lifecycle in pure

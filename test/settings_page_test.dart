@@ -56,6 +56,11 @@ Widget _harness(_FakeAuthCubit auth) {
         path: RouteNames.about,
         builder: (_, _) => const Scaffold(body: Text('ABOUT DESTINATION')),
       ),
+      GoRoute(
+        path: RouteNames.notificationSettings,
+        builder: (_, _) =>
+            const Scaffold(body: Text('NOTIFICATION SETTINGS DESTINATION')),
+      ),
     ],
   );
   return BlocProvider<AuthCubit>.value(
@@ -93,6 +98,44 @@ void main() {
       expect(find.text('PROFILE DESTINATION'), findsOneWidget);
     },
   );
+
+  testWidgets('Notifications opens its own screen', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_harness(auth));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.text('Manage notification preferences'), findsOneWidget);
+
+    await tester.tap(find.text('Notifications'));
+    await tester.pumpAndSettle();
+    expect(find.text('NOTIFICATION SETTINGS DESTINATION'), findsOneWidget);
+  });
+
+  testWidgets('Appearance is present, labelled Coming soon, and inert', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_harness(auth));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('Customize app appearance'), findsOneWidget);
+    expect(find.text('COMING SOON'), findsOneWidget);
+
+    // The row draws no chevron (it goes nowhere) and tapping it navigates
+    // nowhere and throws nothing.
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    expect(find.text('Appearance'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('sign out remains available as a separate destructive action', (
     tester,

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
@@ -9,6 +8,7 @@ import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/activity_entry.dart';
 import 'package:drop/features/task/domain/entities/task_attachment.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:drop/features/task/domain/task_origin.dart';
 import 'package:drop/features/task/presentation/activity_format.dart';
 import 'package:drop/features/task/presentation/attachment_format.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
@@ -389,10 +389,7 @@ class _HeadRow extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              if (actor != null)
-                UserAvatar.fromUser(actor!, size: 22)
-              else
-                UserAvatar(name: _displayName(entry, actor), size: 22),
+              _ActorFace(entry: entry, actor: actor),
               const SizedBox(width: AppSpacing.sm),
               Flexible(
                 child: Text(
@@ -405,9 +402,9 @@ class _HeadRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (_roleLabel(actor) != null) ...[
+              if (_roleLabel(entry, actor) case final role?) ...[
                 const SizedBox(width: AppSpacing.sm),
-                _RoleChip(label: _roleLabel(actor)!),
+                _RoleChip(label: role),
               ],
             ],
           ),
@@ -493,15 +490,45 @@ class _HeadRow extends StatelessWidget {
 // ─── History: compact ledger rows ────────────────────────────────────
 
 String _displayName(ActivityEntry entry, UserEntity? actor) =>
-    entry.actorName ??
-    (actor != null ? (actor.displayName ?? actor.email) : 'Someone');
+    activityActorName(entry.actorId, entry.actorName, actor);
 
-String? _roleLabel(UserEntity? actor) => switch (actor?.role) {
-  UserRole.admin => 'Admin',
-  UserRole.manager => 'Manager',
-  UserRole.employee => 'Employee',
-  null => null,
-};
+String? _roleLabel(ActivityEntry entry, UserEntity? actor) =>
+    activityActorRole(entry.actorId, actor);
+
+/// The actor's face on a timeline row. A person gets their photo/initials; the
+/// **system** gets a glyph instead — initials ("SY") would read as a colleague
+/// nobody at the branch has ever met.
+class _ActorFace extends StatelessWidget {
+  const _ActorFace({required this.entry, required this.actor, this.size = 22});
+
+  final ActivityEntry entry;
+  final UserEntity? actor;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isSystemActorId(entry.actorId)) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.darkSurfaceElevated,
+          border: Border.all(color: AppColors.darkBorder),
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          Icons.bolt_rounded,
+          size: size * 0.62,
+          color: AppColors.textSecondary,
+        ),
+      );
+    }
+    return actor != null
+        ? UserAvatar.fromUser(actor!, size: size)
+        : UserAvatar(name: _displayName(entry, actor), size: size);
+  }
+}
 
 class _LedgerRow extends StatelessWidget {
   const _LedgerRow({
@@ -530,7 +557,7 @@ class _LedgerRow extends StatelessWidget {
     final titleColor = neutral ? AppColors.textPrimary : color;
 
     final name = _displayName(entry, actor);
-    final role = _roleLabel(actor);
+    final role = _roleLabel(entry, actor);
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,10 +579,7 @@ class _LedgerRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      if (actor != null)
-                        UserAvatar.fromUser(actor!, size: 16)
-                      else
-                        UserAvatar(name: name, size: 16),
+                      _ActorFace(entry: entry, actor: actor, size: 16),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(

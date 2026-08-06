@@ -8,6 +8,7 @@ import 'package:drop/core/media/media_upload_service.dart';
 import 'package:drop/core/network/api_client.dart';
 import 'package:drop/core/network/network_config.dart';
 import 'package:drop/core/services/case_seen_store.dart';
+import 'package:drop/core/services/notification_preferences_store.dart';
 import 'package:drop/core/services/notification_service.dart';
 import 'package:drop/core/services/task_seen_store.dart';
 import 'package:drop/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -390,6 +391,13 @@ class AppDependencies {
 
   /// FCM foundation (Phase 6) — token registration + foreground handling.
   static late final NotificationService notificationService;
+
+  /// This device's notification switches for the signed-in user. Client-only
+  /// and constructed eagerly: it is read from a widget's `initState`, not from
+  /// a cubit, and must be available before [init] completes in tests. Nothing
+  /// consumes it for delivery yet — see [NotificationPreferencesStore].
+  static final NotificationPreferencesStore notificationPreferences =
+      NotificationPreferencesStore();
 
   /// Case Management — the inbox list cubit (singleton, app-wide).
   static late final CaseListCubit caseListCubit;

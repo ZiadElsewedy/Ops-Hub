@@ -22,8 +22,9 @@ import 'package:drop/core/widgets/app_error_state.dart';
 
 /// The in-app Notification Center — an **operations workflow inbox** (§5). Not a
 /// flat feed: notifications are **grouped by time** (Today / Yesterday / Earlier),
-/// **filtered by category** (All / Tasks / Reviews / Broadcast), and **ordered by
-/// priority** within each section so what needs acting on floats up. Swipe right
+/// **filtered by category** (All / Tasks / Reviews / Requests / Cases / Schedule
+/// / Sales / Broadcast), and **ordered by priority** within each section so what
+/// needs acting on floats up. Swipe right
 /// to mark read, swipe left to archive (delete in the Archived view); bulk
 /// Mark-all-read / Clear-archived; every tile deep-links to its destination.
 class NotificationsScreen extends StatefulWidget {

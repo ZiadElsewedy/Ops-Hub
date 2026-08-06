@@ -137,6 +137,8 @@ unknown, or unauthorized notification.
 | `case_details` | `caseId` | `/case/:caseId` | `/cases` |
 | `request_details` | `requestId` | `/request/:requestId` | `/requests` |
 | `attendance` | `recordId` | `/attendance/record/:id` | `/attendance/review` (admin·manager) · `/attendance/history` (employee) · `null` if role unknown |
+| `sales_submission` | `salesSubmissionId` | `/sales/submission/:id` | `/sales` (admin·manager) · `/sales/mine` (employee) · `null` if role unknown |
+| `sales_target` | *(none — `monthKey` is context)* | `/sales` (admin·manager) · `/sales/mine` (employee) | `null` if role unknown |
 | *unknown / null* | — | — | `null` (caller opens the inbox) |
 
 > **`attendance` was a dead tap until 2026-08-01.** `writeAttendanceNotifications`
@@ -150,14 +152,28 @@ unknown, or unauthorized notification.
 > `firebase deploy --only functions`**, until which a *background/cold-start*
 > attendance tap lands on the ledger fallback instead of the exact record.
 
+> **Branch sales (2026-08-06).** `writeSalesNotifications` stamped one route
+> (`sales_submission`) for all five sales events, so a **month** event ("Your
+> branch monthly sales target was updated" / "…target achieved") arrived with a
+> route that promises a record and no id to open it with. It now writes
+> `sales_target` when there is no `salesSubmissionId`; the id-less
+> `sales_submission` case is kept and resolves identically, so the notifications
+> already sitting in every inbox do not go dead when the function rolls. The
+> push half was the real break: `onNotificationCreated` never forwarded
+> `salesSubmissionId`, so a *New sales submission* tapped from the OS reached the
+> branch dashboard and never the record to review. ⚠️ **Both halves are inert
+> until `firebase deploy --only functions`.**
+
 Route strings are the shared contract, centralized as `NotificationRoute.*` and
 referenced by the client producers. **The server producers (`functions/index.js`)
 and the FCM push `data` block must mirror these exact strings and forward every
 id the resolver reads** — `taskId · caseId · requestId · broadcastId · swapId ·
-recordId · conversationId`. `chat_message` is the exception: it is produced by
-the NestJS chat backend, not by `functions/index.js`.
+recordId · salesSubmissionId · conversationId`. `chat_message` is the exception:
+it is produced by the NestJS chat backend, not by `functions/index.js`.
 (A missing id in the push `data` silently breaks the deep link on a background /
-cold-start tap; this pass fixed `requestId` + `swapId` being omitted.)
+cold-start tap while the in-app inbox keeps working, because the inbox reads the
+Firestore payload directly — that asymmetry is why it goes unnoticed. This pass
+fixed `salesSubmissionId`; an earlier one fixed `requestId` + `swapId`.)
 
 **Broadcast deep-link self-resolve:** `BroadcastDetailScreen` fetches the single
 broadcast by id (`BroadcastRepository.getBroadcast`) when the Communications feed
@@ -214,8 +230,21 @@ doesn't; it is a label, never content.
 | `pushedByFunction` | bool? | broadcast docs — suppresses double-push |
 
 `NotificationType` values all have a **live producer** (task lifecycle · reminders ·
-broadcasts · swaps · cases · requests). Adding a type requires adding its
-producer in the same change.
+broadcasts · swaps · cases · requests · attendance · sales). Adding a type requires
+adding its producer in the same change.
+
+> **A type the enum doesn't know is not a no-op — it is a lie.**
+> `NotificationModel.fromMap` falls back to `taskAssigned` for an unknown `type`
+> (deliberately: better than throwing on a stale doc). The sales workflow shipped
+> writing `type: "salesSubmission"` with no matching enum value, so for its whole
+> life every branch-sales notification took that fallback and *impersonated a
+> task*: a clipboard glyph, filed under the **Tasks** pill, ranked `high` above
+> genuinely overdue work. Fixed 2026-08-06 by adding the value — one type for the
+> whole sales workflow, matching its single producer `writeSalesNotifications` —
+> plus a **Sales** filter pill and `normal` priority. Pinned by
+> `test/notification_model_test.dart` + `test/notification_grouping_test.dart`.
+> **Whenever a producer stamps a new `type` string, add the enum value in the
+> same change** — the fallback will hide the omission indefinitely.
 
 ### Automated-tasks types (spec §9)
 

@@ -180,7 +180,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |
 | `employee` | EmployeeShell + employee home | — |
-| `settings` | Premium account hub, profile/security/workspace links, sign-out, About + change password (presentation-only) | — |
+| `settings` | Premium account hub, profile/security/workspace links, sign-out, About + change password, per-device notification switches (presentation-only) | — |
 
 `manager`, `employee`, and `settings` are **presentation-only** — they reuse other
 features' cubits.
@@ -199,7 +199,7 @@ features' cubits.
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
 | `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (59 routes) · `app_page_route.dart` (the back-navigation contract) |
-| `services/` | `notification_service.dart` (FCM) · `case_seen_store.dart` |
+| `services/` | `notification_service.dart` (FCM) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
@@ -223,10 +223,13 @@ Reuse these. Do not re-implement or duplicate them.
 | Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Drift holds metadata only; the repository session-caches brokered attachment URLs through `ChatAttachmentDownload.isExpired`; **never image bytes** |
 | Task status → colour | `core/widgets/status_badge.dart` (`taskStatusColor`) |
 | Structured logging | `core/utils/app_logger.dart` (`AppLog`) |
+| Any per-device, per-user preference or read-state | a small uid-namespaced JSON file in the app-support dir, in `core/services/` (`case_seen_store` · `task_seen_store` · `notification_preferences_store`). **Never add `shared_preferences`** — the app already has one local-preference mechanism |
 | Shift slot timing | `schedule/domain/shift_window.dart` |
 | Shift hours resolution | `WeeklyScheduleEntity.hoursFor` ([ADR-006](docs/decisions/ADR-006-schedule-shift-plan-snapshots.md)) |
 | Worked/late/overtime minutes | `attendance/domain/attendance_calculator.dart` |
 | Task visibility | `task/domain/task_access.dart` (`canUserAccessTask`) |
+| Was a task made by a person or by the server? | `task/domain/task_origin.dart` (`taskOrigin`) — **never read `createdBy` for this**: a generated instance inherits its template's creator |
+| Naming an activity-event actor | `task/presentation/activity_format.dart` (`activityActorName` / `activityActorRole`) — `actorId: "system"` is not a uid and must not fall through to the directory |
 | Notification routing | `notifications/domain/notification_deep_link.dart` |
 | Sidebar + command palette | `AppShell.sectionsForRole` |
 | How a screen is pushed / how the user gets back | `core/routes/app_page_route.dart` (`appPageRoute`) |
@@ -372,6 +375,12 @@ colour.
   a panel as `Skeleton` blocks — not a centred `CircularProgressIndicator`, which
   tells the user nothing and makes the screen jump when data lands. Spinners are
   fine *inside* a button or a sheet action, where the shape is already known.
+- **A write in flight is not a disabled control.** Every lifecycle action is a
+  server round trip (100ms–1s). A button that dims to the disabled 50% and then
+  is replaced in one frame reads as a lag, not as work — that is exactly how
+  Start task was reported. The tapped control keeps full weight and shows its
+  own progress ring (`isLoading`), and the action it becomes arrives through
+  `ActionSwap`. Never dim the control the user just pressed.
 - **Offline gates the writes, never the app.** Reads stay available from cache
   under a permanent `OfflineBar` that says *when* the connection dropped.
   **Clock in / out is the one write allowed offline** — it happens at a branch,
@@ -390,7 +399,8 @@ colour.
 
 | Need | Use |
 | --- | --- |
-| Buttons | `AppButton` (`primary`/`secondary`/`ghost`, built-in `isLoading`) · `PremiumButton` (compact inline) |
+| Buttons | `AppButton` (`primary`/`secondary`/`ghost`, built-in `isLoading`) · `PremiumButton` (compact inline, also `isLoading`) |
+| Handing one action to the next | `ActionSwap` (`core/widgets/app_motion.dart`) — the seam a status change crosses; the child must be **keyed** |
 | Card surface | `GlassContainer` — the shared gradient/border/depth surface |
 | Page header | `PageHero` (eyebrow · title · subtitle · one CTA) |
 | A hero's one CTA | `PrimaryCta` (filled monochrome, hover-lift/press-scale) |

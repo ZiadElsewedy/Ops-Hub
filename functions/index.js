@@ -1347,7 +1347,10 @@ async function writeSalesNotifications(recipientUids, { title, body, submissionI
     const ref = db.collection(NOTIFICATIONS).doc();
     batch.set(ref, { id: ref.id, recipientUid, senderUid: "", type: "salesSubmission",
       title: String(title).slice(0, 120), body: String(body).slice(0, 500), readAt: null,
-      payload: { route: "sales_submission", ...(submissionId ? { salesSubmissionId: submissionId } : {}), ...(monthKey ? { monthKey } : {}) },
+      // `sales_submission` opens the exact submission; a MONTH event (target
+      // changed / achieved) has no submission to open, so it rides its own
+      // route and the resolver sends each role to the sales surface it owns.
+      payload: { route: submissionId ? "sales_submission" : "sales_target", ...(submissionId ? { salesSubmissionId: submissionId } : {}), ...(monthKey ? { monthKey } : {}) },
       createdAt: admin.firestore.FieldValue.serverTimestamp() });
   }
   await batch.commit();
@@ -1690,8 +1693,14 @@ exports.onNotificationCreated = onDocumentCreated(
     // feeds them to the shared deep-link resolver. EVERY target id the resolver
     // reads must be forwarded here or the deep link is lost on a background /
     // cold-start tap: taskId · caseId · requestId · broadcastId · swapId
-    // (schedule route) · recordId (attendance route). `route` selects which id
-    // the resolver uses.
+    // (schedule route) · recordId (attendance route) · salesSubmissionId (sales
+    // route). `route` selects which id the resolver uses.
+    //
+    // ⚠️ A key missing here is a deep link LOST on every background / cold-start
+    // tap while the in-app inbox still works — the notification quietly opens the
+    // list instead of the record. That is exactly how `salesSubmissionId` went
+    // unnoticed: the inbox reads the Firestore payload directly, the push does
+    // not. Add every new payload id to BOTH.
     const message = {
       notification: { title, body },
       data: {
@@ -1708,6 +1717,10 @@ exports.onNotificationCreated = onDocumentCreated(
         // background tap can only reach the ledger, not the exact record.
         recordId: String(payload.recordId || ""),
         correctionId: String(payload.correctionId || ""),
+        // Branch sales. Without salesSubmissionId a "New sales submission" push
+        // could only reach the branch dashboard, never the record to review.
+        salesSubmissionId: String(payload.salesSubmissionId || ""),
+        monthKey: String(payload.monthKey || ""),
         category: String(payload.category || ""),
         revisionNumber:
           payload.revisionNumber == null ? "" : String(payload.revisionNumber),

@@ -245,20 +245,32 @@ manager's approval fact).
 
 ## Notifications ([NOTIFICATIONS](NOTIFICATIONS.md))
 
-Extend `resolveNotificationRoute`, not a second push path. Add
-`NotificationRoute.salesSubmission = 'sales_submission'` (+ `salesSubmissionId`),
-resolving to `/sales/submission/:submissionId`, fallback to role-appropriate history.
+Extend `resolveNotificationRoute`, not a second push path.
 
-| Event | Producer | Recipient |
-| --- | --- | --- |
-| New submission | server create trigger | own-branch manager(s) |
-| Approved / Rejected / Correction requested | decision callable | submitting employee |
-| Target updated | target callable | branch employees + manager(s) |
-| Target achieved | approval/correction callable, **only on a `< target → >= target` crossing** | manager(s) + branch employees |
-| Month completed | deferred scheduled job (00:05 Cairo, day 1) — build only if genuinely wanted | manager(s), optionally admin |
+| Event | Producer | Recipient | `route` |
+| --- | --- | --- | --- |
+| New submission | server create trigger | own-branch manager(s) | `sales_submission` |
+| Approved / Rejected / Correction requested | decision callable | submitting employee | `sales_submission` |
+| Target updated | target callable | branch employees + manager(s) | `sales_target` |
+| Target achieved | approval/correction callable, **only on a `< target → >= target` crossing** | manager(s) + branch employees | `sales_submission` (it names the crossing submission) |
+| Month completed | deferred scheduled job (00:05 Cairo, day 1) — build only if genuinely wanted | manager(s), optionally admin | `sales_target` |
 
-Server-originated docs → existing `onNotificationCreated` FCM mirror. Clients never
-construct sales notification docs.
+`sales_submission` carries `salesSubmissionId` → `/sales/submission/:id`.
+`sales_target` carries only `monthKey` — there is no per-month screen, so every
+role lands on the sales surface it owns (`/sales` for admin·manager, `/sales/mine`
+for an employee), which is where the month's target and pace render. An id-less
+`sales_submission` resolves the same way, so the pre-2026-08-06 docs already in
+users' inboxes stay tappable.
+
+All five events share **one** `NotificationType.salesSubmission`, because
+`writeSalesNotifications` is their single producer. Priority `normal`, filter pill
+**Sales** — see the `type`-fallback warning in
+[NOTIFICATIONS §5](NOTIFICATIONS.md#5-notification-model) for what went wrong
+while that enum value was missing.
+
+Server-originated docs → existing `onNotificationCreated` FCM mirror, which must
+forward `salesSubmissionId` in the push `data` or a background tap loses the
+record. Clients never construct sales notification docs.
 
 ## KPIs (derived-on-read only)
 

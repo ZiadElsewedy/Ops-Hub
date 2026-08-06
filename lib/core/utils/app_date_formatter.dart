@@ -66,23 +66,56 @@ class AppDateFormatter {
   static String weekdayDayMonth(DateTime dt) =>
       '${_weekdaysLong[dt.weekday - 1]}, ${dayMonth(dt)}';
 
-  /// A local execution time with a manager-friendly relative day prefix:
-  /// `Today • 8:30 AM`, `Tomorrow • 4:30 PM`, then an absolute weekday/date.
-  /// [now] is injectable so automation summaries and their tests stay
-  /// deterministic while every caller shares the same wording.
-  static String relativeDayTime(DateTime dt, {DateTime? now}) {
+  /// The **calendar day** of [dt] said the way ops say it: `Today`,
+  /// `Tomorrow`, `Yesterday`, then `Thursday, 6 Aug`, and `6 Aug 2027` once the
+  /// year differs. [now] is injectable so callers and their tests stay
+  /// deterministic.
+  ///
+  /// Split out of [relativeDayTime] so a surface that renders the day and the
+  /// clock in **separate slots** (the Task Details schedule band) cannot invent
+  /// its own wording for the same idea.
+  static String relativeDay(DateTime dt, {DateTime? now}) {
     final value = dt.toLocal();
     final current = (now ?? DateTime.now()).toLocal();
     final today = DateTime(current.year, current.month, current.day);
     final day = DateTime(value.year, value.month, value.day);
-    final dateLabel = day == today
-        ? 'Today'
-        : day == today.add(const Duration(days: 1))
-        ? 'Tomorrow'
-        : value.year == current.year
+    if (day == today) return 'Today';
+    if (day == today.add(const Duration(days: 1))) return 'Tomorrow';
+    if (day == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    return value.year == current.year
         ? weekdayDayMonth(value)
         : dayMonthYear(value);
-    return '$dateLabel • ${time(value)}';
+  }
+
+  /// [relativeDay] for a **narrow** slot: `Today` / `Tomorrow` / `Yesterday`,
+  /// then the compact `6 Aug` (`6 Aug 2027` across a year boundary) instead of
+  /// the long `Thursday, 6 Aug`.
+  ///
+  /// Exists because the long weekday form ellipsizes in the Task Details
+  /// schedule band — three cells inside a card leave ~80px each at 320px, and a
+  /// date truncated to `Thursday, 6…` says less than `6 Aug` does. Same wording
+  /// rules, one source; pick by the space you have.
+  static String relativeDayShort(DateTime dt, {DateTime? now}) {
+    final value = dt.toLocal();
+    final label = relativeDay(value, now: now);
+    // Only the absolute branches differ; the relative words are already short.
+    if (label == 'Today' || label == 'Tomorrow' || label == 'Yesterday') {
+      return label;
+    }
+    final current = (now ?? DateTime.now()).toLocal();
+    return value.year == current.year ? dayMonth(value) : dayMonthYear(value);
+  }
+
+  /// A local execution time with a manager-friendly relative day prefix:
+  /// `Today • 8:30 AM`, `Tomorrow • 4:30 PM`, then an absolute weekday/date.
+  /// [now] is injectable so automation summaries and their tests stay
+  /// deterministic while every caller shares the same wording.
+  ///
+  /// ⚠️ Its day half deliberately reads `Yesterday` too (via [relativeDay]) —
+  /// an execution time in the recent past used to render as a bare weekday.
+  static String relativeDayTime(DateTime dt, {DateTime? now}) {
+    final value = dt.toLocal();
+    return '${relativeDay(value, now: now)} • ${time(value)}';
   }
 
   /// Numeric day/month/year with no zero-padding — e.g. `8/7/2026`.

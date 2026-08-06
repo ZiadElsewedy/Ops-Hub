@@ -5,30 +5,6 @@
 >
 > **Last verified against the code:** 2026-08-06.
 
-> **User deactivation hardening + hard delete (2026-08-06, NOT deployed / NOT
-> device-verified):** Deactivation now removes a person from the schedule
-> assign/reassign/leave pickers and the task assignee picker (they were unfiltered
-> — a deactivated employee could still be newly assigned), and the previously
-> **unwired** `AuthCubit.watchCurrentUser` is now started on authenticated /
-> stopped on sign-out, so deactivating — or hard-deleting — a signed-in user
-> bounces them to Login live (a deleted user doc emitting `null` is treated as
-> access-revoked, closing the fallback-looks-active hole). New admin-only Cloud
-> Function **`deleteUserAccount`** hard-deletes an account: Auth user first
-> (idempotent), then a cascade that **cleans active/forward-looking data and keeps
-> finished history** — current+future schedule slots, active task assignments (an
-> open task left with no assignee is **cancelled**), pending swaps/requests/sales,
-> forward attendance expectations, the notification inbox, active broadcast
-> targeting, private subcollections + the user doc, and a `user.deleted` audit
-> row. Guard: **can't delete the last usable admin.** Risky decisions are the pure,
-> tested `functions/user_deletion.js`. Client mirrors `resetPassword`; a
-> destructive **Delete** action (shared `confirmAndDeleteAccount` +
-> `showConfirmDialog`) is on the employee list, manager list and desktop inspector.
-> ⚠️ **Requires a `firebase deploy --only functions:deleteUserAccount` + a client
-> build before it does anything** — the callable does not exist in production yet,
-> and the live sign-out is inert until the client build ships. No rules change, no
-> new index. Known kept-not-purged (documented in DATA_MODEL): `cases`,
-> authored-template `createdBy`, and scalar actor stamps on kept history docs.
-
 > 🚦 **V1 RELEASE GATE — [docs/RELEASE_V1.md](docs/RELEASE_V1.md).** The full
 > release runbook, audited against code *and* live production on 2026-08-05.
 > Read it before planning any release work; it is the authority on what blocks
@@ -154,6 +130,78 @@
 > priority, checklist, assignment, timing notes and the Missed policy move under
 > collapsed **More details**. Pause/resume, confirmed delete and last-task
 > navigation keep their existing behavior and data paths.
+
+> **Task Details attributes and schedules honestly (2026-08-06, presentation +
+> one new pure domain file, NOT device-verified):** A generated shift task now
+> says it was made by **System · Automated task** (with the template's owner kept
+> as a *"Set up by …"* footnote) instead of showing only `Morning Shift`, and the
+> activity timeline signs the server's own events *System* + an **AUTOMATED**
+> chip instead of the anonymous *"Someone"* — `actorId: "system"` is not a uid and
+> never resolved in the directory. Origin is decided by the new pure
+> `task/domain/task_origin.dart`, because `createdBy` is inherited from the
+> template and therefore cannot answer the question. The three date-only schedule
+> chips (`Starts 6 Aug 2026 · Due 6 Aug 2026 · Est. 8h`) became one banded
+> **Starts · Due · Window** row with 24-hour clock times and a relative day line
+> (new shared `AppDateFormatter.relativeDay`); *Window* replaces the misleading
+> *Est.*, since the value is `dueAt − startsAt`, not an effort estimate. Pinned by
+> `test/task_origin_test.dart` + `test/task_details_origin_test.dart`.
+
+> **Branch-sales notifications were impersonating tasks, and their push lost the
+> record (2026-08-06; client half live, ⚠️ SERVER HALF NEEDS A FUNCTIONS
+> DEPLOY):** `writeSalesNotifications` stamps `type: "salesSubmission"`, which the
+> `NotificationType` enum never had — so `NotificationModel.fromMap`'s
+> unknown-type fallback made every sales notification a `taskAssigned`: clipboard
+> glyph, **Tasks** filter pill, `high` priority above genuinely overdue work.
+> Fixed with the enum value, a **Sales** pill, a point-of-sale glyph and `normal`
+> priority. Two server-side halves went with it and are **inert until
+> `firebase deploy --only functions`**: a month event ("target updated" /
+> "achieved") now writes `route: "sales_target"` instead of a `sales_submission`
+> route it had no id for (the id-less `sales_submission` case is kept, so inbox
+> docs written before today still resolve), and `onNotificationCreated` now
+> forwards `salesSubmissionId` + `monthKey` in the push `data` — without them a
+> *New sales submission* tapped from the OS reached the branch dashboard, never
+> the record to review, while the in-app inbox worked because it reads the
+> Firestore payload directly.
+
+> **Starting a task reads as instant (2026-08-06, presentation only, NOT
+> device-verified):** The reported "delay that seems like lag but works" was the
+> UI, not the write: for the 100ms–1s of the Firestore transaction the **Start
+> task** button dimmed to the disabled 50% and sat dead, then the new action
+> replaced it in a single frame. The tapped button now acknowledges the press on
+> the frame it happens — full weight, a progress ring where its glyph was
+> (`PremiumButton.isLoading`, new; `AppButton` already had one) — and the next
+> action arrives through the new `ActionSwap` (`core/widgets/app_motion.dart`,
+> 200ms in / 130ms out over an `AnimatedSize`). It carries Start → Continue on
+> Employee Home, Start Task → Mark Complete → Submit for Review on Task Details,
+> the *Mark Complete* → submission-form expansion, and the card status pill;
+> `TaskAttentionSurface` eases its 1px tone over 240ms instead of cutting.
+> **The round trip is unchanged — no status is written optimistically.** The
+> in-flight ring is per-card local state (the cubit's `busy` is global) and ends
+> on whichever arrives first, the new status or the mutation ending without one,
+> so a refused start cannot strand a spinner. Reduced motion collapses every one
+> of these to an instant swap. Pinned by
+> `test/task_start_transition_test.dart`.
+
+> **Settings — Notifications preferences + Appearance placeholder (2026-08-06,
+> NOT device-verified):** A **Preferences** section under the account card opens
+> a new `NotificationsSettingsScreen` (`/settings/notifications`) with six
+> switches — Enable Notifications · Task Reminders · Schedule Updates · Case
+> Messages · Announcements · Sound. The master switch dims and disables the
+> other five **without clearing them**.
+> ⚠️ **Local-only and not yet connected to delivery.** Values live in a
+> uid-namespaced JSON file via `core/services/notification_preferences_store.dart`
+> (the `CaseSeenStore` mechanism; no `shared_preferences`, no Firestore, no
+> rules change). **Nothing consumes them** — an employee who turns Task
+> Reminders off still receives them. Wiring `NotificationService` / the server
+> reminder ladder to the store is the open follow-up, and the moment
+> preferences must survive a reinstall or apply across devices they need a
+> Firestore home.
+> **Appearance is a deliberately inert row** — a monochrome COMING SOON label,
+> no screen, no theme switching (DROP is dark-only, ADR-004).
+> The Settings row widgets moved unchanged to
+> `features/settings/presentation/widgets/settings_tiles.dart` so both screens
+> share one row. Pinned by `test/features/settings/` and the extended
+> `test/settings_page_test.dart`.
 
 > **Premium Settings account hub (2026-08-05, presentation only):** Settings now
 > leads with a tappable signed-in identity card (real avatar, name, email and
@@ -433,8 +481,8 @@
 | | |
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
-| **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-05**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1688 pass · 0 fail** (~48s) — re-run **2026-08-06** (+4: the task assignee-picker `isActive` filter, and `AdminUsersCubit.deleteAccount` + repo-impl delegation for hard delete). Cloud Functions now **127 pass** (+15: the pure `functions/user_deletion.js` cascade decisions). *(Earlier 2026-08-05: +14 — the final-schedule shift-row grid + Excel export, and the Today-coverage skeleton-hang fix + active-branch filter.)* ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **127 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
+| **Tests** | **1698 pass · 0 fail** (~42s) — re-run **2026-08-06** (+14: the Settings notification preferences store, its screen, and the two new Settings rows). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -1284,7 +1332,7 @@ handled as a separate backend/security task before the rules deploy.
 >
 > | Target | State |
 > | --- | --- |
-> | `functions` | **Mixed.** The automation P0 trio is deployed (13:16 UTC). The **5 sales functions are stale** — deployed 10:28 UTC, audit commit `2cf7e13` is 12:29 UTC. Everything else rolled 2026-08-04 13:15–13:16 UTC. |
+> | `functions` | **Mixed.** The automation P0 trio is deployed (13:16 UTC). The **5 sales functions are stale** — deployed 10:28 UTC, audit commit `2cf7e13` is 12:29 UTC. **`onNotificationCreated` and `writeSalesNotifications` are now stale too** (2026-08-06 notification-routing fix: `salesSubmissionId` + `monthKey` forwarded in the push `data`; `sales_target` route for month events). Everything else rolled 2026-08-04 13:15–13:16 UTC. |
 > | `firestore:rules` | ❌ **STALE.** Live ruleset released 10:28:51 UTC; it is missing `branchRunsSalesTargets()` and the `branch_sales_submissions` create gate. |
 > | `firestore:indexes` | ✅ **IN SYNC.** 19 live composites = 19 in the repo, all `READY`. |
 > | `storage` | ✅ **IN SYNC.** Live ruleset byte-identical to `storage.rules`. |

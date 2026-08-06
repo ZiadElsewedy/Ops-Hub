@@ -26,6 +26,9 @@ class RouteNames {
   static const String settings = '/settings';
   static const String changePassword = '/settings/change-password';
 
+  /// Per-device notification switches (locally persisted; no server state yet).
+  static const String notificationSettings = '/settings/notifications';
+
   /// What DROP is + how to reach support. Shared by every role.
   static const String about = '/settings/about';
 
