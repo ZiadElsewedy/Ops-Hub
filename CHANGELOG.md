@@ -14,6 +14,19 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-06 — macOS App Store upload fix: LSApplicationCategoryType (release config; LOW risk)
+
+App Store Connect / Transporter rejected the macOS archive with error `90242`:
+*"The Info.plist must contain a LSApplicationCategoryType key, whose value is the
+UTI for a valid category."* The stock Flutter macOS template
+([macos/Runner/Info.plist](macos/Runner/Info.plist)) omits this key, which Apple
+requires for every Mac App Store submission. Added
+`LSApplicationCategoryType` = `public.app-category.productivity` (owner-chosen).
+This must stay consistent with the category selected in App Store Connect. Config
+only — no code, no behavior change; iOS/Android untouched.
+
+---
+
 ## 2026-08-06 — Navigation icons moved to Phosphor, self-hosted (polish; LOW risk)
 
 Owner: *"is there anyway to change the icons in better design?"* → *"match the
