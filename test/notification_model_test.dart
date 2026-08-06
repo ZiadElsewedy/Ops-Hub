@@ -90,6 +90,21 @@ void main() {
       expect(m.type, NotificationType.taskAssigned);
     });
 
+    test('a sales notification parses as itself, not as the task fallback', () {
+      // `writeSalesNotifications` (functions/index.js) stamps exactly this
+      // string. While the enum lacked the value, all five sales events took the
+      // `taskAssigned` fallback above and impersonated a task in the inbox.
+      final m = NotificationModel.fromMap(const {
+        'recipientUid': 'u1',
+        'type': 'salesSubmission',
+        'title': 'Sales target updated',
+        'body': 'Your branch monthly sales target was updated.',
+        'payload': {'route': 'sales_target', 'monthKey': '202608'},
+      });
+      expect(m.type, NotificationType.salesSubmission);
+      expect(m.toEntity().route, 'sales_target');
+    });
+
     test('archivedAt / pinnedAt round-trip + getters (Phase 2)', () {
       final at = DateTime(2026, 6, 22, 10);
       final map = NotificationModel.fromEntity(NotificationEntity(

@@ -77,7 +77,17 @@ enum NotificationType {
   attendanceCorrectionFiled, // → the routed reviewers (branch manager / admin)
   attendanceCorrectionApproved, // → the employee (record corrected)
   attendanceCorrectionRejected, // → the employee (correction declined)
-  attendanceAutoClosed; // → the employee (session auto-closed → needs a fix)
+  attendanceAutoClosed, // → the employee (session auto-closed → needs a fix)
+  // ── Branch monthly sales target (server-side `writeSalesNotifications`) ──
+  // ONE type for the whole sales workflow — target changed / achieved, a
+  // submission filed, corrected, or decided — because that helper is the single
+  // producer and it stamps exactly this string. Without the value here every
+  // sales notification fell through `fromString` to the `taskAssigned` default
+  // and arrived in the inbox wearing a task glyph, filed under the **Tasks**
+  // pill, ranked HIGH above real work. Produced by the Admin SDK (recipients
+  // come from a branch/role lookup), so it is deliberately NOT in the client
+  // `sendNotification` whitelist.
+  salesSubmission;
 
   String get value => name;
 

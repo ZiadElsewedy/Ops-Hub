@@ -7,13 +7,15 @@ import 'package:drop/features/notifications/domain/entities/notification_entity.
 ///
 /// The inbox is an **operations workflow inbox**: notifications are **grouped by
 /// time** (Today / Yesterday / Earlier), **filtered by category** (All / Tasks /
-/// Reviews / Broadcast), and **ordered by priority** within each section so the
-/// things that need acting on float up.
+/// Reviews / Requests / Cases / Schedule / Sales / Broadcast), and **ordered by
+/// priority** within each section so the things that need acting on float up.
 ///
-/// > **Scope note:** the **Schedule** category is now live — the shift-swap
-/// > workflow (`NotifySwapEvent`) is its producer (swap requested / accepted /
-/// > approved / declined). A **System** pill is still omitted (no producer writes
-/// > a system notification yet — re-add it **alongside** its producer, never before).
+/// > **Scope note:** the **Schedule** category is live — the shift-swap workflow
+/// > (`NotifySwapEvent`) is its producer (swap requested / accepted / approved /
+/// > declined) — and so is **Sales**, whose producer is the server's
+/// > `writeSalesNotifications`. A **System** pill is still omitted (no producer
+/// > writes a system notification yet — re-add it **alongside** its producer,
+/// > never before).
 
 // ─── Priority ───────────────────────────────────────────────────────
 
@@ -76,7 +78,13 @@ NotificationPriority notificationPriority(NotificationType type) =>
       // A correction decision (approved / rejected) is informational to the
       // employee.
       NotificationType.attendanceCorrectionApproved ||
-      NotificationType.attendanceCorrectionRejected =>
+      NotificationType.attendanceCorrectionRejected ||
+      // The whole sales workflow shares one type, so it takes the honest FLOOR
+      // of the events it covers: "your branch target was updated" is pure
+      // information. Ranking the shared type `high` would float a target change
+      // above an overdue task — the loudest row in the inbox would be the one
+      // nobody has to act on.
+      NotificationType.salesSubmission =>
         NotificationPriority.normal,
     };
 
@@ -91,6 +99,7 @@ enum NotificationCategory {
   requests,
   cases,
   schedule,
+  sales,
   broadcast;
 
   String get label => switch (this) {
@@ -100,6 +109,7 @@ enum NotificationCategory {
         NotificationCategory.requests => 'Requests',
         NotificationCategory.cases => 'Cases',
         NotificationCategory.schedule => 'Schedule',
+        NotificationCategory.sales => 'Sales',
         NotificationCategory.broadcast => 'Broadcast',
       };
 
@@ -154,6 +164,10 @@ NotificationCategory categoryOf(NotificationType type) => switch (type) {
         NotificationCategory.requests,
       // An auto-closed session is the employee's action item.
       NotificationType.attendanceAutoClosed => NotificationCategory.tasks,
+      // Branch sales gets its own pill rather than riding Requests: a target
+      // change is not an approval, and burying it under Tasks (where the
+      // missing enum value used to land it) made the sales workflow invisible.
+      NotificationType.salesSubmission => NotificationCategory.sales,
     };
 
 // ─── Row text ───────────────────────────────────────────────────────

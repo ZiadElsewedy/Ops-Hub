@@ -131,6 +131,57 @@
 > collapsed **More details**. Pause/resume, confirmed delete and last-task
 > navigation keep their existing behavior and data paths.
 
+> **Task Details attributes and schedules honestly (2026-08-06, presentation +
+> one new pure domain file, NOT device-verified):** A generated shift task now
+> says it was made by **System · Automated task** (with the template's owner kept
+> as a *"Set up by …"* footnote) instead of showing only `Morning Shift`, and the
+> activity timeline signs the server's own events *System* + an **AUTOMATED**
+> chip instead of the anonymous *"Someone"* — `actorId: "system"` is not a uid and
+> never resolved in the directory. Origin is decided by the new pure
+> `task/domain/task_origin.dart`, because `createdBy` is inherited from the
+> template and therefore cannot answer the question. The three date-only schedule
+> chips (`Starts 6 Aug 2026 · Due 6 Aug 2026 · Est. 8h`) became one banded
+> **Starts · Due · Window** row with 24-hour clock times and a relative day line
+> (new shared `AppDateFormatter.relativeDay`); *Window* replaces the misleading
+> *Est.*, since the value is `dueAt − startsAt`, not an effort estimate. Pinned by
+> `test/task_origin_test.dart` + `test/task_details_origin_test.dart`.
+
+> **Branch-sales notifications were impersonating tasks, and their push lost the
+> record (2026-08-06; client half live, ⚠️ SERVER HALF NEEDS A FUNCTIONS
+> DEPLOY):** `writeSalesNotifications` stamps `type: "salesSubmission"`, which the
+> `NotificationType` enum never had — so `NotificationModel.fromMap`'s
+> unknown-type fallback made every sales notification a `taskAssigned`: clipboard
+> glyph, **Tasks** filter pill, `high` priority above genuinely overdue work.
+> Fixed with the enum value, a **Sales** pill, a point-of-sale glyph and `normal`
+> priority. Two server-side halves went with it and are **inert until
+> `firebase deploy --only functions`**: a month event ("target updated" /
+> "achieved") now writes `route: "sales_target"` instead of a `sales_submission`
+> route it had no id for (the id-less `sales_submission` case is kept, so inbox
+> docs written before today still resolve), and `onNotificationCreated` now
+> forwards `salesSubmissionId` + `monthKey` in the push `data` — without them a
+> *New sales submission* tapped from the OS reached the branch dashboard, never
+> the record to review, while the in-app inbox worked because it reads the
+> Firestore payload directly.
+
+> **Starting a task reads as instant (2026-08-06, presentation only, NOT
+> device-verified):** The reported "delay that seems like lag but works" was the
+> UI, not the write: for the 100ms–1s of the Firestore transaction the **Start
+> task** button dimmed to the disabled 50% and sat dead, then the new action
+> replaced it in a single frame. The tapped button now acknowledges the press on
+> the frame it happens — full weight, a progress ring where its glyph was
+> (`PremiumButton.isLoading`, new; `AppButton` already had one) — and the next
+> action arrives through the new `ActionSwap` (`core/widgets/app_motion.dart`,
+> 200ms in / 130ms out over an `AnimatedSize`). It carries Start → Continue on
+> Employee Home, Start Task → Mark Complete → Submit for Review on Task Details,
+> the *Mark Complete* → submission-form expansion, and the card status pill;
+> `TaskAttentionSurface` eases its 1px tone over 240ms instead of cutting.
+> **The round trip is unchanged — no status is written optimistically.** The
+> in-flight ring is per-card local state (the cubit's `busy` is global) and ends
+> on whichever arrives first, the new status or the mutation ending without one,
+> so a refused start cannot strand a spinner. Reduced motion collapses every one
+> of these to an instant swap. Pinned by
+> `test/task_start_transition_test.dart`.
+
 > **Settings — Notifications preferences + Appearance placeholder (2026-08-06,
 > NOT device-verified):** A **Preferences** section under the account card opens
 > a new `NotificationsSettingsScreen` (`/settings/notifications`) with six
@@ -1281,7 +1332,7 @@ handled as a separate backend/security task before the rules deploy.
 >
 > | Target | State |
 > | --- | --- |
-> | `functions` | **Mixed.** The automation P0 trio is deployed (13:16 UTC). The **5 sales functions are stale** — deployed 10:28 UTC, audit commit `2cf7e13` is 12:29 UTC. Everything else rolled 2026-08-04 13:15–13:16 UTC. |
+> | `functions` | **Mixed.** The automation P0 trio is deployed (13:16 UTC). The **5 sales functions are stale** — deployed 10:28 UTC, audit commit `2cf7e13` is 12:29 UTC. **`onNotificationCreated` and `writeSalesNotifications` are now stale too** (2026-08-06 notification-routing fix: `salesSubmissionId` + `monthKey` forwarded in the push `data`; `sales_target` route for month events). Everything else rolled 2026-08-04 13:15–13:16 UTC. |
 > | `firestore:rules` | ❌ **STALE.** Live ruleset released 10:28:51 UTC; it is missing `branchRunsSalesTargets()` and the `branch_sales_submissions` create gate. |
 > | `firestore:indexes` | ✅ **IN SYNC.** 19 live composites = 19 in the repo, all `READY`. |
 > | `storage` | ✅ **IN SYNC.** Live ruleset byte-identical to `storage.rules`. |

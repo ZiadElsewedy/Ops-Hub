@@ -70,7 +70,7 @@ void main() {
           isFalse);
     });
     test('pills are All / Tasks / Reviews / Requests / Cases / Schedule / '
-        'Broadcast', () {
+        'Sales / Broadcast', () {
       expect(NotificationCategory.values.map((c) => c.label).toList(), [
         'All',
         'Tasks',
@@ -78,8 +78,22 @@ void main() {
         'Requests',
         'Cases',
         'Schedule',
+        'Sales',
         'Broadcast',
       ]);
+    });
+    test('a sales notification files under Sales — never Tasks', () {
+      // The regression this pins: `salesSubmission` had no enum value, so
+      // `NotificationModel.fromMap` fell back to `taskAssigned` and every
+      // branch-sales notification arrived wearing a task glyph under the Tasks
+      // pill, ranked HIGH above real work.
+      expect(categoryOf(NotificationType.salesSubmission),
+          NotificationCategory.sales);
+      expect(
+          NotificationCategory.tasks.matches(NotificationType.salesSubmission),
+          isFalse);
+      expect(notificationPriority(NotificationType.salesSubmission),
+          NotificationPriority.normal);
     });
     test('swap notifications map to the Schedule category', () {
       for (final t in [

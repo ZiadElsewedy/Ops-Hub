@@ -18,6 +18,14 @@ class NotificationRoute {
   static const String request = 'request_details';
   static const String salesSubmission = 'sales_submission';
 
+  /// A branch **monthly target** event (target changed / target achieved) — the
+  /// sales notifications that are about the month, not about one submission.
+  /// Written by `writeSalesNotifications` in `functions/index.js` whenever it
+  /// has a `monthKey` and no `salesSubmissionId`. Older docs (and any in-flight
+  /// send from a pre-redeploy function) carry [salesSubmission] with no id
+  /// instead, which resolves to the same place — so both stay handled.
+  static const String salesTarget = 'sales_target';
+
   /// Direct chat messages. Written by the NestJS chat backend (the one route
   /// not produced by `functions/index.js`) with a `conversationId`.
   static const String chat = 'chat_message';
@@ -87,11 +95,13 @@ String? resolveNotificationRoute({
       if (submissionId != null) {
         return RouteNames.salesSubmissionDetail(submissionId);
       }
-      return switch (role) {
-        UserRole.admin || UserRole.manager => RouteNames.salesManage,
-        UserRole.employee => RouteNames.salesMine,
-        null => null,
-      };
+      return _salesAreaFor(role);
+
+    case NotificationRoute.salesTarget:
+      // A target event names a month, never a submission — there is no
+      // per-month screen, so every role lands on the sales surface it owns,
+      // which is where that month's target and pace are rendered.
+      return _salesAreaFor(role);
 
     case NotificationRoute.chat:
       final conversationId = _id(payload, 'conversationId');
@@ -120,6 +130,15 @@ String? resolveNotificationRoute({
       return null;
   }
 }
+
+/// The branch-sales surface [role] owns: reviewers get the branch dashboard,
+/// an employee their own records. Shared by both sales routes so a target event
+/// and an id-less submission event can never land in different places.
+String? _salesAreaFor(UserRole? role) => switch (role) {
+  UserRole.admin || UserRole.manager => RouteNames.salesManage,
+  UserRole.employee => RouteNames.salesMine,
+  null => null,
+};
 
 /// Reads [key] from [payload] as a trimmed, non-empty `String`, or `null`.
 /// Tolerates the two shapes a payload arrives in: typed entity values and the

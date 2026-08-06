@@ -228,6 +228,8 @@ Reuse these. Do not re-implement or duplicate them.
 | Shift hours resolution | `WeeklyScheduleEntity.hoursFor` ([ADR-006](docs/decisions/ADR-006-schedule-shift-plan-snapshots.md)) |
 | Worked/late/overtime minutes | `attendance/domain/attendance_calculator.dart` |
 | Task visibility | `task/domain/task_access.dart` (`canUserAccessTask`) |
+| Was a task made by a person or by the server? | `task/domain/task_origin.dart` (`taskOrigin`) — **never read `createdBy` for this**: a generated instance inherits its template's creator |
+| Naming an activity-event actor | `task/presentation/activity_format.dart` (`activityActorName` / `activityActorRole`) — `actorId: "system"` is not a uid and must not fall through to the directory |
 | Notification routing | `notifications/domain/notification_deep_link.dart` |
 | Sidebar + command palette | `AppShell.sectionsForRole` |
 | How a screen is pushed / how the user gets back | `core/routes/app_page_route.dart` (`appPageRoute`) |
@@ -373,6 +375,12 @@ colour.
   a panel as `Skeleton` blocks — not a centred `CircularProgressIndicator`, which
   tells the user nothing and makes the screen jump when data lands. Spinners are
   fine *inside* a button or a sheet action, where the shape is already known.
+- **A write in flight is not a disabled control.** Every lifecycle action is a
+  server round trip (100ms–1s). A button that dims to the disabled 50% and then
+  is replaced in one frame reads as a lag, not as work — that is exactly how
+  Start task was reported. The tapped control keeps full weight and shows its
+  own progress ring (`isLoading`), and the action it becomes arrives through
+  `ActionSwap`. Never dim the control the user just pressed.
 - **Offline gates the writes, never the app.** Reads stay available from cache
   under a permanent `OfflineBar` that says *when* the connection dropped.
   **Clock in / out is the one write allowed offline** — it happens at a branch,
@@ -391,7 +399,8 @@ colour.
 
 | Need | Use |
 | --- | --- |
-| Buttons | `AppButton` (`primary`/`secondary`/`ghost`, built-in `isLoading`) · `PremiumButton` (compact inline) |
+| Buttons | `AppButton` (`primary`/`secondary`/`ghost`, built-in `isLoading`) · `PremiumButton` (compact inline, also `isLoading`) |
+| Handing one action to the next | `ActionSwap` (`core/widgets/app_motion.dart`) — the seam a status change crosses; the child must be **keyed** |
 | Card surface | `GlassContainer` — the shared gradient/border/depth surface |
 | Page header | `PageHero` (eyebrow · title · subtitle · one CTA) |
 | A hero's one CTA | `PrimaryCta` (filled monochrome, hover-lift/press-scale) |

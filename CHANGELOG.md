@@ -14,6 +14,115 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-06 — Task Details says who created it and when it runs; sales notifications stop impersonating tasks (polish + bug; LOW/MED risk)
+
+Owner: *"i just want to add more detail like whos create the task? if it
+automation task so write System - Automated task — and the estimate time to be
+clear and start and end more clear as well … + fix the notifications navigation,
+the system sends a notification that branch sales has been updated."*
+
+**Who created the task.** `createdBy` could never answer that: a generated shift
+instance inherits its *template's* `createdBy`, so a task the server wrote at
+01:00 was byline-identical to one a manager typed out — and the Assignment
+section for a shift task printed `Morning Shift` and stopped, never saying where
+the task came from at all. New pure `task/domain/task_origin.dart` classifies
+origin from the markers the producers actually stamp (`sourceTemplateId` /
+`correlationId` / `recurrenceRootId`). Task Details now credits an automated task
+to **System · Automated task**, keeping the human who built the template as a
+quieter *"Set up by Ziad · Manager"* footnote; hand-created tasks keep their
+*"Assigned by …"* handover unchanged.
+
+The activity timeline had the same hole from the other side: the server writes
+`actorId: "system"`, which is not a uid and never resolves in the directory, so
+every automated event signed itself **"Someone"** — the app crediting an unnamed
+human for machine work. It now reads *System* with an **AUTOMATED** chip and a
+bolt glyph instead of an initials disc.
+
+**Start, end, and duration.** The window was three date-only chips —
+`Starts 6 Aug 2026 · Due 6 Aug 2026 · Est. 8h`. The two ends of an 09:00→17:00
+shift task looked identical, and the number that distinguished them was labelled
+an *estimate* when it is simply `dueAt − startsAt`. Replaced by a banded
+**Starts · Due · Window** row: 24-hour clock times leading (matching the
+`08:30 – 16:30` shift windows elsewhere), the day underneath via a new shared
+`AppDateFormatter.relativeDay` (`Today` / `Tomorrow` / `Thursday, 6 Aug`), and the
+third cell honestly named *Window*. Crossing midnight needs no special case — the
+Due cell just names a different day. The header gates its own divider and spacing
+on having something to show.
+
+**Branch-sales notifications.** Three separate faults, one visible symptom:
+
+- **The type didn't exist.** `writeSalesNotifications` has always stamped
+  `type: "salesSubmission"`, but `NotificationType` had no such value, so
+  `fromMap`'s deliberate unknown-type fallback turned *every* sales notification
+  into `taskAssigned`: a clipboard glyph, filed under the **Tasks** pill, ranked
+  `high` above genuinely overdue work. Added the value, a **Sales** filter pill,
+  a point-of-sale glyph, and `normal` priority.
+- **A month event carried a record route.** "Your branch monthly sales target was
+  updated" went out as `route: "sales_submission"` with no submission id. It now
+  writes `sales_target`; the id-less `sales_submission` case is kept and resolves
+  identically, so notifications already in users' inboxes do not go dead when the
+  function rolls.
+- **The push dropped the id.** `onNotificationCreated` never forwarded
+  `salesSubmissionId` (or `monthKey`), so a *New sales submission* tapped from the
+  OS reached the branch dashboard and never the record to review — while the
+  in-app inbox worked, because it reads the Firestore payload directly. That
+  asymmetry is why it went unnoticed; the comment there now says so.
+
+⚠️ **Both server halves are inert until `firebase deploy --only functions`.** The
+client half (type, pill, glyph, priority, `sales_target` resolution) ships with
+the app build.
+
+`flutter analyze` clean; `flutter test` 1721 passing, +21 new across
+`task_origin_test.dart`, `task_details_origin_test.dart`,
+`notification_deep_link_test.dart`, `notification_grouping_test.dart`,
+`notification_model_test.dart`.
+
+## 2026-08-06 — Starting a task no longer looks like a lag (polish; LOW risk)
+
+Reported: *"when I start a task there is a delay — it seems like lag, but it
+works and then it continues and completes."* Both halves of that were the UI,
+not the write.
+
+Starting a task is a Firestore transaction — 100ms to a second. In that window
+the **Start task** button dimmed to the shared disabled 50% and stopped
+responding, with nothing else on screen moving: the app looked like it had
+dropped the tap. Then the new status arrived and *Start task* was replaced by
+*Continue* (or *Start Task* by *Mark Complete*) between two frames, with the
+status pill and the card's hairline cutting at the same instant. A working
+round trip read as a freeze followed by a jump.
+
+The round trip is unchanged — nothing here makes the network faster, and no
+status is written optimistically. What changed is that the wait is now
+**acknowledged instantly and handed over smoothly**:
+
+- **The press lands on the frame it happens.** The tapped button keeps full
+  weight and colour and shows a progress ring where its glyph was — `working`,
+  not `disabled`. It is per-card local state, not the cubit's global `busy`,
+  so one card spins and the rest of the list simply doesn't accept a second
+  concurrent start (the cubit refuses one anyway).
+- **One action hands over to the next.** New `ActionSwap`
+  (`core/widgets/app_motion.dart`): a 200ms-in / 130ms-out cross-fade with a
+  short rise over an `AnimatedSize`, so a taller or shorter replacement grows
+  into place. It carries Start → Continue on the Employee Home card, Start
+  Task → Mark Complete → Submit for Review on Task Details, *Mark Complete* →
+  the notes/attachment form, and the card's status pill. Reduced motion
+  collapses it to an instant swap.
+- **The 1px edge eases instead of cutting.** `TaskAttentionSurface` tweens its
+  tone over 240ms (instant under reduced motion). Once settled the tween is
+  idle, so a resting card still costs nothing per frame — the ADR-014 rule that
+  nothing on a resting surface animates forever is intact.
+- **A refused start clears the ring.** The treatment ends on whichever comes
+  first: the new status (which the stream delivers while the write is still
+  finishing) or the mutation ending without one. A permanently spinning button
+  is not reachable.
+
+`PremiumButton` gained `isLoading` to match `AppButton`'s; the ring replaces the
+glyph inside a fixed 16px slot so the pill never changes width.
+
+Presentation only — no cubit, entity, repository, rules or function change.
+**+4 tests** (`test/task_start_transition_test.dart`); full suite green,
+`flutter analyze` clean. **Not device-verified.**
+
 ## 2026-08-06 — Settings: Notifications preferences screen + Appearance placeholder (feature; LOW risk)
 
 Settings gained a **Preferences** section directly under the account card, with
