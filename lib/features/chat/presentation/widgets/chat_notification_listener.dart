@@ -54,7 +54,8 @@ class ChatNotificationListener extends StatefulWidget {
       _ChatNotificationListenerState();
 }
 
-class _ChatNotificationListenerState extends State<ChatNotificationListener> {
+class _ChatNotificationListenerState extends State<ChatNotificationListener>
+    with WidgetsBindingObserver {
   StreamSubscription<ChatIncomingMessage>? _sub;
   // Seed from the session cache so a banner shows the real sender name on the
   // first render instead of a "Teammate" placeholder.
@@ -63,6 +64,11 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener> {
   @override
   void initState() {
     super.initState();
+    // This is the ONE app-wide chat lifecycle host, so the resume signal that
+    // reconnects the shared socket lives here. The open-thread screen has its
+    // own observer, but when no thread is open nothing else pokes the socket
+    // after the OS suspends it — the inbox then stops receiving live messages.
+    WidgetsBinding.instance.addObserver(this);
     _sub = context.read<ChatListCubit>().incoming.listen(_onIncoming);
     // If a session is already live (hot reload / already signed in), warm the
     // inbox now so the socket is connected app-wide.
@@ -76,8 +82,16 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<ChatListCubit>().onAppResumed();
+    }
   }
 
   /// Loads the inbox (idempotent → connects the socket) and the directory used

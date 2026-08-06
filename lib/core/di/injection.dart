@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
@@ -9,6 +11,7 @@ import 'package:drop/core/network/api_client.dart';
 import 'package:drop/core/network/network_config.dart';
 import 'package:drop/core/services/case_seen_store.dart';
 import 'package:drop/core/services/notification_preferences_store.dart';
+import 'package:drop/core/services/delivered_notifications.dart';
 import 'package:drop/core/services/notification_service.dart';
 import 'package:drop/core/services/task_seen_store.dart';
 import 'package:drop/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -236,9 +239,18 @@ class AppDependencies {
         // the thread's mark-read is what earns that clear. Roll the badge back
         // when the server never acknowledged, so the inbox never shows "read"
         // for a thread the backend still counts as unread.
-        onReadSync: (acknowledged) => acknowledged
-            ? chatListCubit.confirmUnreadCleared(conversationId)
-            : chatListCubit.restoreUnread(conversationId),
+        onReadSync: (acknowledged) {
+          if (acknowledged) {
+            chatListCubit.confirmUnreadCleared(conversationId);
+            // The server agreed the thread is read — remove this conversation's
+            // already-delivered OS notifications (WhatsApp-style), leaving every
+            // other conversation's banners untouched (they carry a different
+            // thread-id/tag). No-op when nothing is delivered.
+            deliveredNotifications.clearConversation(conversationId);
+          } else {
+            chatListCubit.restoreUnread(conversationId);
+          }
+        },
       );
 
   /// Cache of opened threads — lets a re-opened conversation paint its last
@@ -310,6 +322,17 @@ class AppDependencies {
   /// Firestore read on mount. Empty until the first load; cleared on sign-out.
   static final Map<String, UserEntity> _chatDirectory = {};
   static String? _chatDirectoryUid;
+  static DateTime? _chatDirectoryLoadedAt;
+
+  /// How long a loaded chat directory is trusted before the next
+  /// [loadChatDirectory] re-reads it. The org's people set changes only when an
+  /// admin provisions or edits an account (rare), so a few minutes keeps reads
+  /// near-zero while still self-healing a teammate created mid-session. Without
+  /// it the cache lived until sign-out, so a newly-created employee rendered as
+  /// "Teammate" until the app was relaunched. An admin mutation invalidates it
+  /// outright ([invalidatePeopleDirectories]); this window covers a change made
+  /// on another device.
+  static const _chatDirectoryTtl = Duration(minutes: 5);
 
   /// The cached chat directory as it stands right now — synchronous, so a widget
   /// can seed real names on its FIRST build instead of rendering a "Teammate"
@@ -327,8 +350,14 @@ class AppDependencies {
   /// immediately (the set changes rarely), so repeat mounts don't re-read or
   /// re-flash. The cache is refreshed whenever the set is (re)loaded.
   static Future<Map<String, UserEntity>> loadChatDirectory(
-      UserEntity? user) async {
-    if (_chatDirectory.isNotEmpty && _chatDirectoryUid == user?.uid) {
+      UserEntity? user, {bool forceRefresh = false}) async {
+    final loadedAt = _chatDirectoryLoadedAt;
+    final fresh = loadedAt != null &&
+        DateTime.now().difference(loadedAt) < _chatDirectoryTtl;
+    if (!forceRefresh &&
+        _chatDirectory.isNotEmpty &&
+        _chatDirectoryUid == user?.uid &&
+        fresh) {
       return _chatDirectory;
     }
     final users = await _getChatDirectory(user);
@@ -336,6 +365,7 @@ class AppDependencies {
       ..clear()
       ..addEntries(users.map((u) => MapEntry(u.uid, u)));
     _chatDirectoryUid = user?.uid;
+    _chatDirectoryLoadedAt = DateTime.now();
     return _chatDirectory;
   }
 
@@ -344,6 +374,29 @@ class AppDependencies {
   static void clearChatDirectory() {
     _chatDirectory.clear();
     _chatDirectoryUid = null;
+    _chatDirectoryLoadedAt = null;
+  }
+
+  /// Invalidates every in-memory people-directory cache after an admin changes
+  /// the user set (create / rename / deactivate / delete / branch or position
+  /// change), so a new or renamed teammate resolves to a real name instead of
+  /// the "Teammate" (chat) / "Someone" (tasks) fallback — without an app
+  /// restart, which was previously the only thing that fixed it. Two separate
+  /// caches go stale on such a change:
+  ///  * the chat directory here — marked stale but kept warm (stale-while-
+  ///    revalidate, so no name flashes to "Teammate"); a proactive force-refresh
+  ///    runs now when the signed-in user is known, and every chat surface's own
+  ///    next [loadChatDirectory] re-reads regardless;
+  ///  * [TaskCubit]'s per-branch member memo — re-enriched immediately from the
+  ///    open task set so a just-assigned new employee is named at once.
+  static void invalidatePeopleDirectories() {
+    _chatDirectoryLoadedAt = null; // stale-while-revalidate: keep the warm map
+    final me = authCubit.state.maybeWhen(
+      authenticated: (user) => user,
+      orElse: () => null,
+    );
+    if (me != null) unawaited(loadChatDirectory(me, forceRefresh: true));
+    taskCubit.refreshDirectory();
   }
 
   static late final AuthCubit authCubit;
@@ -391,6 +444,12 @@ class AppDependencies {
 
   /// FCM foundation (Phase 6) — token registration + foreground handling.
   static late final NotificationService notificationService;
+
+  /// Clears delivered chat notifications from the OS surface when a conversation
+  /// is opened + read (and all of them on sign-out). Plain platform-channel
+  /// wrapper with no dependencies, so it is constructed eagerly.
+  static final DeliveredNotifications deliveredNotifications =
+      DeliveredNotifications();
 
   /// This device's notification switches for the signed-in user. Client-only
   /// and constructed eagerly: it is read from a widget's `initState`, not from
@@ -718,6 +777,9 @@ class AppDependencies {
       // user's conversations to the next (cache invalidation).
       onPreSignOut: () async {
         await notificationService.forgetUser();
+        // Drop this account's delivered OS notifications so the next user on a
+        // shared device never sees the previous account's chat banners.
+        await deliveredNotifications.clearAll();
         await clearChatCache();
         // Reset the app-wide inbox cubit's in-memory state too: it outlives the
         // sign-out, so without this the next signed-in user would briefly see
@@ -877,7 +939,11 @@ class AppDependencies {
         UserAdminRepositoryImpl(userAdminRemoteDataSource);
 
     branchCubit = BranchCubit(branchRepository);
-    adminUsersCubit = AdminUsersCubit(userAdminRepository, branchRepository);
+    adminUsersCubit = AdminUsersCubit(
+      userAdminRepository,
+      branchRepository,
+      onUsersChanged: invalidatePeopleDirectories,
+    );
 
     // ─── Statistics / dashboards (Phase 6) ────────────────────
     final StatisticsRepository statisticsRepository = StatisticsRepositoryImpl(

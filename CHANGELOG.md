@@ -14,7 +14,162 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
-## 2026-08-06 — macOS App Store upload fix: LSApplicationCategoryType (release config; LOW risk)
+## 2026-08-06 — Manager open-shift clock + honest managersCanClock toggle + branch settings redesign (feature/bug/polish; MED risk, NOT device-verified)
+
+Three related asks from the owner about manager attendance and branch settings.
+
+**1. Managers now have a real open shift (bug + feature).** A manager's clock is
+presence tracking (`enforceSchedule: false`) — clock in and out at any time, no
+roster — but the **primary** Clock In fell through silently for a shift-less
+manager: `AttendanceCubit.clockIn` needs a resolved `targetRecordId`/`shift`, and
+`_resolveContext` set neither when nothing was rostered. So a manager's only
+working path was the *buried* "Working anyway? Start an unscheduled shift" button,
+behind a "No shift today" message. `_resolveContext` now synthesizes a
+presence-only target (the time-of-day bucket, no scheduled window) whenever a
+presence role has no rostered slot — and drops the scheduled window even when a
+manager *is* rostered (mirrors the record `clockIn` writes). The screen reframes
+the manager surface: an **OPEN SHIFT / Manager shift** ready state with Clock In
+as the primary action, not a discouraging "No shift today".
+
+**2. "Managers can clock in / out" now actually does something (bug).** The
+branch flag flips `AttendanceConfig.enabled` to false for a manager, but
+[attendance_screen.dart] never read `config.enabled`, so toggling it changed
+nothing on device. New `disabled` phase: a switched-off branch shows an
+explanatory *"Clocking is off for managers here — you still review and approve
+the team's attendance"* card + a **Review branch attendance** door, instead of a
+dead clock. A live session always wins the phase check, so flipping the flag can
+never trap someone mid-shift.
+
+**3. Branch settings sheet redesigned (polish).** [branch_form_sheet.dart] was
+rebuilt into labelled, grouped sections (Details · Attendance · Sales · Shift
+swaps · Media) sharing one `_SectionHeader` / `_SettingCard` rhythm, with a grab
+handle and per-row glyphs. The two rules the owner flagged as unclear now read in
+plain language: **Same role only** ("a barista can swap with a barista, but not a
+cashier") and **Minimum rest** ("reject a swap that would leave less than this
+many hours between someone's two shifts — stops a late close followed by an early
+open"). No behaviour or data change — same `createBranch`/`editBranch` calls.
+
+Also: managers get a **My Clock** desktop sidebar door (the desktop shell has no
+app bar; mobile already had the fingerprint action), and the self-hosted Phosphor
+subset gained the `clock` glyph ([phosphor_icons.dart], codepoint 0xe19a — the
+TTFs are the full fonts, so no re-subsetting).
+
+Pinned by 4 new `attendance_cubit_test` cases (manager open-shift target,
+primary-Clock-In write, rostered-manager-no-window, switched-off block) + new
+`attendance_open_shift_screen_test` (open-shift ready vs. disabled state).
+`flutter analyze` clean · **1754 tests pass**. Branch-attendance oversight for
+managers was **already shipped** (Manager Home → *Branch attendance* → the live
+Late/Early/Absent board, branch-pinned) and is unchanged.
+
+## 2026-08-06 — Opening a chat clears its delivered OS notifications, WhatsApp-style (feature/bug; MED risk, NOT device-verified)
+
+Reported: 5 messages from one conversation arrive while the app is backgrounded/
+closed; opening that conversation leaves all 5 sitting in iOS Notification
+Center. Root cause: **nothing ever cleared delivered notifications** — the app
+has only `firebase_messaging` (no `flutter_local_notifications`, no badge
+plugin), and firebase_messaging exposes no API to enumerate or remove delivered
+notifications. Investigation-first per request; the backend already did its half
+(the chat push stamps `apns.thread-id` and `android.collapseKey` with the
+conversation id), so this is purely the missing client step.
+
+Fix (iOS **and** Android, per owner):
+- New native platform channel `drop/notifications` — the app's **first**:
+  iOS ([AppDelegate.swift], `UNUserNotificationCenter`) removes delivered
+  notifications whose `threadIdentifier` matches the conversation id; Android
+  ([MainActivity.kt], `NotificationManager`) cancels active notifications whose
+  `tag` matches. `clearAll` on both for sign-out.
+- **Backend**: chat push now also sets `android.notification.tag = conversationId`
+  (`push-notification.port` type extended, `chat-push.subscriber` + spec). iOS
+  needed no backend change (`thread-id` was already sent). ⚠️ **Android clearing
+  is inert until drop-api is redeployed** with the tag.
+- **Client wiring** integrates with the existing read-state seam: the
+  `createChatConversationCubit` `onReadSync` closure ([injection.dart]) already
+  fires with the conversation id when the server confirms mark-read — it now also
+  calls `DeliveredNotifications.clearConversation(id)`. Other conversations keep
+  their banners (different thread-id/tag). Sign-out calls `clearAll()`.
+- New `core/services/delivered_notifications.dart`: thin channel wrapper,
+  swallows `MissingPluginException` so desktop/tests are silent no-ops (no
+  `dart:io` gate) and it stays unit-testable.
+
+Note: with a shared Android `tag`, a conversation's messages now collapse to one
+notification per conversation (WhatsApp-like). Pinned by
+`test/delivered_notifications_test.dart` (channel method + args; missing-channel
+no-op) and the updated backend `chat-push.subscriber.spec`. `flutter analyze`
+clean · Flutter **1748 pass** · drop-api **105 pass** + `tsc --noEmit` clean.
+⚠️ **NOT device-verified** — the native handlers need a real
+background→open→read cycle on iOS and Android hardware; requires the drop-api
+redeploy for Android.
+
+---
+
+## 2026-08-06 — Chat reconnects on app resume: inbox no longer goes silent (bug; LOW–MED risk)
+
+Investigation of the reported "messages sometimes don't arrive live / a message
+disappears." Root cause of the **not-live** half: the app had **no global
+app-lifecycle observer** — the only `WidgetsBindingObserver` was the open-thread
+screen. Mobile OSes suspend the socket transport while backgrounded; the shared
+inbox socket is an app-wide singleton whose interest persists, so **when no
+thread is open, nothing reconnected it on resume**. It stayed dead (or sat on a
+long reconnect backoff) until something else happened to reconnect, so messages
+only appeared on a manual pull-to-refresh. An open thread already self-healed
+(its own observer re-joins the room, which reconnects the socket and fires
+`ChatRealtimeConnected(isReconnect)` → reconcile).
+
+Fix — a resume signal now flows to the shared socket:
+- New `ChatRealtime.onAppResumed()` (port + `ChatSocketService`). A genuinely
+  live, authenticated session is left untouched (no reconnect/refresh storm on a
+  quick app switch); otherwise it resets the backoff and **force-reconnects now**
+  (new `_ensureConnected(forceReconnect:)` rebuilds even if a dead socket still
+  reports `connected`). Success re-joins every room and emits
+  `ChatRealtimeConnected(isReconnect)`, which refreshes the inbox and reconciles
+  any open thread over REST.
+- `ChatListCubit.onAppResumed()` forwards to the socket; the app-wide
+  `ChatNotificationListener` (the one global chat host) becomes a
+  `WidgetsBindingObserver` and calls it on `AppLifecycleState.resumed`.
+
+**On the "disappear" half:** text sends are durable (persisted to the Drift
+outbox *before* dispatch, retried with the same idempotency key), so a text
+message reappears on the next reopen/refresh rather than being lost — the visible
+"disappear" is the same not-live staleness (a bubble that never reconciles until
+a refresh), now addressed. One genuinely non-durable case remains, unrelated to
+this fix: **attachment (photo) bytes are never persisted**, so a photo caught
+mid-send by a crash is lost — noted, not changed here.
+
+Pinned by `test/chat_list_realtime_test.dart` (onAppResumed forwards to the
+socket). `flutter analyze` clean · full suite **1745 pass**. NOT
+device-verified — the reconnect path needs a real background/resume cycle on
+hardware.
+
+---
+
+## 2026-08-06 — New/renamed teammates resolve without an app restart (bug; LOW risk)
+
+A newly-provisioned employee rendered as **"Teammate"** in chat and **"Someone"**
+on a task assigned to them until the app was **relaunched** — the owner reported
+creating an account, sending a task, seeing "someone", and it "fixing itself"
+only after closing and reopening. Root cause: two independent in-memory
+people-directory caches lived for the whole session and never refreshed on a
+user-set change.
+
+- **Chat directory** (`AppDependencies._chatDirectory`) was cached until
+  sign-out. Now it carries a **5-minute TTL** (self-heals a change made on
+  another device) and a `forceRefresh`, and `loadChatDirectory` re-reads once
+  stale. Name fallback still comes from `chatCounterpartLabel` → `'Teammate'`.
+- **Task directory** (`TaskCubit._directory`, memoized per branch via
+  `_fetchedBranches`) never re-fetched a branch once loaded. New
+  `TaskCubit.refreshDirectory()` drops the memo and re-enriches from the open
+  task set.
+- **Both are invalidated immediately** on any admin change to the user set
+  (create / rename / deactivate / delete / branch or position change) via the
+  new `AppDependencies.invalidatePeopleDirectories()`, wired through a new
+  optional `AdminUsersCubit(onUsersChanged:)` callback fired after
+  `createAccount` and every `_mutate`. The chat cache is marked stale but kept
+  warm (stale-while-revalidate, no "Teammate" flash) and proactively
+  force-refreshed for the signed-in caller.
+
+Pinned by `test/admin_users_directory_invalidation_test.dart` (callback fires on
+create + mutate, not on a failed create). `flutter analyze` clean · full suite
+**1744 pass**. Presentation/caching only — no schema, rules, or functions change.
 
 App Store Connect / Transporter rejected the macOS archive with error `90242`:
 *"The Info.plist must contain a LSApplicationCategoryType key, whose value is the

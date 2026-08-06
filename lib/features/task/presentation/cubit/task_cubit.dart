@@ -458,6 +458,17 @@ class TaskCubit extends Cubit<TaskState> {
     }
   }
 
+  /// Drops the memo of which branches' member lists have been fetched and
+  /// re-enriches from the currently-loaded tasks, so a teammate created or
+  /// renamed since the last load resolves to a real name instead of the
+  /// "Someone" fallback — without an app restart. Fired after an admin changes
+  /// the user set (`AppDependencies.invalidatePeopleDirectories`); cheap, as it
+  /// re-reads only the branches the open task set references.
+  void refreshDirectory() {
+    _fetchedBranches.clear();
+    unawaited(_ensureDirectory(_tasks));
+  }
+
   // ─── Manager / admin actions ───────────────────────────────────
   Future<void> createTask({
     required String title,

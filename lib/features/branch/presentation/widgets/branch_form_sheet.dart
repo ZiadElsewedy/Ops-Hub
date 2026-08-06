@@ -14,8 +14,13 @@ import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/schedule/domain/swap_policy.dart';
 
-/// Create or edit a branch (admin). Editing also offers **branch media** —
-/// logo + cover upload to Storage (§8).
+/// Create or edit a branch (admin). Editing also offers **branch media** (logo +
+/// cover upload) and the **shift-swap rules**, both of which need a saved branch
+/// to attach to.
+///
+/// The sheet is grouped into labelled sections — Details · Attendance · Sales ·
+/// Shift swaps · Media — so each branch setting reads as a deliberate choice with
+/// plain-language copy, not a wall of toggles.
 Future<void> showBranchFormSheet({
   required BuildContext context,
   required BranchCubit cubit,
@@ -129,11 +134,12 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
   @override
   Widget build(BuildContext context) {
     final existing = widget.existing;
+    final isNew = existing == null;
     return Padding(
       padding: EdgeInsets.only(
         left: AppSpacing.pagePadding,
         right: AppSpacing.pagePadding,
-        top: AppSpacing.lg,
+        top: AppSpacing.sm,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
       ),
       child: SingleChildScrollView(
@@ -141,9 +147,31 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(existing == null ? 'New Branch' : 'Edit Branch',
-                style: AppTypography.h3),
-            const SizedBox(height: AppSpacing.lg),
+            // A grab handle grounds the sheet as a modal you can flick away.
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: AppColors.darkBorder,
+                  borderRadius: AppRadius.fullAll,
+                ),
+              ),
+            ),
+            Text(isNew ? 'New branch' : 'Edit branch', style: AppTypography.h3),
+            const SizedBox(height: 2),
+            Text(
+              isNew
+                  ? 'Name the branch and set how it runs. Media and swap rules '
+                      'unlock once it’s saved.'
+                  : 'Configure how this branch runs — attendance, sales, swaps '
+                      'and branding.',
+              style: AppTypography.caption,
+            ),
+
+            // ── Details ──────────────────────────────────────────────────
+            const _SectionHeader(title: 'BRANCH DETAILS'),
             AppTextField(
               controller: _name,
               label: 'Branch name',
@@ -158,78 +186,113 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
               prefixIcon: Icons.place_outlined,
             ),
 
-            const SizedBox(height: AppSpacing.xl),
-            Text('ATTENDANCE',
-                style: AppTypography.caption.copyWith(
-                  letterSpacing: 1.1,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textTertiary,
-                )),
-            const SizedBox(height: AppSpacing.md),
-            _ManagersClockSection(
-              managersCanClock: _managersCanClock,
-              onChanged: (value) => setState(() => _managersCanClock = value),
+            // ── Attendance ───────────────────────────────────────────────
+            const _SectionHeader(
+              title: 'ATTENDANCE',
+              subtitle: 'How this branch tracks time.',
+            ),
+            _SettingCard(
+              children: [
+                _ToggleRow(
+                  icon: Icons.fingerprint_rounded,
+                  title: 'Managers clock in / out',
+                  subtitle: _managersCanClock
+                      ? 'Managers keep an open shift here — they clock in and out '
+                          'at any time, with no set hours.'
+                      : 'Managers don’t clock here. They still review and '
+                          'approve the team’s attendance.',
+                  value: _managersCanClock,
+                  onChanged: (v) => setState(() => _managersCanClock = v),
+                ),
+              ],
             ),
 
-            const SizedBox(height: AppSpacing.xl),
-            Text('SALES',
-                style: AppTypography.caption.copyWith(
-                  letterSpacing: 1.1,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textTertiary,
-                )),
-            const SizedBox(height: AppSpacing.md),
-            _SalesTargetSection(
-              enabled: _salesTargetEnabled,
-              onChanged: (value) => setState(() => _salesTargetEnabled = value),
+            // ── Sales ────────────────────────────────────────────────────
+            const _SectionHeader(
+              title: 'SALES',
+              subtitle: 'Optional monthly sales target for this branch.',
+            ),
+            _SettingCard(
+              children: [
+                _ToggleRow(
+                  icon: Icons.point_of_sale_outlined,
+                  title: 'Monthly sales target',
+                  subtitle: _salesTargetEnabled
+                      ? 'Employees submit a daily close and the manager approves '
+                          'it against this branch’s monthly target.'
+                      : 'Off — no target, no daily submissions, and no sales '
+                          'screens for this branch.',
+                  value: _salesTargetEnabled,
+                  onChanged: (v) => setState(() => _salesTargetEnabled = v),
+                ),
+              ],
             ),
 
-            // ── Branch media (editing only — needs an existing branch id) ──
-            const SizedBox(height: AppSpacing.xl),
-            Text('BRANCH MEDIA',
-                style: AppTypography.caption.copyWith(
-                  letterSpacing: 1.1,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textTertiary,
-                )),
-            const SizedBox(height: AppSpacing.md),
-            if (existing == null)
-              const Text('Save the branch first, then reopen it to add a logo & cover.',
-                  style: AppTypography.caption)
-            else ...[
-              _LogoRow(
-                logoUrl: _logoUrl,
-                name: _name.text,
-                busy: _busyLogo,
-                onPick: () => _pick(isLogo: true),
+            // ── Shift swaps (edit-only — needs a saved branch) ────────────
+            if (isNew) ...[
+              const _SectionHeader(title: 'SHIFT SWAPS & MEDIA'),
+              const _LockedHint(
+                message:
+                    'Save the branch first, then reopen it to set swap rules and '
+                    'add a logo & cover.',
               ),
-              const SizedBox(height: AppSpacing.md),
-              _CoverField(
-                coverUrl: _coverUrl,
-                busy: _busyCover,
-                onPick: () => _pick(isLogo: false),
+            ] else ...[
+              const _SectionHeader(
+                title: 'SHIFT SWAPS',
+                subtitle:
+                    'Rules checked when employees swap shifts with each other. '
+                    'Both are off by default — anyone on the opposite shift '
+                    'can swap.',
+              ),
+              _SettingCard(
+                children: [
+                  _ToggleRow(
+                    icon: Icons.badge_outlined,
+                    title: 'Same role only',
+                    subtitle:
+                        'Only allow a swap between people with the same job title '
+                        '— a barista can swap with a barista, but not with a '
+                        'cashier.',
+                    value: _restrictPositions,
+                    onChanged: (v) => setState(() => _restrictPositions = v),
+                  ),
+                  const _RowDivider(),
+                  _StepperRow(
+                    icon: Icons.bedtime_outlined,
+                    title: 'Minimum rest',
+                    subtitle:
+                        'Reject a swap that would leave less than this many hours '
+                        'between someone’s two shifts — stops a late '
+                        'close followed by an early open.',
+                    value: _minRestHours,
+                    min: 0,
+                    max: 16,
+                    format: (v) => v == 0 ? 'Off' : '${v}h',
+                    onChanged: (v) => setState(() => _minRestHours = v),
+                  ),
+                ],
               ),
 
-              // ── Shift-swap rules (edit-only) ──
-              const SizedBox(height: AppSpacing.xl),
-              Text('SHIFT-SWAP RULES',
-                  style: AppTypography.caption.copyWith(
-                    letterSpacing: 1.1,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textTertiary,
-                  )),
-              const SizedBox(height: AppSpacing.sm),
-              const Text(
-                  'Optional limits applied when employees swap shifts. Off by '
-                  'default — any coworker on the opposite shift can swap.',
-                  style: AppTypography.caption),
-              const SizedBox(height: AppSpacing.md),
-              _SwapRulesSection(
-                restrictPositions: _restrictPositions,
-                minRestHours: _minRestHours,
-                onRestrictChanged: (v) =>
-                    setState(() => _restrictPositions = v),
-                onRestChanged: (v) => setState(() => _minRestHours = v),
+              // ── Branch media ────────────────────────────────────────────
+              const _SectionHeader(
+                title: 'BRANCH MEDIA',
+                subtitle: 'Logo and cover shown across the app.',
+              ),
+              _SettingCard(
+                children: [
+                  _LogoRow(
+                    logoUrl: _logoUrl,
+                    name: _name.text,
+                    busy: _busyLogo,
+                    onPick: () => _pick(isLogo: true),
+                  ),
+                  const _RowDivider(),
+                  _CoverField(
+                    coverUrl: _coverUrl,
+                    busy: _busyCover,
+                    onPick: () => _pick(isLogo: false),
+                  ),
+                ],
               ),
             ],
 
@@ -240,7 +303,7 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
             ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(
-              label: existing == null ? 'Create Branch' : 'Save Changes',
+              label: isNew ? 'Create branch' : 'Save changes',
               onPressed: _save,
             ),
           ],
@@ -250,168 +313,192 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
   }
 }
 
-/// Opts a branch in or out of the monthly sales target workflow. Off is the
-/// default: a branch that does not run targets shows no sales surface at all.
-class _SalesTargetSection extends StatelessWidget {
-  const _SalesTargetSection({required this.enabled, required this.onChanged});
-
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: AppRadius.cardAll,
-        border: Border.all(color: AppColors.darkBorder),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _RuleLabel(
-              title: 'Monthly sales target',
-              subtitle: enabled
-                  ? 'Employees submit a daily close and the manager approves it '
-                      'against this branch\u2019s monthly target.'
-                  : 'Off \u2014 this branch has no sales target, no daily '
-                      'submissions, and no sales screens.',
-            ),
-          ),
-          Switch(
-            value: enabled,
-            onChanged: onChanged,
-            activeThumbColor: AppColors.primary,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ManagersClockSection extends StatelessWidget {
-  const _ManagersClockSection({
-    required this.managersCanClock,
-    required this.onChanged,
-  });
-
-  final bool managersCanClock;
-  final ValueChanged<bool> onChanged;
+/// A section eyebrow with an optional one-line explainer beneath it. One shared
+/// rhythm across every group in the sheet.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.subtitle});
+  final String title;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: AppRadius.cardAll,
-        border: Border.all(color: AppColors.darkBorder),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _RuleLabel(
-              title: 'Managers can clock in / out',
-              subtitle: managersCanClock
-                  ? 'Managers can clock their own attendance.'
-                  : 'Managers keep attendance review and approval — they just '
-                      'have no clock of their own.',
-            ),
-          ),
-          Switch(
-            value: managersCanClock,
-            onChanged: onChanged,
-            activeThumbColor: AppColors.primary,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The branch swap-policy editor: a same-position toggle + a min-rest stepper
-/// (0 = off). Monochrome, premium.
-class _SwapRulesSection extends StatelessWidget {
-  const _SwapRulesSection({
-    required this.restrictPositions,
-    required this.minRestHours,
-    required this.onRestrictChanged,
-    required this.onRestChanged,
-  });
-
-  final bool restrictPositions;
-  final int minRestHours;
-  final ValueChanged<bool> onRestrictChanged;
-  final ValueChanged<int> onRestChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: AppRadius.cardAll,
-        border: Border.all(color: AppColors.darkBorder),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.md),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: _RuleLabel(
-                  title: 'Same role only',
-                  subtitle: 'Block swaps between different job positions',
-                ),
-              ),
-              Switch(
-                value: restrictPositions,
-                onChanged: onRestrictChanged,
-                activeThumbColor: AppColors.primary,
-              ),
-            ],
+          Text(
+            title,
+            style: AppTypography.caption.copyWith(
+              letterSpacing: 1.1,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textTertiary,
+            ),
           ),
-          const Divider(height: AppSpacing.lg, color: AppColors.darkBorder),
-          Row(
-            children: [
-              const Expanded(
-                child: _RuleLabel(
-                  title: 'Minimum rest',
-                  subtitle: 'Hours required between shifts after a swap',
-                ),
-              ),
-              _Stepper(
-                value: minRestHours,
-                min: 0,
-                max: 16,
-                format: (v) => v == 0 ? 'Off' : '${v}h',
-                onChanged: onRestChanged,
-              ),
-            ],
-          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(subtitle!, style: AppTypography.caption),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// A grouped settings card — a single bordered surface holding one or more rows.
+class _SettingCard extends StatelessWidget {
+  const _SettingCard({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.darkSurface,
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _RowDivider extends StatelessWidget {
+  const _RowDivider();
+
+  @override
+  Widget build(BuildContext context) =>
+      const Divider(height: AppSpacing.lg, color: AppColors.darkBorder);
+}
+
+/// A labelled toggle row: leading glyph · title + subtitle · switch.
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+    this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: _RuleLabel(title: title, subtitle: subtitle, icon: icon)),
+        const SizedBox(width: AppSpacing.sm),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeThumbColor: AppColors.primary,
+        ),
+      ],
+    );
+  }
+}
+
+/// A labelled stepper row: leading glyph · title + subtitle · +/- stepper.
+class _StepperRow extends StatelessWidget {
+  const _StepperRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.format,
+    required this.onChanged,
+    this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final int value;
+  final int min;
+  final int max;
+  final String Function(int) format;
+  final ValueChanged<int> onChanged;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: _RuleLabel(title: title, subtitle: subtitle, icon: icon)),
+        const SizedBox(width: AppSpacing.sm),
+        _Stepper(
+          value: value,
+          min: min,
+          max: max,
+          format: format,
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }
 
 class _RuleLabel extends StatelessWidget {
-  const _RuleLabel({required this.title, required this.subtitle});
+  const _RuleLabel({required this.title, required this.subtitle, this.icon});
   final String title;
   final String subtitle;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: AppTypography.label),
         const SizedBox(height: 2),
         Text(subtitle, style: AppTypography.caption),
       ],
+    );
+    if (icon == null) return text;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2, right: AppSpacing.md),
+          child: Icon(icon, size: 20, color: AppColors.textSecondary),
+        ),
+        Expanded(child: text),
+      ],
+    );
+  }
+}
+
+/// A short inline note explaining why a section is locked until the branch saves.
+class _LockedHint extends StatelessWidget {
+  const _LockedHint({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.darkSurface,
+        borderRadius: AppRadius.cardAll,
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.lock_outline_rounded,
+              size: 18, color: AppColors.textTertiary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(message, style: AppTypography.caption)),
+        ],
+      ),
     );
   }
 }

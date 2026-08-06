@@ -167,6 +167,14 @@ class ChatListCubit extends Cubit<ChatListState> {
 
   Future<void> refresh() => load(forceRefresh: true);
 
+  /// Forwards an app-foreground signal to the shared socket so it reconnects
+  /// after an OS suspension — without it the inbox's realtime stays dead until
+  /// something else happens to reconnect (nothing does, when no thread is open),
+  /// so messages arrive only on a manual refresh. A live connection is left
+  /// untouched; a reconnect refreshes the inbox via `ChatRealtimeConnected`.
+  /// No-op when realtime isn't wired.
+  void onAppResumed() => unawaited(_realtime?.onAppResumed() ?? Future.value());
+
   /// Drops all in-memory inbox state back to first-run, for account switching
   /// on a shared device. This cubit is an app-wide singleton that outlives a
   /// sign-out, so without this the next user would briefly see the previous

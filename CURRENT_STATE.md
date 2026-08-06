@@ -131,6 +131,93 @@
 > collapsed **More details**. Pause/resume, confirmed delete and last-task
 > navigation keep their existing behavior and data paths.
 
+> **Manager open-shift clock + honest managersCanClock toggle + branch settings
+> redesign (2026-08-06, feature/bug/polish, NOT device-verified):** Three owner
+> asks about manager attendance and branch settings.
+> - **Managers now have a real open shift.** A manager's clock is presence
+>   tracking (`enforceSchedule: false`), but the **primary** Clock In fell
+>   through silently for a shift-less manager (`_resolveContext` set no
+>   `targetRecordId`/`shift`), so their only route was the buried "unscheduled
+>   shift" button behind a "No shift today" message. `_resolveContext` now
+>   synthesizes a presence-only target (time-of-day bucket, no scheduled window)
+>   for a presence role with no rostered slot, and drops the window even when a
+>   manager *is* rostered. The screen reframes to an **OPEN SHIFT / Manager
+>   shift** ready state with Clock In as the primary action.
+> - **"Managers can clock in / out" now actually does something.** The screen
+>   never read `config.enabled`, so the branch toggle changed nothing on device.
+>   New `disabled` phase: a switched-off branch shows an explanatory *"Clocking is
+>   off for managers here"* card + a Review-branch-attendance door. A live session
+>   always wins the phase check, so flipping the flag can't trap someone mid-shift.
+> - **Branch settings sheet redesigned** into grouped, labelled sections with a
+>   grab handle and per-row glyphs. The two rules the owner flagged now read in
+>   plain language: **Same role only** and **Minimum rest** (both with concrete
+>   examples). No behaviour/data change — same `createBranch`/`editBranch`.
+> - Managers gain a **My Clock** desktop sidebar door; the self-hosted Phosphor
+>   subset gained the `clock` glyph (0xe19a — TTFs are full fonts, no re-subset).
+> Pinned by 4 new `attendance_cubit_test` cases +
+> `test/attendance_open_shift_screen_test.dart` (open-shift ready vs. disabled).
+> **Branch-attendance oversight for managers was already shipped** (Manager Home →
+> *Branch attendance* → the live Late/Early/Absent board, branch-pinned) and is
+> unchanged.
+>
+> **Opening a chat clears its delivered OS notifications (2026-08-06,
+> feature/bug, NOT device-verified):** 5 messages from one conversation arrive
+> while backgrounded/closed; opening it left all 5 in iOS Notification Center.
+> Root cause: nothing cleared delivered notifications, and `firebase_messaging`
+> can't. The backend already stamped `apns.thread-id`/`android.collapseKey` with
+> the conversation id, so this was a missing client step. New native channel
+> `drop/notifications` (the app's first): iOS `UNUserNotificationCenter` removes
+> by `threadIdentifier`, Android `NotificationManager` cancels by `tag`; `clearAll`
+> on sign-out. Backend now also sets `android.notification.tag = conversationId`
+> (⚠️ **Android clearing is inert until drop-api is redeployed**; iOS needs no
+> backend change). Wired into the existing read-state seam — the
+> `createChatConversationCubit` `onReadSync` closure clears the thread's
+> notifications when the server confirms mark-read; other conversations keep
+> theirs. New `core/services/delivered_notifications.dart` (swallows
+> `MissingPluginException` → desktop/test no-op). Note: shared Android `tag`
+> collapses a conversation to one notification. Pinned by
+> `test/delivered_notifications_test.dart` + updated backend
+> `chat-push.subscriber.spec`. ⚠️ **NOT device-verified** — needs a real
+> background→open→read cycle on iOS + Android hardware, and the drop-api redeploy
+> for Android.
+
+> **Chat reconnects on app resume — inbox no longer goes silent (2026-08-06,
+> bug, NOT device-verified):** Investigating the reported "messages don't arrive
+> live / a message disappears." Root cause of the **not-live** half: the app had
+> **no global app-lifecycle observer** (the only one was the open-thread screen).
+> The shared inbox socket is an app-wide singleton; the OS suspends its transport
+> in the background, and **when no thread is open nothing reconnected it on
+> resume** — it stayed dead until a manual refresh. New `ChatRealtime.onAppResumed()`
+> (port + `ChatSocketService`, with `_ensureConnected(forceReconnect:)`) force-
+> reconnects a stale/dead socket on resume (leaving a healthy one untouched);
+> `ChatListCubit.onAppResumed()` forwards it; `ChatNotificationListener` (the one
+> global chat host) now observes lifecycle and calls it on resume. A reconnect
+> re-joins rooms and fires `ChatRealtimeConnected(isReconnect)`, which already
+> refreshes the inbox and reconciles any open thread. **The "disappear" half:**
+> text sends are durable (Drift outbox written *before* dispatch, dedupe-retried),
+> so they reappear on reopen/refresh — the visible vanish is the same not-live
+> staleness. ⚠️ **Attachment (photo) bytes are still never persisted** — a photo
+> caught mid-send by a crash is lost (noted, unchanged). Pinned by
+> `test/chat_list_realtime_test.dart`. Needs a real background/resume cycle on
+> hardware to confirm.
+
+> **New/renamed teammates resolve without an app restart (2026-08-06, bug,
+> NOT device-verified):** A just-provisioned employee showed as **"Teammate"**
+> in chat and **"Someone"** on a task assigned to them until the app was
+> relaunched. Two in-memory people-directory caches lived the whole session:
+> the chat directory (`AppDependencies._chatDirectory`, cached to sign-out) and
+> the task directory (`TaskCubit._directory`, memoized per branch). The chat one
+> now has a **5-minute TTL** + `forceRefresh`; the task one gains
+> `refreshDirectory()` (drops the `_fetchedBranches` memo, re-enriches from the
+> open task set). **Both are invalidated immediately** on any admin user-set
+> change via new `AppDependencies.invalidatePeopleDirectories()`, wired through
+> a new optional `AdminUsersCubit(onUsersChanged:)` fired after `createAccount`
+> and every `_mutate`. Chat is stale-while-revalidate (kept warm, no "Teammate"
+> flash) and proactively force-refreshed for the caller. Pinned by
+> `test/admin_users_directory_invalidation_test.dart`. ⚠️ **Realtime
+> "message disappears / not live" and the notification/APNs work from the same
+> report are NOT addressed here** — only the directory-staleness half.
+
 > **Task Details attributes and schedules honestly (2026-08-06, presentation +
 > one new pure domain file, NOT device-verified):** A generated shift task now
 > says it was made by **System · Automated task** (with the template's owner kept
@@ -525,7 +612,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1741 pass · 0 fail** (~85s) — re-run **2026-08-06** (+8: the chat unread launch hint; measured baseline 1733, so the previously-recorded 1698 was stale). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1754 pass · 0 fail** (~85s) — re-run **2026-08-06** (+4 manager open-shift cubit cases, +2 open-shift/disabled screen; prior baseline 1748). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) + `tsc --noEmit` clean, re-run 2026-08-06. ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

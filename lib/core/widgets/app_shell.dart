@@ -213,6 +213,16 @@ class AppShell extends StatefulWidget {
                 label: 'Attendance & Reports',
                 route: RouteNames.attendanceReports,
               ),
+              // A manager's own open-shift clock. Distinct from the review board
+              // above: a manager clocks in/out here, reviews the team there.
+              // Reachable on mobile via the role app-bar; the desktop shell has
+              // no app bar, so it needs its own sidebar door.
+              SidebarItem(
+                icon: PhosphorIconsRegular.clock,
+                activeIcon: PhosphorIconsFill.clock,
+                label: 'My Clock',
+                route: RouteNames.attendance,
+              ),
               salesManager,
               communications,
               chat,
