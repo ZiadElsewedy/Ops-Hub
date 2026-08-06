@@ -114,7 +114,9 @@ class _InspectorPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            Row(
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
               children: [
                 PremiumButton(
                   label: 'Edit info',
@@ -122,14 +124,12 @@ class _InspectorPanel extends StatelessWidget {
                   onPressed: () => showEditDetailsSheet(
                       context: context, cubit: cubit, user: user),
                 ),
-                const SizedBox(width: AppSpacing.sm),
                 PremiumButton(
                   label: 'Reset',
                   icon: Icons.lock_reset_rounded,
                   onPressed: () => showResetAccountSheet(
                       context: context, cubit: cubit, user: user),
                 ),
-                const SizedBox(width: AppSpacing.sm),
                 PremiumButton(
                   label: user.isActive ? 'Deactivate' : 'Activate',
                   icon: user.isActive
@@ -139,6 +139,18 @@ class _InspectorPanel extends StatelessWidget {
                   onPressed: () {
                     cubit.setActive(user, !user.isActive);
                     Navigator.of(context).pop();
+                  },
+                ),
+                PremiumButton(
+                  label: 'Delete',
+                  icon: Icons.delete_forever_outlined,
+                  tone: AppColors.error,
+                  onPressed: () async {
+                    final deleted = await confirmAndDeleteAccount(
+                        context: context, cubit: cubit, user: user);
+                    if (deleted && context.mounted) {
+                      Navigator.of(context).pop();
+                    }
                   },
                 ),
               ],

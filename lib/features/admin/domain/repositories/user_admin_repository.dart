@@ -25,6 +25,13 @@ abstract class UserAdminRepository {
   /// Reset an account: issue a new temp password + re-force a password change.
   Future<void> resetPassword({required String uid, required String temporaryPassword});
 
+  /// Permanently delete an account (Auth user + Firestore doc) and clean up its
+  /// active/forward-looking references — current+future schedule slots, open
+  /// task assignments (an orphaned open task is cancelled), pending
+  /// swaps/requests/sales, the notification inbox — via the admin-only
+  /// `deleteUserAccount` Cloud Function. Finished history is kept. Irreversible.
+  Future<void> deleteAccount(String uid);
+
   Future<void> setUserActive(String uid, bool isActive);
   Future<void> changeUserRole(String uid, UserRole role);
   Future<void> changeUserBranch(String uid, String? branchId);

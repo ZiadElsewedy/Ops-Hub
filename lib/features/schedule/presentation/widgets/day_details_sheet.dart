@@ -457,7 +457,8 @@ class _DayDetailsSheetState extends State<DayDetailsSheet> {
       context: context,
       title: '${day.label} · Leave',
       subtitle: 'Pick who is away, then the reason',
-      employees: members.where((u) => u.role.isEmployee).toList(),
+      employees:
+          members.where((u) => u.role.isEmployee && u.isActive).toList(),
       isAssigned: (u) => schedule.leaveOn(day).containsKey(u.uid),
       onPick: (u) {
         Navigator.of(context).pop();

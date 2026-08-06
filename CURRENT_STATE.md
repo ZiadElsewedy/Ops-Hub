@@ -1458,8 +1458,8 @@ If you change status, gaps, or priorities, update this file **in the same task**
 
 ```bash
 flutter analyze                          # expect: 1 info, 0 errors/warnings
-flutter test                             # expect: 1670 pass, 0 fail — GREEN; any red is a real regression
-(cd functions && node --test)            # expect: 112 pass
+flutter test                             # expect: 1688 pass, 0 fail — GREEN; any red is a real regression
+(cd functions && node --test)            # expect: 127 pass
 (cd firestore-tests && npm test)         # expect: 68 pass — needs the Firebase CLI + a JDK
 grep -c "static const String" lib/core/routes/route_names.dart   # expect: 59
 ls lib/features | wc -l                  # expect: 19
