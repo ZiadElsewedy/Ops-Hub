@@ -14,6 +14,89 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-06 — Submission overlay reworked around an animated Lottie loader (polish; LOW risk)
+
+Owner: *"i have added lottie file instead of this bad loading so use it when
+someone upload image or anything and make it creative."*
+
+The task-submission overlay (`submission_loading_overlay.dart`) — the full-screen
+"Submitting task" surface shown while a completion's photos/videos upload — led
+with a bare `CircularProgressIndicator` and a three-row `Preparing media /
+Uploading attachments / Finalizing submission` checklist. Per owner direction
+(*"just … put the lottie file no text nothing else"*) it is now **only** a
+centered **monochrome animated Lottie loader** over the input-absorbing dim
+barrier — no title, progress bar, stage text, dot indicator, or Cancel.
+
+- **Asset:** the owner-supplied `assets/LKSRCGVJH6.json` was renamed to
+  **`assets/submission_loading.json`** and registered in `pubspec.yaml`.
+- **Monochrome kept (ADR-004):** the export carries animated fill colours, so it
+  is forced to `AppColors.primary` (white) through
+  `LottieDelegates(values: [ValueDelegate.color(['**'], …)])` — the loader can
+  never introduce a brand colour.
+- **Reduced motion** collapses the Lottie to a still frame. The cubit-driven
+  `SubmissionProgress` contract is retained on the widget but no longer drawn.
+
+Presentation-only. `flutter analyze` clean (the one pre-existing info remains).
+**NOT device-verified** — the overlay only appears during a real media upload.
+
+## 2026-08-06 — A launch says how much chat is waiting (feature; LOW risk)
+
+Requested: a lightweight in-app hint on launch when chat messages are unread —
+a small floating banner for 3–4s, sliding down from the top, tappable to open
+Chat, once per launch, silent while the user is already on Chat, and explicitly
+**not** a persistent badge or dot on the bottom navigation.
+
+**What it replaces: nothing.** Unread chat had no launch-time surface at all.
+The bottom nav carries no unread badge by design, the sidebar badge is desktop
+only, and the in-app banner only ever fires for a message that arrives *while
+you are watching* — so anything that landed while the app was closed stayed
+invisible until you opened Chat yourself.
+
+New `ChatUnreadLaunchHint` (`features/chat/presentation/widgets/`), mounted
+above the router beside `ChatNotificationListener`. One `GlassContainer` banner:
+chat glyph · *"You have 4 unread messages."* · *"Tap to open Chat."* · chevron.
+It slides in over 260ms, holds 3.5s, and reverses out in 180ms; reduced motion
+collapses both to an instant swap. Tapping pushes `/chat` — the same destination
+the bottom nav's Chat tab pushes, so Back returns to whatever the launch landed
+on. It is **read-free**: it observes the inbox load `ChatNotificationListener`
+already triggers on authentication.
+
+**It fires on the first *settled* `loaded` state, and only that one.** Two
+reasons, one mechanism:
+
+- A cold start with a durable cache paints first as `loaded(refreshing: true)`
+  off summaries that carry no server `unreadCount`. Announcing from that frame
+  would have read "no unread messages" on every launch that had a cache. The
+  settled emission is the one carrying the server's counts.
+- Consuming exactly one settled emission *is* the once-per-launch rule — no
+  timer window, no heuristic. A message arriving later in the session is the
+  incoming-message banner's job, which already handles it (and stands down on
+  Apple platforms, where the OS draws its own).
+
+**The suppression check exposed a real reader bug.** "Don't show it if the user
+is already on Chat" cannot be answered by `currentLocationOrNull`: that reads the
+match list's own `uri`, which go_router does not rewrite for an imperative
+`push` — and **every** chat destination in DROP is reached by `push`. After the
+cold-start chat deep link (`go(home) → push(/chat) → push(thread)`) it still
+reports `/manager` while the thread fills the screen, so the hint would have
+announced unread messages over the conversation the user was reading. Added an
+additive `topLocationOrNull` to `core/routes/router_extensions.dart`, which reads
+the top match (verified to resolve correctly through a `ShellRoute`, for a `go`,
+a `push`, and a parameterised thread push). `currentLocationOrNull` is untouched
+and keeps the duplicate-push guard it was written for; the distinction is now a
+row in the PROJECT_CONTEXT seam table.
+
+No badge, no dot, no persisted state, no schema/rules/functions change.
+`test/chat_unread_launch_hint_test.dart` (8 tests) pins the copy and its
+singular form, the auto-dismissal, the tap destination, both silent cases
+(landed on Chat · pushed onto Chat over home), once-per-launch, the cache-paint
+wait, and the reduced-motion path. **NOT device-verified.**
+
+Gates: `flutter analyze` clean (the one pre-existing info) · `flutter test`
+**1741 pass · 0 fail** (baseline 1733).
+
+---
+
 ## 2026-08-06 — Task Details says who created it and when it runs; sales notifications stop impersonating tasks (polish + bug; LOW/MED risk)
 
 Owner: *"i just want to add more detail like whos create the task? if it

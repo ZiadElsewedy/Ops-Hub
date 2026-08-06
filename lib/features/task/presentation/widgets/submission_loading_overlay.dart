@@ -1,50 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/features/task/presentation/submission_progress.dart';
 
-/// The single, state-driven submission overlay (Phase 10 refinement). Rendered
-/// by the Task Details screen in a Stack whenever `TaskState.isSubmitting` — it
-/// fills the screen, **absorbs all input**, and shows the live stage, a real
-/// progress bar, the percentage, and transferred / total MB. Because it's driven
-/// by cubit state (not a dialog), exactly one ever exists and it survives
-/// rebuilds / navigation.
-class SubmissionLoadingOverlay extends StatefulWidget {
+/// The single, state-driven submission overlay. Rendered by the Task Details
+/// screen in a Stack whenever `TaskState.isSubmitting` — it fills the screen,
+/// **absorbs all input**, and shows nothing but the animated Lottie loader
+/// (`assets/submission_loading.json`). Because it's driven by cubit state (not a
+/// dialog), exactly one ever exists and it survives rebuilds / navigation.
+///
+/// The Lottie is forced to DROP's monochrome white via [LottieDelegates] so it
+/// stays on-brand (ADR-004); reduced motion collapses it to a still frame.
+class SubmissionLoadingOverlay extends StatelessWidget {
   const SubmissionLoadingOverlay({
     super.key,
     required this.progress,
     this.onCancel,
   });
 
+  /// Retained for the cubit-driven contract; the overlay is now purely visual.
   final SubmissionProgress progress;
-
-  /// Cancels the in-flight upload. When null (or once finalizing), no Cancel
-  /// affordance is shown — the Firestore write must finish so already-uploaded
-  /// evidence isn't orphaned mid-commit.
   final VoidCallback? onCancel;
 
   @override
-  State<SubmissionLoadingOverlay> createState() =>
-      _SubmissionLoadingOverlayState();
-}
-
-class _SubmissionLoadingOverlayState extends State<SubmissionLoadingOverlay> {
-  bool _cancelRequested = false;
-
-  @override
   Widget build(BuildContext context) {
-    final progress = widget.progress;
-    final uploading = progress.stage == SubmissionStage.uploading;
-    final currentIdx = SubmissionStage.values.indexOf(progress.stage);
-    // Offer Cancel only while there's still an upload to stop.
-    final canCancel = widget.onCancel != null &&
-        progress.stage != SubmissionStage.finalizing;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
     return Stack(
       children: [
-        // Dim barrier — absorbs taps so the screen underneath stays inert while
-        // the interactive card (with Cancel) sits on top.
+        // Dim barrier — absorbs every tap so the screen underneath stays inert.
         Positioned.fill(
           child: GestureDetector(
             onTap: () {},
@@ -53,136 +36,21 @@ class _SubmissionLoadingOverlayState extends State<SubmissionLoadingOverlay> {
           ),
         ),
         Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 340),
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.xl),
-                decoration: BoxDecoration(
-                  color: AppColors.darkSurfaceElevated,
-                  borderRadius: AppRadius.xlAll,
-                  border: Border.all(color: AppColors.darkBorder),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Submitting task', style: AppTypography.h3),
-                    const SizedBox(height: AppSpacing.lg),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(99),
-                      child: LinearProgressIndicator(
-                        value: uploading ? progress.fraction : null,
-                        minHeight: 6,
-                        backgroundColor: AppColors.darkBg,
-                        valueColor:
-                            const AlwaysStoppedAnimation(AppColors.primary),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        Text(
-                          uploading && progress.percent != null
-                              ? '${progress.percent}%'
-                              : progress.stage.label,
-                          style: AppTypography.label
-                              .copyWith(color: AppColors.textSecondary),
-                        ),
-                        const Spacer(),
-                        if (progress.sizeLabel != null)
-                          Text(progress.sizeLabel!, style: AppTypography.caption),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    for (final stage in SubmissionStage.values)
-                      _StageRow(
-                        label: stage.label,
-                        state: () {
-                          final idx = SubmissionStage.values.indexOf(stage);
-                          if (idx < currentIdx) return _StageState.done;
-                          if (idx == currentIdx) return _StageState.active;
-                          return _StageState.pending;
-                        }(),
-                      ),
-                    if (canCancel) ...[
-                      const Divider(
-                          color: AppColors.darkBorder, height: AppSpacing.xl),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: _cancelRequested
-                              ? null
-                              : () {
-                                  setState(() => _cancelRequested = true);
-                                  widget.onCancel!.call();
-                                },
-                          icon: Icon(Icons.close_rounded,
-                              size: 18,
-                              color: _cancelRequested
-                                  ? AppColors.textTertiary
-                                  : AppColors.textSecondary),
-                          label: Text(
-                            _cancelRequested ? 'Cancelling…' : 'Cancel upload',
-                            style: AppTypography.label.copyWith(
-                                color: _cancelRequested
-                                    ? AppColors.textTertiary
-                                    : AppColors.textSecondary),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+          child: Lottie.asset(
+            'assets/submission_loading.json',
+            width: 140,
+            repeat: !reduceMotion,
+            animate: !reduceMotion,
+            delegates: LottieDelegates(
+              values: [
+                // Force every stroke/fill to the monochrome accent so the
+                // loader can never introduce a brand colour (ADR-004).
+                ValueDelegate.color(const ['**'], value: AppColors.primary),
+              ],
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-enum _StageState { done, active, pending }
-
-class _StageRow extends StatelessWidget {
-  const _StageRow({required this.label, required this.state});
-  final String label;
-  final _StageState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final active = state == _StageState.active;
-    final done = state == _StageState.done;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 18,
-            height: 18,
-            child: switch (state) {
-              _StageState.active => const CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.primary),
-              _StageState.done => const Icon(Icons.check_circle_rounded,
-                  size: 18, color: AppColors.textPrimary),
-              _StageState.pending => const Icon(Icons.circle_outlined,
-                  size: 16, color: AppColors.textTertiary),
-            },
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Text(
-            label,
-            style: AppTypography.body.copyWith(
-              color: (active || done)
-                  ? AppColors.textPrimary
-                  : AppColors.textTertiary,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

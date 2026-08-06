@@ -146,6 +146,20 @@
 > *Est.*, since the value is `dueAt − startsAt`, not an effort estimate. Pinned by
 > `test/task_origin_test.dart` + `test/task_details_origin_test.dart`.
 
+> **Submission overlay is now just an animated Lottie loader (2026-08-06,
+> presentation only, NOT device-verified):** The full-screen "Submitting task"
+> overlay shown while a completion's media uploads
+> (`task/presentation/widgets/submission_loading_overlay.dart`) was stripped
+> (owner: *"just … put the lottie file no text nothing else"*) to **only** the
+> centered Lottie over the input-absorbing dim barrier — no title, progress bar,
+> stage text, dot indicator, or Cancel. Owner-supplied `assets/LKSRCGVJH6.json`
+> was renamed to `assets/submission_loading.json` and registered in
+> `pubspec.yaml`. The export's animated fill colours are forced to
+> `AppColors.primary` via `LottieDelegates` so it stays monochrome (ADR-004);
+> reduced motion collapses it to a still frame. The cubit-driven
+> `SubmissionProgress` contract is retained on the widget but unused visually.
+> Only appears during a real upload, so it is not device-verified.
+>
 > **Branch-sales notifications were impersonating tasks, and their push lost the
 > record (2026-08-06; client half live, ⚠️ SERVER HALF NEEDS A FUNCTIONS
 > DEPLOY):** `writeSalesNotifications` stamps `type: "salesSubmission"`, which the
@@ -202,6 +216,35 @@
 > `features/settings/presentation/widgets/settings_tiles.dart` so both screens
 > share one row. Pinned by `test/features/settings/` and the extended
 > `test/settings_page_test.dart`.
+
+> **Launch hint: "You have N unread messages" (2026-08-06, presentation +
+> one additive router-extension getter, NOT device-verified):** Unread chat had
+> no launch-time signal at all — the bottom nav carries no badge (deliberately,
+> and it must not grow one), so a message that arrived while the app was closed
+> was invisible until the user opened Chat. New `ChatUnreadLaunchHint`
+> (`features/chat/presentation/widgets/`) is mounted above the router beside
+> `ChatNotificationListener`: on the **first settled** `ChatListState.loaded` of
+> a launch it slides one small glass banner down from the top — *"You have 4
+> unread messages." · "Tap to open Chat."* — holds 3.5s, then dismisses itself.
+> Tapping pushes `/chat`, the same destination the bottom nav's Chat tab pushes,
+> so Back returns where the launch landed. **Zero new reads:** it observes the
+> inbox load `ChatNotificationListener` already triggers on authentication.
+> - It waits for the *settled* load on purpose — the durable-cache paint arrives
+>   first with `refreshing: true` and no server counts, so announcing off it
+>   would read "no unread" on every cold start that had a cache.
+> - Consuming exactly one settled emission is also what makes it once-per-launch;
+>   a message arriving later is `ChatNotificationListener`'s banner, not this one.
+>   A sign-out + second sign-in inside one launch does **not** re-arm it.
+> - Reduced motion collapses the slide to an instant show/hide.
+> ⚠️ **The suppression check needed a new router reader.** "Don't show it if the
+> user is already on Chat" cannot be answered by `currentLocationOrNull`: it
+> reports the match list's `uri`, which an imperative `push` never rewrites, and
+> **every** chat destination is reached by `push` — so after the cold-start chat
+> deep link (`go(home) → push(/chat) → push(thread)`) it still says `/manager`
+> while the thread is on screen. New additive `topLocationOrNull` reads the top
+> match instead; `currentLocationOrNull` is untouched and keeps its duplicate-push
+> guard. Pinned by `test/chat_unread_launch_hint_test.dart` (8 tests, including
+> the pushed-on-top-of-home case the old reader gets wrong).
 
 > **Premium Settings account hub (2026-08-05, presentation only):** Settings now
 > leads with a tappable signed-in identity card (real avatar, name, email and
@@ -482,7 +525,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1698 pass · 0 fail** (~42s) — re-run **2026-08-06** (+14: the Settings notification preferences store, its screen, and the two new Settings rows). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1741 pass · 0 fail** (~85s) — re-run **2026-08-06** (+8: the chat unread launch hint; measured baseline 1733, so the previously-recorded 1698 was stale). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -634,6 +677,7 @@ Optional dev-only LAN override: `--dart-define=DEV_API_BASE_URL=http://<lan-ip>:
 | P17 — Blocker pass + prod verification | Done (Flutter **uncommitted**; backend **committed+pushed**, not yet live), 2026-07-25. Owner re-flagged the original blockers over new features; ran the full matrix on two iOS sims against Railway prod (`ziad@arkandrop.com` ↔ `test@drop.com`). **Composer rebuilt iMessage-style** (`chat_composer.dart`): one hairline-outlined capsule with a **transparent interior** (stroke defines the field, not a filled slab), `+` glyph + 30px send disc both inside, disc inset 4px, focus brightens the stroke without thickening. **Scroll-to-latest fix** (`chat_message_list.dart`): opening a thread landed mid-history because inline images grow after the single first-frame jump; a `NotificationListener<ScrollMetricsNotification>` now re-pins to bottom while the reader is at the bottom. **Backend read-receipt fix** (`drop-api` `9c4cd2a`): "seen" reverted to grey on restart because the history read path dropped the persisted `message_receipt.read_at` and the DTO hardcoded `status:'SENT'` — now joined onto the page (`MessageHistoryPage.readReceipts`), carried via `MessageView.readAt`, derived `status:'READ'`; +3 tests, 87 backend tests pass. **Verified live cross-device:** text both ways, image A→B inline in realtime + green "seen" tick, fullscreen viewer on the receiver, inbox real names/roles/timestamps/`You:` previews with no IDs. **Gated:** "seen survives restart" needs Railway to serve `9c4cd2a` (see below); `GET /conversations` now supplies server-computed `unreadCount`, which seeds persistent inbox and navigation badges while realtime applies deltas |
 | P18 — macOS Chat list polish | Done, **uncommitted** (2026-07-27). Presentation-only. `/chat` keeps its existing list → route-to-thread navigation while its desktop header opts into a compact title area and persistent dark `Search conversations...` field. Rows retain 56px avatars while gaining 16/600 titles, one-line previews, inset dividers, soft hover/selected treatment, and compact circular unread badges; the empty inbox is now icon-led with the requested no-selection copy. Sidebar selection and the profile footer are calmer and lower-depth. `AppSearchField` gains reusable compact/focus support. No cubit, router, API, backend, model, or data-layer behavior changed |
 | P19 — Thread identity + notification-stack polish | Done, **uncommitted** (2026-08-03; gates green — 1501 pass). The thread listens to `ChatListCubit` emits and resolves its header as soon as a cache/inbox summary exists; it starts a load but **never awaits the network to learn identity it already has cached** (the old `await list.load()` returned only after the server round trip, even though the durable-cache paint had filled `_conversations` much earlier — that wait *was* the "Conversation" flash). Route args remain first-paint only; `ChatThreadArgs` has value equality so warm-directory re-resolution no longer rebuilds. Chat notification navigation runs after the authenticated startup rendezvous and constructs the normal `Home → Chat → Conversation` history from `RouteNames.homeForRole`. ⚠️ **The idempotency guard was reading a stale location** (`routeInformationProvider.value`, which an imperative `push` never updates) and so had never actually worked — it now reads `router.state.uri`. Other notification routes are unchanged. **Not device-verified**: the parity test uses a plain router, not the real `ShellRoute`. |
+| P20 — Unread launch hint | Done, **uncommitted** (2026-08-06). `ChatUnreadLaunchHint` above the router: the first *settled* inbox load of a launch slides one self-dismissing banner down from the top (*"You have 4 unread messages." · "Tap to open Chat."*, 3.5s), tapping pushes `/chat`. Once per launch, silent anywhere under `/chat`, no badge anywhere, **no extra reads** (it observes the load `ChatNotificationListener` already triggers). Needed the additive `topLocationOrNull` router reader — `currentLocationOrNull` reports the match list `uri`, which an imperative `push` never rewrites, so it cannot see that a chat deep link put the thread on screen. Pinned by `test/chat_unread_launch_hint_test.dart` (8). **Not device-verified** |
 | Notifications (push) | Done, **uncommitted** (2026-08-03) — **gated on a Railway deploy.** Chat had no push at all: the only foreground surface was the socket-driven in-app banner, so a backgrounded or killed app got nothing. **Backend (`drop-api`, uncommitted):** `ChatPushSubscriber` — a sibling to `ChatRealtimeSubscriber` on the same `MessageSentEvent`, exactly the seam both classes' docs already named — plus a `PushNotificationPort` + `FirebasePushAdapter` (`firebase-admin` stays confined to `src/platform/firebase/`). Reads the recipient's `users/{uid}.fcmTokens` from Firestore with the service account it already holds, prunes dead tokens on `registration-token-not-registered`/`invalid-registration-token`, and titles the push with the sender's real name (`displayName → fullName → email → 'New message'`). Best-effort throughout: a push failure can never fail the committed send. **Suppressed only when the recipient has that conversation open** (`ChatGateway.isUserInRoom`) — a recipient merely elsewhere in the app still gets it, which is the WhatsApp behaviour. **Client:** `NotificationRoute.chat = 'chat_message'` + its resolver branch (no role gate; falls back to `/chat` without a `conversationId`). **⚠️ The server half must be deployed to Railway before this does anything on a device.** OUT of scope this pass: persisted mute, badges, grouping, quick-reply |
 
 > The list endpoint exposes no counterpart display profile or last-message

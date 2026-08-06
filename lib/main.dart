@@ -22,6 +22,7 @@ import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
+import 'package:drop/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
 import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
@@ -496,7 +497,15 @@ class App extends StatelessWidget {
             child: OfflineBar(
               child: ChatNotificationListener(
                 router: router,
-                child: child ?? const SizedBox.shrink(),
+                // The once-per-launch unread hint sits under the incoming-message
+                // listener: same inbox load, but it reads the *first settled*
+                // one and slides a self-dismissing banner from the top. Inside
+                // OfflineBar, so an offline launch stacks bar-then-hint rather
+                // than overlapping.
+                child: ChatUnreadLaunchHint(
+                  router: router,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),
