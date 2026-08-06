@@ -54,6 +54,70 @@ Because a Firebase sign-in doesn't know role or flags, `AuthCubit` re-reads Fire
 (`_withStoredProfile`) so the emitted authenticated state carries the authoritative
 role/branch + gates.
 
+## Single active session
+
+**One account = one signed-in device.** A newer sign-in evicts every older one.
+
+```
+sign-in ─→ generateSessionId()          128 bits, 32 hex chars
+        ─→ users/{uid}.activeSessionId  the claim (AuthRepository.claimSession)
+        ─→ SessionStore.write(id)       this device, in the platform keystore
+        ─→ watchCurrentUser()           the existing user-doc stream
+
+every emission: remote activeSessionId != local id  ⇒  evict
+```
+
+**It is enforced in exactly one place** — `AuthCubit.watchCurrentUser`, the stream
+the app already ran to catch deactivation and hard-deletion. So enforcement costs
+**no extra listener**, and **no feature implements it** — Chat, Tasks, Attendance
+and the rest inherit it because they only ever see an authenticated session.
+
+Three entry points check the claim, because each can re-emit `authenticated`
+without passing through the watcher: `signInWithEmail`, `restoreSession` (the
+takeover that happened while the app was closed — Firebase restores its own
+session silently, so this is the only place it becomes visible), and
+`refreshUser` (the first-login flows each end in one).
+
+| Piece | Where |
+| --- | --- |
+| Mint the id | `auth/domain/session_id.dart` — `generateSessionId` (pure) |
+| Store it on this device | `core/services/session_store.dart` — `SessionStore` contract, `SecureSessionStore` (Keychain / `EncryptedSharedPreferences`), `InMemorySessionStore` (tests) |
+| Claim it on the account | `AuthRepository.claimSession` → `UserRemoteDataSource.claimSession` |
+| Enforce it | `AuthCubit._isSessionTakenOver` + `_endSession` |
+| Tear down | `AuthCubit._signOutInternal` → the DI `onPreSignOut` hook → `AppDependencies.clearUserScopedState()` |
+| Tell the user | `AuthState.unauthenticated(signedOutReason:)` → `LoginPage`, consumed once via `acknowledgeSignOutReason` |
+
+### Rules that keep it from misfiring
+
+- **Neither null is an eviction.** A null *remote* id means "no claim on record" —
+  every legacy document, and every account that has not signed in since this
+  shipped. Treating it as a mismatch would sign the whole company out the moment
+  the build lands. A null *local* id means an unreadable keystore or a device from
+  before the feature; a keychain hiccup must never look like a hostile login.
+- **A failed claim fails the sign-in.** Entering the app holding an id the server
+  never recorded means evicting yourself on the very next document snapshot — which
+  reads to the user as *"it signed me out instantly"*.
+- **The claim is written by one method.** `activeSessionId` is deliberately absent
+  from `UserModel.toMap()`, so a routine profile save cannot re-stamp a stale id and
+  let an evicted device steal the session back.
+- **A deliberate sign-out clears the LOCAL id only.** Clearing the remote one would
+  *release* the account for whichever stale device still holds a matching id.
+- **Eviction and sign-out share one teardown** (`_signOutInternal`), so an eviction
+  can never clean up less than the Settings button does.
+
+**No rules change and no deploy.** `activeSessionId` is not in the privileged
+freeze-list of the `users` update rule, so the existing owner-update clause already
+permits the self-write.
+
+> ⚠️ **This is session hygiene, not a security boundary.** It is client-enforced: a
+> modified client could simply not watch the document. Real revocation is
+> `admin.auth().revokeRefreshTokens(uid)` in a Cloud Function, which is the upgrade
+> path if this ever needs to survive a hostile client.
+
+Why it lives here and nowhere else:
+[ADR-023](../decisions/ADR-023-single-active-session.md). Pinned by
+[test/single_active_session_test.dart](../../test/single_active_session_test.dart).
+
 ## Chain
 
 ```
@@ -72,8 +136,9 @@ AuthRemoteDataSource   UserRemoteDataSource
 
 `AuthRepositoryImpl` holds **two** datasources and maps `UserModel ⇄ UserEntity`.
 Contract: `signInWithEmail` · `signOut` · `getUser` · `getUsersByBranch` ·
-`getAllUsers` · `watchUser` · `sendPasswordResetEmail` · `changePassword`, plus
-the self-flag setters `setMustChangePassword` / `setProfileCompleted`.
+`getAllUsers` · `watchUser` · `sendPasswordResetEmail` · `changePassword` ·
+`claimSession`, plus the self-flag setters `setMustChangePassword` /
+`setProfileCompleted`.
 
 `getUsersByBranch` serves the branch-scoped features (task assignee, roster,
 schedule). `getAllUsers` is the unfiltered read backing the **chat directory**,
@@ -81,7 +146,9 @@ whose access model is flat — anyone may message anyone
 ([ADR-012](../decisions/ADR-012-chat-directory-is-flat.md)).
 
 `AuthState`: initial · loading(AuthAction) · authenticated(UserEntity) ·
-unauthenticated · passwordResetSent · passwordChanged · error.
+unauthenticated({signedOutReason}) · passwordResetSent · passwordChanged · error.
+`signedOutReason` is set **only** when the app ended the session on the user's
+behalf (today: single-active-session eviction) and is consumed once by Login.
 `AuthAction` = {emailSignIn, forgotPassword, changePassword} — it exists so the UI
 spins only the button that was pressed.
 
@@ -94,7 +161,9 @@ Parse with **`UserRole.fromString`**, which **defaults unknown/missing to
 Privileged fields (`role`, `branchId`, `isActive`, `assignedShift`, `position`,
 `employmentStatus`, `createdBy`, `mustChangePassword`, `isProfileCompleted`) are kept
 **out of `UserModel.toMap()`** so a routine profile write cannot reset admin-owned
-state — and rules enforce the same freeze independently.
+state — and rules enforce the same freeze independently. `activeSessionId` is
+excluded for a different reason (see [Single active session](#single-active-session)):
+it has exactly one writer, `claimSession`.
 
 Full rule matrix: [DATA_MODEL](DATA_MODEL.md).
 

@@ -581,7 +581,9 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
   // error / initial) must NOT redirect, so an in-flight action (e.g. the
   // forced password change) never flickers the user out to Login.
   final isUnauthenticated = authState.maybeWhen(
-    unauthenticated: () => true,
+    // The reason (if any) is Login's to display — the gate only cares that the
+    // session is gone.
+    unauthenticated: (_) => true,
     orElse: () => false,
   );
   if (isUnauthenticated && !isOnAuthFlow) {

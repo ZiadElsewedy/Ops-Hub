@@ -2070,6 +2070,31 @@ class TaskCubit extends Cubit<TaskState> {
     emit(TaskState.loaded(prev, directory: _directory));
   }
 
+  /// Drops every user-scoped stream and cache, returning the cubit to
+  /// [TaskState.initial]. Called on sign-out **and** on single-active-session
+  /// eviction (both run `AuthCubit`'s pre-sign-out hook), because this cubit is
+  /// app-wide: it outlives the session, so without this its Firestore listeners
+  /// keep running against a signed-out user and the next person to sign in on
+  /// this device sees the previous one's tasks until the first refresh lands.
+  void reset() {
+    for (final s in _subs.values) {
+      s.cancel();
+    }
+    _subs.clear();
+    _taskSources.clear();
+    _directory.clear();
+    _fetchedBranches.clear();
+    _branchNames.clear();
+    _uploadedCache.clear();
+    _uploadCacheTaskId = null;
+    _canceller = null;
+    _submissionProgress = null;
+    _submitting = false;
+    _mutating = false;
+    _user = null;
+    if (!isClosed) emit(const TaskState.initial());
+  }
+
   @override
   Future<void> close() {
     for (final s in _subs.values) {

@@ -385,6 +385,25 @@ class CaseListCubit extends Cubit<CaseListState> {
     }
   }
 
+  /// Drops the user-scoped stream and every cached list, returning the cubit to
+  /// [CaseListState.initial]. Called on sign-out and on single-active-session
+  /// eviction — this cubit is app-wide, so its stream and its cached
+  /// conversations would otherwise outlive the session that was allowed to read
+  /// them. Cases are confidential, which makes the leak worse here than most.
+  void reset() {
+    _scopeSub?.cancel();
+    _scopeSub = null;
+    _scopeCases = const [];
+    _mineCases = const [];
+    _selectedId = null;
+    _mutating = false;
+    _directory.clear();
+    _fetchedBranches.clear();
+    _branchNames.clear();
+    _user = null;
+    if (!isClosed) emit(const CaseListState.initial());
+  }
+
   @override
   Future<void> close() {
     _scopeSub?.cancel();

@@ -127,13 +127,23 @@ class NotificationCubit extends Cubit<NotificationState> {
     }
   }
 
-  Future<void> markAllRead() async {
+  /// Marks every unread notification read. Returns the failure message when it
+  /// could not, or `null` on success.
+  ///
+  /// It reports rather than swallowing because it is now [NetworkGuard]-guarded
+  /// and paged: offline, or on an inbox past the sweep ceiling, it genuinely
+  /// does nothing, and a bulk action that silently does nothing is
+  /// indistinguishable from one that worked.
+  Future<String?> markAllRead() async {
     final uid = _uid;
-    if (uid == null) return;
+    if (uid == null) return null;
     try {
       await _repository.markAllRead(uid);
+      return null;
     } catch (e, st) {
       AppLog.error('notifications', 'markAllRead failed', e, st);
+      return _message(e,
+          fallback: 'Could not mark everything read. Please try again.');
     }
   }
 
@@ -155,13 +165,30 @@ class NotificationCubit extends Cubit<NotificationState> {
     }
   }
 
-  /// Bulk "Clear archived" — permanently deletes every archived notification in
-  /// the current feed (the stream re-emits without them). Small-scale inbox, so
-  /// a client-side fan-out of deletes is fine.
-  Future<void> clearArchived() async {
-    final archived = _items.where((n) => n.isArchived).map((n) => n.id).toList();
-    for (final id in archived) {
-      await delete(id);
+  /// Bulk "Clear archived" — permanently deletes **every** archived
+  /// notification for this user, not just the ones in the loaded page.
+  ///
+  /// It used to fan out client-side deletes over `_items`, which is capped at
+  /// the pagination window (30 by default). So a user with 90 archived
+  /// notifications confirmed a dialog reading *"Permanently delete all archived
+  /// notifications"*, watched the stream backfill the list straight back to
+  /// full, and reasonably concluded the button was broken. The sweep now happens
+  /// in the datasource, paged and batched, and the promise the dialog makes is
+  /// the promise the code keeps.
+  ///
+  /// Returns the failure message when it could not complete, or `null` on
+  /// success — the caller surfaces it. The old fan-out swallowed every error
+  /// individually, so a permission failure looked identical to success.
+  Future<String?> clearArchived() async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      await _repository.deleteArchived(uid);
+      return null;
+    } catch (e, st) {
+      AppLog.error('notifications', 'clearArchived failed', e, st);
+      return _message(e,
+          fallback: 'Could not clear archived notifications. Please try again.');
     }
   }
 
@@ -174,9 +201,14 @@ class NotificationCubit extends Cubit<NotificationState> {
     }
   }
 
-  String _message(Object e) => e is Failure
-      ? e.message
-      : 'Could not load notifications. Please try again.';
+  /// A user-facing sentence for [e]. A [Failure] already carries one written for
+  /// this exact situation (including `NetworkGuard`'s offline sentence), so it
+  /// always wins; [fallback] covers anything else.
+  String _message(
+    Object e, {
+    String fallback = 'Could not load notifications. Please try again.',
+  }) =>
+      e is Failure ? e.message : fallback;
 
   @override
   Future<void> close() {

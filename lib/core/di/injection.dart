@@ -10,6 +10,7 @@ import 'package:drop/core/network/network_config.dart';
 import 'package:drop/core/services/case_seen_store.dart';
 import 'package:drop/core/services/notification_preferences_store.dart';
 import 'package:drop/core/services/notification_service.dart';
+import 'package:drop/core/services/session_store.dart';
 import 'package:drop/core/services/task_seen_store.dart';
 import 'package:drop/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:drop/features/auth/data/datasources/user_remote_datasource.dart';
@@ -344,6 +345,44 @@ class AppDependencies {
   static void clearChatDirectory() {
     _chatDirectory.clear();
     _chatDirectoryUid = null;
+  }
+
+  /// Tears down **every app-wide cubit that holds a user-scoped Firestore
+  /// stream or cache**, so no listener, timer, or cached list outlives the
+  /// session that was allowed to read it.
+  ///
+  /// The app-wide cubits in `main.dart`'s `MultiBlocProvider` are singletons:
+  /// they are built once at `init()` and never disposed while the process
+  /// lives. Without this, signing out left their `snapshots()` listeners running
+  /// against a signed-out user (permission-denied churn), and the next person to
+  /// sign in on the same device saw the previous one's tasks, cases, requests
+  /// and attendance until each screen's first refresh landed.
+  ///
+  /// Called from `AuthCubit`'s pre-sign-out hook, which runs for a deliberate
+  /// sign-out **and** for a single-active-session eviction — one path, so an
+  /// eviction can never clean up less than the Settings button does.
+  ///
+  /// Best-effort per cubit: one failure must not stop the rest from clearing.
+  static Future<void> clearUserScopedState() async {
+    void safely(void Function() clear) {
+      try {
+        clear();
+      } catch (_) {/* best-effort — see doc */}
+    }
+
+    safely(taskCubit.reset);
+    safely(caseListCubit.reset);
+    safely(requestsListCubit.reset);
+    safely(attendanceCubit.reset);
+    safely(shiftSwapCubit.reset);
+    try {
+      await salesMonthCubit.reset();
+    } catch (_) {/* best-effort */}
+    // The notification inbox already had its own teardown; route it through the
+    // same hook so there is one answer to "what is cleared on sign-out".
+    try {
+      await notificationCubit.clear();
+    } catch (_) {/* best-effort */}
   }
 
   static late final AuthCubit authCubit;
@@ -724,7 +763,15 @@ class AppDependencies {
         // the previous user's conversations before the network refresh lands.
         chatListCubit.reset();
         clearChatDirectory();
+        // Every remaining user-scoped live stream. Runs for a deliberate
+        // sign-out AND for a single-active-session eviction, because both go
+        // through `AuthCubit._signOutInternal`.
+        await clearUserScopedState();
       },
+      // Single active session: this device's claim lives in the platform
+      // keystore. Supplying the store is what ARMS enforcement — an AuthCubit
+      // built without one (every widget test) behaves exactly as before.
+      sessionStore: const SecureSessionStore(),
     );
 
     profileCubit = ProfileCubit(

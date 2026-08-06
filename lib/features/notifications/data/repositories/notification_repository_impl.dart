@@ -42,6 +42,23 @@ class NotificationRepositoryImpl implements NotificationRepository {
         return list;
       });
 
+  /// **Deliberately unguarded** — the one exemption from the
+  /// `NetworkGuard.ensureWritable()` rule in PROJECT_CONTEXT §5, now stated
+  /// rather than left to look like an oversight.
+  ///
+  /// The guard exists because an offline write is cached, reported as success,
+  /// and replayed silently later. All three happen here; none of them costs
+  /// anything. `readAt` is a set-once, idempotent receipt whose only consumer is
+  /// the null check behind `isUnread` — no screen renders its value, no rule
+  /// keys off it, and replaying it can never conflict with another device
+  /// (marking read twice is marking read). Against that, guarding it would make
+  /// **opening a notification fail while offline**, on a screen the offline
+  /// policy explicitly keeps readable ("gate the writes, never the app").
+  ///
+  /// [markAllRead] and [deleteArchived] are guarded: both are deliberate bulk
+  /// actions that read pages of documents to decide what to touch, and offline
+  /// those pages are served from a partial cache — so they would silently act on
+  /// a subset while telling the user they had acted on everything.
   @override
   Future<void> markRead(String id) async {
     try {
@@ -53,8 +70,19 @@ class NotificationRepositoryImpl implements NotificationRepository {
 
   @override
   Future<void> markAllRead(String uid) async {
+    NetworkGuard.ensureWritable();
     try {
       await _remote.markAllRead(uid);
+    } on ServerException catch (e) {
+      throw ServerFailure(e.message);
+    }
+  }
+
+  @override
+  Future<void> deleteArchived(String uid) async {
+    NetworkGuard.ensureWritable();
+    try {
+      await _remote.deleteArchived(uid);
     } on ServerException catch (e) {
       throw ServerFailure(e.message);
     }

@@ -381,7 +381,7 @@ void _handleAuthState(AuthState state) {
         AppDependencies.branchCubit.loadIfNeeded();
       }
     },
-    unauthenticated: () {
+    unauthenticated: (_) {
       CrashContext.userId = null;
       CrashContext.userRole = null;
       unawaited(AppDependencies.notificationService.forgetUser());

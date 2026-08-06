@@ -217,6 +217,101 @@
 > share one row. Pinned by `test/features/settings/` and the extended
 > `test/settings_page_test.dart`.
 
+> ⚠️ **Notification audit — a silent delivery outage fixed; SERVER HALF NEEDS A
+> FUNCTIONS DEPLOY (2026-08-06):** `sendNotification`'s reachability check was a
+> branch comparison only, and **an admin has no `branchId`** (the role is
+> global). So `recipientBranch === callerBranch` compared `""` against the
+> caller's branch and **no employee or manager could ever notify an admin** —
+> meaning **every task an admin created was submitted for review and the admin
+> was never told.** The callable threw `permission-denied` and
+> `NotifyTaskEvent`'s catch-all swallowed it to a log, so the employee saw a
+> normal successful submission. Generated shift tasks whose template an admin
+> set up were affected too (the instance inherits the template's `createdBy`).
+> The rule is now pure and tested in `functions/notification_reach.js` — **admin
+> → anyone · anyone → an admin · otherwise same branch**; cross-branch stays
+> denied and nothing about what may be *sent* changed.
+> 🚀 **Inert until `firebase deploy --only functions:sendNotification`.**
+> There is a **second** undeployed functions change waiting (the branch-sales
+> push payload + `sales_target` route, 2026-08-06 — see the entry above), so a
+> plain `firebase deploy --only functions` lands both. Verify with
+> `gcloud functions describe`, not the CLI's own report — that is how the
+> approveSwap stale-deploy was caught.
+>
+> **Four client-side correctness fixes shipped with it (live in the next build,
+> no deploy):**
+> - **`markAllRead` was broken past 500 unread** — one unbounded read plus a
+>   single `WriteBatch`, and Firestore hard-caps a batch at 500. Past that it
+>   failed with `INVALID_ARGUMENT` and, because the cubit swallowed errors, the
+>   button silently stopped working *forever*. `runTaskReminders` fires every 30
+>   minutes per task, so 500 is reachable.
+> - **`Clear archived` only cleared the loaded page** (30) while its dialog
+>   promised *"delete all archived notifications"*. Both now use one paged sweep
+>   over the **existing** index (no new index, no deploy), are
+>   `NetworkGuard`-guarded, and **report failure** instead of swallowing it.
+> - **An unknown `type` impersonated a task** — `fromMap` fell back to
+>   `taskAssigned`, which drives glyph + pill + priority. That is the mechanism
+>   behind the sales-notification bug; adding `salesSubmission` fixed the
+>   symptom only. New `NotificationType.unknown` ranks `low`, shows under **All**
+>   and no pill, and **still deep-links** (routing keys off `payload.route`).
+>   This matters because functions-first deploys are the *correct* order, so a
+>   window always exists where the server writes types the app doesn't know.
+> - **The due label was on a different clock** from Task Details (`Due today
+>   4:30 PM` vs `16:30`). Now `AppDateFormatter` + an injected clock; earns
+>   `Tomorrow` for free.
+> ⚠️ **The paged sweep is not unit-tested** — its cursor/termination logic runs
+> against Firestore and there is no Dart Firestore fake in the project. Needs
+> on-device QA against an inbox larger than one page.
+> ⚠️ **Known gap, deliberately open:** `taskSubmitted` routes to a single uid, so
+> a **deactivated or deleted** creator still means nobody is notified. A
+> branch-reviewer fallback is the fix and wants an owner ruling first.
+
+> **Single active session — one account, one signed-in device (2026-08-06, NOT
+> device-verified):** A newer sign-in now evicts every older one. `AuthCubit`
+> mints a session id at sign-in, claims it on `users/{uid}.activeSessionId`, and
+> keeps it on this device in the platform keystore
+> (`core/services/session_store.dart`, new `flutter_secure_storage`). Enforcement
+> rides **the stream that already existed** — `watchCurrentUser`, run since day
+> one for deactivation/hard-deletion — so it costs no extra listener and **no
+> feature carries a copy** (Chat included). The evicted device signs out, tears
+> everything down, and lands on Login saying *"Your account has been signed in on
+> another device."* Design:
+> [AUTH § Single active session](docs/design/AUTH.md#single-active-session) ·
+> [ADR-023](docs/decisions/ADR-023-single-active-session.md).
+> - **Neither null is an eviction.** A null remote id is every legacy document
+>   and every account that has not signed in since this shipped — treating it as
+>   a mismatch would sign the whole company out on upgrade day. A null local id
+>   is an unreadable keystore, which must not look like a hostile login.
+> - **A failed claim fails the sign-in.** Entering the app on a claim the server
+>   never recorded self-evicts on the next snapshot, which reads as *"it signed
+>   me out instantly"*.
+> - **No rules change, no deploy** — `activeSessionId` is not in the `users`
+>   update rule's privileged freeze-list, so the owner-update clause already
+>   permits the self-write. **Verified against the emulator**, not reasoned: a
+>   denied claim would mean a failed sign-in for *everyone*, and the Dart suite
+>   never evaluates a rule. New `firestore-tests/user_session.rules.test.mjs`
+>   (6 cases) pins that the owner may claim and that **nobody may claim someone
+>   else's** — the write that would sign a stranger out.
+>
+> **Sign-out now actually tears the session down (same change).** New
+> `AppDependencies.clearUserScopedState()` resets every app-wide cubit holding a
+> user-scoped Firestore stream (`task` · `caseList` · `requestsList` ·
+> `attendance` · `shiftSwap` · `salesMonth` · `notification`; each gained a
+> `reset()`). **This fixed a pre-existing leak on ORDINARY sign-out:** those
+> cubits are singletons built once at `init()`, so their listeners — and
+> `AttendanceCubit`'s live ticker — kept running against a signed-out user, and
+> the next person to sign in on the same device saw the previous one's tasks,
+> cases, requests and attendance until each screen's first refresh landed.
+> Eviction and sign-out now share one teardown path.
+> ⚠️ **Client-enforced — session hygiene, not a security boundary.** A modified
+> client could simply not watch the document; real revocation is
+> `admin.auth().revokeRefreshTokens(uid)` server-side.
+> ⚠️ **The two-device eviction has NOT been run on hardware**, and this adds one
+> native dependency. `flutter build macos --debug` succeeds with it; macOS
+> already carries the `keychain-access-groups` entitlement and Android `minSdk`
+> 24 clears the `encryptedSharedPreferences` floor (23) — but **no iOS or
+> Android build has been made with the plugin**. Pinned by
+> `test/single_active_session_test.dart` (18 tests).
+
 > **Launch hint: "You have N unread messages" (2026-08-06, presentation +
 > one additive router-extension getter, NOT device-verified):** Unread chat had
 > no launch-time signal at all — the bottom nav carries no badge (deliberately,
@@ -525,7 +620,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1741 pass · 0 fail** (~85s) — re-run **2026-08-06** (+8: the chat unread launch hint; measured baseline 1733, so the previously-recorded 1698 was stale). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **112 pass** (`cd functions && node --test`); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1776 pass · 0 fail** (~40s) — re-run **2026-08-06** (+18 single active session, +17 the notification audit; previous 1741). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -608,7 +703,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 
 | Feature | Notes |
 | --- | --- |
-| **Auth** | Admin-provisioned email/password. No registration/Google/OTP/approval. First-login gate: force password change → profile completion → (employees) Welcome → role home |
+| **Auth** | Admin-provisioned email/password. No registration/Google/OTP/approval. First-login gate: force password change → profile completion → (employees) Welcome → role home. **Single active session** — a newer sign-in evicts every other device (client-enforced; not device-verified) |
 | **Roles & routing** | 59 routes, role-guarded. admin ⊇ manager |
 | **Profile** | View/edit, avatar/cover upload, contact + payment (payment in a private subdoc; hidden for admin) |
 | **Tasks** | Full workflow: create → execute (checklist · notes · proof) → review. Multi-assignee, recurrence, activity timeline, templates, shift assignment, work-type framework, Scheduling V2 (start/due windows + quick deadline presets). Upcoming tasks are visible immediately but `Start Task` / `Start Rework` stays disabled until `startsAt` (client gate + Firestore rules; no rework exception). Generated recurring shift tasks now persist their resolved weekly window and unfinished `pending`/`started` instances automatically close as server-owned **Missed** at shift end; the status is closed, visible, and excluded from active/overdue queues. **Automation business-day fix** (2026-07-30, uncommitted): recurring-shift generation keys and windows now use the Egypt business civil day, the generator is pinned to 01:00 Africa/Cairo, the client refuses to materialize a shift instance after its deadline, and per-task recurrence rolls successors forward until their deadline is future. **Requires a functions deploy for the server path.** **Cancelled** (2026-07-28, uncommitted) is the third terminal outcome — a manager/admin business decision taken from `pending`/`started` only, carrying a mandatory picklist reason, excluded from every count. The recurring-shift Automation Center is productionized: skeleton loading, premium header, slim tap-through cards, and a safe-area per-routine details sheet with a pinned Close action, compact schedule/outcome summary, collapsed technical details, last-task navigation, pause/resume and confirmed delete. |

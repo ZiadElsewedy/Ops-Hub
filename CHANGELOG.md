@@ -14,6 +14,200 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-06 — Notification audit: a silent delivery outage + four correctness fixes (bug; MED risk)
+
+Six findings from a review of the notification system, fixed in priority order.
+**One is a live production outage; the server half needs a functions deploy.**
+
+### P0 — an employee could never notify an admin (SILENT, LIVE, NEEDS DEPLOY)
+
+`sendNotification`'s reachability check was a branch comparison only — and **an
+admin has no `branchId`** (PROJECT_CONTEXT §8: the role is global, so
+provisioning deliberately omits it). So `recipientBranch === callerBranch`
+compared `""` against the caller's branch and **no employee or manager could ever
+notify an admin.**
+
+What that cost, silently: `NotifyTaskEvent` routes `taskSubmitted` to
+`task.createdBy`, so **every task an admin created was submitted for review and
+the admin was never told.** The callable threw `permission-denied`, the datasource
+turned it into a `ServerException`, and `NotifyTaskEvent`'s deliberate catch-all
+swallowed it to a `developer.log` — the employee saw an ordinary successful
+submission and nothing anywhere reported a failure. Generated shift tasks whose
+template an admin set up were affected too, since the instance inherits the
+template's `createdBy`.
+
+The rule is now pure, documented and tested in
+[functions/notification_reach.js](functions/notification_reach.js): **admin →
+anyone · anyone → an admin · otherwise same branch.** Reachability is not
+authorization — the `CLIENT_NOTIFICATION_TYPES` whitelist, length caps, payload
+key whitelist and server-stamped `senderUid` are untouched, so this widens who
+can be *told*, not what can be forged. Cross-branch stays denied, and a
+branchless non-admin reaches admins only.
+
+⚠️ **Inert until `firebase deploy --only functions:sendNotification`.**
+
+### P1 — `markAllRead` and `Clear archived` were both broken past one page
+
+Both replaced by one paged sweep (`_sweep`): 300 docs per page over the
+**existing** `recipientUid + createdAt` index, one `WriteBatch` per page — **no
+new index, no deploy.**
+
+- **`markAllRead`** read the user's entire notification collection unbounded and
+  committed every unread doc in **one** batch. Firestore hard-caps a batch at
+  500, so past 500 unread it failed with `INVALID_ARGUMENT` — and since the cubit
+  swallowed errors into a log, the button silently stopped working *forever*.
+  `runTaskReminders` fires every 30 minutes on a per-task ladder, so 500 is
+  reachable.
+- **`Clear archived`** fanned out client-side deletes over the *loaded page*
+  (30 by default) while its dialog promised *"Permanently delete all archived
+  notifications."* A user with 90 archived confirmed, watched the stream refill
+  the list, and reasonably concluded it was broken.
+
+Both are now `NetworkGuard`-guarded (they read pages to decide what to touch, and
+offline those come from a partial cache), both **report failure** instead of
+swallowing it, and the sweep **throws** when its 15,000-doc ceiling is exhausted
+rather than returning a silent partial.
+
+### P2 — an unknown notification type impersonated a task
+
+`NotificationModel.fromMap` fell back to `taskAssigned` for an unrecognised
+`type`. That is not a neutral default: `type` drives the glyph, the category pill
+*and* the priority. It is exactly how every branch-sales notification arrived
+wearing a clipboard under the **Tasks** pill at `high` priority until
+`salesSubmission` was added — a fix to the symptom, not the mechanism.
+
+New `NotificationType.unknown`: ranks `low` (the floor), shows under **All** and
+**no pill**, renders a neutral bell, keeps its stored title/body readable, and
+**still deep-links** because routing keys off `payload.route`, never `type`. That
+last part is why it is safe: the correct deploy order (functions first, then the
+client) guarantees a window where the server writes types the installed app has
+never heard of. `categoryOf` became nullable to say so honestly — returning `all`
+would have double-counted the All badge.
+
+### P3 — the due label was on a different clock from Task Details
+
+`NotifyTaskEvent` hand-rolled a month table and a 12-hour AM/PM clock, so one
+deadline read `Due today 4:30 PM` in the notification and `16:30` in the Task
+Details schedule band (reworked to 24-hour earlier the same day). It now
+delegates to `AppDateFormatter` — the single `DateTime → String` source — and
+takes an **injected clock**, so "is this today?" is testable across a day
+boundary. Free improvement: `relativeDayShort` earns `Tomorrow`, where the old
+code printed a bare `7 Aug 08:30` for a task assigned late for the morning shift.
+
+### Also
+
+`markRead` (single) deliberately stays **unguarded**, now stated in the code
+rather than looking like the oversight it resembled: it is a set-once idempotent
+receipt whose only consumer is a null check, and guarding it would make opening a
+notification fail offline on a screen the offline policy keeps readable.
+
+**Known gap, deliberately not fixed:** `taskSubmitted` still routes to a single
+uid, so a **deactivated or deleted** creator means nobody is notified. The fix is
+a branch-reviewer fallback, which changes who gets notified and wants an owner
+ruling first — recorded in
+[NOTIFICATIONS §7](docs/design/NOTIFICATIONS.md#7-known-limitations--future).
+
+Gates: `flutter analyze` clean (1 pre-existing info) · `flutter test` **1776
+pass** (+17) · `functions` node --test **136 pass** (+9) · `firestore-tests`
+**74 pass** (unchanged — no rules change). ⚠️ The paged sweep's cursor logic runs
+against Firestore and has no Dart fake to test against; it needs on-device QA on
+an inbox larger than one page.
+
+---
+
+## 2026-08-06 — Single active session: one account, one signed-in device (feature; MED risk)
+
+**One account = one device.** A newer sign-in now evicts every older one: the
+evicted device signs itself out immediately, drops every user-scoped stream and
+cache, and lands on Login saying *"Your account has been signed in on another
+device."*
+
+**Implemented once, at the auth layer.** On successful sign-in `AuthCubit` mints a
+session id ([auth/domain/session_id.dart](lib/features/auth/domain/session_id.dart)
+— 128 bits, 32 hex chars, `Random.secure`), claims it on
+`users/{uid}.activeSessionId` via the new `AuthRepository.claimSession`, and stores
+it on this device through the new
+[core/services/session_store.dart](lib/core/services/session_store.dart)
+(`flutter_secure_storage` — Keychain / `EncryptedSharedPreferences`). Enforcement
+then rides **the stream that already existed**: `AuthCubit.watchCurrentUser`, which
+the app has always run to catch deactivation and hard-deletion. So it costs **no
+extra listener**, and **no feature carries a copy** — Chat, Tasks, Attendance and
+the rest inherit it because they only ever see an authenticated session. Design:
+[AUTH § Single active session](docs/design/AUTH.md#single-active-session).
+
+Three entry points check the claim, because each re-emits `authenticated` without
+passing the watcher: `signInWithEmail`, `restoreSession` (the takeover that
+happened while the app was closed — Firebase restores its own session silently, so
+this is the only place it becomes visible), and `refreshUser`.
+
+**The rules that keep it from misfiring**, each of which is a way this feature
+could have shipped as an outage:
+- **Neither null is an eviction.** A null *remote* id is every legacy document and
+  every account that has not signed in since this shipped — treating it as a
+  mismatch would have signed the whole company out on upgrade day. A null *local*
+  id is an unreadable keystore; a keychain hiccup must not look like a hostile login.
+- **A failed claim fails the sign-in** (new *"Could not start your session"*).
+  Entering the app on a claim the server never recorded means self-evicting on the
+  next snapshot, which reads as *"it signed me out instantly"*.
+- **`activeSessionId` is excluded from `UserModel.toMap()`**, so a routine profile
+  save cannot re-stamp a stale id and let an evicted device steal the session back.
+  One writer: `claimSession`.
+- **A deliberate sign-out clears the LOCAL id only** — clearing the remote one
+  would *release* the account for whichever stale device still matches.
+
+**Sign-out now actually tears the session down.** New
+`AppDependencies.clearUserScopedState()` resets every app-wide cubit that holds a
+user-scoped Firestore stream — `task` · `caseList` · `requestsList` · `attendance`
+· `shiftSwap` · `salesMonth` · `notification` — each gaining a `reset()`. These
+cubits are singletons built once at `init()`, so **before this their listeners and
+`AttendanceCubit`'s live ticker kept running against a signed-out user, and the
+next person to sign in on the same device saw the previous one's tasks, cases,
+requests and attendance until each screen's first refresh landed.** That was a
+pre-existing leak on ordinary sign-out; eviction and sign-out now share one
+teardown path (`AuthCubit._signOutInternal`), so an eviction can never clean up
+less than the Settings button does.
+
+`AuthState.unauthenticated` gained `signedOutReason` — set only when the app ended
+the session on the user's behalf — which Login consumes exactly once
+(`acknowledgeSignOutReason`). It rides the state because the eviction happens on
+whatever screen the user was on and the message must survive the router's redirect;
+`LoginPage` reads it in `initState`, since the state changed before the page existed
+and a `BlocListener` alone can never see it.
+
+**No `firestore.rules` change and no deploy** — and this is **proved, not
+reasoned**: `activeSessionId` is not in the privileged freeze-list of the `users`
+update rule, so the existing owner-update clause already permits the self-write.
+That claim is load-bearing in the worst way (a denied claim = a failed sign-in =
+**nobody can log in**) and the Dart suite runs against fakes and never evaluates a
+rule, so new
+[firestore-tests/user_session.rules.test.mjs](firestore-tests/user_session.rules.test.mjs)
+pins it against the emulator: the owner may claim (with or without a prior claim),
+**nobody may claim someone else's** — the write that would sign a stranger out —
+an admin still may, a claim cannot smuggle `role`/`branchId` through the same
+clause, and an unauthenticated client is refused.
+
+Decision recorded as
+[ADR-023](docs/decisions/ADR-023-single-active-session.md) — *one account, one
+signed-in device, enforced only in the auth layer*.
+
+⚠️ **Session hygiene, not a security boundary** — it is client-enforced; a modified
+client could simply not watch the document. Real revocation is
+`admin.auth().revokeRefreshTokens(uid)` server-side, which is the upgrade path.
+
+⚠️ **NOT device-verified.** One new dependency with native code
+(`flutter_secure_storage ^9.2.2`). `flutter build macos --debug` **succeeds** with
+it (no new warnings), macOS already carries the `keychain-access-groups`
+entitlement, and Android's `minSdk` (24) clears the `encryptedSharedPreferences`
+floor (23) — but the **two-device eviction is the QA that matters and it has not
+been run on hardware**, nor has an iOS/Android build been made with the plugin.
+
+Gates: `flutter analyze` clean (1 pre-existing info) · `flutter test` **1759 pass**
+(+18) · `firestore-tests` **74 pass** (+6) · `flutter build macos --debug` succeeds.
+Pinned by [test/single_active_session_test.dart](test/single_active_session_test.dart)
+and [firestore-tests/user_session.rules.test.mjs](firestore-tests/user_session.rules.test.mjs).
+
+---
+
 ## 2026-08-06 — macOS App Store upload fix: LSApplicationCategoryType (release config; LOW risk)
 
 App Store Connect / Transporter rejected the macOS archive with error `90242`:

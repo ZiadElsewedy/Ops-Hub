@@ -123,6 +123,7 @@ const {
   correctionMatchesExistingRecordOwner,
 } = require("./attendance_correction_target");
 const { attendanceNotificationSubject } = require("./attendance_notification_subject");
+const { canNotify } = require("./notification_reach");
 const {
   canDeleteAdmin,
   weekIsCurrentOrFuture,
@@ -1592,8 +1593,8 @@ exports.sendNotification = onCall(async (request) => {
   if (caller.isActive === false) {
     throw new HttpsError("permission-denied", "This account is disabled.");
   }
-  const callerIsAdmin = (caller.role || "employee") === "admin";
-  const callerBranch = String(caller.branchId || "");
+  // Role/branch are read out of `caller` by `canNotify` — deliberately not
+  // re-derived here, so there is exactly one place the reachability rule lives.
 
   const items = Array.isArray(request.data && request.data.notifications)
     ? request.data.notifications
@@ -1616,13 +1617,14 @@ exports.sendNotification = onCall(async (request) => {
       throw new HttpsError("invalid-argument", `"${type}" is not a client notification type.`);
     }
 
-    // Reachability: admin → anyone; others → own branch only.
+    // Reachability: admin → anyone · anyone → an admin · otherwise same branch.
+    // The middle clause is load-bearing and was missing: admins are branchless
+    // by design, so a pure branch comparison could never reach one — which
+    // silently dropped every "Task Submitted" notice for an admin-created task.
+    // The rule is pure and tested in `notification_reach.js`.
     const recipientSnap = await db.collection(USERS).doc(recipientUid).get();
     if (!recipientSnap.exists) continue; // stale recipient — skip, not fatal
-    const recipientBranch = String((recipientSnap.data() || {}).branchId || "");
-    const reachable = callerIsAdmin
-      || (callerBranch !== "" && recipientBranch === callerBranch);
-    if (!reachable) {
+    if (!canNotify(caller, recipientSnap.data())) {
       throw new HttpsError(
         "permission-denied",
         "You can only notify people in your own branch.",

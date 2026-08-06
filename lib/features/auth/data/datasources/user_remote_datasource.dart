@@ -30,6 +30,16 @@ abstract class UserRemoteDataSource {
   /// self-write — `hasCompletedOnboarding` is a non-privileged field, so the
   /// existing owner-update rule already permits it (no rules change).
   Future<void> setOnboardingCompleted(String uid, bool value);
+
+  /// Claims the account's ONE active session for the calling device by stamping
+  /// [sessionId] on `users/{uid}.activeSessionId`. Every other device is
+  /// watching this document, sees an id that is not the one in its own
+  /// `SessionStore`, and signs itself out.
+  ///
+  /// A self-write. `activeSessionId` is deliberately NOT in the privileged
+  /// freeze-list of the `users` update rule, so the existing owner-update
+  /// clause already permits it — **no rules change and no deploy**.
+  Future<void> claimSession(String uid, String sessionId);
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDataSource {
@@ -119,6 +129,23 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       }, SetOptions(merge: true));
     } on FirebaseException catch (e) {
       throw AuthException(e.message ?? 'Failed to update account.');
+    }
+  }
+
+  @override
+  Future<void> claimSession(String uid, String sessionId) async {
+    try {
+      await _users.doc(uid).set({
+        'activeSessionId': sessionId,
+        // When the claim was made. Not read by the client — it exists so an
+        // admin looking at a "why was I signed out?" report can see when the
+        // account was last taken over, and from a support view that is the only
+        // evidence the eviction was legitimate.
+        'activeSessionAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      throw AuthException(e.message ?? 'Failed to start your session.');
     }
   }
 }

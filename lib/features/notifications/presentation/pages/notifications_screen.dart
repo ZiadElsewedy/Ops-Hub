@@ -9,6 +9,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_dialog.dart';
+import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/drop_empty_state.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
@@ -129,6 +130,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  /// Both bulk actions report failure now. They are `NetworkGuard`-guarded and
+  /// paged, so offline — or on an inbox past the sweep ceiling — they genuinely
+  /// do nothing, and a bulk action that silently does nothing is
+  /// indistinguishable from one that worked.
+  Future<void> _markAllRead() async {
+    final error = await context.read<NotificationCubit>().markAllRead();
+    if (error != null && mounted) AppSnackbar.error(context, error);
+  }
+
   Future<void> _clearArchived() async {
     final ok = await showConfirmDialog(
       context,
@@ -137,7 +147,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       confirmLabel: 'Clear',
       destructive: true,
     );
-    if (ok && mounted) context.read<NotificationCubit>().clearArchived();
+    if (!ok || !mounted) return;
+    final error = await context.read<NotificationCubit>().clearArchived();
+    if (error != null && mounted) AppSnackbar.error(context, error);
   }
 
   @override
@@ -163,8 +175,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   context.read<NotificationCubit>().unreadCount > 0;
               if (!hasUnread) return const SizedBox.shrink();
               return TextButton(
-                onPressed: () =>
-                    context.read<NotificationCubit>().markAllRead(),
+                onPressed: _markAllRead,
                 child: Text('Mark all read',
                     style: AppTypography.caption
                         .copyWith(color: AppColors.accent)),
@@ -198,8 +209,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final inView = items.where((n) => n.isArchived == _showArchived);
     final unreadByCategory = <NotificationCategory, int>{};
     for (final n in inView.where((n) => n.isUnread)) {
+      // A type this build does not recognise has no category pill (it shows
+      // under All only), so it contributes to the All count and to nothing
+      // else. Counting it under a pill would put a badge on a filter that,
+      // when tapped, does not contain it.
       final c = categoryOf(n.type);
-      unreadByCategory[c] = (unreadByCategory[c] ?? 0) + 1;
+      if (c != null) unreadByCategory[c] = (unreadByCategory[c] ?? 0) + 1;
       unreadByCategory[NotificationCategory.all] =
           (unreadByCategory[NotificationCategory.all] ?? 0) + 1;
     }
