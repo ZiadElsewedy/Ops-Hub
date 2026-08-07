@@ -14,6 +14,7 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/glass_container.dart';
+import 'package:drop/features/attendance/domain/attendance_calculator.dart';
 import 'package:drop/features/attendance/domain/attendance_config.dart';
 import 'package:drop/features/attendance/domain/attendance_gps.dart';
 import 'package:drop/features/attendance/domain/attendance_location_service.dart';
@@ -612,6 +613,17 @@ class _SummaryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final needsReview = record.needsReview;
+    // Worked / overtime are computed live from the record rather than read from
+    // the persisted fields: those are finalized server-side (ADR-024) and land a
+    // beat after clock-out (and only on the next sync when offline), so reading
+    // them raw would flash "0h" on a just-closed shift. A closed record measures
+    // to its own clock-out, so this equals the server snapshot; an open/auto-
+    // closed record (no clock-out) has no live figure to show, so fall back.
+    final totals = record.clockOut != null
+        ? AttendanceCalculator.forEntity(record, record.clockOut!)
+        : null;
+    final workedMinutes = totals?.workedMinutes ?? record.workedMinutes;
+    final overtimeMinutes = totals?.overtimeMinutes ?? record.overtimeMinutes;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -637,7 +649,7 @@ class _SummaryView extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                _hmPadded(record.workedMinutes),
+                _hmPadded(workedMinutes),
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 34,
@@ -659,12 +671,12 @@ class _SummaryView extends StatelessWidget {
                 verified: record.isClockOutVerified,
                 hasGps: record.clockOutVerification != null,
               ),
-              if (record.overtimeMinutes > 0) ...[
+              if (overtimeMinutes > 0) ...[
                 const Divider(
                     color: AppColors.darkBorder, height: AppSpacing.lg),
                 _SummaryRow(
                     label: 'Overtime',
-                    value: _hmPadded(record.overtimeMinutes)),
+                    value: _hmPadded(overtimeMinutes)),
               ],
             ],
           ),

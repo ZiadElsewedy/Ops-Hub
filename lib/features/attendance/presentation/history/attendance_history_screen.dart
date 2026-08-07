@@ -196,7 +196,7 @@ class _Loaded extends StatelessWidget {
             showSearch: isReview,
             onRange: (range, {start, end}) =>
                 cubit.setRange(range, customStart: start, customEnd: end),
-            onStatus: cubit.setStatus,
+            onStatus: cubit.toggleStatus,
             onToggleShift: cubit.toggleShift,
             onSearch: cubit.setSearch,
           ),

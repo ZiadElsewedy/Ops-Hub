@@ -14,6 +14,35 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — Attendance history: multi-select status, Today/Yesterday presets, Arabic-aware search (feature; LOW risk, client-only, no deploy)
+
+Three P1 findings from the attendance audit, all in the History/Review ledger and
+all pure/presentation. Status filtering became **multi-select** (`AttendanceHistoryQuery.statuses`,
+a `Set` combined with OR — "Late or Absent" in one view; the *All* chip clears it).
+**Today** and **Yesterday** single-day presets joined `AttendanceDateRange`. Employee
+search is now **Arabic- and diacritic-insensitive** via a new pure
+`attendanceSearchNormalize` (folds case, tashkeel/tatweel, alef/hamza/ta-marbuta and
+common Latin accents), applied to both the search term and each record's name, and
+shared with the absence-gap list. No new read, no schema/rules/functions change.
+`flutter analyze` clean, 1901 Dart tests green. Still window-bound — a directory-backed
+search that finds employees with no records in range is the deferred P1 remainder.
+
+## 2026-08-07 — Attendance minutes are server-authoritative; client can no longer forge pay (security; HIGH risk, needs functions + rules deploy)
+
+The record's "forgery-resistant" promise was client-side honesty only: the
+`attendance` owner-update rule pinned just `userId` and the create rule just
+`status`, so a client talking to Firestore directly could write any
+`workedMinutes`, backdate `clockIn`, or be born clocked-in with pay already on it
+— all of which flow into the payroll ledger. Payroll minutes are now computed
+solely by the Admin SDK: new `functions/attendance_totals.js` (a port of
+`AttendanceCalculator`) + a finalize step in `onAttendanceWritten` recompute the
+snapshot over server-stamped clock times; the client clock-out stops persisting
+minutes (the summary recomputes live); and `firestore.rules` pin every
+payroll-sensitive field on both create and owner-update. `flutter analyze` clean,
+1893 Dart + 155 node + 89 rules tests green (17 new record-rules tests, 11 new
+totals tests). ⚠️ Inert until `firebase deploy --only functions,firestore:rules`.
+[ADR-024](docs/decisions/ADR-024-server-authoritative-attendance-minutes.md).
+
 ## 2026-08-07 — A deactivated account disappears from chat (feature; LOW risk, client-only)
 
 Owner ask: deactivating an account should make it drop out everywhere it's used

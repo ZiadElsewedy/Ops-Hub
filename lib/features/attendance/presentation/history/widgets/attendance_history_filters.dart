@@ -50,6 +50,8 @@ class AttendanceHistoryFilters extends StatelessWidget {
         _ChipRow(
           children: [
             for (final r in const [
+              AttendanceDateRange.today,
+              AttendanceDateRange.yesterday,
               AttendanceDateRange.last7Days,
               AttendanceDateRange.last30Days,
               AttendanceDateRange.thisMonth,
@@ -70,8 +72,12 @@ class AttendanceHistoryFilters extends StatelessWidget {
           children: [
             for (final s in AttendanceStatusFilter.values)
               _Chip(
+                // Multi-select: "All" lights up only when nothing is chosen; any
+                // specific facet lights up when it's in the OR set.
                 label: s.label,
-                selected: query.status == s,
+                selected: s == AttendanceStatusFilter.all
+                    ? query.activeStatuses.isEmpty
+                    : query.activeStatuses.contains(s),
                 onTap: () => onStatus(s),
               ),
           ],

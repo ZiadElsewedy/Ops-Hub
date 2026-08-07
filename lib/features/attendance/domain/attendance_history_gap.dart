@@ -53,7 +53,7 @@ List<AttendanceHistoryGap> attendanceHistoryGaps({
   required List<AttendanceLedgerRow> ledger,
   required AttendanceHistoryQuery query,
 }) {
-  final text = query.text.trim().toLowerCase();
+  final needle = attendanceSearchNormalize(query.text);
   final gaps = <AttendanceHistoryGap>[];
 
   for (final row in ledger) {
@@ -63,9 +63,10 @@ List<AttendanceHistoryGap> attendanceHistoryGaps({
     // Only a shift somebody was rostered for is a gap. An unexpected row with
     // no record describes nothing that happened.
     if (!row.expected) continue;
-    if (!_outcomePassesStatus(row.outcome, query.status)) continue;
+    if (!_gapPassesStatuses(row.outcome, query.activeStatuses)) continue;
     if (query.shifts.isNotEmpty && !query.shifts.contains(row.shift)) continue;
-    if (text.isNotEmpty && !(row.userName ?? '').toLowerCase().contains(text)) {
+    if (needle.isNotEmpty &&
+        !attendanceSearchNormalize(row.userName ?? '').contains(needle)) {
       continue;
     }
 
@@ -86,6 +87,16 @@ List<AttendanceHistoryGap> attendanceHistoryGaps({
   // Newest first, matching the record list's order.
   gaps.sort((a, b) => b.date.compareTo(a.date));
   return gaps;
+}
+
+/// Whether a gap survives the selected status facets (OR across the set; empty =
+/// any), mirroring `AttendanceHistoryQuery.matchesStatuses` for the record list.
+bool _gapPassesStatuses(
+  AttendanceLedgerOutcome outcome,
+  Set<AttendanceStatusFilter> statuses,
+) {
+  if (statuses.isEmpty) return true;
+  return statuses.any((s) => _outcomePassesStatus(outcome, s));
 }
 
 /// A gap can only satisfy the facets that describe *not working*. Asking for

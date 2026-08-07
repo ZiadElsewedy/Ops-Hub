@@ -98,7 +98,7 @@ void main() {
     ]);
     await pumpEventQueue();
 
-    cubit.setStatus(AttendanceStatusFilter.late);
+    cubit.toggleStatus(AttendanceStatusFilter.late);
     final l = _loaded(cubit.state)!;
 
     // The list shows only the late record …
@@ -107,7 +107,40 @@ void main() {
     // … while the summary still describes the whole month.
     expect(l.stats.presentCount, 2);
     expect(l.stats.absentCount, 1);
-    expect(l.query.status, AttendanceStatusFilter.late);
+    expect(l.query.activeStatuses, {AttendanceStatusFilter.late});
+
+    await cubit.close();
+  });
+
+  test('toggleStatus builds an OR set; the All facet clears it', () async {
+    final repo = _FakeRepo();
+    final cubit = build(repo)..load();
+
+    repo.pushHistory([
+      _rec(date: DateTime(2026, 7, 5)),
+      _rec(date: DateTime(2026, 7, 6), late: 10),
+      _rec(date: DateTime(2026, 7, 7), status: AttendanceStatus.absent),
+    ]);
+    await pumpEventQueue();
+
+    // Late OR Absent → two rows.
+    cubit.toggleStatus(AttendanceStatusFilter.late);
+    cubit.toggleStatus(AttendanceStatusFilter.absent);
+    expect(
+      cubit.query.activeStatuses,
+      {AttendanceStatusFilter.late, AttendanceStatusFilter.absent},
+    );
+    expect(_loaded(cubit.state)!.records.length, 2);
+
+    // Toggling Late off leaves only Absent.
+    cubit.toggleStatus(AttendanceStatusFilter.late);
+    expect(_loaded(cubit.state)!.records.single.status,
+        AttendanceStatus.absent);
+
+    // The All chip clears every status facet.
+    cubit.toggleStatus(AttendanceStatusFilter.all);
+    expect(cubit.query.activeStatuses, isEmpty);
+    expect(_loaded(cubit.state)!.records.length, 3);
 
     await cubit.close();
   });

@@ -84,7 +84,7 @@ void main() {
       gaps(
         ledger,
         query: const AttendanceHistoryQuery(
-          status: AttendanceStatusFilter.absent,
+          statuses: {AttendanceStatusFilter.absent},
         ),
       ).map((g) => g.label),
       ['Absent'],
@@ -93,7 +93,7 @@ void main() {
       gaps(
         ledger,
         query: const AttendanceHistoryQuery(
-          status: AttendanceStatusFilter.excused,
+          statuses: {AttendanceStatusFilter.excused},
         ),
       ).map((g) => g.label),
       ['Excused'],
@@ -103,10 +103,23 @@ void main() {
       gaps(
         ledger,
         query: const AttendanceHistoryQuery(
-          status: AttendanceStatusFilter.late,
+          statuses: {AttendanceStatusFilter.late},
         ),
       ),
       isEmpty,
+    );
+    // OR across the set: Absent + Excused surfaces both kinds of gap.
+    expect(
+      gaps(
+        ledger,
+        query: const AttendanceHistoryQuery(
+          statuses: {
+            AttendanceStatusFilter.absent,
+            AttendanceStatusFilter.excused,
+          },
+        ),
+      ).map((g) => g.label).toSet(),
+      {'Absent', 'Excused'},
     );
   });
 

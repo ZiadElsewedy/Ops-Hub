@@ -5,6 +5,52 @@
 >
 > **Last verified against the code:** 2026-08-07.
 
+> **Attendance history filters & search, sharpened (2026-08-07, feature,
+> presentation + pure domain, client-only, NO deploy, NOT device-verified):**
+> Three P1 gaps from the attendance audit, all in the History/Review ledger.
+> (1) **Status is now multi-select** — the facet moved from a single
+> `AttendanceStatusFilter` to a `Set` combined with **OR**, so a reviewer can ask
+> for "Late **or** Absent" in one view; the *All* chip clears it, `activeStatuses`
+> collapses the `all` sentinel to empty. (2) **Today / Yesterday date presets**
+> were added to `AttendanceDateRange` (single-day windows) so the common "who was
+> absent yesterday" needs no custom picker. (3) **Employee search is now Arabic-
+> and diacritic-insensitive** — new pure `attendanceSearchNormalize` folds case,
+> Arabic tashkeel/tatweel, alef/hamza/ta-marbuta letter forms and common Latin
+> accents, applied to **both** the needle and each record's `userName` (and the
+> same fold now drives the absence-gap list, so `مُحَمَّد` matches `محمد`). All
+> pure-domain (`attendance_history_query.dart`, `attendance_history_gap.dart`) +
+> the filter widget/cubit; **no new read, no schema/rules/functions change.**
+> Pinned by expanded `attendance_history_query_test`, `_cubit_test`, `_gap_test`.
+> `flutter analyze` clean, 1901 Dart tests green. ⚠️ **Still window-bound:** the
+> reviewer search matches only employees who *have records in the loaded date
+> window* — finding someone with no records in range (a directory-backed search)
+> is the remaining P1 half, deferred.
+
+> 🔴 **ATTENDANCE MINUTES WERE CLIENT-FORGEABLE — FIXED, ⚠️ NEEDS A FUNCTIONS
+> **AND** A RULES DEPLOY (2026-08-07, security, NOT device-verified).** The module's
+> own promise is that the record is "forgery-resistant" because attendance minutes
+> feed payroll. It wasn't: every mitigation lived on the client write path. The
+> `attendance` **owner-update** rule pinned only `userId`, so an employee talking to
+> Firestore directly could set `workedMinutes` to anything, backdate `clockIn` to
+> erase lateness, or set `status`/`clockOut` freely; the **create** rule pinned only
+> `status`, so a clock-**in** could be born already claiming `workedMinutes: 600` +
+> a `clockOut`. Those numbers copy verbatim into the `attendance_expectations`
+> ledger and every report/CSV/PDF. Now: **payroll minutes are computed only by the
+> Admin SDK.** New `functions/attendance_totals.js` (a line-for-line port of
+> `AttendanceCalculator`, 11 node tests) + a finalize step in `onAttendanceWritten`
+> recompute the snapshot over the server-stamped clock times (guarded on
+> `source: 'clock'`, writes only on change so no loop). The client clock-out stops
+> writing minutes (the summary recomputes worked/OT live via the calculator, so the
+> screen never shows 0h, offline included). `firestore.rules` now pin every
+> payroll-sensitive field on **both** create (zero minutes, no clock-out) and owner
+> update (only the `inProgress → completed` clock-out transition; minutes, `clockIn`,
+> the scheduled window and `source` frozen; reviewers keep the broad path for
+> soft-delete). [ADR-024](docs/decisions/ADR-024-server-authoritative-attendance-minutes.md).
+> Pinned by `firestore-tests/attendance.rules.test.mjs` (17). `flutter analyze`
+> clean, 1893 Dart + 155 node + 89 rules tests green. ⚠️ **Inert until
+> `firebase deploy --only functions,firestore:rules`** — until then production keeps
+> the old client-trusted path. **NOT device-verified.**
+
 > **A deactivated account disappears from chat (2026-08-07, feature,
 > client-only, NOT device-verified):** Owner: *"when I make an account inactive
 > its chat should disappear, no one can message it, and you can't send it a task

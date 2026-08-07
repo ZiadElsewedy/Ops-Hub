@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_status_filter.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
 import 'package:drop/features/attendance/domain/attendance_review_link.dart';
@@ -165,9 +164,7 @@ void main() {
       await tester.pumpWidget(
         host(
           AttendanceHistoryFilters(
-            query: const AttendanceHistoryQuery(
-              status: AttendanceStatusFilter.all,
-            ),
+            query: const AttendanceHistoryQuery(),
             onRange: (_, {start, end}) {},
             onStatus: (_) {},
             onToggleShift: (_) {},

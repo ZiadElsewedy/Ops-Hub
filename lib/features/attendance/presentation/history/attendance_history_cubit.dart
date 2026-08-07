@@ -99,8 +99,18 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
         customEnd: customEnd,
       ));
 
-  void setStatus(AttendanceStatusFilter status) =>
-      setQuery(_query.copyWith(status: status));
+  /// Toggle a status facet. The "All" chip clears every status; any specific
+  /// chip flips in/out of the OR set, so a reviewer can ask for "Late **or**
+  /// Absent" in one view.
+  void toggleStatus(AttendanceStatusFilter status) {
+    if (status == AttendanceStatusFilter.all) {
+      setQuery(_query.copyWith(statuses: const <AttendanceStatusFilter>{}));
+      return;
+    }
+    final next = {..._query.activeStatuses};
+    next.contains(status) ? next.remove(status) : next.add(status);
+    setQuery(_query.copyWith(statuses: next));
+  }
 
   void toggleShift(ScheduleShift shift) {
     final next = {..._query.shifts};
@@ -187,7 +197,7 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
     final now = _now();
     // Summary reflects the whole date window; the list applies every facet.
     final windowQuery = _query.copyWith(
-      status: AttendanceStatusFilter.all,
+      statuses: const <AttendanceStatusFilter>{},
       shifts: const <ScheduleShift>{},
       text: '',
     );
