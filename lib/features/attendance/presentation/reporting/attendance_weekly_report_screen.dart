@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:drop/features/attendance/domain/attendance_review_link.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_timesheet_csv.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_weekly_pdf.dart';
-import 'package:open_filex/open_filex.dart';
+import 'package:drop/core/services/export_sharing.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/di/injection.dart';
@@ -651,13 +649,13 @@ class _SharePanel extends StatelessWidget {
   }
 }
 
-/// Write the weekly PDF beside the timesheet and open it.
+/// Write the weekly PDF and hand it to the OS share sheet.
 ///
-/// Opening matters more than saving on mobile: `getDownloadsDirectory()` is
+/// Sharing matters more than saving on mobile: `getDownloadsDirectory()` is
 /// desktop-only, so on a phone the file lands in the app's sandbox where nobody
-/// would ever find it. Handing it to the system viewer is what lets a manager
-/// actually send it on — the same reason `chat_document_service` opens what it
-/// downloads.
+/// would ever find it. The share sheet is what lets a manager actually send it on
+/// (WhatsApp / Mail / AirDrop). Both artifacts go through the one
+/// `export_sharing` seam ([writeExportFile] + [shareExportedFile]).
 Future<void> _saveWeeklyPdf(
   BuildContext context,
   WeeklyAttendanceReport report,
@@ -668,14 +666,17 @@ Future<void> _saveWeeklyPdf(
       report: report,
       branchName: branchName,
     );
-    final file = await _writeExport(
+    final file = await writeExportFile(
       attendanceWeeklyPdfFilename(branchName, report.window.startDate),
       (f) => f.writeAsBytes(bytes, flush: true),
     );
     if (context.mounted) {
-      AppSnackbar.success(context, 'Saved · ${file.uri.pathSegments.last}');
+      await shareExportedFile(
+        context,
+        file,
+        subject: 'Attendance summary · $branchName',
+      );
     }
-    await _openExport(file);
   } catch (_) {
     if (context.mounted) {
       AppSnackbar.error(context, 'Could not create the PDF.');
@@ -683,35 +684,7 @@ Future<void> _saveWeeklyPdf(
   }
 }
 
-Future<File> _writeExport(
-  String filename,
-  Future<void> Function(File) write,
-) async {
-  // Mobile never uses getDownloadsDirectory(): on iOS it returns a sandbox
-  // `.../Downloads` path that was never created, so the `?? documents` fallback
-  // never fires and the write throws "cannot open file". Go straight to the
-  // always-present documents dir on a phone; create() guards the desktop path.
-  final isMobile = Platform.isAndroid || Platform.isIOS;
-  final directory = isMobile
-      ? await getApplicationDocumentsDirectory()
-      : (await getDownloadsDirectory() ??
-          await getApplicationDocumentsDirectory());
-  await directory.create(recursive: true);
-  final file = File('${directory.path}${Platform.pathSeparator}$filename');
-  await write(file);
-  return file;
-}
-
-/// Mobile gets the system opener; desktop already reveals the Downloads folder,
-/// so a viewer would be noise there.
-Future<void> _openExport(File file) async {
-  if (Platform.isAndroid || Platform.isIOS) {
-    await OpenFilex.open(file.path);
-  }
-}
-
-/// Write the timesheet next to where the Schedule PNG export puts its file, so
-/// a manager looks in one place for anything this app produces ([ADR-019]).
+/// Write the timesheet and share it, exactly like the PDF above ([ADR-019]).
 ///
 /// Client-side by design now that the artifact is operational rather than a
 /// payroll hand-off — no Cloud Function, no Storage, no deploy dependency.
@@ -722,14 +695,17 @@ Future<void> _saveTimesheetCsv(
 ) async {
   try {
     final csv = buildAttendanceTimesheetCsv(report.rows);
-    final file = await _writeExport(
+    final file = await writeExportFile(
       attendanceTimesheetFilename(branchName, report.window.startDate),
       (f) => f.writeAsString(csv, flush: true),
     );
     if (context.mounted) {
-      AppSnackbar.success(context, 'Saved · ${file.uri.pathSegments.last}');
+      await shareExportedFile(
+        context,
+        file,
+        subject: 'Attendance timesheet · $branchName',
+      );
     }
-    await _openExport(file);
   } catch (_) {
     if (context.mounted) {
       AppSnackbar.error(context, 'Could not save the timesheet.');

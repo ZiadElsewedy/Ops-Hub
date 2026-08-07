@@ -29,6 +29,18 @@ flat per ADR-012); no rules/functions/schema change. Pinned by
 `attendance_directory_match_test` (5) + a review-mode cubit case. `flutter analyze`
 clean, 1917 Dart tests green.
 
+## 2026-08-07 — Exports open the real OS share sheet (feature; LOW risk, client-only, no deploy, adds share_plus)
+
+Attendance (PDF/CSV) and schedule (PNG/PDF/XLSX) exports opened the file in a local
+viewer (`open_filex`), so sending one on took an extra hop through Quick Look. New
+single seam `core/services/export_sharing.dart` (`writeExportFile` +
+`shareExportedFile`) writes the file somewhere findable and hands it to the OS share
+sheet via `share_plus` ^12.0.2 (imported only there; iPad/macOS popover anchored to
+the button). Both screens' duplicated `_writeExport`/`_open` helpers were removed.
+Owner-approved exception to the dependency-light stance. `open_filex` stays (chat
+uses it). `flutter analyze` clean, 1917 Dart tests green. NOT device-verified — the
+share sheet / Android FileProvider / macOS entitlements need a real run per platform.
+
 ## 2026-08-07 — Attendance reports: ranked exception boards (feature; LOW risk, client-only, no deploy)
 
 The reports hub could say which periods need attention but not *who* has the most

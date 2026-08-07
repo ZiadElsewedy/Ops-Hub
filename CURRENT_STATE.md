@@ -25,6 +25,22 @@
 > + a review-mode `attendance_history_cubit_test` case. `flutter analyze` clean,
 > 1917 Dart tests green. This closes the window-bound caveat noted below.
 
+> **Exports now open the real OS share sheet (2026-08-07, feature, client-only,
+> NO deploy, NOT device-verified):** Attendance (PDF summary · CSV timesheet) and
+> schedule (PNG · PDF · XLSX) exports opened the file in a local viewer
+> (`open_filex`) — so *sending* one to WhatsApp/Mail took an extra hop through
+> Quick Look. New single seam `core/services/export_sharing.dart`
+> (`writeExportFile` + `shareExportedFile`) writes the file to a findable place
+> and hands it to the OS **share sheet** via `share_plus` (^12.0.2). Both
+> screens' duplicated `_writeExport`/`_open` helpers were deleted in favour of
+> the seam; `share_plus` is imported **only** there. **Owner-approved exception**
+> to the dependency-light stance (the same rung as the deliberately-rejected
+> `printing`); iPad/macOS popover is anchored to the button's render box. Docs +
+> the stale `pdf` pubspec comment updated. `flutter analyze` clean, 1917 Dart
+> tests green (no test exercises the platform channel). ⚠️ **NOT device-verified**
+> — the share sheet, the Android FileProvider and macOS entitlements need a real
+> run on each of iOS/Android/macOS. `open_filex` stays (chat still uses it).
+
 > **Attendance reports gained ranked exception boards (2026-08-07, feature,
 > presentation + pure domain, client-only, NO deploy, NOT device-verified):** The
 > reports hub answered "which periods need attention" but not "**who** — who has
