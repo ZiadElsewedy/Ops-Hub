@@ -87,10 +87,39 @@ enum NotificationType {
   // pill, ranked HIGH above real work. Produced by the Admin SDK (recipients
   // come from a branch/role lookup), so it is deliberately NOT in the client
   // `sendNotification` whitelist.
-  salesSubmission;
+  salesSubmission,
+
+  /// **A `type` string this build does not recognise.** Not a producer — no
+  /// server or client ever writes `"unknown"`; it is what
+  /// [NotificationModel.fromMap] resolves an unrecognised value to.
+  ///
+  /// It exists because the previous fallback was [taskAssigned], and that is not
+  /// a neutral default — it is a *lie with consequences*. `type` drives the
+  /// glyph, the category pill and the priority ordering, so an unrecognised
+  /// notification arrived wearing a clipboard, filed under **Tasks**, ranked
+  /// `high` above genuinely overdue work. That is not hypothetical: it is
+  /// exactly what happened to every branch-sales notification until
+  /// `salesSubmission` was added on 2026-08-06, and adding that value fixed the
+  /// symptom while leaving the mechanism intact for the next new type.
+  ///
+  /// A deploy order of "functions first, then the client build" (which is the
+  /// CORRECT order — see the 2026-08-02 deploy note) guarantees a window where
+  /// the server writes types this build has never heard of. Landing them as
+  /// `unknown` makes that window honest: the row still renders, still says what
+  /// it says, and still deep-links (routing keys off `payload.route`, never
+  /// `type`) — it simply stops impersonating a task.
+  ///
+  /// Ranked [NotificationPriority.low] and shown only under **All**.
+  unknown;
 
   String get value => name;
 
+  /// The enum value for [raw], or `null` when this build does not know it.
+  ///
+  /// Deliberately still returns `null` rather than [unknown]: "I do not
+  /// recognise this" is the honest answer, and it is the *caller* that decides
+  /// what to do about it. `NotificationModel.fromMap` maps it to [unknown]; a
+  /// producer validating its own output wants the null.
   static NotificationType? fromString(String? raw) {
     for (final t in NotificationType.values) {
       if (t.name == raw) return t;

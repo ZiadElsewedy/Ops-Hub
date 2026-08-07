@@ -17,14 +17,19 @@ abstract class NotificationRepository {
   /// paginate.
   Stream<List<NotificationEntity>> watch(String uid, {int limit = 30});
 
-  /// Marks one notification read (sets `readAt`).
+  /// Marks one notification read (sets `readAt`). **The one write in this
+  /// contract that is allowed offline** — see the impl for why.
   Future<void> markRead(String id);
 
-  /// Marks every unread notification for [uid] read.
+  /// Marks every unread notification for [uid] read — all of them, not just a
+  /// loaded page.
   Future<void> markAllRead(String uid);
 
   /// Permanently deletes one notification.
   Future<void> delete(String id);
+
+  /// Permanently deletes **every** archived notification for [uid].
+  Future<void> deleteArchived(String uid);
 
   /// Archives / unarchives one notification.
   Future<void> setArchived(String id, bool archived);

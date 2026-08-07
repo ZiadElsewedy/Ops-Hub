@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drop/core/enums/notification_type.dart';
+import 'package:drop/core/errors/failures.dart';
 import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
 import 'package:drop/features/notifications/domain/repositories/notification_repository.dart';
 import 'package:drop/features/notifications/domain/usecases/mark_notification_read.dart';
@@ -20,8 +21,13 @@ class _FakeNotificationRepository implements NotificationRepository {
   final List<String> markedRead = [];
   final List<String> markedAllReadUids = [];
   final List<String> deleted = [];
+  final List<String> clearedArchivedUids = [];
   final List<(String, bool)> archivedCalls = [];
   final List<(String, bool)> pinnedCalls = [];
+
+  /// When set, the next bulk action throws it — so a test can assert the cubit
+  /// REPORTS the failure instead of swallowing it into a log.
+  Object? bulkError;
 
   void emit(List<NotificationEntity> items) => _controller.add(items);
 
@@ -36,10 +42,19 @@ class _FakeNotificationRepository implements NotificationRepository {
   Future<void> markRead(String id) async => markedRead.add(id);
 
   @override
-  Future<void> markAllRead(String uid) async => markedAllReadUids.add(uid);
+  Future<void> markAllRead(String uid) async {
+    if (bulkError != null) throw bulkError!;
+    markedAllReadUids.add(uid);
+  }
 
   @override
   Future<void> delete(String id) async => deleted.add(id);
+
+  @override
+  Future<void> deleteArchived(String uid) async {
+    if (bulkError != null) throw bulkError!;
+    clearedArchivedUids.add(uid);
+  }
 
   @override
   Future<void> setArchived(String id, bool archived) async =>
@@ -127,8 +142,65 @@ void main() {
     final repo = _FakeNotificationRepository();
     final cubit = _build(repo);
     await cubit.load('u1');
-    await cubit.markAllRead();
+    expect(await cubit.markAllRead(), isNull);
     expect(repo.markedAllReadUids, ['u1']);
+    await cubit.close();
+  });
+
+  test('clearArchived sweeps SERVER-SIDE, not over the loaded page', () async {
+    // The old implementation fanned out client-side deletes over `_items`,
+    // which is capped at the pagination window — so a user with more archived
+    // notifications than one page confirmed "delete all", saw the list refill,
+    // and concluded the button was broken. It must delegate one sweep for the
+    // user and never touch `delete`.
+    final repo = _FakeNotificationRepository();
+    final cubit = _build(repo);
+    await cubit.load('u1');
+    repo.emit([
+      _n('a1', archived: true),
+      _n('a2', archived: true),
+      _n('n1'),
+    ]);
+    await pumpEventQueue();
+
+    expect(await cubit.clearArchived(), isNull);
+    expect(repo.clearedArchivedUids, ['u1']);
+    expect(repo.deleted, isEmpty);
+    await cubit.close();
+  });
+
+  test('both bulk actions REPORT failure instead of swallowing it', () async {
+    // Every bulk failure used to end in a log line and nothing else, so an
+    // offline "Mark all read" was indistinguishable from a successful one.
+    final repo = _FakeNotificationRepository()
+      ..bulkError = const ServerFailure('Network unavailable.');
+    final cubit = _build(repo);
+    await cubit.load('u1');
+
+    expect(await cubit.markAllRead(), 'Network unavailable.');
+    expect(await cubit.clearArchived(), 'Network unavailable.');
+    expect(repo.markedAllReadUids, isEmpty);
+    expect(repo.clearedArchivedUids, isEmpty);
+    await cubit.close();
+  });
+
+  test('a non-Failure error still yields an action-specific sentence', () async {
+    final repo = _FakeNotificationRepository()..bulkError = StateError('boom');
+    final cubit = _build(repo);
+    await cubit.load('u1');
+
+    expect(await cubit.markAllRead(), contains('mark everything read'));
+    expect(await cubit.clearArchived(), contains('clear archived'));
+    await cubit.close();
+  });
+
+  test('bulk actions are a no-op before a user is loaded', () async {
+    final repo = _FakeNotificationRepository();
+    final cubit = _build(repo);
+    expect(await cubit.markAllRead(), isNull);
+    expect(await cubit.clearArchived(), isNull);
+    expect(repo.markedAllReadUids, isEmpty);
+    expect(repo.clearedArchivedUids, isEmpty);
     await cubit.close();
   });
 

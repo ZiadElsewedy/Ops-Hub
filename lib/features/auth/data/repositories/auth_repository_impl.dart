@@ -119,4 +119,17 @@ class AuthRepositoryImpl implements AuthRepository {
       throw AuthFailure(e.message);
     }
   }
+
+  @override
+  Future<void> claimSession(String uid, String sessionId) async {
+    // Guarded like every other write: an offline claim would be cached locally,
+    // reported as success, and replayed an hour later — evicting whichever
+    // device signed in legitimately in the meantime.
+    NetworkGuard.ensureWritable();
+    try {
+      await _userRemote.claimSession(uid, sessionId);
+    } on AuthException catch (e) {
+      throw AuthFailure(e.message);
+    }
+  }
 }

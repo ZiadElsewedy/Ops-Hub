@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:drop/core/constants/app_constants.dart';
 import 'package:drop/core/errors/exceptions.dart';
+import 'package:drop/features/notifications/data/datasources/notification_sweep.dart';
 import 'package:drop/features/notifications/data/models/notification_model.dart';
 
 abstract class NotificationRemoteDataSource {
@@ -17,10 +18,18 @@ abstract class NotificationRemoteDataSource {
   /// index). A growing [limit] gives offline-resilient infinite pagination.
   Stream<List<NotificationModel>> watch(String uid, {int limit = 30});
   Future<void> markRead(String id);
+
+  /// Marks **every** unread notification for [uid] read, however many there are.
+  /// Paged and chunked — see [NotificationRemoteDataSourceImpl._sweep].
   Future<void> markAllRead(String uid);
 
   /// Permanently deletes one notification (the recipient dismissing it).
   Future<void> delete(String id);
+
+  /// Permanently deletes **every** archived notification for [uid] — the
+  /// "Clear archived" action. Server-side and complete, rather than a client
+  /// fan-out over whatever page happens to be loaded.
+  Future<void> deleteArchived(String uid);
 
   /// Archives / unarchives one notification (sets / clears `archivedAt`).
   Future<void> setArchived(String id, bool archived);
@@ -125,22 +134,107 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   }
 
   @override
-  Future<void> markAllRead(String uid) async {
+  Future<void> markAllRead(String uid) => _sweep(
+        uid,
+        selects: (data) => data['readAt'] == null,
+        apply: (batch, ref) => batch.set(
+          ref,
+          {'readAt': FieldValue.serverTimestamp()},
+          SetOptions(merge: true),
+        ),
+        failureMessage: 'Failed to update notifications.',
+      );
+
+  @override
+  Future<void> deleteArchived(String uid) => _sweep(
+        uid,
+        selects: (data) => data['archivedAt'] != null,
+        apply: (batch, ref) => batch.delete(ref),
+        failureMessage: 'Failed to clear archived notifications.',
+      );
+
+  /// How many documents one sweep page reads, and how many operations it can
+  /// therefore put in one `WriteBatch`.
+  ///
+  /// **Firestore hard-caps a batch at 500 operations.** The previous
+  /// `markAllRead` read the user's ENTIRE notification collection in one
+  /// unbounded query and committed every unread document in a single batch — so
+  /// past 500 unread it failed with `INVALID_ARGUMENT` and, because
+  /// `NotificationCubit.markAllRead` swallows errors into a log, the button
+  /// simply stopped working forever with no visible reason. `runTaskReminders`
+  /// fires every 30 minutes on a per-task ladder, so 500 is reachable.
+  ///
+  /// 300 leaves generous headroom under the cap while keeping the page count
+  /// (and therefore the round trips) low. `maxPages: 50` is the safety valve —
+  /// at most 15,000 documents per sweep. An inbox larger than that is a
+  /// different problem, and running an unbounded loop against Firestore from a
+  /// phone is not the way to discover it.
+  ///
+  /// The paging itself lives in `notification_sweep.dart`, where it is unit
+  /// tested over thousands of items; what remains here is the Firestore query.
+  static const SweepPolicy _sweepPolicy =
+      SweepPolicy(pageSize: 300, maxPages: 50);
+
+  /// Pages [uid]'s notifications newest-first, and for every page applies
+  /// [apply] to the documents [selects] accepts, one `WriteBatch` per page.
+  ///
+  /// Uses the **existing** `recipientUid + createdAt` composite index (the same
+  /// one [watch] uses), so the predicate stays client-side and this needs **no
+  /// new index and no deploy**. Paging by `startAfterDocument` is stable for
+  /// both callers: `markAllRead` only updates documents, and the cursor keeps
+  /// its ordering position even for a document `deleteArchived` has removed,
+  /// because Firestore resolves it from the snapshot's order-by values. Ties on
+  /// `createdAt` (a batch of notifications shares one server timestamp) are
+  /// broken by the implicit `__name__` ordering, which the cursor carries too —
+  /// so a page boundary landing mid-batch neither skips nor repeats a document.
+  ///
+  /// ⚠️ `orderBy('createdAt')` **excludes documents missing that field**, which
+  /// the previous unordered `markAllRead` query did not. That is not a
+  /// regression: [watch] orders by `createdAt` as well, so such a document was
+  /// already invisible in the inbox — there is nothing for the user to mark read
+  /// or clear. Every producer stamps it (`sendNotification` and each server
+  /// writer set `serverTimestamp()`), so the case is theoretical either way.
+  ///
+  /// Throws when the page cap is exhausted rather than returning quietly — the
+  /// caller promised the user "all", and a silent partial is the exact defect
+  /// `clearArchived` was fixed for.
+  Future<void> _sweep(
+    String uid, {
+    required bool Function(Map<String, dynamic> data) selects,
+    required void Function(
+      WriteBatch batch,
+      DocumentReference<Map<String, dynamic>> ref,
+    ) apply,
+    required String failureMessage,
+  }) async {
     try {
-      // Single-field query (no composite index); filter unread client-side.
-      final snap =
-          await _notifications.where('recipientUid', isEqualTo: uid).get();
-      final unread =
-          snap.docs.where((d) => d.data()['readAt'] == null).toList();
-      if (unread.isEmpty) return;
-      final batch = _firestore.batch();
-      for (final d in unread) {
-        batch.set(d.reference, {'readAt': FieldValue.serverTimestamp()},
-            SetOptions(merge: true));
-      }
-      await batch.commit();
+      await sweepPages<QueryDocumentSnapshot<Map<String, dynamic>>>(
+        policy: _sweepPolicy,
+        fetchPage: (cursor) async {
+          var query = _notifications
+              .where('recipientUid', isEqualTo: uid)
+              .orderBy('createdAt', descending: true)
+              .limit(_sweepPolicy.pageSize);
+          if (cursor != null) query = query.startAfterDocument(cursor);
+          final snap = await query.get();
+          return snap.docs;
+        },
+        selects: (doc) => selects(doc.data()),
+        commit: (hits) async {
+          final batch = _firestore.batch();
+          for (final doc in hits) {
+            apply(batch, doc.reference);
+          }
+          await batch.commit();
+        },
+      );
+    } on SweepLimitExceeded {
+      throw ServerException(
+        'There were too many notifications to do that in one go. '
+        'Please try again.',
+      );
     } on FirebaseException catch (e) {
-      throw ServerException(e.message ?? 'Failed to update notifications.');
+      throw ServerException(e.message ?? failureMessage);
     }
   }
 }

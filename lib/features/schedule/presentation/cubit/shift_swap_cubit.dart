@@ -257,6 +257,22 @@ class ShiftSwapCubit extends Cubit<ShiftSwapState> {
     }
   }
 
+  /// Drops the user-scoped swap stream and its cached page, returning the cubit
+  /// to [ShiftSwapState.initial]. Called on sign-out and on
+  /// single-active-session eviction. `_subKey` is cleared too, so the next
+  /// user's first `watch` is not short-circuited as "already subscribed to this
+  /// scope".
+  void reset() {
+    _sub?.cancel();
+    _sub = null;
+    _subKey = null;
+    _scope = SwapScope.mine;
+    _key = '';
+    _latest = const [];
+    _busy = false;
+    if (!isClosed) emit(const ShiftSwapState.initial());
+  }
+
   @override
   Future<void> close() {
     _sub?.cancel();

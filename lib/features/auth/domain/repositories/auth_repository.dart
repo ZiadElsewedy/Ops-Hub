@@ -32,4 +32,15 @@ abstract class AuthRepository {
   /// One-time Welcome flag (self-write): seeded `false` at profile completion so
   /// a new employee sees the Welcome screen once, set `true` when they dismiss it.
   Future<void> setOnboardingCompleted(String uid, bool value);
+
+  /// Claims the account's single active session for this device (self-write).
+  /// [sessionId] comes from `generateSessionId` and is stored locally in the
+  /// device's `SessionStore`; [watchUser] on every OTHER device then reports an
+  /// id that does not match its own, and those devices sign themselves out.
+  ///
+  /// Throws an `AuthFailure` when the claim cannot be written — the caller must
+  /// treat that as a failed sign-in rather than entering the app, because a
+  /// device inside the app holding an id the server never recorded would evict
+  /// itself on the very next document emission.
+  Future<void> claimSession(String uid, String sessionId);
 }

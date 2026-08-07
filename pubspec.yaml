@@ -77,6 +77,17 @@ dependencies:
   # Observability — crash-report persistence (Application Support dir).
   path_provider: ^2.1.4
 
+  # Single-active-session enforcement — the device's session id lives in the
+  # Keychain (iOS/macOS) / EncryptedSharedPreferences (Android), NOT in the
+  # uid-namespaced JSON stores in `core/services/`: those are per-user
+  # preferences, while this is the credential the auth layer compares against
+  # `users/{uid}.activeSessionId` to decide whether THIS device still owns the
+  # session. It must survive nothing else being readable and must not be
+  # trivially editable. The single seam is `core/services/session_store.dart`;
+  # nothing else may import this package. (Still NOT `shared_preferences` —
+  # see PROJECT_CONTEXT §4 "Single-source seams".)
+  flutter_secure_storage: ^9.2.2
+
   # Code Generation (annotations only at runtime)
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0

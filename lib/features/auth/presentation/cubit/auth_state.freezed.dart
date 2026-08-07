@@ -22,7 +22,7 @@ mixin _$AuthState {
     required TResult Function() initial,
     required TResult Function(AuthAction action) loading,
     required TResult Function(UserEntity user) authenticated,
-    required TResult Function() unauthenticated,
+    required TResult Function(String? signedOutReason) unauthenticated,
     required TResult Function() passwordResetSent,
     required TResult Function() passwordChanged,
     required TResult Function(String message) error,
@@ -32,7 +32,7 @@ mixin _$AuthState {
     TResult? Function()? initial,
     TResult? Function(AuthAction action)? loading,
     TResult? Function(UserEntity user)? authenticated,
-    TResult? Function()? unauthenticated,
+    TResult? Function(String? signedOutReason)? unauthenticated,
     TResult? Function()? passwordResetSent,
     TResult? Function()? passwordChanged,
     TResult? Function(String message)? error,
@@ -42,7 +42,7 @@ mixin _$AuthState {
     TResult Function()? initial,
     TResult Function(AuthAction action)? loading,
     TResult Function(UserEntity user)? authenticated,
-    TResult Function()? unauthenticated,
+    TResult Function(String? signedOutReason)? unauthenticated,
     TResult Function()? passwordResetSent,
     TResult Function()? passwordChanged,
     TResult Function(String message)? error,
@@ -147,7 +147,7 @@ class _$InitialImpl implements _Initial {
     required TResult Function() initial,
     required TResult Function(AuthAction action) loading,
     required TResult Function(UserEntity user) authenticated,
-    required TResult Function() unauthenticated,
+    required TResult Function(String? signedOutReason) unauthenticated,
     required TResult Function() passwordResetSent,
     required TResult Function() passwordChanged,
     required TResult Function(String message) error,
@@ -161,7 +161,7 @@ class _$InitialImpl implements _Initial {
     TResult? Function()? initial,
     TResult? Function(AuthAction action)? loading,
     TResult? Function(UserEntity user)? authenticated,
-    TResult? Function()? unauthenticated,
+    TResult? Function(String? signedOutReason)? unauthenticated,
     TResult? Function()? passwordResetSent,
     TResult? Function()? passwordChanged,
     TResult? Function(String message)? error,
@@ -175,7 +175,7 @@ class _$InitialImpl implements _Initial {
     TResult Function()? initial,
     TResult Function(AuthAction action)? loading,
     TResult Function(UserEntity user)? authenticated,
-    TResult Function()? unauthenticated,
+    TResult Function(String? signedOutReason)? unauthenticated,
     TResult Function()? passwordResetSent,
     TResult Function()? passwordChanged,
     TResult Function(String message)? error,
@@ -311,7 +311,7 @@ class _$LoadingImpl implements _Loading {
     required TResult Function() initial,
     required TResult Function(AuthAction action) loading,
     required TResult Function(UserEntity user) authenticated,
-    required TResult Function() unauthenticated,
+    required TResult Function(String? signedOutReason) unauthenticated,
     required TResult Function() passwordResetSent,
     required TResult Function() passwordChanged,
     required TResult Function(String message) error,
@@ -325,7 +325,7 @@ class _$LoadingImpl implements _Loading {
     TResult? Function()? initial,
     TResult? Function(AuthAction action)? loading,
     TResult? Function(UserEntity user)? authenticated,
-    TResult? Function()? unauthenticated,
+    TResult? Function(String? signedOutReason)? unauthenticated,
     TResult? Function()? passwordResetSent,
     TResult? Function()? passwordChanged,
     TResult? Function(String message)? error,
@@ -339,7 +339,7 @@ class _$LoadingImpl implements _Loading {
     TResult Function()? initial,
     TResult Function(AuthAction action)? loading,
     TResult Function(UserEntity user)? authenticated,
-    TResult Function()? unauthenticated,
+    TResult Function(String? signedOutReason)? unauthenticated,
     TResult Function()? passwordResetSent,
     TResult Function()? passwordChanged,
     TResult Function(String message)? error,
@@ -495,7 +495,7 @@ class _$AuthenticatedImpl implements _Authenticated {
     required TResult Function() initial,
     required TResult Function(AuthAction action) loading,
     required TResult Function(UserEntity user) authenticated,
-    required TResult Function() unauthenticated,
+    required TResult Function(String? signedOutReason) unauthenticated,
     required TResult Function() passwordResetSent,
     required TResult Function() passwordChanged,
     required TResult Function(String message) error,
@@ -509,7 +509,7 @@ class _$AuthenticatedImpl implements _Authenticated {
     TResult? Function()? initial,
     TResult? Function(AuthAction action)? loading,
     TResult? Function(UserEntity user)? authenticated,
-    TResult? Function()? unauthenticated,
+    TResult? Function(String? signedOutReason)? unauthenticated,
     TResult? Function()? passwordResetSent,
     TResult? Function()? passwordChanged,
     TResult? Function(String message)? error,
@@ -523,7 +523,7 @@ class _$AuthenticatedImpl implements _Authenticated {
     TResult Function()? initial,
     TResult Function(AuthAction action)? loading,
     TResult Function(UserEntity user)? authenticated,
-    TResult Function()? unauthenticated,
+    TResult Function(String? signedOutReason)? unauthenticated,
     TResult Function()? passwordResetSent,
     TResult Function()? passwordChanged,
     TResult Function(String message)? error,
@@ -600,6 +600,8 @@ abstract class _$$UnauthenticatedImplCopyWith<$Res> {
     _$UnauthenticatedImpl value,
     $Res Function(_$UnauthenticatedImpl) then,
   ) = __$$UnauthenticatedImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String? signedOutReason});
 }
 
 /// @nodoc
@@ -613,26 +615,55 @@ class __$$UnauthenticatedImplCopyWithImpl<$Res>
 
   /// Create a copy of AuthState
   /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? signedOutReason = freezed}) {
+    return _then(
+      _$UnauthenticatedImpl(
+        signedOutReason: freezed == signedOutReason
+            ? _value.signedOutReason
+            : signedOutReason // ignore: cast_nullable_to_non_nullable
+                  as String?,
+      ),
+    );
+  }
 }
 
 /// @nodoc
 
 class _$UnauthenticatedImpl implements _Unauthenticated {
-  const _$UnauthenticatedImpl();
+  const _$UnauthenticatedImpl({this.signedOutReason});
+
+  @override
+  final String? signedOutReason;
 
   @override
   String toString() {
-    return 'AuthState.unauthenticated()';
+    return 'AuthState.unauthenticated(signedOutReason: $signedOutReason)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        (other.runtimeType == runtimeType && other is _$UnauthenticatedImpl);
+        (other.runtimeType == runtimeType &&
+            other is _$UnauthenticatedImpl &&
+            (identical(other.signedOutReason, signedOutReason) ||
+                other.signedOutReason == signedOutReason));
   }
 
   @override
-  int get hashCode => runtimeType.hashCode;
+  int get hashCode => Object.hash(runtimeType, signedOutReason);
+
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$UnauthenticatedImplCopyWith<_$UnauthenticatedImpl> get copyWith =>
+      __$$UnauthenticatedImplCopyWithImpl<_$UnauthenticatedImpl>(
+        this,
+        _$identity,
+      );
 
   @override
   @optionalTypeArgs
@@ -640,12 +671,12 @@ class _$UnauthenticatedImpl implements _Unauthenticated {
     required TResult Function() initial,
     required TResult Function(AuthAction action) loading,
     required TResult Function(UserEntity user) authenticated,
-    required TResult Function() unauthenticated,
+    required TResult Function(String? signedOutReason) unauthenticated,
     required TResult Function() passwordResetSent,
     required TResult Function() passwordChanged,
     required TResult Function(String message) error,
   }) {
-    return unauthenticated();
+    return unauthenticated(signedOutReason);
   }
 
   @override
@@ -654,12 +685,12 @@ class _$UnauthenticatedImpl implements _Unauthenticated {
     TResult? Function()? initial,
     TResult? Function(AuthAction action)? loading,
     TResult? Function(UserEntity user)? authenticated,
-    TResult? Function()? unauthenticated,
+    TResult? Function(String? signedOutReason)? unauthenticated,
     TResult? Function()? passwordResetSent,
     TResult? Function()? passwordChanged,
     TResult? Function(String message)? error,
   }) {
-    return unauthenticated?.call();
+    return unauthenticated?.call(signedOutReason);
   }
 
   @override
@@ -668,14 +699,14 @@ class _$UnauthenticatedImpl implements _Unauthenticated {
     TResult Function()? initial,
     TResult Function(AuthAction action)? loading,
     TResult Function(UserEntity user)? authenticated,
-    TResult Function()? unauthenticated,
+    TResult Function(String? signedOutReason)? unauthenticated,
     TResult Function()? passwordResetSent,
     TResult Function()? passwordChanged,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (unauthenticated != null) {
-      return unauthenticated();
+      return unauthenticated(signedOutReason);
     }
     return orElse();
   }
@@ -728,7 +759,16 @@ class _$UnauthenticatedImpl implements _Unauthenticated {
 }
 
 abstract class _Unauthenticated implements AuthState {
-  const factory _Unauthenticated() = _$UnauthenticatedImpl;
+  const factory _Unauthenticated({final String? signedOutReason}) =
+      _$UnauthenticatedImpl;
+
+  String? get signedOutReason;
+
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$UnauthenticatedImplCopyWith<_$UnauthenticatedImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -777,7 +817,7 @@ class _$PasswordResetSentImpl implements _PasswordResetSent {
     required TResult Function() initial,
     required TResult Function(AuthAction action) loading,
     required TResult Function(UserEntity user) authenticated,
-    required TResult Function() unauthenticated,
+    required TResult Function(String? signedOutReason) unauthenticated,
     required TResult Function() passwordResetSent,
     required TResult Function() passwordChanged,
     required TResult Function(String message) error,
@@ -791,7 +831,7 @@ class _$PasswordResetSentImpl implements _PasswordResetSent {
     TResult? Function()? initial,
     TResult? Function(AuthAction action)? loading,
     TResult? Function(UserEntity user)? authenticated,
-    TResult? Function()? unauthenticated,
+    TResult? Function(String? signedOutReason)? unauthenticated,
     TResult? Function()? passwordResetSent,
     TResult? Function()? passwordChanged,
     TResult? Function(String message)? error,
@@ -805,7 +845,7 @@ class _$PasswordResetSentImpl implements _PasswordResetSent {
     TResult Function()? initial,
     TResult Function(AuthAction action)? loading,
     TResult Function(UserEntity user)? authenticated,
-    TResult Function()? unauthenticated,
+    TResult Function(String? signedOutReason)? unauthenticated,
     TResult Function()? passwordResetSent,
     TResult Function()? passwordChanged,
     TResult Function(String message)? error,
@@ -914,7 +954,7 @@ class _$PasswordChangedImpl implements _PasswordChanged {
     required TResult Function() initial,
     required TResult Function(AuthAction action) loading,
     required TResult Function(UserEntity user) authenticated,
-    required TResult Function() unauthenticated,
+    required TResult Function(String? signedOutReason) unauthenticated,
     required TResult Function() passwordResetSent,
     required TResult Function() passwordChanged,
     required TResult Function(String message) error,
@@ -928,7 +968,7 @@ class _$PasswordChangedImpl implements _PasswordChanged {
     TResult? Function()? initial,
     TResult? Function(AuthAction action)? loading,
     TResult? Function(UserEntity user)? authenticated,
-    TResult? Function()? unauthenticated,
+    TResult? Function(String? signedOutReason)? unauthenticated,
     TResult? Function()? passwordResetSent,
     TResult? Function()? passwordChanged,
     TResult? Function(String message)? error,
@@ -942,7 +982,7 @@ class _$PasswordChangedImpl implements _PasswordChanged {
     TResult Function()? initial,
     TResult Function(AuthAction action)? loading,
     TResult Function(UserEntity user)? authenticated,
-    TResult Function()? unauthenticated,
+    TResult Function(String? signedOutReason)? unauthenticated,
     TResult Function()? passwordResetSent,
     TResult Function()? passwordChanged,
     TResult Function(String message)? error,
@@ -1078,7 +1118,7 @@ class _$ErrorImpl implements _Error {
     required TResult Function() initial,
     required TResult Function(AuthAction action) loading,
     required TResult Function(UserEntity user) authenticated,
-    required TResult Function() unauthenticated,
+    required TResult Function(String? signedOutReason) unauthenticated,
     required TResult Function() passwordResetSent,
     required TResult Function() passwordChanged,
     required TResult Function(String message) error,
@@ -1092,7 +1132,7 @@ class _$ErrorImpl implements _Error {
     TResult? Function()? initial,
     TResult? Function(AuthAction action)? loading,
     TResult? Function(UserEntity user)? authenticated,
-    TResult? Function()? unauthenticated,
+    TResult? Function(String? signedOutReason)? unauthenticated,
     TResult? Function()? passwordResetSent,
     TResult? Function()? passwordChanged,
     TResult? Function(String message)? error,
@@ -1106,7 +1146,7 @@ class _$ErrorImpl implements _Error {
     TResult Function()? initial,
     TResult Function(AuthAction action)? loading,
     TResult Function(UserEntity user)? authenticated,
-    TResult Function()? unauthenticated,
+    TResult Function(String? signedOutReason)? unauthenticated,
     TResult Function()? passwordResetSent,
     TResult Function()? passwordChanged,
     TResult Function(String message)? error,

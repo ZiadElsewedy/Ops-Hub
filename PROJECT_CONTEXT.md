@@ -85,6 +85,7 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Drift caches metadata; `ChatRepositoryImpl` session-caches brokered URLs until their server expiry; **never image bytes** |
 | Server logic | Cloud Functions (Node.js, `functions/`) | 24 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS app-side configuration is present; APNs credential remains — see CURRENT_STATE |
+| Device session id | `flutter_secure_storage` | Keychain (iOS/macOS) / `EncryptedSharedPreferences` (Android). Holds **one** value — this device's single-active-session claim. Seam: `core/services/session_store.dart`; never import it elsewhere, and it is still **not** a place for preferences (those stay JSON files) |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
 | Serialization | `json_serializable` | |
 | Media | `image_picker` · `image_cropper` · `video_compress` | Mobile-gated |
@@ -162,7 +163,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 
 | Module | Owns | Design doc |
 | --- | --- | --- |
-| `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles | [AUTH](docs/design/AUTH.md) |
+| `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles, **single active session** (one account = one signed-in device) | [AUTH](docs/design/AUTH.md) |
 | `profile` | View/edit profile, image uploads, contact & payment details | [AUTH](docs/design/AUTH.md) |
 | `task` | Operations tasks: create → execute → review, templates and recurring automation | [TASKS](docs/design/TASKS.md) · [AUTOMATION](docs/design/AUTOMATION_ENGINE.md) |
 | `schedule` | Admin Today coverage across branches, weekly roster, attributed swap approval/history, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
@@ -199,7 +200,7 @@ features' cubits.
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
 | `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (59 routes) · `app_page_route.dart` (the back-navigation contract) · `router_extensions.dart` (navigating safely from outside the tree + reading where the user is) |
-| `services/` | `notification_service.dart` (FCM) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
+| `services/` | `notification_service.dart` (FCM) · `session_store.dart` (the device's single-active-session claim, keystore-backed) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
@@ -224,11 +225,14 @@ Reuse these. Do not re-implement or duplicate them.
 | Task status → colour | `core/widgets/status_badge.dart` (`taskStatusColor`) |
 | Structured logging | `core/utils/app_logger.dart` (`AppLog`) |
 | Any per-device, per-user preference or read-state | a small uid-namespaced JSON file in the app-support dir, in `core/services/` (`case_seen_store` · `task_seen_store` · `notification_preferences_store`). **Never add `shared_preferences`** — the app already has one local-preference mechanism |
+| Whether THIS device still owns the session | `core/services/session_store.dart` (`SessionStore`) + `users/{uid}.activeSessionId`. Enforced **only** in `AuthCubit.watchCurrentUser` — never re-check it in a feature ([AUTH](docs/design/AUTH.md#single-active-session)) |
+| Tearing down user-scoped streams/caches on sign-out | `AppDependencies.clearUserScopedState()` (`core/di/injection.dart`), reached through `AuthCubit`'s `onPreSignOut` hook. A new app-wide cubit holding a live stream **must** add a `reset()` and be listed there, or its listener outlives the session |
 | Shift slot timing | `schedule/domain/shift_window.dart` |
 | Shift hours resolution | `WeeklyScheduleEntity.hoursFor` ([ADR-006](docs/decisions/ADR-006-schedule-shift-plan-snapshots.md)) |
 | Worked/late/overtime minutes | `attendance/domain/attendance_calculator.dart` |
 | Task visibility | `task/domain/task_access.dart` (`canUserAccessTask`) |
 | Was a task made by a person or by the server? | `task/domain/task_origin.dart` (`taskOrigin`) — **never read `createdBy` for this**: a generated instance inherits its template's creator |
+| Who reviews a task / who is told it was submitted | `task/domain/task_review_routing.dart` (`taskReviewRecipients` · `canReviewTask`) — **never `createdBy` alone**: that account can be deactivated, deleted, demoted or moved branch, and a generated instance inherits the *template's* creator. `canReviewTask` mirrors the `tasks` update rule; if they disagree, the rule wins |
 | Naming an activity-event actor | `task/presentation/activity_format.dart` (`activityActorName` / `activityActorRole`) — `actorId: "system"` is not a uid and must not fall through to the directory |
 | Notification routing | `notifications/domain/notification_deep_link.dart` |
 | **What screen is the user actually on?** | `core/routes/router_extensions.dart` → `topLocationOrNull`. **Never** the match list's own `uri` (`currentLocationOrNull`): an imperative `push` does not rewrite it, and every chat/notification destination is reached by `push`, so the two disagree exactly when it matters. `currentLocationOrNull` remains the duplicate-push guard it was written for |
@@ -262,6 +266,8 @@ Reuse these. Do not re-implement or duplicate them.
 | Collection names / app name | `core/constants/app_constants.dart` |
 | DI wiring | `core/di/injection.dart` |
 | App bootstrap / providers | `main.dart` |
+| **Anything about who is signed in, or ending a session** | `features/auth/presentation/cubit/auth_cubit.dart` — including single active session ([ADR-023](docs/decisions/ADR-023-single-active-session.md)). **Never re-check the session inside a feature** |
+| **A new app-wide cubit that holds a live stream** | give it a `reset()` **and** list it in `AppDependencies.clearUserScopedState()` — otherwise its listener outlives the session and the next user on the device sees the previous one's data |
 
 ---
 

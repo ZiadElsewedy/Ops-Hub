@@ -780,6 +780,34 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     _emitLoaded();
   }
 
+  /// Drops both user-scoped streams, the live ticker and every cached record,
+  /// returning the cubit to [AttendanceState.initial]. Called on sign-out and on
+  /// single-active-session eviction. The ticker matters as much as the streams:
+  /// this cubit is app-wide, so a `Timer` left running keeps rebuilding a
+  /// signed-out user's clock state forever.
+  void reset() {
+    _timer?.cancel();
+    _timer = null;
+    _sub?.cancel();
+    _sub = null;
+    _correctionsSub?.cancel();
+    _correctionsSub = null;
+    _user = null;
+    _branch = null;
+    _ctx = null;
+    _config = const AttendanceConfig(enabled: true);
+    _history = const [];
+    _myCorrections = const [];
+    _offline = false;
+    _syncing = false;
+    _verifying = false;
+    _previewing = false;
+    _previewVerification = null;
+    _previewError = null;
+    _busy = false;
+    if (!isClosed) emit(const AttendanceState.initial());
+  }
+
   @override
   Future<void> close() {
     _timer?.cancel();

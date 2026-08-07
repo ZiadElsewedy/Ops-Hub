@@ -79,15 +79,46 @@ void main() {
       expect(e.broadcastId, isNull);
     });
 
-    test('an unknown type degrades gracefully (no crash)', () {
+    test('an unknown type lands as `unknown`, never as a real type', () {
+      // This test previously asserted the fallback was `taskAssigned`, which is
+      // what SHIPPED the branch-sales defect: `type` drives the glyph, the
+      // category pill and the priority ordering, so "degrade to a known type"
+      // meant every unrecognised notification arrived wearing a clipboard,
+      // filed under Tasks, ranked `high` above genuinely overdue work.
+      // Degrading gracefully means not throwing — it does not mean claiming to
+      // be something else.
       final m = NotificationModel.fromMap(const {
         'recipientUid': 'u1',
         'type': 'somethingNew',
         'title': 'x',
         'body': 'y',
       });
-      // Falls back to a known type rather than throwing.
-      expect(m.type, NotificationType.taskAssigned);
+      expect(m.type, NotificationType.unknown);
+    });
+
+    test('a missing type also lands as `unknown`', () {
+      final m = NotificationModel.fromMap(const {
+        'recipientUid': 'u1',
+        'title': 'x',
+        'body': 'y',
+      });
+      expect(m.type, NotificationType.unknown);
+    });
+
+    test('an unknown type still deep-links — routing keys off `route`', () {
+      // The reason `unknown` is safe to ship: navigation never consulted `type`
+      // in the first place. A notification from a newer server build still
+      // opens the right screen; it just stops impersonating a task on the way.
+      final m = NotificationModel.fromMap(const {
+        'recipientUid': 'u1',
+        'type': 'somethingTheServerAddedLater',
+        'title': 'x',
+        'body': 'y',
+        'payload': {'route': 'task_details', 'taskId': 't9'},
+      });
+      expect(m.type, NotificationType.unknown);
+      expect(m.toEntity().route, 'task_details');
+      expect(m.toEntity().taskId, 't9');
     });
 
     test('a sales notification parses as itself, not as the task fallback', () {

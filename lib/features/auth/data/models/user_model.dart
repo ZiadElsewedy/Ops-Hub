@@ -26,6 +26,11 @@ class UserModel {
   final bool hasCompletedOnboarding;
   final String employmentStatus;
   final String? createdBy;
+  /// The single-active-session claim (see [UserEntity.activeSessionId]). READ
+  /// here, but deliberately absent from [toMap]: the claim is written only by
+  /// `UserRemoteDataSource.claimSession`, so a routine profile save can never
+  /// stamp a stale id and evict the device that actually owns the session.
+  final String? activeSessionId;
   // NOTE (C2 fix, 2026-07-03): compensation fields are deliberately absent —
   // they live in users/{uid}/private/compensation (UserCompensation) and are
   // loaded on demand, never as part of a user fetch.
@@ -51,6 +56,7 @@ class UserModel {
     this.hasCompletedOnboarding = true,
     this.employmentStatus = 'active',
     this.createdBy,
+    this.activeSessionId,
   });
 
   factory UserModel.fromFirebaseUser(User user, {String authProvider = 'unknown'}) =>
@@ -85,6 +91,7 @@ class UserModel {
         hasCompletedOnboarding: entity.hasCompletedOnboarding,
         employmentStatus: entity.employmentStatus,
         createdBy: entity.createdBy,
+        activeSessionId: entity.activeSessionId,
       );
 
   factory UserModel.fromMap(Map<String, dynamic> map) => UserModel(
@@ -119,6 +126,10 @@ class UserModel {
         hasCompletedOnboarding: map['hasCompletedOnboarding'] as bool? ?? true,
         employmentStatus: map['employmentStatus'] as String? ?? 'active',
         createdBy: map['createdBy'] as String?,
+        // Absent on every document written before single-active-session
+        // shipped → null, which the auth layer reads as "no claim on record"
+        // and therefore never treats as an eviction.
+        activeSessionId: map['activeSessionId'] as String?,
         // Compensation keys on legacy (pre-migration) docs are intentionally
         // NOT parsed — salary data never enters the public user entity.
       );
@@ -129,6 +140,11 @@ class UserModel {
   /// EXCLUDED so a routine write can never overwrite admin-assigned values
   /// (they are seeded once, server-side, by the `createUserAccount` Cloud
   /// Function). Compensation lives in the private subdocument entirely.
+  ///
+  /// `activeSessionId` is excluded for the same reason: it is owned by
+  /// `UserRemoteDataSource.claimSession` alone. Round-tripping it through a
+  /// profile save would let a device that had been evicted seconds earlier
+  /// re-stamp its own stale id and steal the session back.
   Map<String, dynamic> toMap() => {
         'uid': uid,
         'email': email,
@@ -162,5 +178,6 @@ class UserModel {
         hasCompletedOnboarding: hasCompletedOnboarding,
         employmentStatus: employmentStatus,
         createdBy: createdBy,
+        activeSessionId: activeSessionId,
       );
 }

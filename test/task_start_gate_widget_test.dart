@@ -212,6 +212,8 @@ class _FakeSalesMonthCubit extends Cubit<SalesMonthState>
     required String submissionId,
     required int amountPiastres,
   }) async {}
+  @override
+  Future<void> reset() async {}
 }
 
 Widget _homeHost(_FakeTaskCubit taskCubit) => MultiBlocProvider(

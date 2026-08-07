@@ -43,8 +43,12 @@ class NotificationModel {
         id: id ?? map['id'] as String? ?? '',
         recipientUid: map['recipientUid'] as String? ?? '',
         senderUid: map['senderUid'] as String?,
+        // An unrecognised type lands as `unknown`, NEVER as a real type. The
+        // old `?? taskAssigned` made every type this build had not heard of
+        // impersonate a task — wrong glyph, wrong category pill, `high`
+        // priority above real overdue work. See [NotificationType.unknown].
         type: NotificationType.fromString(map['type'] as String?) ??
-            NotificationType.taskAssigned,
+            NotificationType.unknown,
         title: map['title'] as String? ?? '',
         body: map['body'] as String? ?? '',
         createdAt: map.date('createdAt'),

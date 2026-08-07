@@ -215,6 +215,13 @@ class NotificationTile extends StatelessWidget {
         return Icons.timer_off_outlined;
       case NotificationType.salesSubmission:
         return Icons.point_of_sale_outlined;
+      case NotificationType.unknown:
+        // A neutral bell — the one glyph that claims nothing about what this
+        // notification is. `_accentFor` falls through to `AppColors.primary`,
+        // so the row stays monochrome and never borrows a semantic colour it
+        // has not earned. The stored `title`/`body` still render in full, so
+        // the notification is readable even though this build cannot classify it.
+        return Icons.notifications_none_rounded;
     }
   }
 
