@@ -4,16 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
 import 'package:drop/core/widgets/settings_tiles.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
@@ -26,11 +23,21 @@ import 'package:drop/features/profile/presentation/widgets/profile_identity_card
 /// The signed-in user's own profile — who they are, where they work, how the
 /// company reaches them, and how their account is set up.
 ///
-/// It reads as the sibling of Settings on purpose: the same grouped glass rows
-/// (`core/widgets/settings_tiles.dart`), the same entrance stagger, the same
-/// isolated destructive sign-out. What is specific to a profile is the identity
-/// lockup (cover + avatar + role) and the fact rows, which lead with the value
-/// rather than a destination name and offer tap-to-copy.
+/// **Settings is the account hub; Profile is a leaf of it.** One door in (the
+/// mobile app-bar avatar and the desktop sidebar footer both open Settings),
+/// and Settings' identity card is the only route to this screen. So Profile
+/// answers *who am I and what are my details*, and **nothing else** — it
+/// carries no Settings row and no Sign out.
+///
+/// That is a correction, not a preference: this screen used to offer both, so
+/// Settings → Profile → Settings was a closed loop and the one destructive
+/// action in the app existed on two different screens. Do not re-add a
+/// navigation row here; add it to Settings.
+///
+/// It borrows Settings' grouped glass rows (`core/widgets/settings_tiles.dart`)
+/// and entrance stagger so the two read as one system. What is specific to a
+/// profile is the identity lockup and the fact rows, which lead with the value
+/// rather than a destination name.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -109,9 +116,9 @@ class _ProfileContent extends StatelessWidget {
 
     // The self-service contact block is for managers and employees only (owner
     // ruling, mirrored in EditProfilePage, which does not render those fields
-    // for an admin) — so an admin's empty row must not offer a door onto a form
-    // that has no such field.
-    final VoidCallback? addContact = context.isAdmin ? null : edit;
+    // for an admin) — so an admin's contact rows are read-only here rather than
+    // opening a form that has no such field.
+    final VoidCallback? editContact = context.isAdmin ? null : edit;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -166,20 +173,20 @@ class _ProfileContent extends StatelessWidget {
                   label: 'Phone',
                   value: profile.phoneNumber,
                   copyable: true,
-                  onAdd: addContact,
+                  onEdit: editContact,
                 ),
                 ProfileDetailRow(
                   icon: Icons.home_outlined,
                   label: 'Address',
                   value: profile.address,
-                  onAdd: addContact,
+                  onEdit: editContact,
                 ),
                 ProfileDetailRow(
                   icon: Icons.emergency_outlined,
                   label: 'Emergency contact',
                   value: profile.emergencyContact,
                   copyable: true,
-                  onAdd: addContact,
+                  onEdit: editContact,
                   isLast: true,
                 ),
               ],
@@ -195,30 +202,11 @@ class _ProfileContent extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           SettingsReveal(index: 6, child: _AccountGroup(profile: profile)),
 
-          // ─── Actions ────────────────────────────────────────────────
-          const SizedBox(height: AppSpacing.xxl),
-          SettingsReveal(
-            index: 7,
-            child: SettingsGroup(
-              children: [
-                SettingsRow(
-                  icon: Icons.settings_outlined,
-                  label: 'Settings',
-                  subtitle: 'Preferences, security and workspace',
-                  isFirst: true,
-                  isLast: true,
-                  onTap: () => context.push(RouteNames.settings),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SettingsReveal(
-            index: 8,
-            child: _SignOutCard(
-              onTap: () => context.read<AuthCubit>().signOut(),
-            ),
-          ),
+          // Nothing follows. Profile is a **leaf** of the account hub, not a
+          // second hub: it had a Settings row (Settings → Profile → Settings,
+          // a closed loop) and its own Sign out card, so the same destructive
+          // action existed on two screens. Both live in Settings, which is the
+          // one door in — see the class doc.
         ],
       ),
     );
@@ -241,8 +229,7 @@ class _WorkplaceGroup extends StatelessWidget {
     final branchId = user?.branchId ?? '';
     final isGlobal = user?.role.isGlobal ?? false;
     final shift = (user?.assignedShift ?? '').trim();
-    // Position is deliberately NOT a row here — it is already a chip on the
-    // identity card, and one screen must not state the same fact twice.
+    final position = (user?.position ?? '').trim();
 
     if (branchId.isEmpty) {
       return SettingsGroup(
@@ -252,8 +239,15 @@ class _WorkplaceGroup extends StatelessWidget {
             label: 'Branch',
             value: isGlobal ? 'All branches · organisation-wide' : null,
             isFirst: true,
-            isLast: true,
+            isLast: position.isEmpty,
           ),
+          if (position.isNotEmpty)
+            ProfileDetailRow(
+              icon: Icons.badge_outlined,
+              label: 'Position',
+              value: position,
+              isLast: true,
+            ),
         ],
       );
     }
@@ -276,8 +270,15 @@ class _WorkplaceGroup extends StatelessWidget {
                 radius: 12,
               ),
               isFirst: true,
-              isLast: shift.isEmpty,
+              isLast: position.isEmpty && shift.isEmpty,
             ),
+            if (position.isNotEmpty)
+              ProfileDetailRow(
+                icon: Icons.badge_outlined,
+                label: 'Position',
+                value: position,
+                isLast: shift.isEmpty,
+              ),
             if (shift.isNotEmpty)
               ProfileDetailRow(
                 icon: Icons.schedule_rounded,
@@ -336,72 +337,6 @@ class _AccountGroup extends StatelessWidget {
     'unknown' || '' => 'Not recorded',
     _ => provider,
   };
-}
-
-/// Sign-out is deliberately its own surface, away from ordinary navigation —
-/// the same shape Settings uses, so the destructive action looks identical
-/// wherever the user meets it.
-class _SignOutCard extends StatelessWidget {
-  const _SignOutCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: 'Sign out of this device',
-    child: AppGlassCard(
-      onTap: onTap,
-      elevated: false,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.lg,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.error.withAlpha(18),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.error.withAlpha(54)),
-            ),
-            child: const Icon(
-              Icons.logout_rounded,
-              size: 19,
-              color: AppColors.error,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Sign out',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.error,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                const Text(
-                  'End this session on this device',
-                  style: AppTypography.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.arrow_forward_rounded,
-            size: 18,
-            color: AppColors.error.withAlpha(180),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 // ─── Loading ───────────────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
+import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/features/sales/domain/sales_calculator.dart';
 import 'package:drop/features/sales/domain/sales_trend.dart';
+import 'package:drop/features/sales/presentation/sales_outlook_tint.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_month_overview.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_pace_card.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_progress_ring.dart';
@@ -59,6 +61,27 @@ void main() {
     expect(find.text('REMAINING'), findsOneWidget);
     expect(find.text('TARGET'), findsOneWidget);
     expect(find.text('40.1%'), findsOneWidget);
+  });
+
+  test('outlook tint is green ahead, amber behind, white too-early', () {
+    expect(salesOutlookTint(SalesTargetOutlook.ahead), AppColors.success);
+    expect(salesOutlookTint(SalesTargetOutlook.behind), AppColors.warning);
+    expect(salesOutlookTint(SalesTargetOutlook.tooEarly), AppColors.primary);
+  });
+
+  testWidgets('the ahead tint reaches the ACHIEVED figure', (tester) async {
+    await _pumpPhone(
+      tester,
+      SalesMonthOverview(
+        targetPiastres: 100000000,
+        achievedPiastres: 40133200,
+        remainingPiastres: 59866800,
+        progressRatio: 0.401,
+        tint: salesOutlookTint(SalesTargetOutlook.ahead),
+      ),
+    );
+    final achieved = tester.widget<Text>(find.text('401,332'));
+    expect(achieved.style?.color, AppColors.success);
   });
 
   testWidgets('progress ring shows a capped whole at over-target', (

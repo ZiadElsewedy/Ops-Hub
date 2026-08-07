@@ -164,7 +164,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | Module | Owns | Design doc |
 | --- | --- | --- |
 | `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles, **single active session** (one account = one signed-in device) | [AUTH](docs/design/AUTH.md) |
-| `profile` | View/edit profile, image uploads, contact & payment details | [AUTH](docs/design/AUTH.md) |
+| `profile` | View/edit profile, image uploads, contact details. A **leaf of the Settings hub** — no navigation rows, no sign-out ([AUTH](docs/design/AUTH.md#the-account-hub-and-profiles-place-in-it)) | [AUTH](docs/design/AUTH.md) |
 | `task` | Operations tasks: create → execute → review, templates and recurring automation | [TASKS](docs/design/TASKS.md) · [AUTOMATION](docs/design/AUTOMATION_ENGINE.md) |
 | `schedule` | Admin Today coverage across branches, weekly roster, attributed swap approval/history, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
@@ -181,7 +181,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |
 | `employee` | EmployeeShell + employee home | — |
-| `settings` | Premium account hub, profile/security/workspace links, sign-out, About + change password, per-device notification switches (presentation-only) | — |
+| `settings` | **The** account hub — the single door in (mobile app-bar avatar · desktop sidebar footer) and the only route to Profile. Security/workspace links, the app's **only** sign-out, About + change password, per-device notification switches (presentation-only) | [AUTH](docs/design/AUTH.md#the-account-hub-and-profiles-place-in-it) |
 
 `manager`, `employee`, and `settings` are **presentation-only** — they reuse other
 features' cubits.

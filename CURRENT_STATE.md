@@ -66,6 +66,18 @@
 > config-diff audit fully supports it. The ADR-011 execution record is **written
 > daily and read by no screen**.
 >
+> **Edit-approved-amount reason is now optional (2026-08-07, feature, ⚠️ NEEDS
+> FUNCTIONS DEPLOY):** On the sales submission detail's *Edit approved amount*
+> sheet the reason is no longer required — owner call. Changed in both halves:
+> the shared `showSalesTargetEditorSheet` gained `reasonRequired` (default true,
+> so **Set/Edit target is unchanged**; edit-approved passes false) and
+> `editApprovedDailySalesSubmission` now uses `salesReason(reason, false)` with the
+> audit row storing `reason: null` when blank. Reject/correction/reopen/target
+> reasons stay mandatory. ⚠️ **Inert until
+> `firebase deploy --only functions:editApprovedDailySalesSubmission`** — the live
+> callable still rejects a blank reason, so a blank save errors on device until
+> deployed. Weakens the audit trail for a monetary edit (noted in SALES_TARGETS).
+
 > **Branch sales manager dashboard re-enriched (2026-08-07, presentation + two
 > pure domain helpers, owner-directed, NOT device-verified):** The manager
 > branch-sales dashboard (`/sales`) was redesigned from a mockup signed off
@@ -89,8 +101,10 @@
 > overflow guard). Design doc [SALES_TARGETS](docs/design/SALES_TARGETS.md)
 > updated. **Verified running on macOS desktop and iOS** (the dashboard renders
 > end to end); GPS/hardware-specific QA still pending. A brand-accent (indigo)
-> experiment on the figures was tried and **reverted the same day** (owner didn't
-> like it on device) — the screen is monochrome and ADR-004 stands.
+> experiment was tried and **reverted**; what stuck is a **status tint**
+> (`salesOutlookTint`): ACHIEVED, the ring and the today bar go **green ahead /
+> amber behind / white too-early** — colour as status (ADR-004 holds, no brand
+> accent). Not device-verified in its tinted state on iOS/Android hardware.
 
 > **iOS swipe-back added; every back button kept (2026-08-05, NOT
 > device-verified):** A pushed screen on iOS now carries the native interactive
@@ -333,14 +347,29 @@
 > **Profile screen rebuilt (2026-08-07, presentation only, NOT device-verified):**
 > The account's own page was a 64px avatar, a flat list of label→value rows and
 > three action tiles; it now reads as the sibling of the Settings hub. New
-> compact identity lockup (cover + overlapping avatar + `@handle · Position` +
-> role chip + bio + one CTA), facts grouped into **Workplace · Contact ·
-> Account**, and rows that act: **tap-to-copy** on email/phone/emergency, and an
-> unset self-service detail that says *Not set* and opens Edit Profile instead
-> of silently not rendering.
+> compact identity lockup (cover + overlapping avatar + name + `[ROLE] @handle`
+> + bio + one CTA), facts grouped into **Workplace · Contact · Account**, and
+> rows that act: **tapping a self-service detail opens Edit Profile** (set or
+> not) while **copy is its own 44pt button**, so reading a value out and
+> correcting it no longer compete for one gesture.
 > - **Two fields that existed but were never shown now are:** `coverImage` (was
 >   uploadable from Edit Profile and visible nowhere) and `bio` (editable, never
 >   rendered).
+> - ✅ **The username had no input anywhere in the app**, while
+>   `ProfileEntity.isComplete` requires it — so **every account was permanently
+>   "incomplete"** and the prompt could never be satisfied, even though the
+>   datasource, repository, `CheckUsername` and the cubit's taken-handle
+>   rejection were all wired. Edit Profile now has the field
+>   (`Validators.username`: 3–20 chars, letters · digits · `.` · `_`, starts
+>   with a letter, stored lowercase). The prompt also names what is *actually*
+>   missing rather than always asking for both.
+> - ✅ **Settings is the account hub; Profile is a leaf of it** (owner ruling,
+>   same day). Profile had a **Settings** row while Settings' identity card
+>   opens Profile — a closed loop — and both carried their own **Sign out**, so
+>   the app's one destructive action lived on two screens. Profile now carries
+>   neither, and the **desktop sidebar footer opens Settings** instead of
+>   Profile, so both platforms have one door in. Do not re-add a navigation row
+>   to Profile; add it to Settings.
 > - **Profile never states `paymentNumber`** (owner ruling, same day) — for any
 >   role. It is set and changed in **Edit Profile** only; the schema and the
 >   private compensation subdoc are unchanged.
@@ -355,7 +384,9 @@
 > - Also: pull-to-refresh (`forceRefresh`), the shared `AppErrorState` replacing
 >   a bespoke failure surface, a skeleton matching the new shape, and
 >   `ProfileEntity.initials` replacing the duplicated private helper.
-> Pinned by `test/features/profile/profile_page_test.dart` (8).
+> Pinned by `test/features/profile/profile_page_test.dart` (9, including one
+> that fails if Profile grows a second hub or a second Sign out) +
+> `test/features/profile/edit_profile_username_test.dart` (3).
 
 > **Task review notifications now find a live reviewer (2026-08-07, client-only,
 > NOT device-verified):** `taskSubmitted` routed to `task.createdBy` and stopped,

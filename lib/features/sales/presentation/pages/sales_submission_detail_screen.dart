@@ -252,6 +252,7 @@ class _Actions extends StatelessWidget {
                         'this changes the month immediately.',
                     initialAmount: formatEgp(sale.amountPiastres),
                     confirmLabel: 'Save amount',
+                    reasonRequired: false,
                   );
                   if (result != null) {
                     cubit.editApproved(

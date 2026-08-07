@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `sales`
 
-> `lib/features/sales/` · **52 files** · layer-complete clean-architecture slice
+> `lib/features/sales/` · **53 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -45,6 +45,7 @@
 
 **presentation:other**
 - `lib/features/sales/presentation/sales_format.dart`
+- `lib/features/sales/presentation/sales_outlook_tint.dart`
 
 **domain:entity**
 - `lib/features/sales/domain/entities/branch_sales_month_entity.dart`

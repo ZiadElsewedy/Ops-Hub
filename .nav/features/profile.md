@@ -56,6 +56,7 @@
 - **Design spec(s):** —
 
 ## Tests
+- `test/features/profile/edit_profile_username_test.dart`
 - `test/features/profile/profile_page_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)

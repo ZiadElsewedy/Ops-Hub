@@ -28,7 +28,7 @@ forecast are **derived on read — never stored**.
 | **Submission statuses** | `pending → approved \| rejected \| correctionRequested`. A `correctionRequested` doc, once resubmitted, returns to `pending`. A manager/admin edit of an already-`approved` amount stays `approved` and bumps `revision`. Admin reopen returns any terminal record to `pending` |
 | **Submit** | Any **active branch employee**. **One document per branch business day** — first valid submission wins (deterministic id); a second attempt opens the existing record, never overwrites it |
 | **Decide** | Own-branch **manager**, or **admin** (global). Approve / reject / request correction |
-| **Correct** | Manager/admin only, server-authoritative, **mandatory reason** — an approved amount can be edited; a terminal record can be reopened |
+| **Correct** | Manager/admin only, server-authoritative. Editing an already-approved amount takes an **optional reason** (owner call, 2026-08-07 — `salesReason(reason, false)`); reopening a terminal record keeps a **mandatory reason**. Reject / request-correction reasons stay mandatory (see Decide). ⚠️ Making the edit reason optional weakens the audit trail for a monetary change — the audit row now stores `reason: null` when none is given |
 | **Target** | Set/changed by own-branch manager or admin, **mandatory reason**, audited. A target **must exist before an employee can submit** |
 | **Accumulation** | **Never stored.** Approved total is always re-summed from the month's approved submissions |
 | **Time** | All month/date keys are **`Africa/Cairo`** business civil days ([ADR-015](../decisions/ADR-015-automation-business-timezone.md)) |
@@ -204,20 +204,29 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
   (the *how far* percentage), and a **Pace** card that pairs the month's
   target-outlook **verdict** with the **last-7-days approved-takings chart** (the
   *how fast*). This re-enriches what an earlier pass had stripped to *Needed per
-  day* alone; the enrichment lives **only** here, and stays strictly monochrome
-  (ADR-004) — the ring and bars are white/grey, colour remains status-only. (A
-  brand accent on these figures was tried and reverted on 2026-08-07.)
+  day* alone; the enrichment lives **only** here.
+- **The achievement figures carry a status tint (ADR-004-compliant).** ACHIEVED,
+  the **ring** (arc + %) and the chart's **today** bar take
+  `salesOutlookTint(outlook)` — **green** when the month is projected ahead of
+  target, **amber** when behind, **white** before there's anything to project.
+  This is colour as *status*, the same rule Needed per day follows, so it ties the
+  hero numbers to the Pace verdict without breaking monochrome. Target, remaining,
+  the edit button, the door and the other bars stay neutral. (A chromatic *brand*
+  accent — indigo, regardless of status — was tried on these figures and reverted
+  on 2026-08-07; the status tint is what stuck.)
 - **The four filtered tiles are now one door.** Pending / Approved / Rejected /
   History each opened the **same** history screen with a different `?status=`, so
   as four `MetricTile`s they read as four destinations that were one. A single
   *All submissions* row opens the unfiltered ledger; the counts survive as an
   inline breakdown. Pending work is still acted on in the *Waiting on you* queue
   above, so the row is reference, not the primary action.
-- **Colour stays status-only.** `salesDayPace` (Needed per day) and
-  `salesTargetOutlook` (the Pace verdict) are the only coloured signals:
-  success / amber / red for a real judgement, monochrome when there is nothing to
-  judge. Colour is carried by a hairline, a glyph and the figure, never by a
-  filled block. An unsubmitted or not-yet-projectable state is never a failure.
+- **Colour stays status-only.** Two derivations own every coloured pixel:
+  `salesDayPace` (Needed per day) and `salesTargetOutlook` (the Pace verdict **and**
+  the achievement-figure tint via `salesOutlookTint`). Both are
+  success / amber / red for a real judgement and neutral when there is nothing to
+  judge. Colour is carried by a hairline, a glyph, a ring arc and the figure —
+  never a filled surface. An unsubmitted or not-yet-projectable state is never a
+  failure. There is **no chromatic brand accent** (ADR-004 holds).
 - **Money is grouped from the right.** `formatEgp` counts in threes from the
   last digit. A lookahead once matched at index 0 whenever the digit count was a
   multiple of three, so `945000` shipped to users as **`,945,000`**.

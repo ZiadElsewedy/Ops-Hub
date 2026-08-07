@@ -77,6 +77,7 @@
 ## Tests
 - `test/admin_users_delete_test.dart`
 - `test/admin_users_directory_invalidation_test.dart`
+- `test/features/profile/edit_profile_username_test.dart`
 - `test/first_login_gate_test.dart`
 - `test/onboarding_welcome_page_test.dart`
 - `test/splash_centering_test.dart`

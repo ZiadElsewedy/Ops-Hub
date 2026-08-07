@@ -341,7 +341,13 @@ class _AppShellState extends State<AppShell> {
                         footer: _SidebarUserFooter(
                           user: user,
                           role: role,
-                          onTap: () => context.go(RouteNames.profile),
+                          // The account hub, exactly like the mobile app-bar
+                          // avatar. It used to open Profile directly, which
+                          // made Profile a top-level destination on desktop
+                          // and a leaf on mobile, and left the sidebar with no
+                          // door to Sign out at all once Profile stopped
+                          // carrying one.
+                          onTap: () => context.go(RouteNames.settings),
                         ),
                       ),
                     ),
@@ -376,7 +382,8 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-/// Pinned sidebar footer: a compact glass profile card, tappable → profile.
+/// Pinned sidebar footer: a compact glass account card, tappable → the account
+/// hub (Settings), which is where Profile, security and Sign out live.
 class _SidebarUserFooter extends StatelessWidget {
   const _SidebarUserFooter({
     required this.user,
@@ -392,10 +399,10 @@ class _SidebarUserFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = (user.displayName?.isNotEmpty ?? false)
         ? user.displayName!
-        : 'Profile';
+        : 'Account';
     return Semantics(
       button: true,
-      label: 'Open profile for $name',
+      label: 'Open account settings for $name',
       child: GlassContainer(
         onTap: onTap,
         elevated: false,

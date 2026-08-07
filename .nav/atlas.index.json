@@ -523,6 +523,7 @@
       "tests": [
         "test/admin_users_delete_test.dart",
         "test/admin_users_directory_invalidation_test.dart",
+        "test/features/profile/edit_profile_username_test.dart",
         "test/first_login_gate_test.dart",
         "test/onboarding_welcome_page_test.dart",
         "test/splash_centering_test.dart",
@@ -1114,6 +1115,7 @@
       "collections": [],
       "cloud_functions": [],
       "tests": [
+        "test/features/profile/edit_profile_username_test.dart",
         "test/features/profile/profile_page_test.dart"
       ],
       "design_specs": []
@@ -1202,7 +1204,7 @@
     },
     "sales": {
       "path": "lib/features/sales/",
-      "file_count": 52,
+      "file_count": 53,
       "layers": {
         "data:datasource": [
           "lib/features/sales/data/datasources/sales_remote_datasource.dart"
@@ -1263,7 +1265,8 @@
           "lib/features/sales/presentation/pages/sales_submission_screen.dart"
         ],
         "presentation:other": [
-          "lib/features/sales/presentation/sales_format.dart"
+          "lib/features/sales/presentation/sales_format.dart",
+          "lib/features/sales/presentation/sales_outlook_tint.dart"
         ],
         "presentation:widget": [
           "lib/features/sales/presentation/widgets/admin_branch_sales_summary.dart",

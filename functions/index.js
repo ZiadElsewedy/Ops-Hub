@@ -1428,7 +1428,7 @@ exports.editApprovedDailySalesSubmission = onCall(async (request) => {
   if (!submissionId || !isValidMoney(data.amountPiastres) || !Number.isInteger(data.expectedRevision)) throw new HttpsError("invalid-argument", "Invalid sales edit.");
   const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
   if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
-  const branchId = String((initial.data() || {}).branchId || ""); const actor = await requireSalesManager(request, branchId); const reason = salesReason(data.reason); let result;
+  const branchId = String((initial.data() || {}).branchId || ""); const actor = await requireSalesManager(request, branchId); const reason = salesReason(data.reason, false); let result;
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists."); const sub = snap.data() || {};
     const revision = Number(sub.revision) || 1; if (sub.status !== "approved" || revision !== data.expectedRevision) throw new HttpsError("failed-precondition", "Sales submission revision is stale or not approved.");
@@ -1437,7 +1437,7 @@ exports.editApprovedDailySalesSubmission = onCall(async (request) => {
     tx.update(ref, { amountPiastres: data.amountPiastres, revision: revision + 1, lastEditedById: actor.id, lastEditedByName: actor.name, lastEditedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     result = { sub, oldAmount: sub.amountPiastres, revision: revision + 1, crossing };
   });
-  try { await writeSalesAudit({ eventType: "sales.approved_amount_edited", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.oldAmount, newAmountPiastres: data.amountPiastres, revision: result.revision, reason, schemaVersion: 1 } });
+  try { await writeSalesAudit({ eventType: "sales.approved_amount_edited", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.oldAmount, newAmountPiastres: data.amountPiastres, revision: result.revision, reason: reason || null, schemaVersion: 1 } });
     if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
   } catch (err) { logger.warn("failed to write sales edit side effects", { error: String(err), submissionId }); }
   return { success: true, revision: result.revision };

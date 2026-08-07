@@ -159,9 +159,10 @@ void main() {
     await pump(tester);
 
     expect(find.text('Ziad Elsewedy'), findsOneWidget);
-    // Position rides the identity line, not a second chip — at phone width the
-    // chip row shares its line with the CTA.
-    expect(find.text('@ziad · Cashier'), findsOneWidget);
+    expect(find.text('@ziad'), findsOneWidget);
+    // Position is a Workplace row — on the identity line it truncated both it
+    // and the handle at 390pt.
+    expect(find.text('Cashier'), findsOneWidget);
     expect(find.text('EMPLOYEE'), findsOneWidget);
     expect(find.text('Front of house, Arkan branch.'), findsOneWidget);
     expect(
@@ -169,24 +170,40 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Morning'), findsOneWidget);
-    expect(find.text('Edit profile'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget);
   });
 
-  testWidgets('a complete profile is not nagged; an incomplete one is', (
+  testWidgets('a complete profile is not nagged; a username-less one is', (
     tester,
   ) async {
     arrange(profile: _profile(username: null));
     await pump(tester);
 
-    expect(find.text('Complete profile'), findsOneWidget);
-    expect(find.text('Edit profile'), findsNothing);
+    // The nag names what is actually missing — the name is set, so it must not
+    // ask for it.
+    expect(find.text('Pick a username to finish setting up.'), findsOneWidget);
+    expect(find.text('Complete'), findsOneWidget);
+    expect(find.text('Edit'), findsNothing);
 
-    await tester.tap(find.text('Complete profile'));
+    await tester.tap(find.text('Complete'));
     await tester.pumpAndSettle();
     expect(find.text('EDIT DESTINATION'), findsOneWidget);
   });
 
-  testWidgets('tapping a contact value copies it', (tester) async {
+  testWidgets('a self-service detail opens the edit form when tapped', (
+    tester,
+  ) async {
+    arrange();
+    await pump(tester);
+
+    await tester.tap(find.text('01001234567'));
+    await tester.pumpAndSettle();
+    expect(find.text('EDIT DESTINATION'), findsOneWidget);
+  });
+
+  testWidgets('copying a value is its own control, not the row tap', (
+    tester,
+  ) async {
     final copied = <String>[];
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -207,11 +224,13 @@ void main() {
     arrange();
     await pump(tester);
 
-    await tester.tap(find.text('ziad@drop.test'));
+    await tester.tap(find.byTooltip('Copy Phone'));
     await tester.pump();
 
-    expect(copied, ['ziad@drop.test']);
-    expect(find.text('Email copied'), findsOneWidget);
+    expect(copied, ['01001234567']);
+    expect(find.text('Phone copied'), findsOneWidget);
+    // The copy did not also navigate — the two gestures are separate.
+    expect(find.text('EDIT DESTINATION'), findsNothing);
   });
 
   testWidgets('an unset self-service detail offers the edit form', (
@@ -255,8 +274,15 @@ void main() {
 
     // The global admin's branch row states the truth instead of sitting empty.
     expect(find.text('All branches · organisation-wide'), findsOneWidget);
-    // The unset phone row is inert for an admin: no add affordance.
-    expect(find.byIcon(Icons.add_rounded), findsNothing);
+    // Contact rows are read-only for an admin — the row carries no InkWell at
+    // all, so there is nothing to press and nowhere it could lead.
+    expect(
+      find.ancestor(of: find.text('ADDRESS'), matching: find.byType(InkWell)),
+      findsNothing,
+    );
+    await tester.tap(find.text('ADDRESS'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(find.text('EDIT DESTINATION'), findsNothing);
   });
 
   testWidgets('pull to refresh forces a re-read', (tester) async {
@@ -283,15 +309,19 @@ void main() {
     expect(profileCubit.forcedLoads, 1);
   });
 
-  testWidgets('sign out ends the session from the profile too', (tester) async {
+  testWidgets('Profile is a leaf: no second hub, no duplicate sign out', (
+    tester,
+  ) async {
     arrange();
     await pump(tester);
-
-    await tester.scrollUntilVisible(find.text('Sign out'), 200);
+    await tester.scrollUntilVisible(find.text('MEMBER SINCE'), 200);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign out'));
-    await tester.pump();
 
-    expect(auth.didSignOut, isTrue);
+    // Settings → Profile → Settings was a closed loop, and Sign out existed on
+    // two screens. Both belong to the hub; this screen must never grow them
+    // back.
+    expect(find.text('Settings'), findsNothing);
+    expect(find.text('Sign out'), findsNothing);
+    expect(auth.didSignOut, isFalse);
   });
 }

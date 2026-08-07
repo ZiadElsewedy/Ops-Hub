@@ -13,6 +13,7 @@ Future<SalesAmountReason?> showSalesTargetEditorSheet(
   String? subtitle,
   String? initialAmount,
   String confirmLabel = 'Save',
+  bool reasonRequired = true,
 }) {
   final amount = TextEditingController(text: initialAmount);
   final reason = TextEditingController();
@@ -60,8 +61,12 @@ Future<SalesAmountReason?> showSalesTargetEditorSheet(
               controller: reason,
               minLines: 3,
               maxLines: 5,
-              decoration: const InputDecoration(labelText: 'Reason (required)'),
-              validator: (value) => value == null || value.trim().isEmpty
+              decoration: InputDecoration(
+                labelText: reasonRequired
+                    ? 'Reason (required)'
+                    : 'Reason (optional)',
+              ),
+              validator: (value) => reasonRequired && (value == null || value.trim().isEmpty)
                   ? 'A reason is required.'
                   : null,
             ),

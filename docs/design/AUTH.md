@@ -184,21 +184,46 @@ Firestore re-read and the skeleton flash. `forceRefresh` overrides, and the Prof
 screen's **pull-to-refresh** and its error-state **Retry** are the only callers that
 pass it — ordinary navigation must not.
 
-### The Profile screen
+### The account hub, and Profile's place in it
 
-`ProfilePage` is the sibling of the Settings hub and shares its row vocabulary
-(`core/widgets/settings_tiles.dart` — one grouped glass card, inset hairlines, 40px
-medallions). What is specific to it:
+**Settings is the hub. Profile is a leaf of it.**
+
+```
+mobile app-bar avatar ─┐
+                       ├─→ /settings ──→ /profile ──→ /profile/edit
+desktop sidebar footer ┘        │
+                                ├─→ /settings/notifications · /settings/change-password
+                                ├─→ /cases · /settings/about
+                                └─→ Sign out          ← the ONLY one in the app
+```
+
+Every account destination hangs off Settings, and Settings' identity card is the only
+route to Profile. **Profile therefore carries no navigation rows and no Sign out.**
+Before 2026-08-07 it carried both, so Settings → Profile → Settings was a closed loop
+and the app's one destructive action existed on two screens. Adding an account
+destination means adding it to Settings — never to Profile.
+
+The desktop sidebar footer opens **Settings**, not Profile, for the same reason: it is
+the only account door on desktop (the sidebar has no Settings destination), so pointing
+it at a leaf both made Profile top-level on one platform and a leaf on the other, and
+left desktop with no route to Sign out.
+
+`ProfilePage` shares Settings' row vocabulary (`core/widgets/settings_tiles.dart` — one
+grouped glass card, inset hairlines, 40px medallions) so the two read as one system.
+What is specific to it:
 
 - **`ProfileIdentityCard`** — cover (`coverImage`) under a scrim, overlapping avatar,
-  name, an identity line (`@handle · Position`), the role chip, `bio`, and the
-  screen's one CTA. Role and position come from the **auth session**, never the
-  profile document: privileged fields are deliberately kept off `ProfileEntity`.
-  It is deliberately compact — position rides the identity line rather than taking a
-  second chip, because at 390pt two chips plus the CTA wrap to two rows.
-- **`ProfileDetailRow`** — caption above, value in the bright step of the ramp, with
-  tap-to-copy on email / phone / emergency contact. An unset self-service detail
-  reads *Not set* and opens Edit Profile.
+  the name on its own line, `[ROLE] @handle` beneath it, `bio`, and the screen's one
+  CTA. Role comes from the **auth session**, never the profile document: privileged
+  fields are deliberately kept off `ProfileEntity`. It is deliberately compact, and
+  the layout is **width-driven, not taste** — at 390pt a chip row beside the CTA
+  wraps, and a role chip beside the name truncates it. Keep the name alone on its
+  line; put any new fact in a group, not here.
+- **`ProfileDetailRow`** — caption above, value in the bright step of the ramp.
+  **Tapping a row the user owns opens Edit Profile**, whether or not it has a value;
+  **copying is a separate 44pt trailing button**, so the two never contend for one
+  gesture. `onEdit: null` (email, branch, account facts, and *every* contact row for
+  an admin) makes the row inert, with no `InkWell` to press.
 - Facts group as **Workplace · Contact · Account**.
 - **An admin has no `branchId`**, so the Workplace group states *All branches ·
   organisation-wide* rather than rendering an empty branch row.
@@ -216,6 +241,20 @@ has no manager to be reached by. An admin save never writes those fields, and th
 Profile page offers an admin no *add* door on an unset contact row — the form they
 would land on has no such field. The admin-only salary fields (amount/type/method)
 are **not** part of the profile contract.
+
+### The username
+
+`username` is the `@handle` every profile surface shows and the only profile field
+with a **uniqueness** rule: `CheckUsername` queries `users` for the lowercased value,
+`ProfileRepositoryImpl` lowercases on write, and `ProfileCubit.save` refuses a taken
+handle *before* any upload or write. It is edited in **Edit Profile**, validated by
+`Validators.username` (3–20 chars of letters · digits · `.` · `_`, starting with a
+letter — ASCII on purpose; the Unicode display name is `fullName`).
+
+> ⚠️ It had **no input anywhere in the app** until 2026-08-07, while
+> `ProfileEntity.isComplete` requires it — so every account read as incomplete
+> forever and the Profile prompt could never be satisfied. If you add another
+> field to `isComplete`, add its input in the same change.
 
 **Profile never states `paymentNumber`** (owner ruling, 2026-08-07) — for any role.
 It is set and changed in **Edit Profile** only; the read-only profile has no payroll

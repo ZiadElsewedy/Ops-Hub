@@ -14,6 +14,28 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — Editing an approved sales amount: reason is now optional (feature; LOW risk, ⚠️ NEEDS FUNCTIONS DEPLOY)
+
+Owner ask on the sales submission detail's **Edit approved amount** sheet. Reason
+was mandatory in **both** the client sheet and the `editApprovedDailySalesSubmission`
+callable, so it had to change in both or the save would fail server-side.
+
+- **Client:** `showSalesTargetEditorSheet` gains `reasonRequired` (default **true**,
+  so the **Set/Edit monthly target** flow that shares this sheet is unchanged); the
+  edit-approved call passes `false`. Label reads *Reason (optional)*; empty passes
+  validation.
+- **Server:** `editApprovedDailySalesSubmission` now calls `salesReason(data.reason,
+  false)`; the `sales.approved_amount_edited` audit row stores `reason: null` when
+  none is given.
+- **Scope:** only the approved-amount edit. Reject / request-correction / reopen and
+  the target-change reason all **stay mandatory**.
+- ⚠️ **Trade-off:** this weakens the audit trail for a monetary change — recorded in
+  [SALES_TARGETS](docs/design/SALES_TARGETS.md).
+- ⚠️ **Inert until `firebase deploy --only functions:editApprovedDailySalesSubmission`.**
+  Until then the deployed callable still rejects an empty reason, so a blank save
+  errors on device. Gates: `flutter analyze` clean, `flutter test` sales green,
+  `functions` node --test **136 pass**.
+
 ## 2026-08-07 — Profile screen rebuilt as the sibling of the Settings hub (polish; LOW risk)
 
 Owner ask: *"see the current profile page — I want it professional and way more
@@ -43,20 +65,43 @@ schema/rules/server change, strictly monochrome (ADR-004).
   detail that is *not set* now says so and opens Edit Profile — previously the
   row was simply absent, so "I never filled this in" and "this screen doesn't
   show it" looked identical.
+- **The username had no input anywhere in the app.** `ProfileEntity.isComplete`
+  requires it, so **every account was permanently "incomplete"** and the
+  profile's prompt could never be satisfied — while the whole stack behind it
+  (datasource · repository · `CheckUsername` · `ProfileCubit.save`'s
+  taken-handle rejection) was wired and unreachable. Edit Profile now has the
+  field, with a new `Validators.username` / `usernameInput` (3–20 chars,
+  letters · digits · `.` · `_`, must start with a letter; stored lowercase, so
+  `Ziad` and `ziad` cannot both exist). The incomplete line also names **what
+  is actually missing** instead of always asking for both.
+- **A detail the user owns is edited by tapping it** (owner ask). Every
+  self-service row opens Edit Profile — set or not — and says so with a pencil;
+  **copy moved to its own 44pt trailing button**, so reading a value out and
+  correcting it stopped competing for one gesture. An admin's contact rows carry
+  no `InkWell` at all, since the form they would reach has no such field.
 - **Grouped into Workplace · Contact · Account.** Workplace carries the branch's
-  real logo (`BranchAvatar`) and the assigned shift. **A global admin has no
-  `branchId`**, so instead of an empty row the group states *All branches ·
-  organisation-wide*.
+  real logo (`BranchAvatar`), position and the assigned shift. **A global admin
+  has no `branchId`**, so instead of an empty row the group states *All branches
+  · organisation-wide*.
+- **Settings is the account hub; Profile is a leaf of it** (owner: *"what's the
+  idea of Profile vs Settings, and you put a Settings row in it too?"*). Profile
+  offered a **Settings** row while Settings' identity card opens Profile — a
+  closed loop — and both screens carried their own **Sign out**, so the app's
+  one destructive action lived in two places. Profile now carries neither. The
+  desktop sidebar footer opens **Settings** instead of Profile, so both
+  platforms have one door into the account hub (it was the only account door on
+  desktop, and would have been left with no route to Sign out otherwise).
 - **Payroll is not a profile fact (owner ruling, same day).** The *Salary sent
   to* row is gone from Profile entirely — for every role, not just admin.
   `paymentNumber` is still editable in **Edit Profile** and unchanged in the
   schema; the profile simply does not state it.
 - **The identity card is compact** (owner: *"minimize the big card"*): cover
-  102→72, avatar 78→62, name `h2`→`h3`, bio 4→2 lines, and the closing divider +
-  helper paragraph deleted — the role chip and the CTA now share one line,
-  which is ~100pt shorter. **Position moved onto the identity line**
-  (`@handle · Shift Supervisor`) rather than a second chip: at 390pt two chips
-  plus the CTA wrapped to two rows. The admin rules are unchanged and now hold in
+  102→60, avatar 78→54, name `h2`→`h3`, bio 4→2 lines, and the closing divider +
+  helper paragraph deleted. Name on line one, `[ROLE] @handle` on line two, the
+  CTA beside them — roughly **140pt shorter** than it started. Two intermediate
+  layouts were rejected against a render at 390pt: chips beside the CTA wrapped
+  to two rows, and the role chip beside the name truncated it to *"Manager …"*.
+  Position went back to being a Workplace row for the same reason. The admin rules are unchanged and now hold in
   both directions: no Payroll block, and no *add* door onto a form that has no
   such field for them.
 - **Account** gained *Last updated*, and the sign-in method reads
@@ -68,8 +113,10 @@ schema/rules/server change, strictly monochrome (ADR-004).
   card Settings uses.
 - `ProfileEntity.initials` replaces the byte-identical private `_initials`
   copies in the profile and edit screens.
-- Gates: `flutter analyze` clean (1 pre-existing info). `flutter test` **1864
-  pass / 0 fail** — new `test/features/profile/profile_page_test.dart` (7).
+- Gates: `flutter analyze` clean (1 pre-existing info). `flutter test` **1871
+  pass / 0 fail** — new `test/features/profile/profile_page_test.dart` (9,
+  including one that fails if Profile grows a second hub or a second Sign out) +
+  `edit_profile_username_test.dart` (3).
   ⚠️ **NOT device-verified.**
 
 ## 2026-08-07 — Branch sales manager dashboard re-enriched: progress ring + one door + Pace card (polish/feature; LOW risk)
@@ -108,8 +155,16 @@ change; strictly monochrome (ADR-004) preserved.**
   ([SALES_TARGETS](docs/design/SALES_TARGETS.md)).
 - **A brand accent (periwinkle indigo) was tried on the figures and reverted the
   same day.** The owner asked for colour, chose a chromatic accent, saw it on
-  device and did not like it; the screen is back to monochrome. ADR-004 stands —
-  its status line now records the attempt so it is not re-argued.
+  device and did not like it. ADR-004 stands — its status line records the attempt
+  so it is not re-argued.
+- **A status tint landed instead (ADR-004-compliant).** ACHIEVED, the progress
+  ring and the chart's today bar now take `salesOutlookTint(outlook)` — **green**
+  ahead of target, **amber** behind, **white** too-early — via new
+  [sales_outlook_tint.dart](lib/features/sales/presentation/sales_outlook_tint.dart)
+  and a `tint` param on `SalesProgressRing`/`SalesMonthOverview`. This is colour as
+  *status* (the Needed-per-day rule), not brand, so monochrome holds; it ties the
+  hero numbers to the Pace verdict. Covered by two new cases in
+  `sales_dashboard_widgets_test.dart` (the mapping + the tint reaching ACHIEVED).
 - Gates: `flutter analyze` clean (1 pre-existing info). `flutter test` **1857
   pass / 0 fail**. New: `sales_trend_test.dart` (6), outlook cases in
   `sales_calculator_test.dart` (3), `sales_dashboard_widgets_test.dart` (4,

@@ -44,21 +44,19 @@ class ProfileIdentityCard extends StatelessWidget {
 
   final VoidCallback onEdit;
 
-  static const double _coverHeight = 72;
-  static const double _avatarSize = 62;
+  static const double _coverHeight = 60;
+  static const double _avatarSize = 54;
   static const double _avatarOverlap = _avatarSize / 2;
 
   @override
   Widget build(BuildContext context) {
     final incomplete = !profile.isComplete;
     final bio = profile.bio?.trim() ?? '';
-    // Position rides the identity line rather than taking a second chip: at
-    // 390pt the chip row shares its line with the CTA, and "Shift Supervisor"
-    // beside a role chip wrapped to two lines there.
-    final secondary = [
-      profile.handle.isNotEmpty ? profile.handle : profile.email,
-      ?_position,
-    ].join(' · ');
+    // The handle, or the email while there is no handle. Position is NOT here
+    // — it is a Workplace row; crowding it onto this line truncated both.
+    final secondary = profile.handle.isNotEmpty
+        ? profile.handle
+        : profile.email;
 
     return Semantics(
       container: true,
@@ -90,26 +88,62 @@ class ProfileIdentityCard extends StatelessWidget {
                 AppSpacing.lg,
                 _avatarOverlap + AppSpacing.sm,
                 AppSpacing.lg,
-                AppSpacing.lg,
+                AppSpacing.md,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    profile.displayName,
-                    style: AppTypography.h3,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  // Name, role chip and the screen's one CTA share the first
+                  // line. Everything that used to sit on its own row here —
+                  // a chip row, a divider, a helper paragraph — was height
+                  // spent saying what the button already says.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // The name owns its line. It shared one with the
+                            // role chip and ellipsized to "Manager …" at 390pt
+                            // — a profile that cannot say the person's name is
+                            // not a profile.
+                            Text(
+                              profile.displayName,
+                              style: AppTypography.h3,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                if (role != null) ...[
+                                  ProfileMetaPill(label: _roleLabel(role!)),
+                                  const SizedBox(width: AppSpacing.sm),
+                                ],
+                                if (secondary.isNotEmpty)
+                                  Flexible(
+                                    child: Text(
+                                      secondary,
+                                      style: AppTypography.bodySmall,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      PremiumButton(
+                        label: incomplete ? 'Complete' : 'Edit',
+                        icon: Icons.edit_outlined,
+                        style: PremiumButtonStyle.filled,
+                        onPressed: onEdit,
+                      ),
+                    ],
                   ),
-                  if (secondary.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      secondary,
-                      style: AppTypography.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                   if (bio.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(
@@ -121,34 +155,12 @@ class ProfileIdentityCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const SizedBox(height: AppSpacing.md),
-                  // The chips and the screen's one CTA share a line — the
-                  // divider + helper paragraph the card used to close with cost
-                  // ~60pt of height and said nothing the button doesn't.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.xs,
-                          children: _pills,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      PremiumButton(
-                        label: incomplete ? 'Complete profile' : 'Edit profile',
-                        icon: Icons.edit_outlined,
-                        style: PremiumButtonStyle.filled,
-                        onPressed: onEdit,
-                      ),
-                    ],
-                  ),
                   // Only an incomplete profile earns an extra line: it has to
                   // say *what* is missing, which the CTA label cannot.
                   if (incomplete) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Add your name and username to finish setting up.',
+                      _missingLine,
                       style: AppTypography.caption.copyWith(
                         color: AppColors.warning,
                       ),
@@ -164,15 +176,17 @@ class ProfileIdentityCard extends StatelessWidget {
     );
   }
 
-  /// The job title, or null when the admin has not set one.
-  String? get _position {
-    final p = (position ?? '').trim();
-    return p.isEmpty ? null : p;
+  /// Names the fields that are actually missing rather than always listing
+  /// both — "add your name and username" reads as a bug once the name is set.
+  String get _missingLine {
+    final needsName = (profile.fullName ?? '').trim().isEmpty;
+    final needsUsername = (profile.username ?? '').trim().isEmpty;
+    if (needsName && needsUsername) {
+      return 'Add your name and a username to finish setting up.';
+    }
+    if (needsName) return 'Add your full name to finish setting up.';
+    return 'Pick a username to finish setting up.';
   }
-
-  List<Widget> get _pills => [
-    if (role != null) ProfileMetaPill(label: _roleLabel(role!), strong: true),
-  ];
 
   static String _roleLabel(UserRole role) =>
       '${role.name[0].toUpperCase()}${role.name.substring(1)}';
@@ -240,13 +254,9 @@ class _CoverBand extends StatelessWidget {
 /// A small monochrome fact chip (role, position). Never a status — it takes no
 /// semantic colour (ADR-004).
 class ProfileMetaPill extends StatelessWidget {
-  const ProfileMetaPill({super.key, required this.label, this.strong = false});
+  const ProfileMetaPill({super.key, required this.label});
 
   final String label;
-
-  /// The primary fact of the row (the access role) sits a step brighter than
-  /// the ones beside it, so no two adjacent chips share a grey.
-  final bool strong;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -259,7 +269,7 @@ class ProfileMetaPill extends StatelessWidget {
     child: Text(
       label.toUpperCase(),
       style: AppTypography.caption.copyWith(
-        color: strong ? AppColors.textPrimary : AppColors.textSecondary,
+        color: AppColors.textSecondary,
         fontSize: 9,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.9,
