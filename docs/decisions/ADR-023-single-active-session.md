@@ -94,6 +94,35 @@ per sign-in.
   `reset()`, listed in `clearUserScopedState()`. Forgetting it reintroduces the leak
   this change fixed, and nothing will fail to compile.
 
+## Amendment (2026-08-07) — the comparison needs a server-confirmed snapshot
+
+The first field report was a **false eviction**: sign in on device A, sign out on
+A, sign in on device B → B announced *"Your account has been signed in on another
+device"* the instant it entered the app, with no second device involved.
+
+Firestore's `snapshots()` replays the **locally cached** document the moment you
+subscribe, before the backend says anything. A device that has been signed in
+before therefore receives its *previous* session's `activeSessionId` as the
+watcher's first emission, while it already holds the id it just claimed — and the
+comparison read that as a hostile login. The very first device on a fresh account
+never hit it: its cached document carried a null id, which rule 1 already ignores.
+That is why the feature looked correct until a second device existed.
+
+Two changes, both narrow:
+
+1. **`watchUser` emits server-confirmed snapshots only** (`!metadata.isFromCache`).
+   Every consumer of that stream acts destructively — deactivated, hard-deleted,
+   taken over — so none of them should ever act on a cached copy. Offline simply
+   means no emissions, which matches *offline gates the writes, never the app*.
+2. **The superseded id is forgiven once.** `AuthCubit` remembers the id it
+   replaced at sign-in and ignores a snapshot still reporting exactly that value,
+   until its own claim comes back. Deliberately one value and not a blanket grace
+   period: any *other* mismatch still evicts on the spot, so a genuine takeover
+   racing a sign-in is enforced live rather than deferred to the next cold start.
+
+The general lesson, worth more than this feature: **a cached snapshot is not
+evidence, and any rule that ends a session must be server-confirmed.**
+
 ## Related
 
 [AUTH § Single active session](../design/AUTH.md#single-active-session) ·

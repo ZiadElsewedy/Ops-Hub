@@ -170,6 +170,75 @@ change; strictly monochrome (ADR-004) preserved.**
   `sales_calculator_test.dart` (3), `sales_dashboard_widgets_test.dart` (4,
   overflow guard at 375pt). ⚠️ **NOT device-verified** — needs a look on
   hardware with a sales-enabled branch (production: only `Arkan`).
+## 2026-08-07 — Clear chat now clears the whole history, not the loaded window (bug; MED risk, client-only)
+
+`clearChatForMe()` deleted only the messages already paged in, while its confirm
+dialog promised *"This removes **every** message from your view."* On any thread
+longer than the first page the older messages were untouched and came straight
+back on scroll-up — and "Delete conversation?" runs the same call, so it had the
+same gap.
+
+It now **drains the full history first** (`_collectHistoryIds`): the loaded
+window plus every older page, walked from `_nextCursor` through the existing
+`LoadChatHistory` use case, then one pooled delete-for-me pass over the whole set.
+No new backend endpoint. `_nextCursor` is cleared afterwards, so the thread no
+longer offers a "load older" that could only return what was just deleted.
+
+- **All or nothing on the collect step.** If the history cannot be drained
+  completely, **nothing** is deleted and the caller gets a clean, retryable
+  failure — a half-clear against a promise of "every message" is the bug being
+  fixed. (Once deleting starts, a mid-way network failure can still leave a
+  partial delete; those are genuinely gone server-side and a second Clear picks
+  up the remainder.)
+- **Two guards against a non-terminating history**: a cursor that hands back
+  itself raises instead of paging the same slice forever, and a hard 500-page
+  bound catches anything else. Hitting either means the pagination is wrong, not
+  that the chat is long, so both fail rather than silently under-delete.
+- **`loadOlder` and single-message delete now stand down while a clear runs** —
+  a scroll-back mid-drain would otherwise prepend a page the drain had already
+  paged past.
+
++5 tests (`chat_conversation_actions_test.dart`) including a 3-page history, a
+failing page, a stuck cursor and an empty conversation. `flutter test` **1842
+pass** · `flutter analyze` clean. Per-message *Delete for me* was already correct
+across all four tiers (REST ack → in-memory → Drift row → session cache) and is
+unchanged.
+
+## 2026-08-07 — Single active session evicted the device that just signed in (bug; HIGH impact, client-only)
+
+Owner: *"I open my account, log out on the device, then log in on another device
+and it says your account has been signed in on another device."*
+
+**A cached Firestore snapshot was being read as a hostile login.** `snapshots()`
+replays the **locally cached** document the instant you subscribe, before the
+backend confirms anything. A device that had been signed in before therefore got
+its *previous* session's `activeSessionId` as the watcher's first emission, while
+it already held the id it had just claimed — mismatch → full teardown → Login with
+the takeover message, on a session nobody took over. The first device on a fresh
+account never reproduced it, because its cached document carried a **null** id,
+which the back-compat rule already ignores. That is why the feature looked correct
+right up until a second device existed.
+
+Two narrow fixes:
+
+- **`UserRemoteDataSourceImpl.watchUser` now emits server-confirmed snapshots only**
+  (`!doc.metadata.isFromCache`). Every consumer of that stream ends the session —
+  deactivated · hard-deleted · taken over — so none of them should act on a cached
+  copy. Offline means no emissions: the user stays signed in, matching *offline
+  gates the writes, never the app*.
+- **`AuthCubit` forgives the superseded id, once.** It remembers the id it replaced
+  at sign-in and ignores a snapshot still reporting exactly that value until its own
+  claim comes back. Deliberately one value, not a grace period — any *other*
+  mismatch still evicts immediately, so a genuine takeover racing a sign-in is
+  enforced live rather than deferred to the next cold start.
+
+The test fake was the reason this shipped green: it returned a bare
+`StreamController` that emits **nothing** on subscribe, so no test ever exercised
+Firestore's replayed first snapshot. It now models the cached replay, and 6 new
+tests cover the reported sequence end to end (including device A signing out, then
+device B signing in on the same account document). `flutter test` **1838 pass** ·
+`flutter analyze` clean. Recorded as an amendment to
+[ADR-023](docs/decisions/ADR-023-single-active-session.md).
 
 ## 2026-08-07 — Review-notification reviewer ladder + the paged sweep is now tested (bug; MED risk)
 

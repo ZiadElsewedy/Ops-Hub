@@ -87,9 +87,27 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     }
   }
 
+  /// Live user document — **server-confirmed snapshots only**.
+  ///
+  /// `snapshots()` replays the locally cached document the instant you
+  /// subscribe, before the backend has said anything. Every consumer of this
+  /// stream acts on it destructively — deactivated, hard-deleted, or session
+  /// taken over all end the session — so acting on a cached copy means ending a
+  /// session on data that may be minutes or days old. That is exactly what
+  /// signed a device out the moment it signed in: its cache still held the
+  /// PREVIOUS session's `activeSessionId`.
+  ///
+  /// `isFromCache` is false only once the document has been read from the
+  /// backend, so filtering on it keeps every decision here server-authoritative.
+  /// A device that is offline simply gets no emissions — it stays signed in,
+  /// which matches "offline gates the writes, never the app".
   @override
   Stream<UserModel?> watchUser(String uid) {
-    return _users.doc(uid).snapshots().map(
+    return _users
+        .doc(uid)
+        .snapshots()
+        .where((doc) => !doc.metadata.isFromCache)
+        .map(
           (doc) => (!doc.exists || doc.data() == null)
               ? null
               : UserModel.fromMap(doc.data()!),

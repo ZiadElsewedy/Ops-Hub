@@ -482,6 +482,45 @@
 > ✅ **Both follow-ups from this audit are now closed (2026-08-07)** — the
 > reviewer ladder and the sweep's test coverage; see the entry below.
 
+> **Clear chat drains the whole history (2026-08-07, client-only, NOT
+> device-verified):** `clearChatForMe()` deleted only the messages already paged
+> in, while its dialog promised *"removes **every** message from your view"* — so
+> on any thread longer than the first page the older ones came back on scroll-up.
+> *Delete conversation?* ran the same call and had the same gap. It now pages
+> back through the full history via the existing `LoadChatHistory` use case,
+> collects every server-confirmed id, then makes one pooled delete-for-me pass.
+> **All or nothing on the collect step** — if the history can't be drained
+> completely, nothing is deleted and the failure is retryable; a half-clear
+> against "every message" is the bug being fixed. A cursor that doesn't advance
+> raises, and a 500-page bound catches any other non-terminating history (both
+> mean the pagination is wrong, not that the chat is long). `loadOlder` and
+> single-message delete stand down while a clear runs. No new backend endpoint.
+> Per-message *Delete for me* was already correct across all four tiers (REST →
+> in-memory → Drift row → session cache) and is unchanged.
+
+> 🔴 **FALSE EVICTION — FIXED (2026-08-07, client-only, NOT device-verified).**
+> First field report of the feature below: *"I open my account, log out on the
+> device, then log in on another device and it says your account has been signed
+> in on another device."* No second device was involved.
+> **A cached Firestore snapshot was being read as a hostile login.**
+> `snapshots()` replays the **locally cached** document the instant you
+> subscribe, so a device that had been signed in before received its *previous*
+> session's `activeSessionId` as the watcher's first emission — while it already
+> held the id it had just claimed. Mismatch → teardown → Login with the takeover
+> message. The very first device on a fresh account never reproduced it, because
+> its cached document carried a **null** id, which the back-compat rule already
+> ignores; that is why this shipped looking correct.
+> Fixed in two narrow places: `watchUser` now emits **server-confirmed snapshots
+> only** (`!metadata.isFromCache` — every consumer of that stream ends a session,
+> so none of them may act on a cached copy), and `AuthCubit` **forgives the one
+> id it superseded** until its own claim comes back. Any *other* mismatch still
+> evicts on the spot, so a genuine takeover racing a sign-in is enforced live.
+> ⚠️ **The test fake is why this shipped green:** it returned a bare
+> `StreamController`, which emits nothing on subscribe, so no test ever
+> exercised Firestore's replayed first snapshot. It now models the cached
+> replay. +6 tests, including the reported A-signs-out → B-signs-in sequence.
+> Amendment recorded on [ADR-023](docs/decisions/ADR-023-single-active-session.md).
+
 > **Single active session — one account, one signed-in device (2026-08-06, NOT
 > device-verified):** A newer sign-in now evicts every older one. `AuthCubit`
 > mints a session id at sign-in, claims it on `users/{uid}.activeSessionId`, and

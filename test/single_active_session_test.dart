@@ -251,6 +251,171 @@ void main() {
     });
   });
 
+  group('a stale snapshot is not a takeover (the device-B bug)', () {
+    // Reported: sign in on device A → sign out on A → sign in on device B →
+    // B says "signed in on another device" immediately, on a session nobody
+    // took over.
+    //
+    // Firestore's `snapshots()` replays the LOCALLY CACHED document the instant
+    // you subscribe. A device that has been signed in before holds a cached
+    // user doc carrying the PREVIOUS session's id, so the watcher's very first
+    // emission reports that old id while this device already holds its own,
+    // freshly claimed one — and the comparison reads it as a hostile login.
+    // The first device on a fresh account never hit it: its cached doc had a
+    // null `activeSessionId`, which the back-compat guard already ignores.
+
+    test('the cached first snapshot after sign-in does not evict', () async {
+      final repo = _FakeAuthRepository(user(activeSessionId: 'device-a-old'))
+        // What device B has in its Firestore cache from its last session.
+        ..cachedFirstSnapshot = user(activeSessionId: 'device-a-old');
+      final store = InMemorySessionStore();
+      final cubit = _cubit(repo, store);
+
+      await cubit.signInWithEmail('sara@drop.test', 'pw');
+      await pumpEventQueue();
+
+      expect(
+        cubit.state.maybeWhen(
+          unauthenticated: (reason) => 'EVICTED: $reason',
+          authenticated: (_) => 'signed in',
+          orElse: () => 'other',
+        ),
+        'signed in',
+      );
+      expect(await store.read(), repo.claimedSessionId);
+
+      await cubit.close();
+    });
+
+    test('a real takeover AFTER the stale snapshot still evicts', () async {
+      // The guard must not become a permanent amnesty: once this device has
+      // seen its own claim confirmed, the next mismatch is genuine.
+      final repo = _FakeAuthRepository(user(activeSessionId: 'device-a-old'))
+        ..cachedFirstSnapshot = user(activeSessionId: 'device-a-old');
+      final cubit = _cubit(repo, InMemorySessionStore());
+
+      await cubit.signInWithEmail('sara@drop.test', 'pw');
+      await pumpEventQueue();
+      // The server confirms our own claim...
+      repo.emitUser(user(activeSessionId: repo.claimedSessionId));
+      await pumpEventQueue();
+      // ...and then somebody really does sign in elsewhere.
+      repo.emitUser(user(activeSessionId: 'device-c'));
+      await pumpEventQueue();
+
+      expect(
+        cubit.state.maybeWhen(
+          unauthenticated: (reason) => reason,
+          orElse: () => null,
+        ),
+        kSessionTakenOverMessage,
+      );
+
+      await cubit.close();
+    });
+
+    test('a THIRD device claiming during the stale window evicts immediately',
+        () async {
+      // The amnesty covers exactly one value — the id we replaced. A different
+      // id, arriving before our own claim is ever confirmed, is a real takeover
+      // and must not wait for a cold start to be enforced.
+      final repo = _FakeAuthRepository(user(activeSessionId: 'device-a-old'))
+        ..cachedFirstSnapshot = user(activeSessionId: 'device-a-old');
+      final cubit = _cubit(repo, InMemorySessionStore());
+
+      await cubit.signInWithEmail('sara@drop.test', 'pw');
+      await pumpEventQueue();
+      repo.emitUser(user(activeSessionId: 'device-c'));
+      await pumpEventQueue();
+
+      expect(
+        cubit.state.maybeWhen(
+          unauthenticated: (reason) => reason,
+          orElse: () => null,
+        ),
+        kSessionTakenOverMessage,
+      );
+
+      await cubit.close();
+    });
+
+    test('the amnesty expires once our own claim is confirmed', () async {
+      // A later snapshot that somehow reports the superseded id again (a replay
+      // from a resubscribe) must not be forgiven a second time.
+      final repo = _FakeAuthRepository(user(activeSessionId: 'device-a-old'))
+        ..cachedFirstSnapshot = user(activeSessionId: 'device-a-old');
+      final cubit = _cubit(repo, InMemorySessionStore());
+
+      await cubit.signInWithEmail('sara@drop.test', 'pw');
+      await pumpEventQueue();
+      repo.emitUser(user(activeSessionId: repo.claimedSessionId)); // confirmed
+      await pumpEventQueue();
+      repo.emitUser(user(activeSessionId: 'device-a-old'));
+      await pumpEventQueue();
+
+      expect(
+        cubit.state.maybeWhen(
+          unauthenticated: (reason) => reason,
+          orElse: () => null,
+        ),
+        kSessionTakenOverMessage,
+      );
+
+      await cubit.close();
+    });
+
+    test('a takeover that lands before our own claim is confirmed still evicts '
+        'on the next cold start', () async {
+      // The one hole the guard leaves: two sign-ins inside a single round trip.
+      // It closes itself on restore, which compares against a fresh read.
+      final repo = _FakeAuthRepository(user(activeSessionId: 'device-c'));
+      final store = InMemorySessionStore('ours');
+      final cubit = _cubit(repo, store);
+
+      await cubit.restoreSession();
+
+      expect(
+        cubit.state.maybeWhen(
+          unauthenticated: (reason) => reason,
+          orElse: () => null,
+        ),
+        kSessionTakenOverMessage,
+      );
+
+      await cubit.close();
+    });
+
+    test('signing out on device A does not evict device B', () async {
+      // The full reported sequence, end to end, on one shared account doc.
+      final repo = _FakeAuthRepository(user());
+      final deviceA = _cubit(repo, InMemorySessionStore());
+      await deviceA.signInWithEmail('sara@drop.test', 'pw');
+      await deviceA.signOut();
+      final leftBehind = repo.claimedSessionId; // A's claim, deliberately kept
+
+      // Device B: its cache still holds the document as A left it.
+      repo.cachedFirstSnapshot = user(activeSessionId: leftBehind);
+      final storeB = InMemorySessionStore();
+      final deviceB = _cubit(repo, storeB);
+
+      await deviceB.signInWithEmail('sara@drop.test', 'pw');
+      await pumpEventQueue();
+
+      expect(
+        deviceB.state.maybeWhen(
+          unauthenticated: (reason) => 'EVICTED: $reason',
+          authenticated: (_) => 'signed in',
+          orElse: () => 'other',
+        ),
+        'signed in',
+      );
+      expect(await storeB.read(), isNot(leftBehind));
+
+      await deviceA.close();
+      await deviceB.close();
+    });
+  });
+
   group('the message is shown exactly once', () {
     test('acknowledgeSignOutReason clears it', () async {
       final repo = _FakeAuthRepository(user());
@@ -405,6 +570,16 @@ class _FakeAuthRepository implements AuthRepository {
   bool failClaim = false;
   int signOutCount = 0;
 
+  /// What the listener replays on subscribe, modelling **Firestore's cached
+  /// first snapshot**: `snapshots()` emits the locally cached document the
+  /// instant you attach, before the server confirms anything. Null = replay
+  /// nothing (the old fake's behaviour).
+  ///
+  /// This is the difference between a fake and Firestore, and it is where the
+  /// device-B eviction bug lived: a device that had been signed in before
+  /// carries a cached user doc holding the PREVIOUS session's id.
+  UserEntity? cachedFirstSnapshot;
+
   /// Pushes [next] down the user-document stream, as Firestore would.
   void emitUser(UserEntity next) {
     _user = next;
@@ -437,7 +612,20 @@ class _FakeAuthRepository implements AuthRepository {
   Future<List<UserEntity>> getAllUsers() async => [_user];
 
   @override
-  Stream<UserEntity?> watchUser(String uid) => _watch.stream;
+  Stream<UserEntity?> watchUser(String uid) {
+    final cached = cachedFirstSnapshot;
+    if (cached == null) return _watch.stream;
+    // Firestore replays the cached document on subscribe, then delivers the
+    // server's. `onListen` attaches to the live stream synchronously with
+    // `listen()`, so nothing emitted right after subscribing is lost — an
+    // `async*` generator would open exactly that window.
+    final controller = StreamController<UserEntity?>();
+    controller.onListen = () {
+      controller.add(cached);
+      controller.addStream(_watch.stream);
+    };
+    return controller.stream;
+  }
 
   @override
   Future<void> sendPasswordResetEmail(String email) async {}

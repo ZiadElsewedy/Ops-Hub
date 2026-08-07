@@ -62,6 +62,12 @@ class AuthCubit extends Cubit<AuthState> {
   /// awaiting a keystore read per snapshot.
   String? _sessionId;
 
+  /// The id the document carried **immediately before** this device claimed it,
+  /// held until this device sees its own claim come back. A snapshot still
+  /// reporting exactly this id is a stale read of the value we just
+  /// overwrote — not a takeover. See [_isSessionTakenOver].
+  String? _supersededSessionId;
+
   StreamSubscription? _authSub;
   StreamSubscription? _userWatchSub;
 
@@ -149,12 +155,36 @@ class AuthCubit extends Cubit<AuthState> {
   ///    device signed in before the feature existed. It cannot prove it owns the
   ///    session, but it cannot prove it lost it either, and a keychain hiccup
   ///    must never look like a hostile login. It re-claims at its next sign-in.
+  ///
+  /// **Nor is the id this device just superseded.** Firestore's `snapshots()`
+  /// replays the locally cached document the instant you subscribe, so a device
+  /// that has been signed in before receives its *last session's* id as the
+  /// watcher's first emission — while this device already holds the id it just
+  /// claimed. That mismatch is a stale read of the value we overwrote, and
+  /// reading it as a hostile login is what signed device B out the moment it
+  /// signed in. (The first device on a fresh account never hit it: its cached
+  /// document carried a null id, which the back-compat rule above ignores.)
+  ///
+  /// The amnesty is deliberately narrow — **only** the one id we replaced, and
+  /// only until our own claim is seen. Every other mismatch still evicts on the
+  /// spot, so a genuine takeover racing our sign-in is enforced live rather
+  /// than waiting for a cold start.
   bool _isSessionTakenOver(UserEntity user) {
     if (_sessionStore == null) return false;
     final remote = user.activeSessionId;
     final local = _sessionId;
     if (remote == null || local == null) return false;
-    return remote != local;
+    if (remote == local) {
+      // Confirmed: the document reports our claim, so nothing is outstanding.
+      _supersededSessionId = null;
+      return false;
+    }
+    if (_supersededSessionId != null && remote == _supersededSessionId) {
+      AppLog.warning(
+          'auth', 'ignoring a stale snapshot of the session id we replaced');
+      return false;
+    }
+    return true;
   }
 
   /// Mints and claims a session for [uid], and records it locally. Returns the
@@ -163,7 +193,10 @@ class AuthCubit extends Cubit<AuthState> {
   ///
   /// The local write happens **after** the remote claim lands, so a failed claim
   /// cannot leave this device holding an id the server never recorded.
-  Future<String?> _claimSession(String uid) async {
+  /// [previousSessionId] is what the document reported when we read it, i.e.
+  /// the claim this sign-in replaces. Remembered so a stale snapshot still
+  /// carrying it is not mistaken for a takeover (see [_isSessionTakenOver]).
+  Future<String?> _claimSession(String uid, {String? previousSessionId}) async {
     final store = _sessionStore;
     if (store == null) return null;
     final sessionId = generateSessionId();
@@ -175,6 +208,7 @@ class AuthCubit extends Cubit<AuthState> {
     }
     await store.write(sessionId);
     _sessionId = sessionId;
+    _supersededSessionId = previousSessionId;
     return sessionId;
   }
 
@@ -306,7 +340,10 @@ class AuthCubit extends Cubit<AuthState> {
       // session.
       var claimed = user;
       if (_sessionStore != null) {
-        final sessionId = await _claimSession(user.uid);
+        final sessionId = await _claimSession(
+          user.uid,
+          previousSessionId: user.activeSessionId,
+        );
         if (sessionId == null) {
           await _signOut();
           emit(const AuthState.error(_sessionClaimFailedMessage));
@@ -446,6 +483,7 @@ class AuthCubit extends Cubit<AuthState> {
     // id against whatever the account looks like by then.
     await _sessionStore?.clear();
     _sessionId = null;
+    _supersededSessionId = null;
     emit(AuthState.unauthenticated(signedOutReason: reason));
   }
 
