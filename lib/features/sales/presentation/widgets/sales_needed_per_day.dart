@@ -3,6 +3,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/widgets/animated_count_text.dart';
 import 'package:drop/features/sales/domain/sales_calculator.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
 
@@ -83,9 +84,14 @@ class SalesNeededPerDay extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      formatEgp(neededPerDayPiastres, withSuffix: true),
-                      style: AppTypography.h2.copyWith(color: valueColor),
+                    AnimatedCountText(
+                      value: neededPerDayPiastres,
+                      formatter: (v) => formatEgp(v.round(), withSuffix: true),
+                      animateOnMount: true,
+                      style: AppTypography.h2.copyWith(
+                        color: valueColor,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

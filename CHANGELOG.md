@@ -14,6 +14,33 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Branch-sales hero figures roll to their new value (polish; LOW risk, client-only)
+
+The manager **Branch sales** dashboard hero now *animates* its figures instead
+of snapping: Achieved, Remaining, Target and Needed-per-day count up, and the
+progress ring's arc + centre percentage sweep in together. They roll on first
+load (the reveal after the skeleton) and, more importantly, whenever a sale is
+recorded or the target is edited — the number visibly travels from the old value
+to the new one.
+
+The roll is deliberately slow and theatrical: ~2.6s on the shared
+`kPremiumSettle` curve (`cubic-bezier(0.16, 1, 0.3, 1)` — a deep ease-out-expo
+that leaps early then settles almost imperceptibly). Each figure also
+**materializes** into place — scales ~0.82 → 1.0 with a soft `easeOutBack`
+overshoot and fades up from low opacity, anchored to its aligned edge so it
+never shifts or clips. The progress ring sweeps on the same curve and duration.
+
+New reusable `core/widgets/animated_count_text.dart` (`AnimatedCountText`) —
+tweens between values with an `AnimationController`, reformats every frame so
+grouping/suffix stay correct, rolls from the *current* value on back-to-back
+changes, adds the optional rise (`pulse`), and honours the platform
+**reduce-motion** setting (no roll when animations are disabled). Wired into `sales_month_overview.dart` (Achieved /
+Remaining / Target `_Figure`s now take piastres, not a pre-formatted string),
+`sales_progress_ring.dart` (arc + percent via `TweenAnimationBuilder`), and
+`sales_needed_per_day.dart`. All animated figures use tabular figures so width
+stays steady as digits change. No domain/data/state change — purely the render
+layer. `flutter analyze` clean. NOT device-verified.
+
 ## 2026-08-08 — A manager can mark their own day off in the schedule (feature; LOW risk, client-only)
 
 Owner ask: a manager has no Morning/Night shift (they work an open/presence

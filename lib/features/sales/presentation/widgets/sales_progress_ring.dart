@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/widgets/animated_count_text.dart' show kPremiumSettle;
 
 /// The month's progress toward target as a monochrome ring — a white arc over a
 /// hairline track, the percentage read in the middle.
@@ -33,41 +34,59 @@ class SalesProgressRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final capped = ratio.isNaN ? 0.0 : ratio.clamp(0.0, 1.0).toDouble();
-    final percent = capped >= 0.9995
+    final settledPercent = capped >= 0.9995
         ? '100%'
         : '${(capped * 100).toStringAsFixed(1)}%';
     return Semantics(
-      label: 'Progress $percent of target',
+      label: 'Progress $settledPercent of target',
       child: ExcludeSemantics(
         child: SizedBox(
           width: diameter,
           height: diameter,
-          child: CustomPaint(
-            painter: _RingPainter(ratio: capped, stroke: stroke, arcColor: tint),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'PROGRESS',
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.textTertiary,
-                      letterSpacing: 1.1,
-                      fontSize: 9,
-                    ),
+          // The arc sweeps in and the percentage counts up together — the same
+          // roll the money figures use, so the whole hero moves as one when a
+          // sale lands or the target is edited.
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: capped),
+            duration: const Duration(milliseconds: 2600),
+            curve: kPremiumSettle,
+            builder: (context, value, _) {
+              final percent = value >= 0.9995
+                  ? '100%'
+                  : '${(value * 100).toStringAsFixed(1)}%';
+              return CustomPaint(
+                painter: _RingPainter(
+                  ratio: value,
+                  stroke: stroke,
+                  arcColor: tint,
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'PROGRESS',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textTertiary,
+                          letterSpacing: 1.1,
+                          fontSize: 9,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        percent,
+                        style: AppTypography.h3.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                          color: tint,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    percent,
-                    style: AppTypography.h3.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                      color: tint,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),

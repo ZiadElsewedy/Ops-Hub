@@ -52,22 +52,17 @@ class _AttendanceRankingsCardState extends State<AttendanceRankingsCard> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            child: Row(
-              children: [
-                for (final m in AttendanceRankingMetric.values) ...[
-                  if (m != AttendanceRankingMetric.values.first)
-                    const SizedBox(width: AppSpacing.sm),
-                  _MetricChip(
-                    label: m.label,
-                    selected: m == _metric,
-                    onTap: () => setState(() => _metric = m),
-                  ),
-                ],
-              ],
-            ),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final m in AttendanceRankingMetric.values)
+                _MetricChip(
+                  label: m.label,
+                  selected: m == _metric,
+                  onTap: () => setState(() => _metric = m),
+                ),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
           if (board.isEmpty)

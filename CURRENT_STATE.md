@@ -5,6 +5,19 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Branch-sales hero figures roll to their new value (2026-08-08, polish,
+> client-only, NOT device-verified):** The manager Branch-sales dashboard hero
+> animates instead of snapping — Achieved, Remaining, Target and Needed-per-day
+> count up, and the progress ring's arc + centre percentage sweep in together.
+> They roll on first reveal and whenever a sale is recorded or the target is
+> edited. New reusable `core/widgets/animated_count_text.dart`
+> (`AnimatedCountText`): tweens between values, reformats each frame so
+> grouping/suffix stay right, continues from the current value on rapid changes,
+> and respects the platform **reduce-motion** setting. Wired into
+> `sales_month_overview.dart`, `sales_progress_ring.dart` and
+> `sales_needed_per_day.dart`; figures use tabular numerals for steady width. No
+> domain/data/state change — render layer only. `flutter analyze` clean.
+
 > **A manager can mark their own day off in the schedule (2026-08-08, feature,
 > client-only, NOT device-verified):** A manager works an open/presence shift and
 > so is (and stays) unassignable to a Morning/Night slot — the shift picker was

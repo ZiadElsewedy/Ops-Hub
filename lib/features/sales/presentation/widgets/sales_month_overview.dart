@@ -3,6 +3,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
+import 'package:drop/core/widgets/animated_count_text.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_progress_ring.dart';
 
@@ -55,7 +56,7 @@ class SalesMonthOverview extends StatelessWidget {
                 Expanded(
                   child: _Figure(
                     label: 'ACHIEVED',
-                    value: formatEgp(achievedPiastres),
+                    valuePiastres: achievedPiastres,
                     color: tint,
                   ),
                 ),
@@ -65,7 +66,7 @@ class SalesMonthOverview extends StatelessWidget {
                 Expanded(
                   child: _Figure(
                     label: 'REMAINING',
-                    value: formatEgp(remainingPiastres),
+                    valuePiastres: remainingPiastres,
                     alignEnd: true,
                     footnote: '${leftPercent.toStringAsFixed(1)}% left',
                   ),
@@ -94,11 +95,15 @@ class SalesMonthOverview extends StatelessWidget {
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: Text(
-                          formatEgp(targetPiastres, withSuffix: true),
+                        child: AnimatedCountText(
+                          value: targetPiastres,
+                          formatter: (v) =>
+                              formatEgp(v.round(), withSuffix: true),
+                          animateOnMount: true,
                           maxLines: 1,
                           style: AppTypography.h3.copyWith(
                             color: AppColors.textSecondary,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                       ),
@@ -117,14 +122,14 @@ class SalesMonthOverview extends StatelessWidget {
 class _Figure extends StatelessWidget {
   const _Figure({
     required this.label,
-    required this.value,
+    required this.valuePiastres,
     this.color,
     this.alignEnd = false,
     this.footnote,
   });
 
   final String label;
-  final String value;
+  final int valuePiastres;
 
   /// The figure's colour — the brand accent for the leading figures (achieved),
   /// null for a supporting figure (remaining), which reads in the grey ramp.
@@ -154,11 +159,18 @@ class _Figure extends StatelessWidget {
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: boxAlign,
-          child: Text(
-            value,
+          child: AnimatedCountText(
+            value: valuePiastres,
+            formatter: (v) => formatEgp(v.round()),
+            animateOnMount: true,
             maxLines: 1,
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            pulseAlignment: alignEnd
+                ? Alignment.centerRight
+                : Alignment.centerLeft,
             style: AppTypography.h2.copyWith(
               color: color ?? AppColors.textSecondary,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
         ),
