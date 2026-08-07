@@ -250,8 +250,20 @@
 > ceiling), and the cursor advances off the last item **fetched**, not the last
 > **committed**.
 
-> ⚠️ **Notification audit — a silent delivery outage fixed; SERVER HALF NEEDS A
-> FUNCTIONS DEPLOY (2026-08-06):** `sendNotification`'s reachability check was a
+> 🚨 **PRODUCTION IS AHEAD OF THE TRUNK — A DEPLOY FROM `release/v1-preparation`
+> WOULD ROLL IT BACK (2026-08-07).** The 03:12 UTC functions deploy was run from
+> the `claude/single-active-session-aedee1` worktree. The source is safely
+> committed (`0085e81`) and pushed to `origin`, and the committed tree matches
+> what was deployed byte-for-byte — but the branch is **not merged**.
+> `release/v1-preparation` still carries the **old branch-only reachability
+> check**, so the next `firebase deploy --only functions` from trunk silently
+> reinstates the outage where no employee or manager can notify an admin.
+> **Merge the branch before any further functions deploy.** This is the inverse
+> of the 2026-07-31 incident (deployed source lagging the repo) and is the more
+> dangerous direction, because nothing about it looks broken.
+
+> ✅ **Notification audit — a silent delivery outage, FIXED AND DEPLOYED
+> (2026-08-06, deployed 2026-08-07 03:12 UTC):** `sendNotification`'s reachability check was a
 > branch comparison only, and **an admin has no `branchId`** (the role is
 > global). So `recipientBranch === callerBranch` compared `""` against the
 > caller's branch and **no employee or manager could ever notify an admin** —
@@ -263,12 +275,18 @@
 > The rule is now pure and tested in `functions/notification_reach.js` — **admin
 > → anyone · anyone → an admin · otherwise same branch**; cross-branch stays
 > denied and nothing about what may be *sent* changed.
-> 🚀 **Inert until `firebase deploy --only functions:sendNotification`.**
-> There is a **second** undeployed functions change waiting (the branch-sales
-> push payload + `sales_target` route, 2026-08-06 — see the entry above), so a
-> plain `firebase deploy --only functions` lands both. Verify with
-> `gcloud functions describe`, not the CLI's own report — that is how the
-> approveSwap stale-deploy was caught.
+> ✅ **DEPLOYED AND VERIFIED (2026-08-07 03:12 UTC).** `sendNotification` rolled
+> to `sendnotification-00013-hum`, state `ACTIVE`. Verified the hard way, not
+> from the CLI's report: the deployed `function-source.zip` was pulled from
+> `gcf-v2-sources-450092605249-us-central1` and both `index.js` and
+> `notification_reach.js` are **byte-identical** to the repository, with
+> `canNotify`'s `to.isAdmin` clause present. The **second** pending functions
+> change (branch-sales push payload + `sales_target` route, 2026-08-06) shipped
+> in the same run — `onNotificationCreated` → `00005-foh`,
+> `setBranchSalesTarget` → `00004-kij`, all `ACTIVE` at 03:12:4x–5x.
+> ⚠️ **Never observed working in production.** An employee submitting an
+> admin-created task for review is the end-to-end confirmation; it has not been
+> watched happen.
 >
 > **Four client-side correctness fixes shipped with it (live in the next build,
 > no deploy):**

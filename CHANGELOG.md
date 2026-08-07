@@ -76,10 +76,9 @@ re-read the window it just emptied.
 
 Gates: `flutter analyze` clean (1 pre-existing info) · `flutter test` **1832
 pass** (+56) · `functions` node --test **136 pass** · `firestore-tests` **74
-pass**. No deploy: this change is client-only. ⚠️ The
-`functions:sendNotification` deploy from the 2026-08-06 entry is **still
-outstanding** — without it, the tier-3 admin escalation this adds is delivered
-to nobody.
+pass**. No deploy: this change is client-only, and the `sendNotification` deploy
+its tier-3 escalation depends on landed the same day (verified — see the
+2026-08-06 entry).
 
 ---
 
@@ -113,7 +112,13 @@ key whitelist and server-stamped `senderUid` are untouched, so this widens who
 can be *told*, not what can be forged. Cross-branch stays denied, and a
 branchless non-admin reaches admins only.
 
-⚠️ **Inert until `firebase deploy --only functions:sendNotification`.**
+✅ **DEPLOYED AND VERIFIED 2026-08-07 03:12 UTC** — `sendnotification-00013-hum`,
+`ACTIVE`. Confirmed by pulling the deployed `function-source.zip` out of
+`gcf-v2-sources-450092605249-us-central1` and diffing it: `index.js` and
+`notification_reach.js` are **byte-identical** to the repository. (The CLI's own
+"deploy complete" was not treated as evidence — that is what hid the
+`approveSwap` stale deploy on 2026-08-05.) The branch-sales server half from the
+same day's entry shipped in the same run.
 
 ### P1 — `markAllRead` and `Clear archived` were both broken past one page
 
