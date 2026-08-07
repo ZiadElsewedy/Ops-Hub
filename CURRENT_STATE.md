@@ -25,6 +25,20 @@
 > + a review-mode `attendance_history_cubit_test` case. `flutter analyze` clean,
 > 1917 Dart tests green. This closes the window-bound caveat noted below.
 
+> **Attendance history gained curated quick-view presets (2026-08-07, feature,
+> presentation + pure domain, client-only, NO deploy, NOT device-verified):** A
+> "Quick views" chip row atop the history/review filters applies a whole view in
+> one tap — *Problems this week* · *Late this week* · *Absent this week* ·
+> *Overtime this month* — setting the date range + status set together and
+> clearing the shift facet while keeping any name search (so "Mohamed's late days
+> this week" is a search plus a preset). Deliberately **curated, not user-saved**
+> (ADR-010 signal-over-volume): a short fixed `kAttendanceHistoryPresets`, not a
+> filter-builder with persistence. Pure `attendance_history_preset.dart`
+> (`apply`/`isActive`) + `AttendanceHistoryCubit.applyPreset` + one filter-widget
+> row; a chip highlights only while the query exactly matches it. No new read, no
+> schema/rules/functions change. Pinned by `attendance_history_preset_test` (7) +
+> an `applyPreset` cubit case. `flutter analyze` clean, 1924 Dart tests green.
+
 > **Exports now open the real OS share sheet (2026-08-07, feature, client-only,
 > NO deploy, NOT device-verified):** Attendance (PDF summary · CSV timesheet) and
 > schedule (PNG · PDF · XLSX) exports opened the file in a local viewer

@@ -203,6 +203,7 @@ class _Loaded extends StatelessWidget {
             onStatus: cubit.toggleStatus,
             onToggleShift: cubit.toggleShift,
             onSearch: cubit.setSearch,
+            onPreset: cubit.applyPreset,
           ),
           const SizedBox(height: AppSpacing.lg),
           // Rostered shifts with no record (absences are never materialized —

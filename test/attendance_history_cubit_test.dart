@@ -7,6 +7,7 @@ import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/features/attendance/domain/attendance_analytics.dart';
 import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
 import 'package:drop/features/attendance/domain/attendance_feed.dart';
+import 'package:drop/features/attendance/domain/attendance_history_preset.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
@@ -198,6 +199,21 @@ void main() {
     );
     expect(directory.map((e) => e.userId).toList(), ['u-moh']);
     expect(directory.single.name, 'Mohamed');
+
+    await cubit.close();
+  });
+
+  test('applyPreset sets the quick view\'s range and status set', () async {
+    final repo = _FakeRepo();
+    final cubit = build(repo)..load();
+    repo.pushHistory([]);
+    await pumpEventQueue();
+
+    cubit.applyPreset(
+      kAttendanceHistoryPresets.firstWhere((p) => p.label == 'Late this week'),
+    );
+    expect(cubit.query.range, AttendanceDateRange.last7Days);
+    expect(cubit.query.activeStatuses, {AttendanceStatusFilter.late});
 
     await cubit.close();
   });

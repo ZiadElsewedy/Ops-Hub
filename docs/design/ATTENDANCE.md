@@ -166,7 +166,11 @@ filterable KPIs · details sheet · corrections approve/reject · GPS-area short
 `AttendanceHistoryQuery` (date-range preset incl. **Today/Yesterday** + a
 **multi-select** status facet set combined with OR + shift + a name search that is
 **Arabic- and diacritic-insensitive** via `attendanceSearchNormalize` → resolve +
-`apply`) — no new data path, no parallel repository. One `AttendanceHistoryScreen`
+`apply`) — no new data path, no parallel repository. Curated one-tap **quick views**
+(`attendance_history_preset.dart`, a fixed `kAttendanceHistoryPresets` — *Late this
+week*, *Overtime this month*, …) fold a range + status set onto the query; a
+reviewer whose branch has no records for a searched name still sees them via the
+directory-backed match (`attendance_directory_match.dart`). One `AttendanceHistoryScreen`
 serves two entries: `.self()` (`/attendance/history`, any authenticated role — the
 caller's own history) and `.review()` (`/attendance/review`, **admin‖manager** via
 the `_isAttendanceReviewArea` guard — the branch ledger, with an admin branch

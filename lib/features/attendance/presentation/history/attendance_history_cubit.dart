@@ -6,6 +6,7 @@ import 'package:drop/core/enums/attendance_status_filter.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/features/attendance/domain/attendance_analytics.dart';
 import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
+import 'package:drop/features/attendance/domain/attendance_history_preset.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
@@ -129,6 +130,11 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
   }
 
   void setSearch(String text) => setQuery(_query.copyWith(text: text));
+
+  /// Apply a curated quick view — sets the range + status set in one tap (a range
+  /// change re-queries the server window, exactly like [setRange]).
+  void applyPreset(AttendanceHistoryPreset preset) =>
+      setQuery(preset.apply(_query));
 
   /// Review mode — switch the branch under review (admin branch picker).
   void selectBranch(String branchId) {

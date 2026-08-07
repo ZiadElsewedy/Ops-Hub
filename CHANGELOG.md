@@ -29,6 +29,17 @@ flat per ADR-012); no rules/functions/schema change. Pinned by
 `attendance_directory_match_test` (5) + a review-mode cubit case. `flutter analyze`
 clean, 1917 Dart tests green.
 
+## 2026-08-07 — Attendance history: curated quick-view presets (feature; LOW risk, client-only, no deploy)
+
+A "Quick views" chip row on the history/review filters applies a whole view in one
+tap — Problems this week / Late this week / Absent this week / Overtime this month —
+setting the date range + status set and clearing the shift facet while keeping any
+name search. Curated, not user-saved (ADR-010 signal-over-volume): a short fixed
+`kAttendanceHistoryPresets`, pure `attendance_history_preset.dart` (apply/isActive) +
+`AttendanceHistoryCubit.applyPreset` + one filter-widget row. No new read or
+schema/rules/functions change. Pinned by `attendance_history_preset_test` (7) + an
+`applyPreset` cubit case. `flutter analyze` clean, 1924 Dart tests green.
+
 ## 2026-08-07 — Exports open the real OS share sheet (feature; LOW risk, client-only, no deploy, adds share_plus)
 
 Attendance (PDF/CSV) and schedule (PNG/PDF/XLSX) exports opened the file in a local
