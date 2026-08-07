@@ -636,6 +636,10 @@ class AppDependencies {
         mode: mode,
         userId: userId,
         branchId: branchId,
+        // Review resolves a name search against the whole branch directory, not
+        // just days that produced a record; self-history needs no directory.
+        getUsersByBranch:
+            mode == AttendanceHistoryMode.review ? _reportUsersByBranch : null,
         // A deep link from a report pins the ledger to that report's window, so
         // the rows read the same period the row was tapped in. Both bounds are
         // required — one alone would half-apply a range the resolver would then

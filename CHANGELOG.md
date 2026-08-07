@@ -14,6 +14,21 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — Attendance review search is directory-backed (feature; LOW risk, client-only, no deploy)
+
+The manager/admin review-ledger name search matched only employees with a record or
+a rostered-absence gap in the window, so searching a teammate who had neither read as
+"No matches". The review cubit now loads the branch's active employees once per branch
+(`GetUsersByBranch`, cached, carried on the loaded state as `directory`, re-emitted on
+arrival so a deep-linked person search still resolves). New pure
+`attendanceDirectoryOnlyMatches` returns searched-for teammates with no attendance this
+period — gated on a non-empty term (no flooding) and using the same
+`attendanceSearchNormalize` fold — rendered as quiet "No attendance recorded in this
+period" rows. One bounded per-branch users read (already permitted; `users` reads are
+flat per ADR-012); no rules/functions/schema change. Pinned by
+`attendance_directory_match_test` (5) + a review-mode cubit case. `flutter analyze`
+clean, 1917 Dart tests green.
+
 ## 2026-08-07 — Attendance reports: ranked exception boards (feature; LOW risk, client-only, no deploy)
 
 The reports hub could say which periods need attention but not *who* has the most

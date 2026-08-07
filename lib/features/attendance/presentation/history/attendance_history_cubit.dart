@@ -5,9 +5,11 @@ import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/enums/attendance_status_filter.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/features/attendance/domain/attendance_analytics.dart';
+import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
 import 'attendance_history_state.dart';
 
 /// Which ledger this cubit is driving.
@@ -38,9 +40,15 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
   /// Injectable clock so range resolution + streaks are deterministic under test.
   final DateTime Function() _now;
 
+  /// Loads the branch's employees so a reviewer name search resolves against the
+  /// whole directory, not just days that produced a record (review mode only).
+  final GetUsersByBranch? _getUsersByBranch;
+
   String? _branchId;
   AttendanceHistoryQuery _query;
   List<AttendanceEntity> _all = const [];
+  List<AttendanceDirectoryEntry> _directory = const [];
+  String? _directoryBranch;
   bool _offline = false;
   bool _syncing = false;
   StreamSubscription<Object?>? _sub;
@@ -51,8 +59,10 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
     this.userId,
     String? branchId,
     AttendanceHistoryQuery? query,
+    GetUsersByBranch? getUsersByBranch,
     DateTime Function()? now,
   })  : _repository = repository,
+        _getUsersByBranch = getUsersByBranch,
         _branchId = branchId,
         _query = query ?? const AttendanceHistoryQuery(),
         _now = now ?? DateTime.now,
@@ -124,6 +134,8 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
   void selectBranch(String branchId) {
     if (branchId == _branchId) return;
     _branchId = branchId;
+    _directory = const [];
+    _directoryBranch = null;
     _subscribeReview();
   }
 
@@ -166,6 +178,7 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
     _pump();
     _offline = false;
     _syncing = false;
+    unawaited(_loadDirectory(branchId));
     _sub?.cancel();
     _sub = _repository
         .watchBranchRange(branchId, _query.startKey(_now()), _query.endKey(_now()))
@@ -176,6 +189,29 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
       },
       onError: _onStreamError,
     );
+  }
+
+  /// Load the branch's active employees once per branch (review mode). Cheap and
+  /// cached — a re-entry for the same branch with a populated directory is a
+  /// no-op. On success it re-emits so a name search (including a deep-linked one
+  /// that arrived before the directory) resolves against the whole directory.
+  Future<void> _loadDirectory(String branchId) async {
+    final loader = _getUsersByBranch;
+    if (loader == null) return;
+    if (_directoryBranch == branchId && _directory.isNotEmpty) return;
+    try {
+      final users = await loader(branchId);
+      if (isClosed || _branchId != branchId) return; // branch moved under us
+      _directory = [
+        for (final u in users)
+          if (u.isActive && (u.displayName?.trim().isNotEmpty ?? false))
+            AttendanceDirectoryEntry(userId: u.uid, name: u.displayName!.trim()),
+      ];
+      _directoryBranch = branchId;
+      _emit();
+    } catch (e, st) {
+      AppLog.error('attendance', 'directory load failed', e, st);
+    }
   }
 
   /// Show the skeleton only on a cold start (no data yet), never between filter
@@ -210,6 +246,7 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
       branchId: _branchId,
       offline: _offline,
       syncing: _syncing,
+      directory: _directory,
     ));
   }
 

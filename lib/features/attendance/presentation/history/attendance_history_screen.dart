@@ -13,6 +13,7 @@ import 'package:drop/core/widgets/list_skeleton.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/status_badge.dart';
+import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
 import 'package:drop/features/attendance/domain/attendance_history_gap.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
@@ -143,6 +144,7 @@ class _HistoryViewState extends State<_HistoryView> {
             records: s.records,
             query: s.query,
             branchId: s.branchId,
+            directory: s.directory,
           ),
           error: (e) => _CenterMessage(message: e.message),
           orElse: () => const ListSkeleton(),
@@ -159,6 +161,7 @@ class _Loaded extends StatelessWidget {
     required this.records,
     required this.query,
     required this.branchId,
+    required this.directory,
   });
 
   final bool isReview;
@@ -166,6 +169,7 @@ class _Loaded extends StatelessWidget {
   final List<AttendanceEntity> records;
   final AttendanceHistoryQuery query;
   final String? branchId;
+  final List<AttendanceDirectoryEntry> directory;
 
   @override
   Widget build(BuildContext context) {
@@ -209,15 +213,40 @@ class _Loaded extends StatelessWidget {
               ledger: context.watch<AttendanceReportCubit>().state.rows,
               query: query,
             );
-            if (records.isEmpty && gaps.isEmpty) {
+            // Reviewer name search resolves against the whole branch directory:
+            // a searched-for teammate with no record and no rostered shift this
+            // period would otherwise be invisible. Gated on an active search
+            // (no term ⇒ no rows) so it never floods the ledger.
+            final directoryMatches = isReview
+                ? attendanceDirectoryOnlyMatches(
+                    directory: directory,
+                    query: query,
+                    presentUids: {
+                      for (final r in records) r.userId,
+                      for (final g in gaps) g.userId,
+                    },
+                  )
+                : const <AttendanceDirectoryMatch>[];
+            if (records.isEmpty &&
+                gaps.isEmpty &&
+                directoryMatches.isEmpty) {
               return [_EmptyMessage(hasFacets: query.hasFacets)];
             }
-            return _interleave(
-              records: records,
-              gaps: gaps,
-              isReview: isReview,
-              context: context,
-            );
+            return [
+              ..._interleave(
+                records: records,
+                gaps: gaps,
+                isReview: isReview,
+                context: context,
+              ),
+              // Date-less by nature (no attendance happened), so they sit below
+              // the dated records and gaps.
+              for (final m in directoryMatches)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: _DirectoryOnlyCard(name: m.name),
+                ),
+            ];
           }(),
         ],
       ),
@@ -322,6 +351,64 @@ class _GapCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           StatusBadge(label: gap.label, color: tone, compact: true),
         ],
+      ),
+    );
+  }
+}
+
+/// A branch employee the reviewer searched for who has **no attendance surface**
+/// in this period — no record, no rostered shift. It exists to answer the search
+/// honestly ("Mohamed is a real teammate; he simply has nothing this period")
+/// instead of the ledger reading *No matches*. Deliberately the quietest row and
+/// **not tappable**: there is nothing to open, and the fix is to widen the range.
+class _DirectoryOnlyCard extends StatelessWidget {
+  const _DirectoryOnlyCard({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$name. No attendance recorded in this period.',
+      child: GlassContainer(
+        elevated: false,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              width: 3,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.textTertiary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    name,
+                    style: AppTypography.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'No attendance recorded in this period',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

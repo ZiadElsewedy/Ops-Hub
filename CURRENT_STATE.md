@@ -5,6 +5,26 @@
 >
 > **Last verified against the code:** 2026-08-07.
 
+> **Reviewer attendance search is now directory-backed (2026-08-07, feature,
+> presentation + pure domain + one bounded read, client-only, NO deploy, NOT
+> device-verified):** The manager/admin review ledger search matched only
+> employees who had a record **or** a rostered-absence gap in the window, so
+> "Mohamed's attendance for July" read *No matches* whenever Mohamed had neither —
+> even though he's a real, active teammate. The review cubit now loads the
+> branch's active employees once per branch (`GetUsersByBranch`, cached, re-emits
+> on arrival so a **deep-linked** person search still resolves), carried on the
+> loaded state as `directory`. New pure `attendanceDirectoryOnlyMatches`
+> (`attendance_directory_match.dart`) returns the searched-for teammates with no
+> attendance surface this period — **gated on a non-empty search term** (no term ⇒
+> no rows, so the ledger never floods) and using the **same** `attendanceSearchNormalize`
+> fold as the record/gap search. They render as quiet, non-tappable *"No attendance
+> recorded in this period"* rows below the dated records/gaps, so the search
+> resolves against the whole directory. One bounded `where('branchId'==)` users
+> read per branch (already permitted — `users` reads are flat, ADR-012); **no
+> rules/functions/schema change.** Pinned by `attendance_directory_match_test` (5)
+> + a review-mode `attendance_history_cubit_test` case. `flutter analyze` clean,
+> 1917 Dart tests green. This closes the window-bound caveat noted below.
+
 > **Attendance reports gained ranked exception boards (2026-08-07, feature,
 > presentation + pure domain, client-only, NO deploy, NOT device-verified):** The
 > reports hub answered "which periods need attention" but not "**who** — who has
@@ -37,10 +57,8 @@
 > pure-domain (`attendance_history_query.dart`, `attendance_history_gap.dart`) +
 > the filter widget/cubit; **no new read, no schema/rules/functions change.**
 > Pinned by expanded `attendance_history_query_test`, `_cubit_test`, `_gap_test`.
-> `flutter analyze` clean, 1901 Dart tests green. ⚠️ **Still window-bound:** the
-> reviewer search matches only employees who *have records in the loaded date
-> window* — finding someone with no records in range (a directory-backed search)
-> is the remaining P1 half, deferred.
+> `flutter analyze` clean, 1901 Dart tests green. ✅ **The window-bound gap is now
+> closed** — the reviewer search is directory-backed (see the entry above).
 
 > 🔴 **ATTENDANCE MINUTES WERE CLIENT-FORGEABLE — FIXED, ⚠️ NEEDS A FUNCTIONS
 > **AND** A RULES DEPLOY (2026-08-07, security, NOT device-verified).** The module's

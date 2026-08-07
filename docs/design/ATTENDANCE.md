@@ -170,7 +170,12 @@ filterable KPIs · details sheet · corrections approve/reject · GPS-area short
 serves two entries: `.self()` (`/attendance/history`, any authenticated role — the
 caller's own history) and `.review()` (`/attendance/review`, **admin‖manager** via
 the `_isAttendanceReviewArea` guard — the branch ledger, with an admin branch
-picker + employee-name search). A record card opens the audit-log Details screen
+picker + employee-name search). The reviewer search is **directory-backed**: the
+cubit loads the branch's active employees (`GetUsersByBranch`, cached per branch)
+and `attendanceDirectoryOnlyMatches` surfaces a searched-for teammate who has no
+record *and* no rostered-shift gap this period as a quiet "no attendance" row —
+so a name resolves against the whole directory, not just the days that produced a
+document. A record card opens the audit-log Details screen
 (`/attendance/record/:id`, seeded via go_router `extra` for an instant paint):
 scheduled window · clock in/out + GPS · worked/late/early/overtime · **Timeline**
 (the server `events` through the shared `TimelineTile`, with a record-derived
