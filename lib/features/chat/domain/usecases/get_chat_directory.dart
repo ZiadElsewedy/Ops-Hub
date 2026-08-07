@@ -24,20 +24,54 @@ class GetChatDirectory {
   final AuthRepository _repository;
   const GetChatDirectory(this._repository);
 
-  Future<List<UserEntity>> call(UserEntity? me) async {
-    if (me == null) return const [];
+  /// The active teammates the caller may start a conversation with. Unchanged
+  /// contract — the new-conversation picker and every existing caller see the
+  /// same active-only, self-excluded, name-sorted list.
+  Future<List<UserEntity>> call(UserEntity? me) async =>
+      (await resolve(me)).active;
+
+  /// One read → **both** the active picker set and the set of Firebase uids that
+  /// are deactivated. The inbox/thread need the deactivated ids to hide a
+  /// conversation with a teammate whose account was turned off; deriving them
+  /// here means the whole chat directory still costs a **single** `getAllUsers`
+  /// read (the alternative — a second query for inactive accounts — would double
+  /// it). The set is a *positive* signal: a uid is in it only when a real
+  /// document says `isActive == false`, so callers never confuse "deactivated"
+  /// with "directory not loaded yet".
+  Future<ChatDirectorySnapshot> resolve(UserEntity? me) async {
+    if (me == null) return const ChatDirectorySnapshot(active: [], deactivatedUids: {});
 
     final everyone = await _repository.getAllUsers();
-    final directory = everyone
+    final active = everyone
         .where((u) => u.uid != me.uid && u.isActive)
-        .toList();
-
-    directory.sort((a, b) => _label(a).toLowerCase().compareTo(
-          _label(b).toLowerCase(),
-        ));
-    return List.unmodifiable(directory);
+        .toList()
+      ..sort((a, b) => _label(a).toLowerCase().compareTo(
+            _label(b).toLowerCase(),
+          ));
+    final deactivated = <String>{
+      for (final u in everyone)
+        if (u.uid != me.uid && !u.isActive) u.uid,
+    };
+    return ChatDirectorySnapshot(
+      active: List.unmodifiable(active),
+      deactivatedUids: Set.unmodifiable(deactivated),
+    );
   }
 
   static String _label(UserEntity u) =>
       (u.displayName?.isNotEmpty ?? false) ? u.displayName! : u.email;
+}
+
+/// The chat directory split by account state, from one read. [active] is the
+/// picker/name-resolution set; [deactivatedUids] are the Firebase uids of
+/// accounts turned off (`isActive == false`), so a conversation with one can be
+/// hidden and its thread refused.
+class ChatDirectorySnapshot {
+  const ChatDirectorySnapshot({
+    required this.active,
+    required this.deactivatedUids,
+  });
+
+  final List<UserEntity> active;
+  final Set<String> deactivatedUids;
 }

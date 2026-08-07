@@ -327,6 +327,15 @@ class AppDependencies {
   static String? _chatDirectoryUid;
   static DateTime? _chatDirectoryLoadedAt;
 
+  /// Firebase uids of accounts that are **deactivated** (`isActive == false`),
+  /// derived from the same read that fills [_chatDirectory]. A positive signal —
+  /// a uid is present only when a real document says the account is off — so the
+  /// inbox can hide a conversation with a deactivated teammate and the thread can
+  /// refuse to open, without ever mistaking an unloaded directory for "everyone
+  /// deactivated". Empty until the first [loadChatDirectory]; cleared on
+  /// sign-out.
+  static final Set<String> _deactivatedChatUids = {};
+
   /// How long a loaded chat directory is trusted before the next
   /// [loadChatDirectory] re-reads it. The org's people set changes only when an
   /// admin provisions or edits an account (rare), so a few minutes keeps reads
@@ -342,6 +351,12 @@ class AppDependencies {
   /// placeholder that only resolves after an async load (the flash the owner
   /// reported). Empty on a cold start, before [loadChatDirectory] has run once.
   static Map<String, UserEntity> get chatDirectorySnapshot => _chatDirectory;
+
+  /// The deactivated-uid set as it stands right now — synchronous, so the inbox
+  /// filter and the thread-open guard can read it without awaiting a load. Empty
+  /// on a cold start, before [loadChatDirectory] has run once (so nothing is
+  /// hidden until we positively know an account is off).
+  static Set<String> get deactivatedChatUidsSnapshot => _deactivatedChatUids;
 
   /// The [user]'s chat directory keyed by **Firebase uid**, so the chat UI can
   /// resolve a conversation's `counterpartExternalId` to a real name/avatar/
@@ -363,12 +378,18 @@ class AppDependencies {
         fresh) {
       return _chatDirectory;
     }
-    final users = await _getChatDirectory(user);
+    final snapshot = await _getChatDirectory.resolve(user);
     _chatDirectory
       ..clear()
-      ..addEntries(users.map((u) => MapEntry(u.uid, u)));
+      ..addEntries(snapshot.active.map((u) => MapEntry(u.uid, u)));
+    _deactivatedChatUids
+      ..clear()
+      ..addAll(snapshot.deactivatedUids);
     _chatDirectoryUid = user?.uid;
     _chatDirectoryLoadedAt = DateTime.now();
+    // A conversation may have just been hidden (a teammate turned off) or
+    // un-hidden (turned back on): re-emit the inbox against the fresh set.
+    chatListCubit.refilter();
     return _chatDirectory;
   }
 
@@ -376,6 +397,7 @@ class AppDependencies {
   /// name against the previous user's directory.
   static void clearChatDirectory() {
     _chatDirectory.clear();
+    _deactivatedChatUids.clear();
     _chatDirectoryUid = null;
     _chatDirectoryLoadedAt = null;
   }
@@ -731,6 +753,10 @@ class AppDependencies {
       startConversation: StartConversation(chatRepository),
       getCachedConversations: GetCachedConversations(chatRepository),
       realtime: chatRealtime,
+      // Hide conversations whose counterpart's account was deactivated. Reads
+      // the live session cache filled by [loadChatDirectory], so a mid-session
+      // deactivation takes effect on the next directory (re)load.
+      deactivatedCounterpartUids: () => _deactivatedChatUids,
     );
 
     final authRemoteDataSource = AuthRemoteDataSourceImpl(FirebaseAuth.instance);

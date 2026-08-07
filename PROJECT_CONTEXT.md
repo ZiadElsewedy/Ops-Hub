@@ -513,7 +513,11 @@ Mirrored in `firestore.rules` — the client is never the enforcement point.
 > org-wide (anyone may message anyone). The table above still governs every other
 > collection, and still governs all `users` **writes**. Chat's directory is
 > `GetChatDirectory` — one unfiltered read, filtered only by self-exclusion and
-> `isActive`. Do not re-introduce branch or role scoping into it.
+> `isActive`. Do not re-introduce branch or role scoping into it. The same read
+> also yields the set of **deactivated** uids (`GetChatDirectory.resolve` →
+> `ChatDirectorySnapshot`), which the inbox uses to hide an existing conversation
+> with a turned-off teammate and the thread uses to refuse to open — so a
+> deactivated account disappears from chat, not just from the picker.
 
 - Parse roles with `UserRole.fromString`, which **defaults unknown/missing to
   `employee`** so a bad document can never escalate privileges. Use the

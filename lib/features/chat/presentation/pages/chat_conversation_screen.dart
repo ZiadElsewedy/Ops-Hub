@@ -8,6 +8,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
+import 'package:drop/core/widgets/app_empty_state.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/chat/domain/entities/chat_message.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
@@ -136,11 +137,26 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
     // so a known inbox row never regresses to the generic `Conversation`.
     apply(snapshot);
     (_directoryLoad ??= AppDependencies.loadChatDirectory(currentUser))
-        .then(apply)
-        .catchError((_) {
+        .then((dir) {
+      apply(dir);
+      // Re-evaluate the deactivated guard once the directory (and the
+      // deactivated-uid set alongside it) has loaded — a bare deep link opens
+      // before either is known, so the guard below must recheck on arrival.
+      if (mounted) setState(() {});
+    }).catchError((_) {
       // The summary remains a safe identity fallback; directory failures must
       // never block opening a thread.
     });
+  }
+
+  /// True once we positively know the counterpart's account is deactivated.
+  /// Keyed on the counterpart's Firebase uid against the session cache filled by
+  /// [AppDependencies.loadChatDirectory]; false while unknown (a bare deep link
+  /// before the directory loads), so a thread never wrongly reads as unavailable.
+  bool get _counterpartDeactivated {
+    final uid = _headerArgs?.counterpartExternalId;
+    return uid != null &&
+        AppDependencies.deactivatedChatUidsSnapshot.contains(uid);
   }
 
   String get _name {
@@ -292,6 +308,24 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
 
   @override
   Widget build(BuildContext context) {
+    // A deactivated counterpart's thread is closed: no history, no composer —
+    // reached only via a stale deep link (the inbox already hides the row). The
+    // BlocListener still runs so the guard re-evaluates when the directory lands.
+    if (_counterpartDeactivated) {
+      return BlocListener<ChatListCubit, ChatListState>(
+        listener: (_, _) => _resolveHeader(),
+        child: const AdaptiveScaffold(
+          title: 'Conversation unavailable',
+          body: AppEmptyState(
+            icon: Icons.person_off_rounded,
+            title: 'This account is no longer available',
+            message:
+                'This teammate has been deactivated, so this conversation is '
+                'closed. You can’t view or send messages here.',
+          ),
+        ),
+      );
+    }
     return BlocListener<ChatListCubit, ChatListState>(
       // The inbox is the identity source. Re-resolving on every emit picks the
       // summary up the moment it lands — the durable-cache paint, the network

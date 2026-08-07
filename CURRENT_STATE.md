@@ -5,6 +5,35 @@
 >
 > **Last verified against the code:** 2026-08-07.
 
+> **A deactivated account disappears from chat (2026-08-07, feature,
+> client-only, NOT device-verified):** Owner: *"when I make an account inactive
+> its chat should disappear, no one can message it, and you can't send it a task
+> — anything it's used in should no longer be valid."* Most of that was already
+> true — the assignee picker (`task_cubit.branchEmployees`), the new-chat
+> teammate picker (`GetChatDirectory`), schedule/roster pickers, broadcasts and
+> login all already exclude `isActive == false`. The one real gap was an
+> **existing** chat conversation: the inbox is built from past conversations, not
+> the (already-filtered) picker, so a teammate you'd already chatted with stayed
+> in the inbox and remained messageable after being turned off. Now: the chat
+> directory read yields, from the **same single `getAllUsers` query**, a set of
+> deactivated uids (`GetChatDirectory.resolve` → `ChatDirectorySnapshot`, cached
+> beside the name directory in `AppDependencies`). `ChatListCubit` hides any
+> conversation whose counterpart is in that set — dropped from the inbox list,
+> excluded from the `totalUnread` sidebar badge, and ignored for live
+> bump/notify — and `ChatConversationScreen` refuses to open such a thread
+> (person-off empty state, no history, no composer) even via a stale deep link.
+> The filter is a **positive** signal (a uid is hidden only when a document says
+> it's off), so an unloaded directory never blanks the inbox; a mid-session
+> deactivation (or reactivation) takes effect on the next directory (re)load via
+> `refilter()`, already wired through `invalidatePeopleDirectories`. **Task
+> assignment needed no change** — new assignments already exclude inactive users;
+> an already-assigned inactive user still resolves for display, by decision.
+> Pinned by `test/chat_deactivated_counterpart_test.dart` (5). `flutter analyze`
+> clean, 1893 Dart tests green. No rules/functions/schema change. ⚠️ **Client-side
+> only** — the chat backend (`drop-api`, a separate repo not in this project)
+> does not yet reject a send to a deactivated user; enforcement here is the UI the
+> user sees. **NOT device-verified.**
+
 > **Managers & admins can record sales directly, with a celebratory overlay
 > (2026-08-07, feature, ⚠️ NEEDS A FUNCTIONS DEPLOY, NOT device-verified):**
 > Sales were employee-submit-only; a manager/admin could approve but not enter a

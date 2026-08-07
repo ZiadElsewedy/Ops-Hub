@@ -14,6 +14,27 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — A deactivated account disappears from chat (feature; LOW risk, client-only)
+
+Owner ask: deactivating an account should make it drop out everywhere it's used
+— its chat gone, unmessageable, unassignable. Audit found most of it already
+held (task/schedule/broadcast/new-chat pickers and login all exclude
+`isActive == false`); the real gap was an **existing** chat conversation, which
+the inbox surfaces from past threads rather than the filtered picker.
+`GetChatDirectory.resolve` now returns a `ChatDirectorySnapshot` — the active
+directory **plus** the set of deactivated uids, from the same single
+`getAllUsers` read — cached beside the name directory in `AppDependencies`.
+`ChatListCubit` hides any conversation whose counterpart is in that set (off the
+list, out of `totalUnread`, ignored for live bump/notify) and re-emits on
+`refilter()` when the directory reloads; `ChatConversationScreen` refuses to open
+a deactivated thread (person-off empty state, no history/composer) even by deep
+link. Positive-signal filter (hide only on a real "off" flag → an unloaded
+directory never blanks the inbox). Task assignment unchanged (already excludes
+inactive; an already-assigned inactive user still resolves for display).
+`test/chat_deactivated_counterpart_test.dart` (5); analyze clean; 1893 tests
+green; no rules/functions/schema change. ⚠️ Client-side only — `drop-api` (separate
+repo) does not yet reject sends to a deactivated user.
+
 ## 2026-08-07 — Managers & admins can record sales directly, with a celebratory overlay (feature; MED risk, ⚠️ NEEDS FUNCTIONS DEPLOY)
 
 Owner ask: let admins and managers add a sales record, not only employees, and
