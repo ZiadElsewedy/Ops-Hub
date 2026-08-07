@@ -5,6 +5,35 @@
 >
 > **Last verified against the code:** 2026-08-07.
 
+> **Managers & admins can record sales directly, with a celebratory overlay
+> (2026-08-07, feature, ⚠️ NEEDS A FUNCTIONS DEPLOY, NOT device-verified):**
+> Sales were employee-submit-only; a manager/admin could approve but not enter a
+> day. New `recordApprovedDailySales` callable lets an own-branch **manager or
+> admin** record a day **directly** — it lands already `approved` and counts
+> toward the target immediately (a manager can't *self-approve* a pending doc, so
+> a direct record is the right shape: the actor is both `submittedBy` and
+> `decisionBy`, stamped `recordedDirectly:true`, guarded by the Admin SDK, not a
+> client write). Accepts today or any past Cairo day (never the future), refuses a
+> day that already has a record (`already-exists` → edit it instead) and a month
+> with no target. The manager dashboard gains a **Record sales** button →
+> `showSalesRecordSheet` (amount · business-day picker · optional note) → on
+> success a `showSalesRecordAddedOverlay` **counts up** to "**+ {amount} EGP**
+> added to the branch total" over a slim achieved-of-target bar. Strictly
+> monochrome (ADR-004): the sole chromatic pixel is the **success** tint shown
+> only when *this* record **reached** the target ("Monthly target reached"). The
+> result rides a one-shot `justRecorded` channel on the loaded state (separate
+> from `message`, so it's an overlay not a snackbar); reduced motion rests on the
+> final frame. Notifications reuse `selectSalesRecipients` (branch + every admin,
+> minus the actor) with a *Sales recorded* body and the same target-achieved
+> crossing as an approval. New pure `isRecordableSalesDate` (+2 node tests),
+> `SalesRecordResult`, `RecordDailySales`, audit `sales.recorded`. Pinned by 2 new
+> `sales_manager_dashboard_cubit_test` cases + `sales_record_added_overlay_test`
+> (2). `flutter analyze` clean, 1888 Dart + 144 node tests green. ⚠️ **Inert until
+> `firebase deploy --only functions:recordApprovedDailySales`** — the callable
+> does not exist in production yet, so the button errors on device until deployed.
+> No rules/index change (Admin-SDK write). Design doc
+> [SALES_TARGETS](docs/design/SALES_TARGETS.md) updated.
+
 > 🔴 **THE ADMIN BUG: `sendNotification` refused every client notification
 > aimed at an admin. FIXED, ⚠️ NEEDS A FUNCTIONS DEPLOY (2026-08-07).**
 > Owner: *"the admin isn't receiving notifications — just chat; other things

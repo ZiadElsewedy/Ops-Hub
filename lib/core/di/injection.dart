@@ -53,6 +53,7 @@ import 'package:drop/features/sales/data/datasources/sales_remote_datasource.dar
 import 'package:drop/features/sales/data/repositories/sales_repository_impl.dart';
 import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
 import 'package:drop/features/sales/domain/usecases/submit_daily_sales.dart';
+import 'package:drop/features/sales/domain/usecases/record_daily_sales.dart';
 import 'package:drop/features/sales/domain/usecases/set_branch_monthly_target.dart';
 import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
@@ -579,6 +580,7 @@ class AppDependencies {
   static late final SalesMonthCubit salesMonthCubit;
   // P3 presentation consumes these write actions when its sales cubits land.
   static late final SubmitDailySales submitDailySales;
+  static late final RecordDailySales recordDailySales;
   static late final SetBranchMonthlyTarget setBranchMonthlyTarget;
   static late final ApproveSalesSubmission approveSalesSubmission;
   static late final RejectSalesSubmission rejectSalesSubmission;
@@ -588,7 +590,7 @@ class AppDependencies {
   static late final ReopenSalesSubmission reopenSalesSubmission;
 
   static SalesManagerDashboardCubit createSalesManagerDashboardCubit() =>
-      SalesManagerDashboardCubit(repository: salesRepository, branchRepository: _branchRepositoryRef, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, setTarget: setBranchMonthlyTarget);
+      SalesManagerDashboardCubit(repository: salesRepository, branchRepository: _branchRepositoryRef, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, setTarget: setBranchMonthlyTarget, record: recordDailySales);
 
   static SalesAdminOverviewCubit createSalesAdminOverviewCubit() =>
       SalesAdminOverviewCubit(repository: salesRepository);
@@ -771,6 +773,7 @@ class AppDependencies {
       SalesRemoteDataSourceImpl(FirebaseFirestore.instance, FirebaseFunctions.instance),
     );
     submitDailySales = SubmitDailySales(salesRepository);
+    recordDailySales = RecordDailySales(salesRepository);
     setBranchMonthlyTarget = SetBranchMonthlyTarget(salesRepository);
     approveSalesSubmission = ApproveSalesSubmission(salesRepository);
     rejectSalesSubmission = RejectSalesSubmission(salesRepository);

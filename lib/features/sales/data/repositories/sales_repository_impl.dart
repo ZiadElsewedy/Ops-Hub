@@ -5,6 +5,7 @@ import 'package:drop/core/errors/failures.dart';
 import 'package:drop/core/network/network_guard.dart';
 import 'package:drop/features/sales/data/datasources/sales_remote_datasource.dart';
 import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
 import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
 import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
 import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
@@ -15,6 +16,8 @@ class SalesRepositoryImpl implements SalesRepository {
 
   @override
   Future<void> submitDailySales({required String branchId, required String monthKey, required String businessDateKey, required int amountPiastres, required String submittedById, required String submittedByName}) => _write(() => _remote.submitDailySales(branchId: branchId, monthKey: monthKey, businessDateKey: businessDateKey, amountPiastres: amountPiastres, submittedById: submittedById, submittedByName: submittedByName));
+  @override
+  Future<SalesRecordResult> recordDailySales({required String branchId, required int amountPiastres, String? businessDateKey, String? reason}) => _writeResult(() => _remote.recordDailySales(branchId: branchId, amountPiastres: amountPiastres, businessDateKey: businessDateKey, reason: reason));
   @override
   Future<void> setBranchTarget({required String branchId, required String monthKey, required int targetPiastres, required String reason, int? expectedTargetRevision}) => _write(() => _remote.setBranchTarget(branchId: branchId, monthKey: monthKey, targetPiastres: targetPiastres, reason: reason, expectedTargetRevision: expectedTargetRevision));
   @override
@@ -27,6 +30,11 @@ class SalesRepositoryImpl implements SalesRepository {
   Future<void> _write(Future<void> Function() operation) async {
     NetworkGuard.ensureWritable();
     try { await operation(); } on ServerException catch (e) { throw ServerFailure(e.message); }
+  }
+
+  Future<T> _writeResult<T>(Future<T> Function() operation) async {
+    NetworkGuard.ensureWritable();
+    try { return await operation(); } on ServerException catch (e) { throw ServerFailure(e.message); }
   }
 
   @override

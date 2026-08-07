@@ -14,6 +14,26 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — Managers & admins can record sales directly, with a celebratory overlay (feature; MED risk, ⚠️ NEEDS FUNCTIONS DEPLOY)
+
+Owner ask: let admins and managers add a sales record, not only employees, and
+show a creative "+amount added to target" confirmation. New
+`recordApprovedDailySales` callable writes an own-branch manager/admin's day as
+an already-`approved` record via the Admin SDK (the actor is both submitter and
+decider — a direct entry, not the self-approval `canDecideSubmission` forbids —
+stamped `recordedDirectly:true`). Accepts today or any past Cairo day, refuses
+the future, a duplicate day (`already-exists`), and a month with no target;
+fires the same target-achieved crossing as an approval. Client: `RecordDailySales`
+use case, `SalesRecordResult`, a **Record sales** button on the manager
+dashboard, `showSalesRecordSheet` (amount · day picker · optional note), and
+`showSalesRecordAddedOverlay` — a monochrome count-up to "+ {amount} EGP added to
+the branch total" with a success tint **only** on a genuine target crossing
+(ADR-004). New pure `isRecordableSalesDate`, audit `sales.recorded`. Inert until
+`firebase deploy --only functions:recordApprovedDailySales`; no rules/index
+change. Pinned by 2 cubit + 2 overlay + 2 node tests. Docs:
+[SALES_TARGETS](docs/design/SALES_TARGETS.md), DATA_MODEL, PROJECT_CONTEXT
+(function count 24→31, was already stale).
+
 ## 2026-08-07 — Editing an approved sales amount: reason is now optional (feature; LOW risk, ⚠️ NEEDS FUNCTIONS DEPLOY)
 
 Owner ask on the sales submission detail's **Edit approved amount** sheet. Reason

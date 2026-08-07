@@ -4,6 +4,7 @@ import 'package:drop/core/constants/app_constants.dart';
 import 'package:drop/core/errors/exceptions.dart';
 import 'package:drop/features/sales/data/models/branch_sales_month_model.dart';
 import 'package:drop/features/sales/data/models/daily_sales_submission_model.dart';
+import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
 import 'package:drop/features/sales/domain/sales_submission_id.dart';
 
 abstract class SalesRemoteDataSource {
@@ -27,6 +28,7 @@ abstract class SalesRemoteDataSource {
     String monthKey,
   );
   Future<void> submitDailySales({required String branchId, required String monthKey, required String businessDateKey, required int amountPiastres, required String submittedById, required String submittedByName});
+  Future<SalesRecordResult> recordDailySales({required String branchId, required int amountPiastres, String? businessDateKey, String? reason});
   Future<void> setBranchTarget({required String branchId, required String monthKey, required int targetPiastres, required String reason, int? expectedTargetRevision});
   Future<void> decideSubmission({required String submissionId, required String action, String? reason});
   Future<void> editApprovedSubmission({required String submissionId, required int amountPiastres, required String reason, required int expectedRevision});
@@ -193,6 +195,18 @@ class SalesRemoteDataSourceImpl implements SalesRemoteDataSource {
   }
 
   @override
+  Future<SalesRecordResult> recordDailySales({required String branchId, required int amountPiastres, String? businessDateKey, String? reason}) async {
+    final result = await _callForResult('recordApprovedDailySales', {'branchId': branchId, 'amountPiastres': amountPiastres, 'businessDateKey': ?businessDateKey, 'reason': ?reason}, fallback: 'Couldn’t record the sales right now. Please try again.');
+    int asInt(dynamic v, [int fallback = 0]) => v is num ? v.toInt() : fallback;
+    return SalesRecordResult(
+      amountPiastres: amountPiastres,
+      achievedPiastres: asInt(result['achievedPiastres']),
+      targetPiastres: asInt(result['targetPiastres']),
+      crossedTarget: result['crossing'] == true,
+    );
+  }
+
+  @override
   Future<void> setBranchTarget({required String branchId, required String monthKey, required int targetPiastres, required String reason, int? expectedTargetRevision}) => _call('setBranchSalesTarget', {'branchId': branchId, 'monthKey': monthKey, 'targetPiastres': targetPiastres, 'reason': reason, 'expectedTargetRevision': ?expectedTargetRevision}, fallback: 'Couldn’t set the sales target right now. Please try again.');
 
   @override
@@ -204,9 +218,13 @@ class SalesRemoteDataSourceImpl implements SalesRemoteDataSource {
   @override
   Future<void> resubmitCorrectedSales({required String submissionId, required int amountPiastres}) => _call('resubmitCorrectedSales', {'submissionId': submissionId, 'amountPiastres': amountPiastres}, fallback: 'Couldn’t resubmit the corrected sales right now. Please try again.');
 
-  Future<void> _call(String name, Map<String, dynamic> data, {required String fallback}) async {
+  Future<void> _call(String name, Map<String, dynamic> data, {required String fallback}) =>
+      _callForResult(name, data, fallback: fallback);
+
+  Future<Map<String, dynamic>> _callForResult(String name, Map<String, dynamic> data, {required String fallback}) async {
     try {
-      await _functions.httpsCallable(name).call<Map<String, dynamic>>(data);
+      final response = await _functions.httpsCallable(name).call<Map<String, dynamic>>(data);
+      return Map<String, dynamic>.from(response.data);
     } on FirebaseFunctionsException catch (e) {
       throw ServerException(_friendlyFunctionsError(e, fallback));
     } on FirebaseException catch (e) {

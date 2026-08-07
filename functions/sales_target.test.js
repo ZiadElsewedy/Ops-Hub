@@ -15,6 +15,14 @@ test("back-date window includes today and previous three Cairo days", () => {
   assert.equal(sales.isWithinLastBusinessDays("20260801", 3, now), false);
   assert.equal(sales.isWithinLastBusinessDays("not-a-date", 3, now), false);
 });
+test("a direct record accepts today or any past Cairo day, never the future", () => {
+  const now = new Date("2026-08-05T12:00:00Z");
+  for (const key of ["20260805", "20260804", "20260801", "20260715", "20250101"]) {
+    assert.ok(sales.isRecordableSalesDate(key, now), `${key} should be recordable`);
+  }
+  assert.equal(sales.isRecordableSalesDate("20260806", now), false); // tomorrow
+  assert.equal(sales.isRecordableSalesDate("not-a-date", now), false);
+});
 test("deterministic ids and validators bind branch and period", () => {
   assert.equal(sales.salesSubmissionId("b1", "20260805"), "b1_20260805");
   assert.equal(sales.salesMonthId("b1", "202608"), "b1_202608");

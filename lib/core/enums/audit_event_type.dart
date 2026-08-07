@@ -131,6 +131,7 @@ enum AuditEventType {
 
   // ── Branch sales ledger (server-authoritative) ─────────────────
   salesSubmitted('sales.submitted', AuditEntityType.dailySalesSubmission, 'Sales submitted'),
+  salesRecorded('sales.recorded', AuditEntityType.dailySalesSubmission, 'Sales recorded'),
   salesApproved('sales.approved', AuditEntityType.dailySalesSubmission, 'Sales approved'),
   salesRejected('sales.rejected', AuditEntityType.dailySalesSubmission, 'Sales rejected'),
   salesCorrectionRequested('sales.correction_requested', AuditEntityType.dailySalesSubmission, 'Sales correction requested'),

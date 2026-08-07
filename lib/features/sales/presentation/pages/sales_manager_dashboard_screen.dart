@@ -13,6 +13,7 @@ import 'package:drop/core/widgets/brand_watermark.dart';
 import 'package:drop/core/widgets/drop_empty_state.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
+import 'package:drop/features/auth/presentation/widgets/app_button.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
 import 'package:drop/features/sales/domain/sales_calculator.dart';
 import 'package:drop/features/sales/domain/sales_kpis_calculator.dart';
@@ -23,6 +24,8 @@ import 'package:drop/features/sales/presentation/widgets/sales_month_overview.da
 import 'package:drop/features/sales/presentation/widgets/sales_needed_per_day.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_pace_card.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_reason_sheet.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_record_added_overlay.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_record_sheet.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_submissions_door.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_target_editor_sheet.dart';
@@ -88,14 +91,33 @@ class _SalesManagerDashboardScreenState
     );
   }
 
+  /// Manager/admin records a day directly. The record lands already approved;
+  /// the celebratory "+amount added" overlay is played by the listener when the
+  /// cubit reports the result.
+  Future<void> _recordSales(SalesManagerDashboardCubit cubit) async {
+    final input = await showSalesRecordSheet(context);
+    if (input == null) return;
+    await cubit.recordSales(
+      amountPiastres: input.amountPiastres,
+      businessDateKey: input.businessDateKey,
+      reason: input.note.isEmpty ? null : input.note,
+    );
+  }
+
   @override
   Widget build(BuildContext context) => AdaptiveScaffold(
     title: 'Branch sales',
     body: BlocConsumer<SalesManagerDashboardCubit, SalesManagerDashboardState>(
       listenWhen: (previous, current) =>
-          current is SalesManagerDashboardLoaded && current.message != null,
+          current is SalesManagerDashboardLoaded &&
+          (current.message != null || current.justRecorded != null),
       listener: (context, state) {
-        final message = (state as SalesManagerDashboardLoaded).message!;
+        final loaded = state as SalesManagerDashboardLoaded;
+        if (loaded.justRecorded != null) {
+          showSalesRecordAddedOverlay(context, loaded.justRecorded!);
+          return;
+        }
+        final message = loaded.message!;
         final ok =
             message.endsWith('approved.') ||
             message.endsWith('rejected.') ||
@@ -221,6 +243,14 @@ class _SalesManagerDashboardScreenState
                 neededPerDayPiastres: kpis.neededPerDayPiastres,
                 todayPiastres: loaded.todayPiastres,
                 daysRemaining: kpis.daysRemaining,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // A manager/admin records a day directly — it counts immediately.
+              AppButton.secondary(
+                label: 'Record sales',
+                icon: const Icon(Icons.add, size: 20),
+                isLoading: loaded.isRecording,
+                onPressed: loaded.isBusyAnywhere ? null : () => _recordSales(cubit),
               ),
             ],
 

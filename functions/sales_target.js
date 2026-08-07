@@ -33,6 +33,18 @@ function isWithinLastBusinessDays(dateKey, days, now = new Date()) {
   const delta = (todayUtc - target) / 86_400_000;
   return Number.isInteger(delta) && delta >= 0 && delta <= days;
 }
+// A manager/admin may record a close for today or ANY past Cairo business day
+// (they enter days an employee missed), but never a future day. Unlike the
+// employee `isWithinLastBusinessDays` window there is no lower bound — a
+// back-filled record still lands in its own month by its own `businessDateKey`.
+function isRecordableSalesDate(dateKey, now = new Date()) {
+  if (!isDateKey(dateKey)) return false;
+  const today = businessDateKey(now);
+  const target = Date.UTC(+dateKey.slice(0, 4), +dateKey.slice(4, 6) - 1, +dateKey.slice(6, 8));
+  const todayUtc = Date.UTC(+today.slice(0, 4), +today.slice(4, 6) - 1, +today.slice(6, 8));
+  const delta = (todayUtc - target) / 86_400_000;
+  return Number.isInteger(delta) && delta >= 0;
+}
 function salesSubmissionId(branchId, dateKey) { return `${branchId}_${dateKey}`; }
 function salesMonthId(branchId, monthKey) { return `${branchId}_${monthKey}`; }
 function validSubmissionId(id, branchId, dateKey) {
@@ -118,7 +130,7 @@ function selectSalesRecipients({ branchUsers = [], admins = [], managersOnly = f
 
 module.exports = {
   BUSINESS_TIME_ZONE, MAX_MONEY_PIASTRES, businessDateKey, businessMonthKey,
-  isWithinLastBusinessDays, isDateKey, isMonthKey, salesSubmissionId, salesMonthId,
+  isWithinLastBusinessDays, isRecordableSalesDate, isDateKey, isMonthKey, salesSubmissionId, salesMonthId,
   validSubmissionId, validMonthId, isValidMoney, nextStatus, targetAchievedCrossing, canDecideSubmission,
   selectSalesRecipients,
 };

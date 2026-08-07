@@ -115,7 +115,8 @@ const {
 const { isRetryableBroadcastPushError, resolveSendsPush } = require("./broadcast_delivery");
 const { canClaimScheduledBroadcast } = require("./broadcast_schedule");
 const {
-  BUSINESS_TIME_ZONE: SALES_TIME_ZONE, businessMonthKey, isMonthKey, isValidMoney,
+  BUSINESS_TIME_ZONE: SALES_TIME_ZONE, businessMonthKey, businessDateKey: salesBusinessDateKey,
+  isMonthKey, isValidMoney, isRecordableSalesDate, salesSubmissionId, salesMonthId,
   nextStatus, targetAchievedCrossing, canDecideSubmission, selectSalesRecipients,
 } = require("./sales_target");
 const {
@@ -1479,6 +1480,61 @@ exports.resubmitCorrectedSales = onCall(async (request) => {
     await writeSalesNotifications(await salesRecipients(String(result.sub.branchId || ""), { managersOnly: true, excludeUid: actor.id }), { title: "Corrected sales submission", body: "A corrected daily sales submission is ready for review.", submissionId, monthKey: result.sub.monthKey });
   } catch (err) { logger.warn("failed to write sales resubmit side effects", { error: String(err), submissionId }); }
   return { success: true, status: "pending", revision: result.revision };
+});
+
+// A branch manager or admin records a day's sales directly. Unlike an employee
+// submission this lands **already approved** — the actor is the branch's
+// approver, so there is no separate review step and it counts toward the target
+// the instant it is written (which is why the client can celebrate "added to
+// target"). Server-authoritative because an `approved` record is exactly the
+// kind of write a client must not be able to forge: the create rule permits
+// only an employee's own `pending` doc, so this goes through the Admin SDK.
+exports.recordApprovedDailySales = onCall(async (request) => {
+  const data = request.data || {};
+  const branchId = String(data.branchId || "").trim();
+  const dateKey = data.businessDateKey == null || data.businessDateKey === ""
+    ? salesBusinessDateKey(new Date()) : String(data.businessDateKey).trim();
+  if (!branchId || !isValidMoney(data.amountPiastres) || !isRecordableSalesDate(dateKey)) {
+    throw new HttpsError("invalid-argument", "Invalid branch, amount, or business day (a future day cannot be recorded).");
+  }
+  const monthKey = businessMonthKey(`${dateKey.slice(0, 4)}-${dateKey.slice(4, 6)}-${dateKey.slice(6, 8)}T12:00:00Z`);
+  const reason = salesReason(data.reason, false); // a direct record's note is optional, like an approved-amount edit
+  const actor = await requireSalesManager(request, branchId);
+  await requireSalesEnabledBranch(branchId);
+  const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(salesSubmissionId(branchId, dateKey));
+  let result;
+  await db.runTransaction(async (tx) => {
+    const [existing, month] = await Promise.all([
+      tx.get(ref),
+      tx.get(db.collection(BRANCH_SALES_MONTHS).doc(salesMonthId(branchId, monthKey))),
+    ]);
+    if (existing.exists) throw new HttpsError("already-exists", "A sales record already exists for that day. Open it to edit instead.");
+    if (!month.exists) throw new HttpsError("failed-precondition", "Set a monthly sales target for that month first.");
+    const before = await approvedTotal(tx, branchId, monthKey);
+    const after = before + data.amountPiastres;
+    const target = Number((month.data() || {}).targetPiastres);
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    // The actor is deliberately BOTH submitter and decider: a direct record is
+    // not a self-approval of a pending doc (which `canDecideSubmission` forbids)
+    // — it is a new, already-decided fact entered by the branch's approver.
+    tx.create(ref, {
+      id: ref.id, branchId, monthKey, businessDateKey: dateKey, businessTimeZone: SALES_TIME_ZONE,
+      amountPiastres: data.amountPiastres, status: "approved", revision: 1, approvedRevision: 1,
+      submittedById: actor.id, submittedByName: actor.name, submittedAt: now,
+      decisionById: actor.id, decisionByName: actor.name, decisionByRole: actor.role,
+      decisionAt: now, decisionReason: reason || null, recordedDirectly: true,
+      createdAt: now, updatedAt: now, schemaVersion: 1,
+    });
+    result = { crossing: targetAchievedCrossing(before, after, target), achievedAfter: after, target };
+  });
+  try {
+    await writeSalesAudit({ eventType: "sales.recorded", entityType: "daily_sales_submission", entityId: ref.id, actor, branchId,
+      metadata: { branchId, monthKey, businessDateKey: dateKey, submissionId: ref.id, newAmountPiastres: data.amountPiastres, newStatus: "approved", reason: reason || null, recordedDirectly: true, schemaVersion: 1 } });
+    const pounds = Math.round(data.amountPiastres / 100).toLocaleString("en-US");
+    await writeSalesNotifications(await salesRecipients(branchId, { excludeUid: actor.id }), { title: "Sales recorded", body: `${actor.name} added ${pounds} EGP to the branch total.`, submissionId: ref.id, monthKey });
+    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId, { excludeUid: actor.id }), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId: ref.id, monthKey });
+  } catch (err) { logger.warn("failed to write sales record side effects", { error: String(err), branchId, dateKey }); }
+  return { success: true, submissionId: ref.id, crossing: result.crossing, achievedPiastres: result.achievedAfter, targetPiastres: result.target };
 });
 
 exports.onDailySalesSubmissionCreated = onDocumentCreated(`${BRANCH_SALES_SUBMISSIONS}/{submissionId}`, async (event) => {

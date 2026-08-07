@@ -83,7 +83,7 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
 | Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
 | Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Drift caches metadata; `ChatRepositoryImpl` session-caches brokered URLs until their server expiry; **never image bytes** |
-| Server logic | Cloud Functions (Node.js, `functions/`) | 24 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
+| Server logic | Cloud Functions (Node.js, `functions/`) | 31 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS app-side configuration is present; APNs credential remains — see CURRENT_STATE |
 | Device session id | `flutter_secure_storage` | Keychain (iOS/macOS) / `EncryptedSharedPreferences` (Android). Holds **one** value — this device's single-active-session claim. Seam: `core/services/session_store.dart`; never import it elsewhere, and it is still **not** a place for preferences (those stay JSON files) |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
