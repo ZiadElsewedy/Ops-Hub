@@ -136,7 +136,7 @@ void main() {
           const AttendanceHistoryQuery(
             range: AttendanceDateRange.thisMonth,
           ).copyWith(
-            status: AttendanceStatusFilter.late,
+            statuses: {AttendanceStatusFilter.late},
             shifts: {ScheduleShift.night},
             text: 'ali',
           );
@@ -191,10 +191,99 @@ void main() {
     const base = AttendanceHistoryQuery();
     expect(base.hasFacets, isFalse);
     expect(
-      base.copyWith(status: AttendanceStatusFilter.late).hasFacets,
+      base.copyWith(statuses: {AttendanceStatusFilter.late}).hasFacets,
       isTrue,
+    );
+    // The "all" sentinel is not a narrowing facet.
+    expect(
+      base.copyWith(statuses: {AttendanceStatusFilter.all}).hasFacets,
+      isFalse,
     );
     expect(base.copyWith(shifts: {ScheduleShift.night}).hasFacets, isTrue);
     expect(base.copyWith(text: 'a').hasFacets, isTrue);
+  });
+
+  group('today / yesterday presets', () {
+    test('today is the single current calendar day', () {
+      const q = AttendanceHistoryQuery(range: AttendanceDateRange.today);
+      final w = q.resolveRange(now);
+      expect(w.start, DateTime(2026, 7, 17));
+      expect(w.end, DateTime(2026, 7, 17, 23, 59, 59, 999));
+    });
+
+    test('yesterday is the previous calendar day, across a month boundary', () {
+      const q = AttendanceHistoryQuery(range: AttendanceDateRange.yesterday);
+      final w = q.resolveRange(DateTime(2026, 8, 1, 9));
+      expect(w.start, DateTime(2026, 7, 31));
+      expect(w.end, DateTime(2026, 7, 31, 23, 59, 59, 999));
+    });
+  });
+
+  group('multi-select status (OR across the set)', () {
+    test('shows records matching ANY selected status', () {
+      final q = const AttendanceHistoryQuery(
+        range: AttendanceDateRange.thisMonth,
+      ).copyWith(
+        statuses: {AttendanceStatusFilter.late, AttendanceStatusFilter.absent},
+      );
+      final records = [
+        _rec(date: DateTime(2026, 7, 4), late: 10), // late
+        _rec(date: DateTime(2026, 7, 5), status: AttendanceStatus.absent),
+        _rec(date: DateTime(2026, 7, 6)), // on time, completed → out
+      ];
+      final out = q.apply(records, now: now);
+      expect(out.length, 2);
+    });
+
+    test('an empty (or all-only) set matches every status', () {
+      final base = const AttendanceHistoryQuery(
+        range: AttendanceDateRange.thisMonth,
+      );
+      final records = [
+        _rec(date: DateTime(2026, 7, 4), late: 10),
+        _rec(date: DateTime(2026, 7, 5), status: AttendanceStatus.absent),
+      ];
+      expect(base.apply(records, now: now).length, 2);
+      expect(
+        base
+            .copyWith(statuses: {AttendanceStatusFilter.all})
+            .apply(records, now: now)
+            .length,
+        2,
+      );
+    });
+  });
+
+  group('Arabic- and diacritic-insensitive name search', () {
+    test('tashkeel and hamza forms match the bare name', () {
+      final records = [
+        _rec(date: DateTime(2026, 7, 4), userName: 'مُحَمَّد'), // with harakat
+        _rec(date: DateTime(2026, 7, 5), userName: 'أحمد'), // hamza on alef
+      ];
+      final base = const AttendanceHistoryQuery(
+        range: AttendanceDateRange.thisMonth,
+      );
+      // Typed without diacritics / hamza.
+      expect(base.copyWith(text: 'محمد').apply(records, now: now).length, 1);
+      expect(base.copyWith(text: 'احمد').apply(records, now: now).length, 1);
+    });
+
+    test('Latin accents fold to their base letter', () {
+      final records = [_rec(date: DateTime(2026, 7, 4), userName: 'José')];
+      final base = const AttendanceHistoryQuery(
+        range: AttendanceDateRange.thisMonth,
+      );
+      expect(base.copyWith(text: 'jose').apply(records, now: now).length, 1);
+    });
+  });
+
+  group('attendanceSearchNormalize', () {
+    test('folds case, tashkeel, alef-maksura and ta-marbuta', () {
+      expect(attendanceSearchNormalize('مُحَمَّد'), 'محمد');
+      expect(attendanceSearchNormalize(' مركز '), 'مركز');
+      expect(attendanceSearchNormalize('فاطمة'), 'فاطمه'); // ة → ه
+      expect(attendanceSearchNormalize('JOSÉ'), 'jose');
+      expect(attendanceSearchNormalize('a   b'), 'a b'); // whitespace collapse
+    });
   });
 }

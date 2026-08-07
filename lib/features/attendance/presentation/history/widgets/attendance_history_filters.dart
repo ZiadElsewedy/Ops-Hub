@@ -4,15 +4,17 @@ import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
+import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/app_search_field.dart';
+import 'package:drop/features/attendance/domain/attendance_history_preset.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
 
-/// The **composable** filter bar for the Attendance History ledger: a date-range
-/// selector, a status facet, a shift facet, and (reviewer only) an employee-name
-/// search. Purely presentational — every change is reported up via a callback and
-/// the cubit owns the [AttendanceHistoryQuery]. Monochrome: a selected chip fills
-/// white, the rest stay quiet surfaces.
+/// The **composable** filter bar for the Attendance History ledger: a curated
+/// quick-view row, a date-range selector, a status facet, a shift facet, and
+/// (reviewer only) an employee-name search. Purely presentational — every change
+/// is reported up via a callback and the cubit owns the [AttendanceHistoryQuery].
+/// Monochrome: a selected chip fills white, the rest stay quiet surfaces.
 class AttendanceHistoryFilters extends StatelessWidget {
   const AttendanceHistoryFilters({
     super.key,
@@ -21,6 +23,7 @@ class AttendanceHistoryFilters extends StatelessWidget {
     required this.onStatus,
     required this.onToggleShift,
     this.onSearch,
+    this.onPreset,
     this.showSearch = false,
   });
 
@@ -36,6 +39,9 @@ class AttendanceHistoryFilters extends StatelessWidget {
 
   /// Reviewer employee-name search (review mode only).
   final ValueChanged<String>? onSearch;
+
+  /// Apply a curated quick view. When null, the quick-view row is hidden.
+  final ValueChanged<AttendanceHistoryPreset>? onPreset;
   final bool showSearch;
 
   @override
@@ -43,6 +49,28 @@ class AttendanceHistoryFilters extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (onPreset != null) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text(
+              'Quick views',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ),
+          _ChipRow(
+            children: [
+              for (final preset in kAttendanceHistoryPresets)
+                _Chip(
+                  label: preset.label,
+                  selected: preset.isActive(query),
+                  onTap: () => onPreset!(preset),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         if (showSearch && onSearch != null) ...[
           _EmployeeSearch(initialText: query.text, onChanged: onSearch!),
           const SizedBox(height: AppSpacing.md),
@@ -50,6 +78,8 @@ class AttendanceHistoryFilters extends StatelessWidget {
         _ChipRow(
           children: [
             for (final r in const [
+              AttendanceDateRange.today,
+              AttendanceDateRange.yesterday,
               AttendanceDateRange.last7Days,
               AttendanceDateRange.last30Days,
               AttendanceDateRange.thisMonth,
@@ -70,8 +100,12 @@ class AttendanceHistoryFilters extends StatelessWidget {
           children: [
             for (final s in AttendanceStatusFilter.values)
               _Chip(
+                // Multi-select: "All" lights up only when nothing is chosen; any
+                // specific facet lights up when it's in the OR set.
                 label: s.label,
-                selected: query.status == s,
+                selected: s == AttendanceStatusFilter.all
+                    ? query.activeStatuses.isEmpty
+                    : query.activeStatuses.contains(s),
                 onTap: () => onStatus(s),
               ),
           ],

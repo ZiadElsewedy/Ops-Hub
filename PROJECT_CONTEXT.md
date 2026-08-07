@@ -93,6 +93,7 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Serialization | `json_serializable` | |
 | Media | `image_picker` · `image_cropper` · `video_compress` | Mobile-gated |
 | Open documents | `open_filex` | Chat document attachments → platform default app (desktop via OS `Process`); confined to `features/chat/` |
+| Share exports | `share_plus` | Attendance/schedule export → OS share sheet; confined to `core/services/export_sharing.dart` |
 | Location | `geolocator` | Attendance GPS |
 | Codegen | `build_runner` | |
 
@@ -203,7 +204,7 @@ features' cubits.
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
 | `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (59 routes) · `app_page_route.dart` (the back-navigation contract) · `router_extensions.dart` (navigating safely from outside the tree + reading where the user is) |
-| `services/` | `notification_service.dart` (FCM) · `session_store.dart` (the device's single-active-session claim, keystore-backed) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
+| `services/` | `notification_service.dart` (FCM) · `session_store.dart` (the device's single-active-session claim, keystore-backed) · `export_sharing.dart` (write + share an export via `share_plus`) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
@@ -222,6 +223,7 @@ Reuse these. Do not re-implement or duplicate them.
 | --- | --- |
 | Any `DateTime` → string | `core/utils/app_date_formatter.dart` |
 | Any Storage upload | `core/media/media_upload_service.dart` |
+| Writing + sharing an exported file (PDF/CSV/PNG/XLSX) | `core/services/export_sharing.dart` (`writeExportFile` + `shareExportedFile`; never import `share_plus` elsewhere) |
 | Any NestJS API call | `core/network/api_client.dart` (never import `dio` elsewhere) |
 | Chat realtime (socket) | `features/chat/data/realtime/chat_socket_service.dart` (never import `socket_io_client` elsewhere; consume the `ChatRealtime` port) |
 | Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Drift holds metadata only; the repository session-caches brokered attachment URLs through `ChatAttachmentDownload.isExpired`; **never image bytes** |

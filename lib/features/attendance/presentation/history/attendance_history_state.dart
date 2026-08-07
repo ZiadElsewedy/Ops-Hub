@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:drop/features/attendance/domain/attendance_analytics.dart';
+import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
 import 'package:drop/features/attendance/domain/attendance_history_query.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 
@@ -35,6 +36,12 @@ class AttendanceHistoryState with _$AttendanceHistoryState {
 
     /// A local write hasn't been acknowledged by the backend yet ("syncing…").
     @Default(false) bool syncing,
+
+    /// The active branch's employee directory (review mode only), so a name
+    /// search resolves against everyone — not just the days that produced a
+    /// record. Empty in self mode and until the directory loads.
+    @Default(<AttendanceDirectoryEntry>[])
+    List<AttendanceDirectoryEntry> directory,
   }) = _Loaded;
 
   /// Terminal load failure (e.g. a rules-denied branch read) — shown full-screen.

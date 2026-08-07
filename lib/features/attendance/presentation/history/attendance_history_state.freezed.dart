@@ -28,6 +28,7 @@ mixin _$AttendanceHistoryState {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )
     loaded,
     required TResult Function(String message) error,
@@ -43,6 +44,7 @@ mixin _$AttendanceHistoryState {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult? Function(String message)? error,
@@ -58,6 +60,7 @@ mixin _$AttendanceHistoryState {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult Function(String message)? error,
@@ -164,6 +167,7 @@ class _$InitialImpl implements _Initial {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )
     loaded,
     required TResult Function(String message) error,
@@ -183,6 +187,7 @@ class _$InitialImpl implements _Initial {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult? Function(String message)? error,
@@ -202,6 +207,7 @@ class _$InitialImpl implements _Initial {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult Function(String message)? error,
@@ -307,6 +313,7 @@ class _$LoadingImpl implements _Loading {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )
     loaded,
     required TResult Function(String message) error,
@@ -326,6 +333,7 @@ class _$LoadingImpl implements _Loading {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult? Function(String message)? error,
@@ -345,6 +353,7 @@ class _$LoadingImpl implements _Loading {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult Function(String message)? error,
@@ -412,6 +421,7 @@ abstract class _$$LoadedImplCopyWith<$Res> {
     String? branchId,
     bool offline,
     bool syncing,
+    List<AttendanceDirectoryEntry> directory,
   });
 }
 
@@ -435,6 +445,7 @@ class __$$LoadedImplCopyWithImpl<$Res>
     Object? branchId = freezed,
     Object? offline = null,
     Object? syncing = null,
+    Object? directory = null,
   }) {
     return _then(
       _$LoadedImpl(
@@ -462,6 +473,10 @@ class __$$LoadedImplCopyWithImpl<$Res>
             ? _value.syncing
             : syncing // ignore: cast_nullable_to_non_nullable
                   as bool,
+        directory: null == directory
+            ? _value._directory
+            : directory // ignore: cast_nullable_to_non_nullable
+                  as List<AttendanceDirectoryEntry>,
       ),
     );
   }
@@ -477,7 +492,10 @@ class _$LoadedImpl implements _Loaded {
     this.branchId,
     this.offline = false,
     this.syncing = false,
-  }) : _records = records;
+    final List<AttendanceDirectoryEntry> directory =
+        const <AttendanceDirectoryEntry>[],
+  }) : _records = records,
+       _directory = directory;
 
   /// The filtered records, newest day first.
   final List<AttendanceEntity> _records;
@@ -512,9 +530,25 @@ class _$LoadedImpl implements _Loaded {
   @JsonKey()
   final bool syncing;
 
+  /// The active branch's employee directory (review mode only), so a name
+  /// search resolves against everyone — not just the days that produced a
+  /// record. Empty in self mode and until the directory loads.
+  final List<AttendanceDirectoryEntry> _directory;
+
+  /// The active branch's employee directory (review mode only), so a name
+  /// search resolves against everyone — not just the days that produced a
+  /// record. Empty in self mode and until the directory loads.
+  @override
+  @JsonKey()
+  List<AttendanceDirectoryEntry> get directory {
+    if (_directory is EqualUnmodifiableListView) return _directory;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_directory);
+  }
+
   @override
   String toString() {
-    return 'AttendanceHistoryState.loaded(records: $records, stats: $stats, query: $query, branchId: $branchId, offline: $offline, syncing: $syncing)';
+    return 'AttendanceHistoryState.loaded(records: $records, stats: $stats, query: $query, branchId: $branchId, offline: $offline, syncing: $syncing, directory: $directory)';
   }
 
   @override
@@ -528,7 +562,11 @@ class _$LoadedImpl implements _Loaded {
             (identical(other.branchId, branchId) ||
                 other.branchId == branchId) &&
             (identical(other.offline, offline) || other.offline == offline) &&
-            (identical(other.syncing, syncing) || other.syncing == syncing));
+            (identical(other.syncing, syncing) || other.syncing == syncing) &&
+            const DeepCollectionEquality().equals(
+              other._directory,
+              _directory,
+            ));
   }
 
   @override
@@ -540,6 +578,7 @@ class _$LoadedImpl implements _Loaded {
     branchId,
     offline,
     syncing,
+    const DeepCollectionEquality().hash(_directory),
   );
 
   /// Create a copy of AttendanceHistoryState
@@ -562,11 +601,12 @@ class _$LoadedImpl implements _Loaded {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )
     loaded,
     required TResult Function(String message) error,
   }) {
-    return loaded(records, stats, query, branchId, offline, syncing);
+    return loaded(records, stats, query, branchId, offline, syncing, directory);
   }
 
   @override
@@ -581,11 +621,20 @@ class _$LoadedImpl implements _Loaded {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult? Function(String message)? error,
   }) {
-    return loaded?.call(records, stats, query, branchId, offline, syncing);
+    return loaded?.call(
+      records,
+      stats,
+      query,
+      branchId,
+      offline,
+      syncing,
+      directory,
+    );
   }
 
   @override
@@ -600,13 +649,22 @@ class _$LoadedImpl implements _Loaded {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
     if (loaded != null) {
-      return loaded(records, stats, query, branchId, offline, syncing);
+      return loaded(
+        records,
+        stats,
+        query,
+        branchId,
+        offline,
+        syncing,
+        directory,
+      );
     }
     return orElse();
   }
@@ -657,6 +715,7 @@ abstract class _Loaded implements AttendanceHistoryState {
     final String? branchId,
     final bool offline,
     final bool syncing,
+    final List<AttendanceDirectoryEntry> directory,
   }) = _$LoadedImpl;
 
   /// The filtered records, newest day first.
@@ -676,6 +735,11 @@ abstract class _Loaded implements AttendanceHistoryState {
 
   /// A local write hasn't been acknowledged by the backend yet ("syncing…").
   bool get syncing;
+
+  /// The active branch's employee directory (review mode only), so a name
+  /// search resolves against everyone — not just the days that produced a
+  /// record. Empty in self mode and until the directory loads.
+  List<AttendanceDirectoryEntry> get directory;
 
   /// Create a copy of AttendanceHistoryState
   /// with the given fields replaced by the non-null parameter values.
@@ -763,6 +827,7 @@ class _$ErrorImpl implements _Error {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )
     loaded,
     required TResult Function(String message) error,
@@ -782,6 +847,7 @@ class _$ErrorImpl implements _Error {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult? Function(String message)? error,
@@ -801,6 +867,7 @@ class _$ErrorImpl implements _Error {
       String? branchId,
       bool offline,
       bool syncing,
+      List<AttendanceDirectoryEntry> directory,
     )?
     loaded,
     TResult Function(String message)? error,

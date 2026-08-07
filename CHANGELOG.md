@@ -63,6 +63,84 @@ touched.
   now legitimately appears twice — header + footer). `flutter analyze` clean,
   1893 Dart tests green. NOT device-verified (icon-label / window-title rendering
   needs a real build on each platform).
+## 2026-08-07 — Attendance review search is directory-backed (feature; LOW risk, client-only, no deploy)
+
+The manager/admin review-ledger name search matched only employees with a record or
+a rostered-absence gap in the window, so searching a teammate who had neither read as
+"No matches". The review cubit now loads the branch's active employees once per branch
+(`GetUsersByBranch`, cached, carried on the loaded state as `directory`, re-emitted on
+arrival so a deep-linked person search still resolves). New pure
+`attendanceDirectoryOnlyMatches` returns searched-for teammates with no attendance this
+period — gated on a non-empty term (no flooding) and using the same
+`attendanceSearchNormalize` fold — rendered as quiet "No attendance recorded in this
+period" rows. One bounded per-branch users read (already permitted; `users` reads are
+flat per ADR-012); no rules/functions/schema change. Pinned by
+`attendance_directory_match_test` (5) + a review-mode cubit case. `flutter analyze`
+clean, 1917 Dart tests green.
+
+## 2026-08-07 — Attendance history: curated quick-view presets (feature; LOW risk, client-only, no deploy)
+
+A "Quick views" chip row on the history/review filters applies a whole view in one
+tap — Problems this week / Late this week / Absent this week / Overtime this month —
+setting the date range + status set and clearing the shift facet while keeping any
+name search. Curated, not user-saved (ADR-010 signal-over-volume): a short fixed
+`kAttendanceHistoryPresets`, pure `attendance_history_preset.dart` (apply/isActive) +
+`AttendanceHistoryCubit.applyPreset` + one filter-widget row. No new read or
+schema/rules/functions change. Pinned by `attendance_history_preset_test` (7) + an
+`applyPreset` cubit case. `flutter analyze` clean, 1924 Dart tests green.
+
+## 2026-08-07 — Exports open the real OS share sheet (feature; LOW risk, client-only, no deploy, adds share_plus)
+
+Attendance (PDF/CSV) and schedule (PNG/PDF/XLSX) exports opened the file in a local
+viewer (`open_filex`), so sending one on took an extra hop through Quick Look. New
+single seam `core/services/export_sharing.dart` (`writeExportFile` +
+`shareExportedFile`) writes the file somewhere findable and hands it to the OS share
+sheet via `share_plus` ^12.0.2 (imported only there; iPad/macOS popover anchored to
+the button). Both screens' duplicated `_writeExport`/`_open` helpers were removed.
+Owner-approved exception to the dependency-light stance. `open_filex` stays (chat
+uses it). `flutter analyze` clean, 1917 Dart tests green. NOT device-verified — the
+share sheet / Android FileProvider / macOS entitlements need a real run per platform.
+
+## 2026-08-07 — Attendance reports: ranked exception boards (feature; LOW risk, client-only, no deploy)
+
+The reports hub could say which periods need attention but not *who* has the most
+overtime / lateness / absences / missing clock-outs without scanning. New pure
+`attendanceRankings` ranks the ledger rows the hub already streams by a chosen
+`AttendanceRankingMetric` (Overtime · Lateness · Absences · Missing punches · Hours
+worked), summed per employee, highest-first, zero-value people excluded. A new
+monochrome `AttendanceRankingsCard` (metric chip row + ranked list) renders under the
+report headline, scoped to the hub's current branch + period. Zero new reads, no new
+cubit/route/schema/rules/functions. Pinned by `attendance_rankings_test` (7) +
+`attendance_rankings_card_test` (3). `flutter analyze` clean, 1911 Dart tests green.
+
+## 2026-08-07 — Attendance history: multi-select status, Today/Yesterday presets, Arabic-aware search (feature; LOW risk, client-only, no deploy)
+
+Three P1 findings from the attendance audit, all in the History/Review ledger and
+all pure/presentation. Status filtering became **multi-select** (`AttendanceHistoryQuery.statuses`,
+a `Set` combined with OR — "Late or Absent" in one view; the *All* chip clears it).
+**Today** and **Yesterday** single-day presets joined `AttendanceDateRange`. Employee
+search is now **Arabic- and diacritic-insensitive** via a new pure
+`attendanceSearchNormalize` (folds case, tashkeel/tatweel, alef/hamza/ta-marbuta and
+common Latin accents), applied to both the search term and each record's name, and
+shared with the absence-gap list. No new read, no schema/rules/functions change.
+`flutter analyze` clean, 1901 Dart tests green. Still window-bound — a directory-backed
+search that finds employees with no records in range is the deferred P1 remainder.
+
+## 2026-08-07 — Attendance minutes are server-authoritative; client can no longer forge pay (security; HIGH risk, needs functions + rules deploy)
+
+The record's "forgery-resistant" promise was client-side honesty only: the
+`attendance` owner-update rule pinned just `userId` and the create rule just
+`status`, so a client talking to Firestore directly could write any
+`workedMinutes`, backdate `clockIn`, or be born clocked-in with pay already on it
+— all of which flow into the payroll ledger. Payroll minutes are now computed
+solely by the Admin SDK: new `functions/attendance_totals.js` (a port of
+`AttendanceCalculator`) + a finalize step in `onAttendanceWritten` recompute the
+snapshot over server-stamped clock times; the client clock-out stops persisting
+minutes (the summary recomputes live); and `firestore.rules` pin every
+payroll-sensitive field on both create and owner-update. `flutter analyze` clean,
+1893 Dart + 155 node + 89 rules tests green (17 new record-rules tests, 11 new
+totals tests). ⚠️ Inert until `firebase deploy --only functions,firestore:rules`.
+[ADR-024](docs/decisions/ADR-024-server-authoritative-attendance-minutes.md).
 
 ## 2026-08-07 — A deactivated account disappears from chat (feature; LOW risk, client-only)
 

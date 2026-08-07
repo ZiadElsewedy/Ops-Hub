@@ -123,6 +123,10 @@ const {
   correctionTargetsOwnRecord,
   correctionMatchesExistingRecordOwner,
 } = require("./attendance_correction_target");
+const {
+  computeAttendanceTotals,
+  attendanceTotalsDiffer,
+} = require("./attendance_totals");
 const { attendanceNotificationSubject } = require("./attendance_notification_subject");
 const { canNotify } = require("./notification_reach");
 const {
@@ -4280,7 +4284,67 @@ exports.onAttendanceWritten = onDocumentWritten(`${ATTENDANCE}/{recordId}`, asyn
   for (const ev of events) {
     await appendAttendanceEvent(recordId, ev);
   }
+
+  // ── Server-authoritative worked-minute finalization ──────────────────────
+  // Payroll minutes are computed ONLY here, with the Admin SDK. The client
+  // clock-out writes `clockOut` + `status` and NOTHING else that costs money;
+  // firestore.rules forbid it from writing any minute field or backdating a
+  // clock time. So the numbers that feed the ledger and payroll can never be a
+  // value the employee chose — they are always this recomputation over the
+  // server-stamped clock times. Guarded on `source: 'clock'` so the
+  // correction-apply and auto-close paths (which own their own minutes) are
+  // never overwritten. See ADR-024.
+  if (source === "clock" && after.clockIn && after.clockOut) {
+    const totals = computeAttendanceTotals({
+      scheduledStartMs: tsMillis(after.scheduledStart),
+      scheduledEndMs: tsMillis(after.scheduledEnd),
+      clockInMs: tsMillis(after.clockIn),
+      clockOutMs: tsMillis(after.clockOut),
+      breaks: attendanceBreaksToMs(after.breaks),
+      // Measure the final snapshot against the authoritative clock-out instant.
+      nowMs: tsMillis(after.clockOut),
+    });
+    const persisted = {
+      workedMinutes: Number(after.workedMinutes || 0),
+      lateMinutes: Number(after.lateMinutes || 0),
+      earlyLeaveMinutes: Number(after.earlyLeaveMinutes || 0),
+      overtimeMinutes: Number(after.overtimeMinutes || 0),
+      breakMinutes: Number(after.breakMinutes || 0),
+    };
+    // Only write when the snapshot actually changed — the finalize itself
+    // re-triggers this function, and on that pass the values already match, so
+    // there is no write loop.
+    if (attendanceTotalsDiffer(totals, persisted)) {
+      try {
+        await db.collection(ATTENDANCE).doc(recordId).update({
+          workedMinutes: totals.workedMinutes,
+          lateMinutes: totals.lateMinutes,
+          earlyLeaveMinutes: totals.earlyLeaveMinutes,
+          overtimeMinutes: totals.overtimeMinutes,
+          breakMinutes: totals.breakMinutes,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        logger.warn("attendance minute finalize failed", { recordId, error: String(e) });
+      }
+    }
+  }
 });
+
+// Convert a record's embedded `breaks` array ({start, end} Timestamps) to the
+// `{ startMs, endMs }` shape `computeAttendanceTotals` reads. Breaks are a
+// dormant extension point (empty in the MVP), so this is almost always [].
+function attendanceBreaksToMs(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const b of raw) {
+    if (!b || typeof b !== "object") continue;
+    const startMs = tsMillis(b.start);
+    if (startMs == null) continue;
+    out.push({ startMs, endMs: tsMillis(b.end) });
+  }
+  return out;
+}
 
 // Apply an approved correction's resolution onto its parent attendance record —
 // the ONE server-authoritative apply path, shared by a reviewer's approval and a

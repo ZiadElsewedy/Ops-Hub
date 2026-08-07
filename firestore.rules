@@ -874,23 +874,72 @@ service cloud.firestore {
     //            userId immutable.
     //   delete — never (records are history; removal is a soft-delete update).
     match /attendance/{recordId} {
+      // The owner's ONLY legitimate client update is a clock-out: set clockOut +
+      // its verification and move inProgress → completed. Every payroll-relevant
+      // field is frozen — worked/late/early/overtime/break minutes are computed
+      // server-side (onAttendanceWritten, Admin SDK) and clock-in can't be
+      // backdated — so an employee talking to Firestore directly can never
+      // choose their own pay or erase their lateness (ADR-024).
+      function attendanceOwnerClockOutOk() {
+        return
+          // Identity + scope are immutable.
+          request.resource.data.get('userId', '') == resource.data.get('userId', '')
+          && request.resource.data.get('branchId', '') == resource.data.get('branchId', '')
+          && request.resource.data.get('shift', '') == resource.data.get('shift', '')
+          && request.resource.data.get('dayKey', '') == resource.data.get('dayKey', '')
+          // Clock-in and the scheduled window you are measured against are frozen.
+          && request.resource.data.get('clockIn', null) == resource.data.get('clockIn', null)
+          && request.resource.data.get('scheduledStart', null) == resource.data.get('scheduledStart', null)
+          && request.resource.data.get('scheduledEnd', null) == resource.data.get('scheduledEnd', null)
+          && request.resource.data.get('presenceOnly', false) == resource.data.get('presenceOnly', false)
+          // Payroll minutes are server-owned — a client write may never change them.
+          && request.resource.data.get('workedMinutes', 0) == resource.data.get('workedMinutes', 0)
+          && request.resource.data.get('lateMinutes', 0) == resource.data.get('lateMinutes', 0)
+          && request.resource.data.get('earlyLeaveMinutes', 0) == resource.data.get('earlyLeaveMinutes', 0)
+          && request.resource.data.get('overtimeMinutes', 0) == resource.data.get('overtimeMinutes', 0)
+          && request.resource.data.get('breakMinutes', 0) == resource.data.get('breakMinutes', 0)
+          && request.resource.data.get('breaks', []) == resource.data.get('breaks', [])
+          // Provenance stays server/reviewer-owned (can't self-brand a correction).
+          && request.resource.data.get('source', 'clock') == resource.data.get('source', 'clock')
+          && request.resource.data.get('resolvedBy', '') == resource.data.get('resolvedBy', '')
+          // Exactly the clock-out transition: was an open session, now completed
+          // with a clock-out set.
+          && resource.data.get('clockOut', null) == null
+          && resource.data.get('status', '') == 'inProgress'
+          && request.resource.data.get('status', '') == 'completed'
+          && request.resource.data.get('clockOut', null) != null;
+      }
+
       allow read: if isAdmin()
         || (isManager() && resource.data.get('branchId', '') == selfBranch())
         || isOwner(resource.data.get('userId', ''));
 
+      // A clock-in creates an OPEN record with no worked time yet. Minutes and a
+      // clock-out are pinned to zero/absent so a forged "already worked 10h"
+      // record can't be born at create time (ADR-024).
       allow create: if isSignedIn()
         && request.resource.data.get('userId', '') == request.auth.uid
         && request.resource.data.get('status', 'inProgress') == 'inProgress'
+        && request.resource.data.get('clockOut', null) == null
+        && request.resource.data.get('workedMinutes', 0) == 0
+        && request.resource.data.get('lateMinutes', 0) == 0
+        && request.resource.data.get('earlyLeaveMinutes', 0) == 0
+        && request.resource.data.get('overtimeMinutes', 0) == 0
+        && request.resource.data.get('breakMinutes', 0) == 0
         && (isAdmin()
             || request.resource.data.get('branchId', '') == selfBranch());
 
       allow update: if
-        isAdmin()
-        || (isManager()
-            && resource.data.get('branchId', '') == selfBranch())
-        || (isOwner(resource.data.get('userId', ''))
-            && request.resource.data.get('userId', '') ==
-               resource.data.get('userId', ''));
+        // A reviewer acting on someone ELSE's record in their scope (e.g. a
+        // soft-delete). The server-authoritative correction path is preferred for
+        // edits; self is excluded so a reviewer's own clock-out is pinned below.
+        (
+          (isAdmin() || (isManager() && resource.data.get('branchId', '') == selfBranch()))
+          && request.auth.uid != resource.data.get('userId', '')
+          && request.resource.data.get('userId', '') == resource.data.get('userId', '')
+        )
+        // The owner (any role, on their OWN record) may only clock out.
+        || (isOwner(resource.data.get('userId', '')) && attendanceOwnerClockOutOk());
 
       allow delete: if false;
 

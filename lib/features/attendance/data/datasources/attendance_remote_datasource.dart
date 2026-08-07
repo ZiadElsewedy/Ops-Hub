@@ -22,8 +22,10 @@ typedef AttendanceModelFeed = ({
   bool hasPendingWrites,
 });
 
-/// The finalized fields written at clock-out (the one place the minute snapshot
-/// is persisted — see [AttendanceCalculator]).
+/// The fields written at clock-out. [totals] is carried for the caller's UI
+/// feedback but is **not** persisted by the datasource — payroll minutes are
+/// computed server-side (`onAttendanceWritten`) and the client is forbidden by
+/// rules from writing them (ADR-024).
 class ClockOutWrite {
   final DateTime clockOut;
   final AttendanceStatus status;
@@ -247,11 +249,13 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
         // Server-authoritative clock-out time.
         'clockOut': FieldValue.serverTimestamp(),
         'status': write.status.value,
-        'workedMinutes': write.totals.workedMinutes,
-        'lateMinutes': write.totals.lateMinutes,
-        'earlyLeaveMinutes': write.totals.earlyLeaveMinutes,
-        'overtimeMinutes': write.totals.overtimeMinutes,
-        'breakMinutes': write.totals.breakMinutes,
+        // Worked / late / early / overtime minutes are intentionally NOT written
+        // here. They feed payroll, so they are computed by the Admin SDK in
+        // `onAttendanceWritten` and firestore.rules forbid a client from writing
+        // any minute field — the client must not be able to choose its own pay
+        // (ADR-024). The UI shows live minutes via `AttendanceCalculator` until
+        // the server snapshot lands (usually within a second; on the next sync
+        // when offline), so nothing on screen waits for this.
         'clockOutVerification':
             AttendanceModel.verificationToMap(write.verification),
         'updatedAt': FieldValue.serverTimestamp(),

@@ -34,6 +34,116 @@
 > green (3 brand/copy tests updated). ⚠️ **NOT device-verified** — the icon label
 > and window-title rendering need a real build per platform.
 
+> **Reviewer attendance search is now directory-backed (2026-08-07, feature,
+> presentation + pure domain + one bounded read, client-only, NO deploy, NOT
+> device-verified):** The manager/admin review ledger search matched only
+> employees who had a record **or** a rostered-absence gap in the window, so
+> "Mohamed's attendance for July" read *No matches* whenever Mohamed had neither —
+> even though he's a real, active teammate. The review cubit now loads the
+> branch's active employees once per branch (`GetUsersByBranch`, cached, re-emits
+> on arrival so a **deep-linked** person search still resolves), carried on the
+> loaded state as `directory`. New pure `attendanceDirectoryOnlyMatches`
+> (`attendance_directory_match.dart`) returns the searched-for teammates with no
+> attendance surface this period — **gated on a non-empty search term** (no term ⇒
+> no rows, so the ledger never floods) and using the **same** `attendanceSearchNormalize`
+> fold as the record/gap search. They render as quiet, non-tappable *"No attendance
+> recorded in this period"* rows below the dated records/gaps, so the search
+> resolves against the whole directory. One bounded `where('branchId'==)` users
+> read per branch (already permitted — `users` reads are flat, ADR-012); **no
+> rules/functions/schema change.** Pinned by `attendance_directory_match_test` (5)
+> + a review-mode `attendance_history_cubit_test` case. `flutter analyze` clean,
+> 1917 Dart tests green. This closes the window-bound caveat noted below.
+
+> **Attendance history gained curated quick-view presets (2026-08-07, feature,
+> presentation + pure domain, client-only, NO deploy, NOT device-verified):** A
+> "Quick views" chip row atop the history/review filters applies a whole view in
+> one tap — *Problems this week* · *Late this week* · *Absent this week* ·
+> *Overtime this month* — setting the date range + status set together and
+> clearing the shift facet while keeping any name search (so "Mohamed's late days
+> this week" is a search plus a preset). Deliberately **curated, not user-saved**
+> (ADR-010 signal-over-volume): a short fixed `kAttendanceHistoryPresets`, not a
+> filter-builder with persistence. Pure `attendance_history_preset.dart`
+> (`apply`/`isActive`) + `AttendanceHistoryCubit.applyPreset` + one filter-widget
+> row; a chip highlights only while the query exactly matches it. No new read, no
+> schema/rules/functions change. Pinned by `attendance_history_preset_test` (7) +
+> an `applyPreset` cubit case. `flutter analyze` clean, 1924 Dart tests green.
+
+> **Exports now open the real OS share sheet (2026-08-07, feature, client-only,
+> NO deploy, NOT device-verified):** Attendance (PDF summary · CSV timesheet) and
+> schedule (PNG · PDF · XLSX) exports opened the file in a local viewer
+> (`open_filex`) — so *sending* one to WhatsApp/Mail took an extra hop through
+> Quick Look. New single seam `core/services/export_sharing.dart`
+> (`writeExportFile` + `shareExportedFile`) writes the file to a findable place
+> and hands it to the OS **share sheet** via `share_plus` (^12.0.2). Both
+> screens' duplicated `_writeExport`/`_open` helpers were deleted in favour of
+> the seam; `share_plus` is imported **only** there. **Owner-approved exception**
+> to the dependency-light stance (the same rung as the deliberately-rejected
+> `printing`); iPad/macOS popover is anchored to the button's render box. Docs +
+> the stale `pdf` pubspec comment updated. `flutter analyze` clean, 1917 Dart
+> tests green (no test exercises the platform channel). ⚠️ **NOT device-verified**
+> — the share sheet, the Android FileProvider and macOS entitlements need a real
+> run on each of iOS/Android/macOS. `open_filex` stays (chat still uses it).
+
+> **Attendance reports gained ranked exception boards (2026-08-07, feature,
+> presentation + pure domain, client-only, NO deploy, NOT device-verified):** The
+> reports hub answered "which periods need attention" but not "**who** — who has
+> the highest overtime, who's late the most, who's missing clock-outs" without
+> scanning the table. New pure `attendanceRankings` (`attendance_rankings.dart`)
+> ranks the ledger rows the hub **already streams** by a chosen
+> `AttendanceRankingMetric` — Overtime · Lateness · Absences · Missing punches ·
+> Hours worked — summed per employee, highest-first, zero-value people left off
+> (a leaderboard shows who *has* the thing), ties broken by name. A new
+> `AttendanceRankingsCard` (metric chip row + ranked list, strictly monochrome per
+> ADR-004 — "most overtime" is a fact, not a status) sits under the report
+> headline, scoped to the same branch + period the hub is showing. **Zero new
+> reads, no cubit, no route, no schema/rules/functions change.** Pinned by
+> `attendance_rankings_test` (7) + `attendance_rankings_card_test` (3).
+> `flutter analyze` clean, 1911 Dart tests green.
+
+> **Attendance history filters & search, sharpened (2026-08-07, feature,
+> presentation + pure domain, client-only, NO deploy, NOT device-verified):**
+> Three P1 gaps from the attendance audit, all in the History/Review ledger.
+> (1) **Status is now multi-select** — the facet moved from a single
+> `AttendanceStatusFilter` to a `Set` combined with **OR**, so a reviewer can ask
+> for "Late **or** Absent" in one view; the *All* chip clears it, `activeStatuses`
+> collapses the `all` sentinel to empty. (2) **Today / Yesterday date presets**
+> were added to `AttendanceDateRange` (single-day windows) so the common "who was
+> absent yesterday" needs no custom picker. (3) **Employee search is now Arabic-
+> and diacritic-insensitive** — new pure `attendanceSearchNormalize` folds case,
+> Arabic tashkeel/tatweel, alef/hamza/ta-marbuta letter forms and common Latin
+> accents, applied to **both** the needle and each record's `userName` (and the
+> same fold now drives the absence-gap list, so `مُحَمَّد` matches `محمد`). All
+> pure-domain (`attendance_history_query.dart`, `attendance_history_gap.dart`) +
+> the filter widget/cubit; **no new read, no schema/rules/functions change.**
+> Pinned by expanded `attendance_history_query_test`, `_cubit_test`, `_gap_test`.
+> `flutter analyze` clean, 1901 Dart tests green. ✅ **The window-bound gap is now
+> closed** — the reviewer search is directory-backed (see the entry above).
+
+> 🔴 **ATTENDANCE MINUTES WERE CLIENT-FORGEABLE — FIXED, ⚠️ NEEDS A FUNCTIONS
+> **AND** A RULES DEPLOY (2026-08-07, security, NOT device-verified).** The module's
+> own promise is that the record is "forgery-resistant" because attendance minutes
+> feed payroll. It wasn't: every mitigation lived on the client write path. The
+> `attendance` **owner-update** rule pinned only `userId`, so an employee talking to
+> Firestore directly could set `workedMinutes` to anything, backdate `clockIn` to
+> erase lateness, or set `status`/`clockOut` freely; the **create** rule pinned only
+> `status`, so a clock-**in** could be born already claiming `workedMinutes: 600` +
+> a `clockOut`. Those numbers copy verbatim into the `attendance_expectations`
+> ledger and every report/CSV/PDF. Now: **payroll minutes are computed only by the
+> Admin SDK.** New `functions/attendance_totals.js` (a line-for-line port of
+> `AttendanceCalculator`, 11 node tests) + a finalize step in `onAttendanceWritten`
+> recompute the snapshot over the server-stamped clock times (guarded on
+> `source: 'clock'`, writes only on change so no loop). The client clock-out stops
+> writing minutes (the summary recomputes worked/OT live via the calculator, so the
+> screen never shows 0h, offline included). `firestore.rules` now pin every
+> payroll-sensitive field on **both** create (zero minutes, no clock-out) and owner
+> update (only the `inProgress → completed` clock-out transition; minutes, `clockIn`,
+> the scheduled window and `source` frozen; reviewers keep the broad path for
+> soft-delete). [ADR-024](docs/decisions/ADR-024-server-authoritative-attendance-minutes.md).
+> Pinned by `firestore-tests/attendance.rules.test.mjs` (17). `flutter analyze`
+> clean, 1893 Dart + 155 node + 89 rules tests green. ⚠️ **Inert until
+> `firebase deploy --only functions,firestore:rules`** — until then production keeps
+> the old client-trusted path. **NOT device-verified.**
+
 > **A deactivated account disappears from chat (2026-08-07, feature,
 > client-only, NOT device-verified):** Owner: *"when I make an account inactive
 > its chat should disappear, no one can message it, and you can't send it a task
