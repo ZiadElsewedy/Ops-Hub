@@ -39,6 +39,19 @@ abstract class ChatRealtime {
   /// Withdraws inbox-level interest; the connection drops once no joined
   /// conversations remain either. Idempotent.
   Future<void> detachInbox();
+
+  /// Signals that the app returned to the foreground. Mobile OSes suspend the
+  /// socket's transport while backgrounded; on resume the connection is usually
+  /// already dead (and a pending retry may be sitting on a long backoff), so
+  /// realtime stays silent — especially for the inbox, which nothing else
+  /// reconnects when no thread is open — until something happens to reconnect
+  /// it. This forces an immediate health check: a genuinely-live, authenticated
+  /// connection is left untouched (no reconnect/refresh storm on a quick app
+  /// switch); otherwise the socket reconnects now, re-joins its rooms, and
+  /// emits [ChatRealtimeConnected] so the inbox and any open thread reconcile
+  /// missed messages over REST. Idempotent; a no-op when nothing needs the
+  /// connection.
+  Future<void> onAppResumed();
 }
 
 /// One fact or transition from the realtime channel.

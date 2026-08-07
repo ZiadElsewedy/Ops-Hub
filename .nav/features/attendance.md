@@ -175,6 +175,7 @@
 - `test/attendance_model_test.dart`
 - `test/attendance_monthly_report_screen_test.dart`
 - `test/attendance_monthly_report_test.dart`
+- `test/attendance_open_shift_screen_test.dart`
 - `test/attendance_period_test.dart`
 - `test/attendance_person_drilldown_test.dart`
 - `test/attendance_report_cubit_test.dart`

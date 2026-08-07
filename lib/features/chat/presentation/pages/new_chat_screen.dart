@@ -9,6 +9,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
+import 'package:drop/core/widgets/app_empty_state.dart';
 import 'package:drop/core/widgets/app_search_field.dart';
 import 'package:drop/core/widgets/drop_empty_state.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
@@ -18,10 +19,14 @@ import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
 import 'package:drop/features/chat/presentation/cubit/new_chat_cubit.dart';
 import 'package:drop/features/chat/presentation/cubit/new_chat_state.dart';
 
-/// The new-conversation teammate picker (`/chat/new`). Lists everyone the
-/// caller may message — every active user except themselves, with no branch or
-/// role scoping (see [GetChatDirectory]) — supports search, and shows each
-/// teammate's avatar · name · role. Selecting one starts (get-or-creates)
+/// The new-conversation teammate picker (`/chat/new`). **Search-first**: the
+/// screen opens on a prompt with the field focused and lists nobody until the
+/// caller types — the whole roster scrolling past on open was noise, and a
+/// direct message is always aimed at a person you already have in mind.
+///
+/// The searchable set is everyone the caller may message — every active user
+/// except themselves, with no branch or role scoping (see [GetChatDirectory]).
+/// Each match shows avatar · name · role. Selecting one starts (get-or-creates)
 /// the conversation through [ChatListCubit] and replaces this screen with the
 /// thread — so Back returns to the inbox, not the picker. An already-existing
 /// conversation opens instead of creating a duplicate (server-idempotent).
@@ -54,9 +59,11 @@ class _NewChatViewState extends State<NewChatView> {
   /// spinner and taps are blocked). One at a time.
   String? _startingUid;
 
+  /// Matches for the current query. An empty query matches **nobody** — the
+  /// picker is search-first, so the list stays closed until the caller types.
   List<UserEntity> _filter(List<UserEntity> teammates) {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return teammates;
+    if (q.isEmpty) return const [];
     return teammates.where((u) {
       final name = (u.displayName ?? '').toLowerCase();
       return name.contains(q) ||
@@ -140,21 +147,41 @@ class _List extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final searching = query.trim().isNotEmpty;
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
               AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
-          child: AppSearchField(hint: 'Search teammates', onChanged: onQuery),
+          child: AppSearchField(
+            hint: 'Search teammates',
+            onChanged: onQuery,
+            // Search-first: the field is the screen, so it takes the caret
+            // (and the keyboard) the moment the picker opens.
+            autofocus: true,
+          ),
         ),
         Expanded(
           child: teammates.isEmpty
-              ? DropEmptyState(
-                  title: total == 0 ? 'No teammates yet' : 'No matches',
-                  message: total == 0
-                      ? 'There is no one else to message yet.'
-                      : 'No teammate matches "$query".',
-                )
+              // Three distinct states, never one generic blank: nobody to
+              // message at all · nothing typed yet · nothing matched.
+              ? total == 0
+                  ? const DropEmptyState(
+                      title: 'No teammates yet',
+                      message: 'There is no one else to message yet.',
+                    )
+                  : searching
+                      ? DropEmptyState(
+                          title: 'No matches',
+                          message: 'No teammate matches "$query".',
+                        )
+                      : const AppEmptyState(
+                          icon: Icons.search_rounded,
+                          title: 'Search for a teammate',
+                          message:
+                              'Type a name, role or email to find who you '
+                              'want to message.',
+                        )
               : ListView.builder(
                   padding: const EdgeInsets.only(bottom: AppSpacing.huge),
                   itemCount: teammates.length,

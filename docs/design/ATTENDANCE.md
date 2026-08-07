@@ -55,9 +55,26 @@ shift's pay. If you need minute math, call the calculator. Do not inline it.
 
 Managers use the same attendance, account, leave, duplicate-punch, and GPS gates
 as employees, but `AttendanceService.configFor` resolves
-`enforceSchedule: false` for them. Their punch is presence tracking: it can happen
-at any time, with or without a rostered shift. Employees retain schedule-required
-and early-window validation. This does not alter worked-minute calculation.
+`enforceSchedule: false` for them. Their punch is presence tracking — an **open
+shift**: clock in and out at any time, with or without a rostered slot, and no
+scheduled window (so nothing to be late for) even on a day they happen to be
+rostered. Employees retain schedule-required and early-window validation. This
+does not alter worked-minute calculation.
+
+- **The clock target always exists for a presence role.** `AttendanceCubit._resolveContext`
+  synthesizes a presence-only target (the time-of-day bucket via
+  `unscheduledShiftFor`, no scheduled window) whenever a manager has no rostered
+  slot — so the **primary** Clock In writes a record directly. Without this the
+  primary path fell through (`clockIn` needs a `targetRecordId`/`shift`) and a
+  manager's only route was the deliberate "unscheduled shift" action. The screen
+  frames this as an **OPEN SHIFT / Manager shift** ready state.
+- **`branches/{id}.managersCanClock`** is the per-branch switch. False ⇒
+  `configFor` resolves `enabled: false` for a manager, and the personal clock
+  screen renders an explanatory *"Clocking is off for managers here"* state (a
+  live session still wins, so the flag can never trap someone mid-shift) — the
+  manager keeps attendance review and approval. Edited in the branch form sheet;
+  employees are always enabled. A manager reaches their own clock from the mobile
+  role app-bar (fingerprint) and the desktop sidebar's **My Clock** door.
 
 ## Verification
 

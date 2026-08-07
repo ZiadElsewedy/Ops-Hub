@@ -33,6 +33,18 @@ function isWithinLastBusinessDays(dateKey, days, now = new Date()) {
   const delta = (todayUtc - target) / 86_400_000;
   return Number.isInteger(delta) && delta >= 0 && delta <= days;
 }
+// A manager/admin may record a close for today or ANY past Cairo business day
+// (they enter days an employee missed), but never a future day. Unlike the
+// employee `isWithinLastBusinessDays` window there is no lower bound — a
+// back-filled record still lands in its own month by its own `businessDateKey`.
+function isRecordableSalesDate(dateKey, now = new Date()) {
+  if (!isDateKey(dateKey)) return false;
+  const today = businessDateKey(now);
+  const target = Date.UTC(+dateKey.slice(0, 4), +dateKey.slice(4, 6) - 1, +dateKey.slice(6, 8));
+  const todayUtc = Date.UTC(+today.slice(0, 4), +today.slice(4, 6) - 1, +today.slice(6, 8));
+  const delta = (todayUtc - target) / 86_400_000;
+  return Number.isInteger(delta) && delta >= 0;
+}
 function salesSubmissionId(branchId, dateKey) { return `${branchId}_${dateKey}`; }
 function salesMonthId(branchId, monthKey) { return `${branchId}_${monthKey}`; }
 function validSubmissionId(id, branchId, dateKey) {
@@ -72,8 +84,53 @@ function canDecideSubmission(actorId, submittedById) {
   return typeof actorId === "string" && actorId.length > 0 && actorId !== submittedById;
 }
 
+/**
+ * Who is told about a branch sales event.
+ *
+ * **An admin has no `branchId`** (the role is global — see PROJECT_CONTEXT §8),
+ * so no `where("branchId", ...)` query can ever return one. Every other
+ * reviewer set in DROP therefore resolves as *the branch's managers **plus**
+ * every active admin* (`resolveRequestApprovers`, `resolveAttendanceReviewers`).
+ * Sales was the one that treated admins as a **fallback** — consulted only when
+ * the branch query came back empty — which meant an admin received nothing at
+ * all from the entire feature: not a new submission to review, not a corrected
+ * one, not a target change, not an achieved target. Admins are an **addition**
+ * here, exactly like the other two.
+ *
+ * `managersOnly` narrows the *branch* side to its managers — the difference
+ * between a review ping and a branch-wide announcement. It never narrows the
+ * admin side: an admin can decide any submission, so an admin is a reviewer in
+ * both shapes.
+ *
+ * `excludeUid` is the actor. Nobody is notified of their own action — the same
+ * rule `dispatchBroadcast` applies to an implicit audience. Without it, adding
+ * admins would page the admin who just edited the target about their own edit.
+ *
+ * @param {object} p
+ * @param {Array<{id: string, role?: string}>} p.branchUsers active users of the branch
+ * @param {Array<{id: string}>} p.admins active admins, org-wide
+ * @param {boolean} p.managersOnly restrict the branch side to its managers
+ * @param {string} p.excludeUid the acting uid, never a recipient
+ * @returns {string[]} de-duplicated recipient uids (possibly empty — valid)
+ */
+function selectSalesRecipients({ branchUsers = [], admins = [], managersOnly = false, excludeUid = "" } = {}) {
+  const uid = (u) => String((u && u.id) || "").trim();
+  const out = new Set();
+  for (const u of Array.isArray(branchUsers) ? branchUsers : []) {
+    if (managersOnly && String((u && u.role) || "employee") !== "manager") continue;
+    if (uid(u)) out.add(uid(u));
+  }
+  for (const a of Array.isArray(admins) ? admins : []) {
+    if (uid(a)) out.add(uid(a));
+  }
+  out.delete(String(excludeUid || "").trim());
+  out.delete("");
+  return [...out];
+}
+
 module.exports = {
   BUSINESS_TIME_ZONE, MAX_MONEY_PIASTRES, businessDateKey, businessMonthKey,
-  isWithinLastBusinessDays, isDateKey, isMonthKey, salesSubmissionId, salesMonthId,
+  isWithinLastBusinessDays, isRecordableSalesDate, isDateKey, isMonthKey, salesSubmissionId, salesMonthId,
   validSubmissionId, validMonthId, isValidMoney, nextStatus, targetAchievedCrossing, canDecideSubmission,
+  selectSalesRecipients,
 };

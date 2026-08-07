@@ -29,6 +29,7 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _username = TextEditingController();
   final _bio = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
@@ -45,6 +46,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_seeded) return;
     _initial = p;
     _name.text = p.fullName ?? '';
+    _username.text = p.username ?? '';
     _bio.text = p.bio ?? '';
     _phone.text = p.phoneNumber ?? '';
     _address.text = p.address ?? '';
@@ -56,6 +58,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   void dispose() {
     _name.dispose();
+    _username.dispose();
     _bio.dispose();
     _phone.dispose();
     _address.dispose();
@@ -138,6 +141,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     context.read<ProfileCubit>().save(
           uid: _initial.uid,
           fullName: _orNull(_name),
+          username: _orNull(_username),
           bio: _orNull(_bio),
           phoneNumber: isAdmin ? null : _orNull(_phone),
           address: isAdmin ? null : _orNull(_address),
@@ -186,6 +190,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             formKey: _formKey,
             initial: _initial,
             name: _name,
+            username: _username,
             bio: _bio,
             phone: _phone,
             address: _address,
@@ -213,7 +218,13 @@ extension on ProfileState {
 class _Form extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final ProfileEntity initial;
-  final TextEditingController name, bio, phone, address, emergency, paymentNumber;
+  final TextEditingController name,
+      username,
+      bio,
+      phone,
+      address,
+      emergency,
+      paymentNumber;
   final File? avatarFile;
   final File? coverFile;
   final bool isSaving;
@@ -226,6 +237,7 @@ class _Form extends StatelessWidget {
     required this.formKey,
     required this.initial,
     required this.name,
+    required this.username,
     required this.bio,
     required this.phone,
     required this.address,
@@ -249,7 +261,7 @@ class _Form extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _ImagesHeader(
-              initials: _initials(initial),
+              initials: initial.initials,
               avatarUrl: initial.profileImage,
               coverUrl: initial.coverImage,
               avatarFile: avatarFile,
@@ -271,6 +283,18 @@ class _Form extends StatelessWidget {
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? 'Full name is required'
                         : null,
+                  ),
+                  // The handle every other surface shows as `@name`. It had no
+                  // input at all until now, so `ProfileEntity.isComplete` —
+                  // which requires it — could never become true and the
+                  // "complete your profile" prompt was permanent.
+                  _Field(
+                    controller: username,
+                    hint: 'Username',
+                    icon: Icons.alternate_email_rounded,
+                    keyboardType: TextInputType.text,
+                    inputFormatters: [Validators.usernameInput],
+                    validator: (v) => Validators.username(v, required: false),
                   ),
                   _Field(
                     controller: bio,
@@ -580,17 +604,4 @@ class _UploadOverlay extends StatelessWidget {
       ],
     );
   }
-}
-
-String _initials(ProfileEntity p) {
-  final name = p.fullName?.trim();
-  if (name != null && name.isNotEmpty) {
-    final parts = name.split(' ');
-    if (parts.length >= 2) {
-      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-    }
-    return parts.first[0].toUpperCase();
-  }
-  if (p.email.isNotEmpty) return p.email[0].toUpperCase();
-  return '?';
 }

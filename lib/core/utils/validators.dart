@@ -64,6 +64,28 @@ class Validators {
     return null;
   }
 
+  /// Live input filter for the username field — lowercase letters, digits,
+  /// `_` and `.` only, so an invalid handle cannot even be typed. Deliberately
+  /// ASCII: the handle is an identifier, not a display name (that is
+  /// `fullName`, which is Unicode-aware).
+  static final TextInputFormatter usernameInput =
+      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9._]'));
+
+  /// A `@handle`: 3–20 characters of letters, digits, `_` or `.`, starting with
+  /// a letter. Stored lowercase (the repository lowercases on write and the
+  /// availability check is case-insensitive), so `Ziad` and `ziad` are the same
+  /// handle and cannot both exist.
+  static String? username(String? value, {bool required = true}) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return required ? 'Choose a username' : null;
+    if (v.length < 3) return 'At least 3 characters';
+    if (v.length > 20) return 'At most 20 characters';
+    if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9._]*$').hasMatch(v)) {
+      return 'Letters, numbers, . and _ — start with a letter';
+    }
+    return null;
+  }
+
   /// An email address.
   static String? email(String? value, {bool required = true}) {
     final v = value?.trim() ?? '';

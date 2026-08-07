@@ -28,6 +28,8 @@
     "taskReminders",
     "reminderConfig",
     "notifications",
+    "branch_sales_months",
+    "branch_sales_submissions",
     "cases",
     "messages",
     "cases",
@@ -51,21 +53,27 @@
     "claimFcmToken",
     "closeAttendanceExpectations",
     "createUserAccount",
+    "decideDailySalesSubmission",
+    "deleteUserAccount",
+    "editApprovedDailySalesSubmission",
     "generateShiftTaskInstances",
     "onAttendanceCorrectionWritten",
     "onAttendanceWritten",
     "onCaseCreated",
     "onCaseMessageCreated",
     "onCaseUpdated",
+    "onDailySalesSubmissionCreated",
     "onNotificationCreated",
     "onRecurringTemplateWritten",
     "onRequestCreated",
     "onRequestEventCreated",
     "onRequestUpdated",
+    "resubmitCorrectedSales",
     "runBroadcastSchedules",
     "runTaskReminders",
     "sendBroadcast",
     "sendNotification",
+    "setBranchSalesTarget",
     "taskHousekeeping"
   ],
   "adrs": [
@@ -89,7 +97,9 @@
     "ADR-018-unscheduled-clock-in.md",
     "ADR-019-operational-exports-and-week-review.md",
     "ADR-020-location-policy-is-real.md",
-    "ADR-021-attendance-today-first.md"
+    "ADR-021-attendance-today-first.md",
+    "ADR-022-branch-sales-monthly-ledger.md",
+    "ADR-023-single-active-session.md"
   ],
   "design_specs": [
     "ATTENDANCE.md",
@@ -109,6 +119,7 @@
     "NOTIFICATIONS.md",
     "PERFORMANCE.md",
     "REQUESTS.md",
+    "SALES_TARGETS.md",
     "SCHEDULE.md",
     "TASKS.md"
   ],
@@ -156,6 +167,7 @@
         ]
       },
       "routes": {
+        "salesAdminOverview": "/sales/admin",
         "adminAttendance": "/admin/attendance",
         "adminAttendanceWorkspace": "/admin/attendance/workspace",
         "adminDashboard": "/admin",
@@ -177,8 +189,12 @@
         "test/admin_attendance_overview_test.dart",
         "test/admin_dashboard_today_strip_test.dart",
         "test/admin_task_overview_screen_test.dart",
+        "test/admin_today_coverage_screen_test.dart",
+        "test/admin_users_delete_test.dart",
+        "test/admin_users_directory_invalidation_test.dart",
         "test/attendance_admin_direct_action_test.dart",
         "test/attendance_admin_workspace_bootstrap_test.dart",
+        "test/features/sales/presentation/sales_admin_overview_cubit_test.dart",
         "test/user_admin_update_details_test.dart"
       ],
       "design_specs": []
@@ -362,6 +378,7 @@
         "test/attendance_model_test.dart",
         "test/attendance_monthly_report_screen_test.dart",
         "test/attendance_monthly_report_test.dart",
+        "test/attendance_open_shift_screen_test.dart",
         "test/attendance_period_test.dart",
         "test/attendance_person_drilldown_test.dart",
         "test/attendance_report_cubit_test.dart",
@@ -430,7 +447,7 @@
     },
     "auth": {
       "path": "lib/features/auth/",
-      "file_count": 28,
+      "file_count": 29,
       "layers": {
         "data:datasource": [
           "lib/features/auth/data/datasources/auth_remote_datasource.dart",
@@ -448,6 +465,9 @@
         ],
         "domain:repository-contract": [
           "lib/features/auth/domain/repositories/auth_repository.dart"
+        ],
+        "domain:other": [
+          "lib/features/auth/domain/session_id.dart"
         ],
         "domain:usecase": [
           "lib/features/auth/domain/usecases/change_password.dart",
@@ -497,9 +517,13 @@
       "cloud_functions": [
         "adminResetPassword",
         "claimFcmToken",
-        "createUserAccount"
+        "createUserAccount",
+        "deleteUserAccount"
       ],
       "tests": [
+        "test/admin_users_delete_test.dart",
+        "test/admin_users_directory_invalidation_test.dart",
+        "test/features/profile/edit_profile_username_test.dart",
         "test/first_login_gate_test.dart",
         "test/onboarding_welcome_page_test.dart",
         "test/splash_centering_test.dart",
@@ -554,13 +578,19 @@
         "adminBranches": "/admin/branches"
       },
       "collections": [
-        "branches"
+        "branches",
+        "branch_sales_months",
+        "branch_sales_submissions"
       ],
-      "cloud_functions": [],
+      "cloud_functions": [
+        "setBranchSalesTarget"
+      ],
       "tests": [
         "test/branch_geofence_test.dart",
         "test/branch_media_test.dart",
-        "test/branch_workload_test.dart"
+        "test/branch_workload_test.dart",
+        "test/features/sales/data/branch_sales_month_model_test.dart",
+        "test/features/sales/domain/sales_branch_scope_test.dart"
       ],
       "design_specs": []
     },
@@ -653,7 +683,7 @@
     },
     "chat": {
       "path": "lib/features/chat/",
-      "file_count": 58,
+      "file_count": 59,
       "layers": {
         "data:datasource": [
           "lib/features/chat/data/datasources/chat_remote_datasource.dart"
@@ -735,6 +765,7 @@
           "lib/features/chat/presentation/widgets/chat_message_actions.dart",
           "lib/features/chat/presentation/widgets/chat_message_list.dart",
           "lib/features/chat/presentation/widgets/chat_notification_listener.dart",
+          "lib/features/chat/presentation/widgets/chat_unread_launch_hint.dart",
           "lib/features/chat/presentation/widgets/recent_messages_card.dart"
         ]
       },
@@ -750,6 +781,7 @@
         "test/chat_conversation_presence_test.dart",
         "test/chat_conversation_tile_test.dart",
         "test/chat_conversation_view_test.dart",
+        "test/chat_deep_link_navigation_test.dart",
         "test/chat_document_bubble_test.dart",
         "test/chat_image_attachment_layout_test.dart",
         "test/chat_list_realtime_test.dart",
@@ -760,7 +792,9 @@
         "test/chat_preview_cache_test.dart",
         "test/chat_realtime_sync_test.dart",
         "test/chat_screen_test.dart",
-        "test/chat_served_preview_test.dart"
+        "test/chat_served_preview_test.dart",
+        "test/chat_thread_args_test.dart",
+        "test/chat_unread_launch_hint_test.dart"
       ],
       "design_specs": []
     },
@@ -879,6 +913,7 @@
       "cloud_functions": [],
       "tests": [
         "test/employee_card_test.dart",
+        "test/employee_detail_screen_test.dart",
         "test/employee_home_stat_strip_test.dart",
         "test/employee_metrics_test.dart",
         "test/employee_week_stats_test.dart",
@@ -904,16 +939,18 @@
       "collections": [],
       "cloud_functions": [],
       "tests": [
+        "test/features/sales/presentation/sales_manager_dashboard_cubit_test.dart",
         "test/manager_home_test.dart"
       ],
       "design_specs": []
     },
     "notifications": {
       "path": "lib/features/notifications/",
-      "file_count": 16,
+      "file_count": 18,
       "layers": {
         "data:datasource": [
-          "lib/features/notifications/data/datasources/notification_remote_datasource.dart"
+          "lib/features/notifications/data/datasources/notification_remote_datasource.dart",
+          "lib/features/notifications/data/datasources/notification_sweep.dart"
         ],
         "data:model": [
           "lib/features/notifications/data/models/notification_model.dart"
@@ -942,7 +979,8 @@
           "lib/features/notifications/presentation/cubit/notification_state.freezed.dart"
         ],
         "presentation:other": [
-          "lib/features/notifications/presentation/notification_format.dart"
+          "lib/features/notifications/presentation/notification_format.dart",
+          "lib/features/notifications/presentation/notification_navigation.dart"
         ],
         "presentation:page": [
           "lib/features/notifications/presentation/pages/notifications_screen.dart"
@@ -952,6 +990,7 @@
         ]
       },
       "routes": {
+        "notificationSettings": "/settings/notifications",
         "notifications": "/notifications"
       },
       "collections": [
@@ -966,11 +1005,17 @@
         "sendNotification"
       ],
       "tests": [
+        "test/delivered_notifications_test.dart",
+        "test/features/settings/notification_preferences_test.dart",
+        "test/features/settings/notifications_settings_screen_test.dart",
         "test/notification_cubit_test.dart",
         "test/notification_deep_link_test.dart",
         "test/notification_grouping_test.dart",
         "test/notification_model_test.dart",
+        "test/notification_sweep_test.dart",
         "test/notification_tap_flow_probe_test.dart",
+        "test/notification_tap_navigation_test.dart",
+        "test/notification_task_copy_test.dart",
         "test/reminder_rules_test.dart"
       ],
       "design_specs": [
@@ -1022,7 +1067,7 @@
     },
     "profile": {
       "path": "lib/features/profile/",
-      "file_count": 17,
+      "file_count": 19,
       "layers": {
         "data:datasource": [
           "lib/features/profile/data/datasources/profile_remote_datasource.dart"
@@ -1057,7 +1102,9 @@
           "lib/features/profile/presentation/pages/profile_page.dart"
         ],
         "presentation:widget": [
-          "lib/features/profile/presentation/widgets/profile_avatar.dart"
+          "lib/features/profile/presentation/widgets/profile_avatar.dart",
+          "lib/features/profile/presentation/widgets/profile_detail_row.dart",
+          "lib/features/profile/presentation/widgets/profile_identity_card.dart"
         ]
       },
       "routes": {
@@ -1067,7 +1114,10 @@
       },
       "collections": [],
       "cloud_functions": [],
-      "tests": [],
+      "tests": [
+        "test/features/profile/edit_profile_username_test.dart",
+        "test/features/profile/profile_page_test.dart"
+      ],
       "design_specs": []
     },
     "requests": {
@@ -1152,9 +1202,128 @@
         "REQUESTS.md"
       ]
     },
+    "sales": {
+      "path": "lib/features/sales/",
+      "file_count": 53,
+      "layers": {
+        "data:datasource": [
+          "lib/features/sales/data/datasources/sales_remote_datasource.dart"
+        ],
+        "data:model": [
+          "lib/features/sales/data/models/branch_sales_month_model.dart",
+          "lib/features/sales/data/models/daily_sales_submission_model.dart"
+        ],
+        "data:repository-impl": [
+          "lib/features/sales/data/repositories/sales_repository_impl.dart"
+        ],
+        "domain:entity": [
+          "lib/features/sales/domain/entities/branch_sales_month_entity.dart",
+          "lib/features/sales/domain/entities/branch_sales_month_entity.freezed.dart",
+          "lib/features/sales/domain/entities/daily_sales_submission_entity.dart",
+          "lib/features/sales/domain/entities/daily_sales_submission_entity.freezed.dart",
+          "lib/features/sales/domain/entities/sales_kpis.dart",
+          "lib/features/sales/domain/entities/sales_kpis.freezed.dart",
+          "lib/features/sales/domain/entities/sales_month_snapshot.dart",
+          "lib/features/sales/domain/entities/sales_month_snapshot.freezed.dart"
+        ],
+        "domain:repository-contract": [
+          "lib/features/sales/domain/repositories/sales_repository.dart"
+        ],
+        "domain:other": [
+          "lib/features/sales/domain/sales_branch_scope.dart",
+          "lib/features/sales/domain/sales_business_time.dart",
+          "lib/features/sales/domain/sales_calculator.dart",
+          "lib/features/sales/domain/sales_kpis_calculator.dart",
+          "lib/features/sales/domain/sales_submission_id.dart",
+          "lib/features/sales/domain/sales_trend.dart"
+        ],
+        "domain:usecase": [
+          "lib/features/sales/domain/usecases/approve_sales_submission.dart",
+          "lib/features/sales/domain/usecases/edit_approved_sales_submission.dart",
+          "lib/features/sales/domain/usecases/get_current_sales_month.dart",
+          "lib/features/sales/domain/usecases/reject_sales_submission.dart",
+          "lib/features/sales/domain/usecases/reopen_sales_submission.dart",
+          "lib/features/sales/domain/usecases/request_sales_correction.dart",
+          "lib/features/sales/domain/usecases/resubmit_corrected_sales.dart",
+          "lib/features/sales/domain/usecases/set_branch_monthly_target.dart",
+          "lib/features/sales/domain/usecases/submit_daily_sales.dart",
+          "lib/features/sales/domain/usecases/watch_sales_submissions.dart"
+        ],
+        "presentation:cubit": [
+          "lib/features/sales/presentation/cubit/sales_admin_overview_cubit.dart",
+          "lib/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart",
+          "lib/features/sales/presentation/cubit/sales_month_cubit.dart",
+          "lib/features/sales/presentation/cubit/sales_month_state.dart",
+          "lib/features/sales/presentation/cubit/sales_submission_detail_cubit.dart"
+        ],
+        "presentation:page": [
+          "lib/features/sales/presentation/pages/employee_sales_screen.dart",
+          "lib/features/sales/presentation/pages/sales_admin_overview_screen.dart",
+          "lib/features/sales/presentation/pages/sales_history_screen.dart",
+          "lib/features/sales/presentation/pages/sales_manager_dashboard_screen.dart",
+          "lib/features/sales/presentation/pages/sales_submission_detail_screen.dart",
+          "lib/features/sales/presentation/pages/sales_submission_screen.dart"
+        ],
+        "presentation:other": [
+          "lib/features/sales/presentation/sales_format.dart",
+          "lib/features/sales/presentation/sales_outlook_tint.dart"
+        ],
+        "presentation:widget": [
+          "lib/features/sales/presentation/widgets/admin_branch_sales_summary.dart",
+          "lib/features/sales/presentation/widgets/sales_money_row.dart",
+          "lib/features/sales/presentation/widgets/sales_month_overview.dart",
+          "lib/features/sales/presentation/widgets/sales_needed_per_day.dart",
+          "lib/features/sales/presentation/widgets/sales_pace_card.dart",
+          "lib/features/sales/presentation/widgets/sales_progress_ring.dart",
+          "lib/features/sales/presentation/widgets/sales_reason_sheet.dart",
+          "lib/features/sales/presentation/widgets/sales_submission_tile.dart",
+          "lib/features/sales/presentation/widgets/sales_submissions_door.dart",
+          "lib/features/sales/presentation/widgets/sales_target_card.dart",
+          "lib/features/sales/presentation/widgets/sales_target_editor_sheet.dart"
+        ]
+      },
+      "routes": {
+        "salesSubmit": "/sales/submit",
+        "salesMine": "/sales/mine",
+        "salesManage": "/sales",
+        "salesAdminOverview": "/sales/admin",
+        "salesHistory": "/sales/history",
+        "salesSubmissionDetailPattern": "/sales/submission/:submissionId"
+      },
+      "collections": [
+        "branch_sales_months",
+        "branch_sales_submissions"
+      ],
+      "cloud_functions": [
+        "decideDailySalesSubmission",
+        "editApprovedDailySalesSubmission",
+        "onDailySalesSubmissionCreated",
+        "resubmitCorrectedSales",
+        "setBranchSalesTarget"
+      ],
+      "tests": [
+        "test/features/sales/data/branch_sales_month_model_test.dart",
+        "test/features/sales/data/daily_sales_submission_model_test.dart",
+        "test/features/sales/domain/sales_branch_scope_test.dart",
+        "test/features/sales/domain/sales_business_time_test.dart",
+        "test/features/sales/domain/sales_calculator_test.dart",
+        "test/features/sales/domain/sales_submission_id_test.dart",
+        "test/features/sales/domain/sales_trend_test.dart",
+        "test/features/sales/presentation/sales_admin_overview_cubit_test.dart",
+        "test/features/sales/presentation/sales_dashboard_widgets_test.dart",
+        "test/features/sales/presentation/sales_format_test.dart",
+        "test/features/sales/presentation/sales_manager_dashboard_cubit_test.dart",
+        "test/features/sales/presentation/sales_month_cubit_test.dart",
+        "test/features/sales/presentation/sales_submission_detail_cubit_test.dart",
+        "test/features/sales/sales_route_access_test.dart"
+      ],
+      "design_specs": [
+        "SALES_TARGETS.md"
+      ]
+    },
     "schedule": {
       "path": "lib/features/schedule/",
-      "file_count": 57,
+      "file_count": 66,
       "layers": {
         "data:datasource": [
           "lib/features/schedule/data/datasources/schedule_remote_datasource.dart",
@@ -1172,6 +1341,9 @@
         "domain:other": [
           "lib/features/schedule/domain/employee_week_stats.dart",
           "lib/features/schedule/domain/move_validation.dart",
+          "lib/features/schedule/domain/reporting/final_schedule_grid.dart",
+          "lib/features/schedule/domain/reporting/schedule_final_pdf.dart",
+          "lib/features/schedule/domain/reporting/schedule_final_xlsx.dart",
           "lib/features/schedule/domain/schedule_week.dart",
           "lib/features/schedule/domain/shift_hours.dart",
           "lib/features/schedule/domain/shift_plan.dart",
@@ -1180,6 +1352,7 @@
           "lib/features/schedule/domain/swap_eligibility.dart",
           "lib/features/schedule/domain/swap_policy.dart",
           "lib/features/schedule/domain/swap_validation.dart",
+          "lib/features/schedule/domain/today_coverage.dart",
           "lib/features/schedule/domain/today_roster.dart"
         ],
         "domain:entity": [
@@ -1201,7 +1374,9 @@
           "lib/features/schedule/presentation/cubit/shift_swap_state.freezed.dart",
           "lib/features/schedule/presentation/cubit/shift_template_cubit.dart",
           "lib/features/schedule/presentation/cubit/shift_template_state.dart",
-          "lib/features/schedule/presentation/cubit/shift_template_state.freezed.dart"
+          "lib/features/schedule/presentation/cubit/shift_template_state.freezed.dart",
+          "lib/features/schedule/presentation/cubit/today_coverage_cubit.dart",
+          "lib/features/schedule/presentation/cubit/today_coverage_state.dart"
         ],
         "presentation:page": [
           "lib/features/schedule/presentation/pages/branch_schedule_screen.dart",
@@ -1219,8 +1394,10 @@
           "lib/features/schedule/presentation/widgets/day_details_sheet.dart",
           "lib/features/schedule/presentation/widgets/employee_picker_sheet.dart",
           "lib/features/schedule/presentation/widgets/employee_row.dart",
+          "lib/features/schedule/presentation/widgets/final_schedule_mobile_view.dart",
           "lib/features/schedule/presentation/widgets/final_schedule_sheet.dart",
           "lib/features/schedule/presentation/widgets/manager_schedule_view.dart",
+          "lib/features/schedule/presentation/widgets/schedule_day_editor.dart",
           "lib/features/schedule/presentation/widgets/schedule_grid.dart",
           "lib/features/schedule/presentation/widgets/schedule_helpers.dart",
           "lib/features/schedule/presentation/widgets/schedule_inspector_drawer.dart",
@@ -1230,6 +1407,7 @@
           "lib/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart",
           "lib/features/schedule/presentation/widgets/shift_templates_sheet.dart",
           "lib/features/schedule/presentation/widgets/swap_alert_card.dart",
+          "lib/features/schedule/presentation/widgets/swap_roster_sync.dart",
           "lib/features/schedule/presentation/widgets/swap_view.dart",
           "lib/features/schedule/presentation/widgets/today_roster_sheet.dart"
         ]
@@ -1254,18 +1432,24 @@
         "runBroadcastSchedules"
       ],
       "tests": [
+        "test/attendance_open_shift_screen_test.dart",
         "test/attendance_weekly_pdf_test.dart",
         "test/attendance_weekly_report_screen_test.dart",
         "test/attendance_weekly_report_test.dart",
         "test/broadcast_schedule_model_test.dart",
+        "test/features/schedule/final_schedule_grid_test.dart",
+        "test/features/schedule/schedule_final_xlsx_test.dart",
         "test/my_schedule_tab_test.dart",
         "test/recurring_shift_task_test.dart",
+        "test/schedule_day_editor_test.dart",
         "test/schedule_exchange_test.dart",
         "test/schedule_final_view_test.dart",
+        "test/schedule_final_view_toolbar_test.dart",
         "test/schedule_grid_test.dart",
         "test/schedule_helpers_test.dart",
         "test/schedule_insights_test.dart",
         "test/schedule_inspector_drawer_test.dart",
+        "test/schedule_read_caching_test.dart",
         "test/schedule_silent_reload_test.dart",
         "test/schedule_undo_test.dart",
         "test/shift_hours_scope_dialog_test.dart",
@@ -1274,8 +1458,10 @@
         "test/shift_template_model_test.dart",
         "test/shift_template_test.dart",
         "test/shift_window_test.dart",
+        "test/swap_approval_attribution_test.dart",
         "test/swap_eligibility_test.dart",
         "test/swap_policy_test.dart",
+        "test/swap_roster_sync_test.dart",
         "test/swap_shift_test.dart",
         "test/swap_validation_test.dart",
         "test/task_model_schedule_test.dart",
@@ -1291,22 +1477,27 @@
     },
     "settings": {
       "path": "lib/features/settings/",
-      "file_count": 3,
+      "file_count": 4,
       "layers": {
         "presentation:page": [
           "lib/features/settings/presentation/pages/about_page.dart",
           "lib/features/settings/presentation/pages/change_password_page.dart",
+          "lib/features/settings/presentation/pages/notifications_settings_screen.dart",
           "lib/features/settings/presentation/pages/settings_page.dart"
         ]
       },
       "routes": {
         "settings": "/settings",
         "changePassword": "/settings/change-password",
+        "notificationSettings": "/settings/notifications",
         "about": "/settings/about"
       },
       "collections": [],
       "cloud_functions": [],
-      "tests": [],
+      "tests": [
+        "test/features/settings/notifications_settings_screen_test.dart",
+        "test/settings_page_test.dart"
+      ],
       "design_specs": []
     },
     "statistics": {
@@ -1353,7 +1544,7 @@
     },
     "task": {
       "path": "lib/features/task/",
-      "file_count": 100,
+      "file_count": 106,
       "layers": {
         "data:datasource": [
           "lib/features/task/data/datasources/task_remote_datasource.dart"
@@ -1375,7 +1566,9 @@
           "lib/features/task/domain/task_feed.dart",
           "lib/features/task/domain/task_metrics.dart",
           "lib/features/task/domain/task_ordering.dart",
+          "lib/features/task/domain/task_origin.dart",
           "lib/features/task/domain/task_outcomes.dart",
+          "lib/features/task/domain/task_review_routing.dart",
           "lib/features/task/domain/task_schedule.dart",
           "lib/features/task/domain/work_types/definitions/general_work_type.dart",
           "lib/features/task/domain/work_types/definitions/inspection_work_type.dart",
@@ -1417,6 +1610,7 @@
           "lib/features/task/domain/usecases/assign_task.dart",
           "lib/features/task/domain/usecases/create_task.dart",
           "lib/features/task/domain/usecases/delete_task.dart",
+          "lib/features/task/domain/usecases/resolve_task_reviewers.dart",
           "lib/features/task/domain/usecases/update_task.dart",
           "lib/features/task/domain/usecases/upload_task_attachment.dart"
         ],
@@ -1465,12 +1659,15 @@
           "lib/features/task/presentation/widgets/task_activity_card.dart",
           "lib/features/task/presentation/widgets/task_attention_surface.dart",
           "lib/features/task/presentation/widgets/task_badge.dart",
+          "lib/features/task/presentation/widgets/task_browser.dart",
+          "lib/features/task/presentation/widgets/task_browser_groups.dart",
           "lib/features/task/presentation/widgets/task_card.dart",
           "lib/features/task/presentation/widgets/task_empty_state.dart",
           "lib/features/task/presentation/widgets/task_feed_expansion.dart",
           "lib/features/task/presentation/widgets/task_feed_row.dart",
           "lib/features/task/presentation/widgets/task_feed_section.dart",
           "lib/features/task/presentation/widgets/task_preview_sheet.dart",
+          "lib/features/task/presentation/widgets/task_section_list.dart",
           "lib/features/task/presentation/widgets/task_surface.dart",
           "lib/features/task/presentation/widgets/task_template_sheets.dart",
           "lib/features/task/presentation/widgets/video_thumbnail_image.dart",
@@ -1499,6 +1696,7 @@
       "tests": [
         "test/admin_task_overview_screen_test.dart",
         "test/my_tasks_tabs_test.dart",
+        "test/notification_task_copy_test.dart",
         "test/recurring_shift_task_test.dart",
         "test/task_access_test.dart",
         "test/task_archive_test.dart",
@@ -1506,11 +1704,14 @@
         "test/task_attachment_test.dart",
         "test/task_attention_surface_test.dart",
         "test/task_badge_test.dart",
+        "test/task_browser_groups_test.dart",
+        "test/task_browser_test.dart",
         "test/task_cancellation_test.dart",
         "test/task_card_layout_test.dart",
         "test/task_card_live_status_test.dart",
         "test/task_checklist_test.dart",
         "test/task_cubit_test.dart",
+        "test/task_details_origin_test.dart",
         "test/task_feed_expansion_test.dart",
         "test/task_feed_row_test.dart",
         "test/task_feed_test.dart",
@@ -1521,14 +1722,18 @@
         "test/task_model_shift_test.dart",
         "test/task_model_work_type_test.dart",
         "test/task_ordering_test.dart",
+        "test/task_origin_test.dart",
         "test/task_outcomes_test.dart",
         "test/task_preview_sheet_test.dart",
+        "test/task_review_routing_test.dart",
         "test/task_schedule_test.dart",
         "test/task_seen_store_test.dart",
         "test/task_shift_stream_binding_test.dart",
         "test/task_start_gate_widget_test.dart",
+        "test/task_start_transition_test.dart",
         "test/task_status_test.dart",
         "test/task_submission_gate_test.dart",
+        "test/task_submitted_recipients_test.dart",
         "test/task_template_sheets_test.dart"
       ],
       "design_specs": [

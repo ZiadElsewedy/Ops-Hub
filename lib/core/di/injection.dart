@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
@@ -9,6 +11,7 @@ import 'package:drop/core/network/api_client.dart';
 import 'package:drop/core/network/network_config.dart';
 import 'package:drop/core/services/case_seen_store.dart';
 import 'package:drop/core/services/notification_preferences_store.dart';
+import 'package:drop/core/services/delivered_notifications.dart';
 import 'package:drop/core/services/notification_service.dart';
 import 'package:drop/core/services/session_store.dart';
 import 'package:drop/core/services/task_seen_store.dart';
@@ -50,6 +53,7 @@ import 'package:drop/features/sales/data/datasources/sales_remote_datasource.dar
 import 'package:drop/features/sales/data/repositories/sales_repository_impl.dart';
 import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
 import 'package:drop/features/sales/domain/usecases/submit_daily_sales.dart';
+import 'package:drop/features/sales/domain/usecases/record_daily_sales.dart';
 import 'package:drop/features/sales/domain/usecases/set_branch_monthly_target.dart';
 import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
@@ -238,9 +242,18 @@ class AppDependencies {
         // the thread's mark-read is what earns that clear. Roll the badge back
         // when the server never acknowledged, so the inbox never shows "read"
         // for a thread the backend still counts as unread.
-        onReadSync: (acknowledged) => acknowledged
-            ? chatListCubit.confirmUnreadCleared(conversationId)
-            : chatListCubit.restoreUnread(conversationId),
+        onReadSync: (acknowledged) {
+          if (acknowledged) {
+            chatListCubit.confirmUnreadCleared(conversationId);
+            // The server agreed the thread is read — remove this conversation's
+            // already-delivered OS notifications (WhatsApp-style), leaving every
+            // other conversation's banners untouched (they carry a different
+            // thread-id/tag). No-op when nothing is delivered.
+            deliveredNotifications.clearConversation(conversationId);
+          } else {
+            chatListCubit.restoreUnread(conversationId);
+          }
+        },
       );
 
   /// Cache of opened threads — lets a re-opened conversation paint its last
@@ -312,12 +325,38 @@ class AppDependencies {
   /// Firestore read on mount. Empty until the first load; cleared on sign-out.
   static final Map<String, UserEntity> _chatDirectory = {};
   static String? _chatDirectoryUid;
+  static DateTime? _chatDirectoryLoadedAt;
+
+  /// Firebase uids of accounts that are **deactivated** (`isActive == false`),
+  /// derived from the same read that fills [_chatDirectory]. A positive signal —
+  /// a uid is present only when a real document says the account is off — so the
+  /// inbox can hide a conversation with a deactivated teammate and the thread can
+  /// refuse to open, without ever mistaking an unloaded directory for "everyone
+  /// deactivated". Empty until the first [loadChatDirectory]; cleared on
+  /// sign-out.
+  static final Set<String> _deactivatedChatUids = {};
+
+  /// How long a loaded chat directory is trusted before the next
+  /// [loadChatDirectory] re-reads it. The org's people set changes only when an
+  /// admin provisions or edits an account (rare), so a few minutes keeps reads
+  /// near-zero while still self-healing a teammate created mid-session. Without
+  /// it the cache lived until sign-out, so a newly-created employee rendered as
+  /// "Teammate" until the app was relaunched. An admin mutation invalidates it
+  /// outright ([invalidatePeopleDirectories]); this window covers a change made
+  /// on another device.
+  static const _chatDirectoryTtl = Duration(minutes: 5);
 
   /// The cached chat directory as it stands right now — synchronous, so a widget
   /// can seed real names on its FIRST build instead of rendering a "Teammate"
   /// placeholder that only resolves after an async load (the flash the owner
   /// reported). Empty on a cold start, before [loadChatDirectory] has run once.
   static Map<String, UserEntity> get chatDirectorySnapshot => _chatDirectory;
+
+  /// The deactivated-uid set as it stands right now — synchronous, so the inbox
+  /// filter and the thread-open guard can read it without awaiting a load. Empty
+  /// on a cold start, before [loadChatDirectory] has run once (so nothing is
+  /// hidden until we positively know an account is off).
+  static Set<String> get deactivatedChatUidsSnapshot => _deactivatedChatUids;
 
   /// The [user]'s chat directory keyed by **Firebase uid**, so the chat UI can
   /// resolve a conversation's `counterpartExternalId` to a real name/avatar/
@@ -329,15 +368,28 @@ class AppDependencies {
   /// immediately (the set changes rarely), so repeat mounts don't re-read or
   /// re-flash. The cache is refreshed whenever the set is (re)loaded.
   static Future<Map<String, UserEntity>> loadChatDirectory(
-      UserEntity? user) async {
-    if (_chatDirectory.isNotEmpty && _chatDirectoryUid == user?.uid) {
+      UserEntity? user, {bool forceRefresh = false}) async {
+    final loadedAt = _chatDirectoryLoadedAt;
+    final fresh = loadedAt != null &&
+        DateTime.now().difference(loadedAt) < _chatDirectoryTtl;
+    if (!forceRefresh &&
+        _chatDirectory.isNotEmpty &&
+        _chatDirectoryUid == user?.uid &&
+        fresh) {
       return _chatDirectory;
     }
-    final users = await _getChatDirectory(user);
+    final snapshot = await _getChatDirectory.resolve(user);
     _chatDirectory
       ..clear()
-      ..addEntries(users.map((u) => MapEntry(u.uid, u)));
+      ..addEntries(snapshot.active.map((u) => MapEntry(u.uid, u)));
+    _deactivatedChatUids
+      ..clear()
+      ..addAll(snapshot.deactivatedUids);
     _chatDirectoryUid = user?.uid;
+    _chatDirectoryLoadedAt = DateTime.now();
+    // A conversation may have just been hidden (a teammate turned off) or
+    // un-hidden (turned back on): re-emit the inbox against the fresh set.
+    chatListCubit.refilter();
     return _chatDirectory;
   }
 
@@ -345,7 +397,31 @@ class AppDependencies {
   /// name against the previous user's directory.
   static void clearChatDirectory() {
     _chatDirectory.clear();
+    _deactivatedChatUids.clear();
     _chatDirectoryUid = null;
+    _chatDirectoryLoadedAt = null;
+  }
+
+  /// Invalidates every in-memory people-directory cache after an admin changes
+  /// the user set (create / rename / deactivate / delete / branch or position
+  /// change), so a new or renamed teammate resolves to a real name instead of
+  /// the "Teammate" (chat) / "Someone" (tasks) fallback — without an app
+  /// restart, which was previously the only thing that fixed it. Two separate
+  /// caches go stale on such a change:
+  ///  * the chat directory here — marked stale but kept warm (stale-while-
+  ///    revalidate, so no name flashes to "Teammate"); a proactive force-refresh
+  ///    runs now when the signed-in user is known, and every chat surface's own
+  ///    next [loadChatDirectory] re-reads regardless;
+  ///  * [TaskCubit]'s per-branch member memo — re-enriched immediately from the
+  ///    open task set so a just-assigned new employee is named at once.
+  static void invalidatePeopleDirectories() {
+    _chatDirectoryLoadedAt = null; // stale-while-revalidate: keep the warm map
+    final me = authCubit.state.maybeWhen(
+      authenticated: (user) => user,
+      orElse: () => null,
+    );
+    if (me != null) unawaited(loadChatDirectory(me, forceRefresh: true));
+    taskCubit.refreshDirectory();
   }
 
   /// Tears down **every app-wide cubit that holds a user-scoped Firestore
@@ -431,6 +507,12 @@ class AppDependencies {
 
   /// FCM foundation (Phase 6) — token registration + foreground handling.
   static late final NotificationService notificationService;
+
+  /// Clears delivered chat notifications from the OS surface when a conversation
+  /// is opened + read (and all of them on sign-out). Plain platform-channel
+  /// wrapper with no dependencies, so it is constructed eagerly.
+  static final DeliveredNotifications deliveredNotifications =
+      DeliveredNotifications();
 
   /// This device's notification switches for the signed-in user. Client-only
   /// and constructed eagerly: it is read from a widget's `initState`, not from
@@ -520,6 +602,7 @@ class AppDependencies {
   static late final SalesMonthCubit salesMonthCubit;
   // P3 presentation consumes these write actions when its sales cubits land.
   static late final SubmitDailySales submitDailySales;
+  static late final RecordDailySales recordDailySales;
   static late final SetBranchMonthlyTarget setBranchMonthlyTarget;
   static late final ApproveSalesSubmission approveSalesSubmission;
   static late final RejectSalesSubmission rejectSalesSubmission;
@@ -529,7 +612,7 @@ class AppDependencies {
   static late final ReopenSalesSubmission reopenSalesSubmission;
 
   static SalesManagerDashboardCubit createSalesManagerDashboardCubit() =>
-      SalesManagerDashboardCubit(repository: salesRepository, branchRepository: _branchRepositoryRef, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, setTarget: setBranchMonthlyTarget);
+      SalesManagerDashboardCubit(repository: salesRepository, branchRepository: _branchRepositoryRef, approve: approveSalesSubmission, reject: rejectSalesSubmission, requestCorrection: requestSalesCorrection, editApproved: editApprovedSalesSubmission, setTarget: setBranchMonthlyTarget, record: recordDailySales);
 
   static SalesAdminOverviewCubit createSalesAdminOverviewCubit() =>
       SalesAdminOverviewCubit(repository: salesRepository);
@@ -670,6 +753,10 @@ class AppDependencies {
       startConversation: StartConversation(chatRepository),
       getCachedConversations: GetCachedConversations(chatRepository),
       realtime: chatRealtime,
+      // Hide conversations whose counterpart's account was deactivated. Reads
+      // the live session cache filled by [loadChatDirectory], so a mid-session
+      // deactivation takes effect on the next directory (re)load.
+      deactivatedCounterpartUids: () => _deactivatedChatUids,
     );
 
     final authRemoteDataSource = AuthRemoteDataSourceImpl(FirebaseAuth.instance);
@@ -712,6 +799,7 @@ class AppDependencies {
       SalesRemoteDataSourceImpl(FirebaseFirestore.instance, FirebaseFunctions.instance),
     );
     submitDailySales = SubmitDailySales(salesRepository);
+    recordDailySales = RecordDailySales(salesRepository);
     setBranchMonthlyTarget = SetBranchMonthlyTarget(salesRepository);
     approveSalesSubmission = ApproveSalesSubmission(salesRepository);
     rejectSalesSubmission = RejectSalesSubmission(salesRepository);
@@ -758,6 +846,9 @@ class AppDependencies {
       // user's conversations to the next (cache invalidation).
       onPreSignOut: () async {
         await notificationService.forgetUser();
+        // Drop this account's delivered OS notifications so the next user on a
+        // shared device never sees the previous account's chat banners.
+        await deliveredNotifications.clearAll();
         await clearChatCache();
         // Reset the app-wide inbox cubit's in-memory state too: it outlives the
         // sign-out, so without this the next signed-in user would briefly see
@@ -931,7 +1022,11 @@ class AppDependencies {
         UserAdminRepositoryImpl(userAdminRemoteDataSource);
 
     branchCubit = BranchCubit(branchRepository);
-    adminUsersCubit = AdminUsersCubit(userAdminRepository, branchRepository);
+    adminUsersCubit = AdminUsersCubit(
+      userAdminRepository,
+      branchRepository,
+      onUsersChanged: invalidatePeopleDirectories,
+    );
 
     // ─── Statistics / dashboards (Phase 6) ────────────────────
     final StatisticsRepository statisticsRepository = StatisticsRepositoryImpl(

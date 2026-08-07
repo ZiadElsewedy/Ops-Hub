@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `profile`
 
-> `lib/features/profile/` · **17 files** · layer-complete clean-architecture slice
+> `lib/features/profile/` · **19 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -23,6 +23,8 @@
 
 **presentation:widget**
 - `lib/features/profile/presentation/widgets/profile_avatar.dart`
+- `lib/features/profile/presentation/widgets/profile_detail_row.dart`
+- `lib/features/profile/presentation/widgets/profile_identity_card.dart`
 
 **domain:entity**
 - `lib/features/profile/domain/entities/profile_entity.dart`
@@ -54,7 +56,8 @@
 - **Design spec(s):** —
 
 ## Tests
-_None matched by name — verify before assuming uncovered._
+- `test/features/profile/edit_profile_username_test.dart`
+- `test/features/profile/profile_page_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)
 ```

@@ -3,23 +3,41 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
+import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
+import 'package:drop/core/widgets/settings_tiles.dart';
 import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/features/profile/domain/entities/profile_entity.dart';
 import 'package:drop/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:drop/features/profile/presentation/cubit/profile_state.dart';
-import 'package:drop/features/profile/presentation/widgets/profile_avatar.dart';
+import 'package:drop/features/profile/presentation/widgets/profile_detail_row.dart';
+import 'package:drop/features/profile/presentation/widgets/profile_identity_card.dart';
 
+/// The signed-in user's own profile — who they are, where they work, how the
+/// company reaches them, and how their account is set up.
+///
+/// **Settings is the account hub; Profile is a leaf of it.** One door in (the
+/// mobile app-bar avatar and the desktop sidebar footer both open Settings),
+/// and Settings' identity card is the only route to this screen. So Profile
+/// answers *who am I and what are my details*, and **nothing else** — it
+/// carries no Settings row and no Sign out.
+///
+/// That is a correction, not a preference: this screen used to offer both, so
+/// Settings → Profile → Settings was a closed loop and the one destructive
+/// action in the app existed on two different screens. Do not re-add a
+/// navigation row here; add it to Settings.
+///
+/// It borrows Settings' grouped glass rows (`core/widgets/settings_tiles.dart`)
+/// and entrance stagger so the two read as one system. What is specific to a
+/// profile is the identity lockup and the fact rows, which lead with the value
+/// rather than a destination name.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -37,8 +55,16 @@ class _ProfilePageState extends State<ProfilePage> {
   void _load() {
     final uid = context.currentUser?.uid;
     if (uid != null) context.read<ProfileCubit>().loadProfile(uid);
-    // Branch directory for the assigned-branch section logo (§8b).
+    // Branch directory for the assigned-branch row (§8b).
     context.read<BranchCubit>().loadIfNeeded();
+  }
+
+  /// Pull-to-refresh / retry. Bypasses the cubit's revisit guard — this is the
+  /// one path where the user is explicitly asking for a re-read.
+  Future<void> _refresh() async {
+    final uid = context.currentUser?.uid;
+    if (uid == null) return;
+    await context.read<ProfileCubit>().loadProfile(uid, forceRefresh: true);
   }
 
   @override
@@ -50,7 +76,12 @@ class _ProfilePageState extends State<ProfilePage> {
         builder: (context, state) {
           return state.maybeWhen(
             loading: () => const _ProfileSkeleton(),
-            error: (msg) => _ErrorState(message: msg, onRetry: _load),
+            error: (msg) => AppErrorState(
+              title: 'Profile unavailable',
+              message: msg,
+              icon: Icons.cloud_off_rounded,
+              onRetry: _refresh,
+            ),
             orElse: () {
               final profile = state.maybeWhen(
                 loaded: (p) => p,
@@ -59,7 +90,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 orElse: () => null,
               );
               if (profile == null) return const _ProfileSkeleton();
-              return _ProfileContent(profile: profile);
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                color: AppColors.primary,
+                backgroundColor: AppColors.darkSurfaceElevated,
+                child: _ProfileContent(profile: profile),
+              );
             },
           );
         },
@@ -69,185 +105,187 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 class _ProfileContent extends StatelessWidget {
-  final ProfileEntity profile;
   const _ProfileContent({required this.profile});
+
+  final ProfileEntity profile;
 
   @override
   Widget build(BuildContext context) {
+    final user = context.currentUser;
+    void edit() => context.push(RouteNames.editProfile);
+
+    // The self-service contact block is for managers and employees only (owner
+    // ruling, mirrored in EditProfilePage, which does not render those fields
+    // for an admin) — so an admin's contact rows are read-only here rather than
+    // opening a form that has no such field.
+    final VoidCallback? editContact = context.isAdmin ? null : edit;
+
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, AppSpacing.sm, AppSpacing.pagePadding, AppSpacing.xxl),
+        AppSpacing.pagePadding,
+        AppSpacing.lg,
+        AppSpacing.pagePadding,
+        AppSpacing.xxxl,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Identity(profile: profile),
-          const SizedBox(height: AppSpacing.xl),
-          const _BranchSection(),
-          _Group(children: _infoRows(profile, isAdmin: context.isAdmin)),
-          const SizedBox(height: AppSpacing.lg),
-          _Group(
-            children: [
-              _ActionTile(
-                icon: Icons.edit_outlined,
-                label: 'Edit Profile',
-                onTap: () => context.push(RouteNames.editProfile),
-              ),
-              _ActionTile(
-                icon: Icons.settings_outlined,
-                label: 'Settings',
-                onTap: () => context.push(RouteNames.settings),
-              ),
-              _ActionTile(
-                icon: Icons.logout_rounded,
-                label: 'Sign Out',
-                destructive: true,
-                onTap: () => context.read<AuthCubit>().signOut(),
-              ),
-            ],
+          SettingsReveal(
+            index: 0,
+            child: ProfileIdentityCard(
+              profile: profile,
+              role: user?.role,
+              position: user?.position,
+              onEdit: edit,
+            ),
           ),
+          const SizedBox(height: AppSpacing.xxl),
+
+          // ─── Workplace ──────────────────────────────────────────────
+          const SettingsReveal(
+            index: 1,
+            child: SettingsSectionHeader(label: 'Workplace'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SettingsReveal(index: 2, child: _WorkplaceGroup(user: user)),
+          const SizedBox(height: AppSpacing.xxl),
+
+          // ─── Contact ────────────────────────────────────────────────
+          const SettingsReveal(
+            index: 3,
+            child: SettingsSectionHeader(label: 'Contact'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SettingsReveal(
+            index: 4,
+            child: SettingsGroup(
+              children: [
+                ProfileDetailRow(
+                  icon: Icons.alternate_email_rounded,
+                  label: 'Email',
+                  value: profile.email,
+                  copyable: true,
+                  isFirst: true,
+                ),
+                ProfileDetailRow(
+                  icon: Icons.phone_outlined,
+                  label: 'Phone',
+                  value: profile.phoneNumber,
+                  copyable: true,
+                  onEdit: editContact,
+                ),
+                ProfileDetailRow(
+                  icon: Icons.home_outlined,
+                  label: 'Address',
+                  value: profile.address,
+                  onEdit: editContact,
+                ),
+                ProfileDetailRow(
+                  icon: Icons.emergency_outlined,
+                  label: 'Emergency contact',
+                  value: profile.emergencyContact,
+                  copyable: true,
+                  onEdit: editContact,
+                  isLast: true,
+                ),
+              ],
+            ),
+          ),
+
+          // ─── Account ────────────────────────────────────────────────
+          const SizedBox(height: AppSpacing.xxl),
+          const SettingsReveal(
+            index: 5,
+            child: SettingsSectionHeader(label: 'Account'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SettingsReveal(index: 6, child: _AccountGroup(profile: profile)),
+
+          // Nothing follows. Profile is a **leaf** of the account hub, not a
+          // second hub: it had a Settings row (Settings → Profile → Settings,
+          // a closed loop) and its own Sign out card, so the same destructive
+          // action existed on two screens. Both live in Settings, which is the
+          // one door in — see the class doc.
         ],
       ),
     );
   }
-
-  List<Widget> _infoRows(ProfileEntity p, {required bool isAdmin}) {
-    return [
-      _InfoRow(label: 'Email', value: p.email.isNotEmpty ? p.email : '—'),
-      if (p.phoneNumber != null && p.phoneNumber!.isNotEmpty)
-        _InfoRow(label: 'Phone', value: p.phoneNumber!),
-      if (p.address != null && p.address!.isNotEmpty)
-        _InfoRow(label: 'Address', value: p.address!),
-      if (p.emergencyContact != null && p.emergencyContact!.isNotEmpty)
-        _InfoRow(label: 'Emergency', value: p.emergencyContact!),
-      // Salary is something the admin PAYS, not receives — never render the
-      // self-service payment row on an admin's own profile (owner ruling).
-      if (!isAdmin && p.paymentNumber != null && p.paymentNumber!.isNotEmpty)
-        _InfoRow(label: 'Salary sent to', value: p.paymentNumber!),
-      _InfoRow(label: 'Sign-in', value: _provider(p.authProvider)),
-      if (p.createdAt != null)
-        _InfoRow(label: 'Member since', value: _date(p.createdAt!)),
-    ];
-  }
-
-  String _provider(String p) {
-    switch (p) {
-      case 'email':
-        return 'Email';
-      case 'phone':
-        return 'Phone';
-      case 'google.com':
-      case 'google':
-        return 'Google';
-      default:
-        return p;
-    }
-  }
-
-  String _date(DateTime d) => AppDateFormatter.monthDayYear(d);
 }
 
-class _Identity extends StatelessWidget {
-  final ProfileEntity profile;
-  const _Identity({required this.profile});
+/// Where this person works. The branch row carries the branch's own logo rather
+/// than a generic glyph — identity is resolved through the app-wide
+/// [BranchCubit], so it costs no extra read.
+///
+/// **An admin has no `branchId`** (the role is global), so instead of rendering
+/// an empty branch row the group states the truth: access is org-wide.
+class _WorkplaceGroup extends StatelessWidget {
+  const _WorkplaceGroup({required this.user});
+
+  final UserEntity? user;
 
   @override
   Widget build(BuildContext context) {
-    final incomplete = !profile.isComplete;
-    return Row(
-      children: [
-        ProfileAvatar(
-          initials: _initials(profile),
-          imageUrl: profile.profileImage,
-          size: 64,
-          showRing: false,
-        ),
-        const SizedBox(width: AppSpacing.lg),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                profile.displayName,
-                style: AppTypography.h2,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              if (profile.handle.isNotEmpty)
-                Text(profile.handle, style: AppTypography.body)
-              else if (incomplete)
-                GestureDetector(
-                  onTap: () => context.push(RouteNames.editProfile),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Complete your profile', style: AppTypography.body),
-                      SizedBox(width: 2),
-                      Icon(Icons.chevron_right_rounded,
-                          size: 16, color: AppColors.textTertiary),
-                    ],
-                  ),
-                ),
-            ],
+    final branchId = user?.branchId ?? '';
+    final isGlobal = user?.role.isGlobal ?? false;
+    final shift = (user?.assignedShift ?? '').trim();
+    final position = (user?.position ?? '').trim();
+
+    if (branchId.isEmpty) {
+      return SettingsGroup(
+        children: [
+          ProfileDetailRow(
+            icon: Icons.storefront_outlined,
+            label: 'Branch',
+            value: isGlobal ? 'All branches · organisation-wide' : null,
+            isFirst: true,
+            isLast: position.isEmpty,
           ),
-        ),
-      ],
-    );
-  }
-}
+          if (position.isNotEmpty)
+            ProfileDetailRow(
+              icon: Icons.badge_outlined,
+              label: 'Position',
+              value: position,
+              isLast: true,
+            ),
+        ],
+      );
+    }
 
-/// The user's **assigned branch** (§8b) — logo + name + location. Renders
-/// nothing for a user with no branch (e.g. a global admin). The branchId comes
-/// from the auth session; identity is resolved via the app-wide [BranchCubit].
-class _BranchSection extends StatelessWidget {
-  const _BranchSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final branchId = context.currentUser?.branchId;
-    if (branchId == null || branchId.isEmpty) return const SizedBox.shrink();
     return BlocBuilder<BranchCubit, BranchState>(
       builder: (context, _) {
         final branch = context.read<BranchCubit>().branchById(branchId);
         final name = branch?.name ?? 'Your branch';
-        final location = branch?.location ?? '';
-        return Column(
+        final location = (branch?.location ?? '').trim();
+        return SettingsGroup(
           children: [
-            AppGlassCard(
-              child: Row(
-                children: [
-                  BranchAvatar(
-                      logoUrl: branch?.logoUrl, name: name, size: 44, radius: 12),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('ASSIGNED BRANCH',
-                            style: AppTypography.caption.copyWith(
-                              letterSpacing: 1.0,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textTertiary,
-                            )),
-                        const SizedBox(height: 4),
-                        Text(name,
-                            style: AppTypography.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        if (location.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(location,
-                              style: AppTypography.caption,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+            ProfileDetailRow(
+              icon: Icons.storefront_outlined,
+              label: 'Assigned branch',
+              value: location.isEmpty ? name : '$name · $location',
+              leading: BranchAvatar(
+                logoUrl: branch?.logoUrl,
+                name: name,
+                size: 40,
+                radius: 12,
               ),
+              isFirst: true,
+              isLast: position.isEmpty && shift.isEmpty,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            if (position.isNotEmpty)
+              ProfileDetailRow(
+                icon: Icons.badge_outlined,
+                label: 'Position',
+                value: position,
+                isLast: shift.isEmpty,
+              ),
+            if (shift.isNotEmpty)
+              ProfileDetailRow(
+                icon: Icons.schedule_rounded,
+                label: 'Assigned shift',
+                value: shift,
+                isLast: true,
+              ),
           ],
         );
       },
@@ -255,172 +293,80 @@ class _BranchSection extends StatelessWidget {
   }
 }
 
-/// A single grouped, hair-line-bordered list. Children are auto-divided.
-class _Group extends StatelessWidget {
-  final List<Widget> children;
-  const _Group({required this.children});
+/// How the account itself is set up — the facts a person checks when something
+/// looks wrong, not settings they can change here.
+class _AccountGroup extends StatelessWidget {
+  const _AccountGroup({required this.profile});
+
+  final ProfileEntity profile;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.darkSurface,
-        borderRadius: AppRadius.lgAll,
-        border: Border.all(color: AppColors.darkBorder),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              const Divider(
-                  height: 1, thickness: 1, color: AppColors.darkBorder, indent: 16),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Text(label, style: AppTypography.body),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.label.copyWith(fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool destructive;
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.destructive = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = destructive ? AppColors.error : AppColors.textPrimary;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 19, color: destructive ? AppColors.error : AppColors.textSecondary),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(child: Text(label, style: AppTypography.label.copyWith(color: color))),
-            if (!destructive)
-              const Icon(Icons.chevron_right_rounded,
-                  size: 18, color: AppColors.textTertiary),
-          ],
+    final updated = profile.updatedAt;
+    return SettingsGroup(
+      children: [
+        ProfileDetailRow(
+          icon: Icons.key_outlined,
+          label: 'Sign-in method',
+          value: _providerLabel(profile.authProvider),
+          isFirst: true,
         ),
-      ),
+        ProfileDetailRow(
+          icon: Icons.event_available_outlined,
+          label: 'Member since',
+          value: profile.createdAt == null
+              ? null
+              : AppDateFormatter.monthDayYear(profile.createdAt!),
+          isLast: updated == null,
+        ),
+        if (updated != null)
+          ProfileDetailRow(
+            icon: Icons.history_rounded,
+            label: 'Last updated',
+            value: AppDateFormatter.monthDayYear(updated),
+            isLast: true,
+          ),
+      ],
     );
   }
+
+  static String _providerLabel(String provider) => switch (provider) {
+    'email' || 'password' => 'Email and password',
+    'phone' => 'Phone',
+    'google.com' || 'google' => 'Google',
+    'unknown' || '' => 'Not recorded',
+    _ => provider,
+  };
 }
 
-String _initials(ProfileEntity p) {
-  final name = p.fullName?.trim();
-  if (name != null && name.isNotEmpty) {
-    final parts = name.split(' ');
-    if (parts.length >= 2) {
-      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-    }
-    return parts.first[0].toUpperCase();
-  }
-  if (p.email.isNotEmpty) return p.email[0].toUpperCase();
-  return '?';
-}
+// ─── Loading ───────────────────────────────────────────────────────────────
 
-// ─── Loading / error states ────────────────────────────────────────────────
-
+/// Keeps the shape of what is arriving: the identity card, then two groups.
 class _ProfileSkeleton extends StatelessWidget {
   const _ProfileSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
+    return const SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, AppSpacing.sm, AppSpacing.pagePadding, 0),
+        AppSpacing.pagePadding,
+        AppSpacing.lg,
+        AppSpacing.pagePadding,
+        AppSpacing.xxxl,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Skeleton(width: 64, height: 64, circle: true),
-              SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Skeleton(width: 160, height: 22),
-                    SizedBox(height: 8),
-                    Skeleton(width: 100, height: 14),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: AppSpacing.xl),
-          Skeleton(height: 150),
-          SizedBox(height: AppSpacing.lg),
-          Skeleton(height: 150),
+          Skeleton(height: 268),
+          SizedBox(height: AppSpacing.xxl),
+          Skeleton(width: 90, height: 12),
+          SizedBox(height: AppSpacing.md),
+          Skeleton(height: 148),
+          SizedBox(height: AppSpacing.xxl),
+          Skeleton(width: 90, height: 12),
+          SizedBox(height: AppSpacing.md),
+          Skeleton(height: 220),
         ],
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorState({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_rounded,
-                color: AppColors.textTertiary, size: 40),
-            const SizedBox(height: AppSpacing.lg),
-            Text(message, textAlign: TextAlign.center, style: AppTypography.body),
-            const SizedBox(height: AppSpacing.lg),
-            TextButton(
-              onPressed: onRetry,
-              child: Text('Try again',
-                  style: AppTypography.label.copyWith(color: AppColors.primary)),
-            ),
-          ],
-        ),
       ),
     );
   }

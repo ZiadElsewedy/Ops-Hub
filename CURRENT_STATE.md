@@ -5,6 +5,150 @@
 >
 > **Last verified against the code:** 2026-08-07.
 
+> **A deactivated account disappears from chat (2026-08-07, feature,
+> client-only, NOT device-verified):** Owner: *"when I make an account inactive
+> its chat should disappear, no one can message it, and you can't send it a task
+> — anything it's used in should no longer be valid."* Most of that was already
+> true — the assignee picker (`task_cubit.branchEmployees`), the new-chat
+> teammate picker (`GetChatDirectory`), schedule/roster pickers, broadcasts and
+> login all already exclude `isActive == false`. The one real gap was an
+> **existing** chat conversation: the inbox is built from past conversations, not
+> the (already-filtered) picker, so a teammate you'd already chatted with stayed
+> in the inbox and remained messageable after being turned off. Now: the chat
+> directory read yields, from the **same single `getAllUsers` query**, a set of
+> deactivated uids (`GetChatDirectory.resolve` → `ChatDirectorySnapshot`, cached
+> beside the name directory in `AppDependencies`). `ChatListCubit` hides any
+> conversation whose counterpart is in that set — dropped from the inbox list,
+> excluded from the `totalUnread` sidebar badge, and ignored for live
+> bump/notify — and `ChatConversationScreen` refuses to open such a thread
+> (person-off empty state, no history, no composer) even via a stale deep link.
+> The filter is a **positive** signal (a uid is hidden only when a document says
+> it's off), so an unloaded directory never blanks the inbox; a mid-session
+> deactivation (or reactivation) takes effect on the next directory (re)load via
+> `refilter()`, already wired through `invalidatePeopleDirectories`. **Task
+> assignment needed no change** — new assignments already exclude inactive users;
+> an already-assigned inactive user still resolves for display, by decision.
+> Pinned by `test/chat_deactivated_counterpart_test.dart` (5). `flutter analyze`
+> clean, 1893 Dart tests green. No rules/functions/schema change. ⚠️ **Client-side
+> only** — the chat backend (`drop-api`, a separate repo not in this project)
+> does not yet reject a send to a deactivated user; enforcement here is the UI the
+> user sees. **NOT device-verified.**
+
+> **Managers & admins can record sales directly, with a celebratory overlay
+> (2026-08-07, feature, ⚠️ NEEDS A FUNCTIONS DEPLOY, NOT device-verified):**
+> Sales were employee-submit-only; a manager/admin could approve but not enter a
+> day. New `recordApprovedDailySales` callable lets an own-branch **manager or
+> admin** record a day **directly** — it lands already `approved` and counts
+> toward the target immediately (a manager can't *self-approve* a pending doc, so
+> a direct record is the right shape: the actor is both `submittedBy` and
+> `decisionBy`, stamped `recordedDirectly:true`, guarded by the Admin SDK, not a
+> client write). Accepts today or any past Cairo day (never the future), refuses a
+> day that already has a record (`already-exists` → edit it instead) and a month
+> with no target. The manager dashboard gains a **Record sales** button →
+> `showSalesRecordSheet` (amount · business-day picker · optional note) → on
+> success a `showSalesRecordAddedOverlay` **counts up** to "**+ {amount} EGP**
+> added to the branch total" over a slim achieved-of-target bar. Strictly
+> monochrome (ADR-004): the sole chromatic pixel is the **success** tint shown
+> only when *this* record **reached** the target ("Monthly target reached"). The
+> result rides a one-shot `justRecorded` channel on the loaded state (separate
+> from `message`, so it's an overlay not a snackbar); reduced motion rests on the
+> final frame. Notifications reuse `selectSalesRecipients` (branch + every admin,
+> minus the actor) with a *Sales recorded* body and the same target-achieved
+> crossing as an approval. New pure `isRecordableSalesDate` (+2 node tests),
+> `SalesRecordResult`, `RecordDailySales`, audit `sales.recorded`. Pinned by 2 new
+> `sales_manager_dashboard_cubit_test` cases + `sales_record_added_overlay_test`
+> (2). `flutter analyze` clean, 1888 Dart + 144 node tests green. ⚠️ **Inert until
+> `firebase deploy --only functions:recordApprovedDailySales`** — the callable
+> does not exist in production yet, so the button errors on device until deployed.
+> No rules/index change (Admin-SDK write). Design doc
+> [SALES_TARGETS](docs/design/SALES_TARGETS.md) updated.
+
+> 🔴 **THE ADMIN BUG: `sendNotification` refused every client notification
+> aimed at an admin. FIXED, ⚠️ NEEDS A FUNCTIONS DEPLOY (2026-08-07).**
+> Owner: *"the admin isn't receiving notifications — just chat; other things
+> no, and it doesn't appear in the inbox."*
+>
+> The callable is the **only** path a client has for writing a
+> `notifications/{id}` doc, and its reachability rule read:
+> ```js
+> const reachable = callerIsAdmin || (callerBranch !== "" && recipientBranch === callerBranch);
+> if (!reachable) throw new HttpsError("permission-denied", …);
+> ```
+> **An admin has no `branchId`**, so for an admin recipient this compares
+> `"" === "b1"` → false → `permission-denied`. A rule written to stop a
+> cross-branch leak was catching the one role that is in no branch. Both
+> callers (`NotifyTaskEvent`, `NotifySwapEvent`) are best-effort and swallow
+> the error, so **it failed completely silently** — no doc, no push, no inbox
+> row, no log on the device.
+>
+> What it removed: **an employee submitting a task for review notifies
+> `task.createdBy`**, and an admin creates most tasks — the single most common
+> admin notification in the product, refused every time. Same for every task
+> event where an admin is an assignee (assigned · approved · rejected · rework
+> · cancelled · reported-incorrect).
+>
+> **Blast radius beyond admins:** it threw *before* committing, so one
+> unreachable recipient discarded the **whole batch** — a task assigned to
+> three people, one of them an admin, notified **nobody**. Unreachable
+> recipients are now skipped, counted, and returned as `skipped` (the doc is
+> withheld exactly as before; it just no longer takes the legitimate
+> recipients down with it).
+>
+> Policy is the pure `canNotify`
+> ([functions/notification_reach.js](functions/notification_reach.js)) — admin
+> reaches anyone, admin is reachable **by** anyone, everyone else same-branch;
+> a blank branch never matches a blank branch. 9 tests.
+>
+> ℹ️ **Two branches found this independently and it merged into one fix.** The
+> reachability half arrived with `claude/single-active-session-aedee1`
+> (`canNotify`, kept); the **skip-instead-of-throw** half arrived with
+> `claude/cursor-chat-visibility-notifications-003328`, whose duplicate
+> `canReachRecipient` was dropped when both were cherry-picked onto
+> `release/v1-preparation`. One predicate, one call site.
+>
+> ✅ **Push itself is healthy — owner-confirmed 2026-08-07.** Pushes arrive on
+> the lock screen and tapping one opens the right screen. An earlier read of
+> this bug blamed the missing APNs credential; that was wrong and is retracted
+> (see [RELEASE_V1 B5](docs/RELEASE_V1.md), which now needs re-verification —
+> delivery working implies the credential is in place).
+
+> **Sales notifications reached no admin at all — FIXED, ⚠️ NEEDS A FUNCTIONS
+> DEPLOY (2026-08-07):** `salesRecipients` resolved recipients from
+> `where("branchId", "==", branchId)` and consulted admins only as a
+> **fallback** when that came back empty. An admin has no `branchId`, so a
+> branch query can never return one — meaning on every real branch an admin
+> received nothing from the whole feature: no *New sales submission*, no
+> *Corrected sales submission*, no *Sales target updated*, no *Sales target
+> achieved*, in push **or** inbox. Admins are now an addition, matching
+> `resolveRequestApprovers` / `resolveAttendanceReviewers`; the policy is the
+> pure `selectSalesRecipients` in `functions/sales_target.js` (7 tests).
+> `managersOnly` narrows the branch side only — an admin decides submissions,
+> so they are a reviewer in both shapes. The **actor is now excluded** from
+> sales notifications (a manager was previously told about their own target
+> change). Inert until `firebase deploy --only functions`.
+>
+> ⚠️ **The admin is still absent from other event classes — by owner decision,
+> not by oversight.** The same audit found: **task lifecycle** events
+> (submitted / approved / rejected / rework / cancelled / reported-incorrect)
+> reach assignees and `task.createdBy` only; **task reminders**
+> (`runTaskReminders`) and **generated shift-task assignment** reach the
+> rostered crew only; a **`branch`-audience broadcast** uses the same
+> branch-query blind spot. **Missed tasks** keep admins as a deliberate
+> fallback (`selectMissedNotifyTargets` — a manager-covered branch must not
+> page an admin, or every miss in the estate lands in one inbox). If the owner
+> later wants admins on task events, that is a one-line addition to
+> `NotifyTaskEvent._recipientsFor` plus the `sendNotification` reachability
+> path — but it is a **noise** decision, not a bug.
+
+> **New Chat is search-first (2026-08-07, presentation only, NOT
+> device-verified):** The teammate picker opened onto the entire org directory
+> (org-wide by ADR-012), so a new conversation began with a scroll past
+> everyone. It now opens on a focused search field and lists people only once
+> something is typed — three distinct empty states (*No teammates yet* ·
+> *Search for a teammate* · *No matches*). The directory read, its flat scope
+> and the start-conversation path are unchanged; this is the view's filter
+> only. Pinned by the rewritten `test/chat_new_conversation_test.dart`.
+
 > 🚦 **V1 RELEASE GATE — [docs/RELEASE_V1.md](docs/RELEASE_V1.md).** The full
 > release runbook, audited against code *and* live production on 2026-08-05.
 > Read it before planning any release work; it is the authority on what blocks
@@ -66,6 +210,46 @@
 > config-diff audit fully supports it. The ADR-011 execution record is **written
 > daily and read by no screen**.
 >
+> **Edit-approved-amount reason is now optional (2026-08-07, feature, ⚠️ NEEDS
+> FUNCTIONS DEPLOY):** On the sales submission detail's *Edit approved amount*
+> sheet the reason is no longer required — owner call. Changed in both halves:
+> the shared `showSalesTargetEditorSheet` gained `reasonRequired` (default true,
+> so **Set/Edit target is unchanged**; edit-approved passes false) and
+> `editApprovedDailySalesSubmission` now uses `salesReason(reason, false)` with the
+> audit row storing `reason: null` when blank. Reject/correction/reopen/target
+> reasons stay mandatory. ⚠️ **Inert until
+> `firebase deploy --only functions:editApprovedDailySalesSubmission`** — the live
+> callable still rejects a blank reason, so a blank save errors on device until
+> deployed. Weakens the audit trail for a monetary edit (noted in SALES_TARGETS).
+
+> **Branch sales manager dashboard re-enriched (2026-08-07, presentation + two
+> pure domain helpers, owner-directed, NOT device-verified):** The manager
+> branch-sales dashboard (`/sales`) was redesigned from a mockup signed off
+> before any Dart. The month card now leads with **achieved · a monochrome
+> progress ring · remaining**, then the target; the four Pending/Approved/
+> Rejected/History `MetricTile`s — which all opened the **same** history screen
+> with a different `?status=` — collapsed to **one** *All submissions* door with
+> an inline count breakdown; and the previously-deleted pace strip returned as a
+> single **Pace** card pairing a forecast-based target-outlook **verdict** with a
+> **last-7-days approved-takings chart**. New pure, unit-tested
+> `salesTargetOutlook` (in `sales_calculator.dart`) and `computeSalesTrend`
+> (`sales_trend.dart`); both average over **approved days**, not elapsed calendar
+> days, and the outlook reads off the forecast so a lagging approval can't fake
+> "behind". New widgets `SalesProgressRing` · `SalesMonthOverview` ·
+> `SalesPaceCard` · `SalesSubmissionsDoor`; `SalesMoneyRow` and every other sales
+> surface are untouched, so the re-enrichment is this screen only. **Zero new
+> reads** (derived from the snapshot already streamed), **strictly monochrome**
+> (ADR-004 — ring/bars white/grey, colour status-only), no schema/rules/server
+> change. Pinned by `sales_trend_test.dart`, new `salesTargetOutlook` cases in
+> `sales_calculator_test.dart`, and `sales_dashboard_widgets_test.dart` (a 375pt
+> overflow guard). Design doc [SALES_TARGETS](docs/design/SALES_TARGETS.md)
+> updated. **Verified running on macOS desktop and iOS** (the dashboard renders
+> end to end); GPS/hardware-specific QA still pending. A brand-accent (indigo)
+> experiment was tried and **reverted**; what stuck is a **status tint**
+> (`salesOutlookTint`): ACHIEVED, the ring and the today bar go **green ahead /
+> amber behind / white too-early** — colour as status (ADR-004 holds, no brand
+> accent). Not device-verified in its tinted state on iOS/Android hardware.
+
 > **iOS swipe-back added; every back button kept (2026-08-05, NOT
 > device-verified):** A pushed screen on iOS now carries the native interactive
 > left-edge swipe **in addition to** its app-bar back button — both, always, as
@@ -130,6 +314,93 @@
 > priority, checklist, assignment, timing notes and the Missed policy move under
 > collapsed **More details**. Pause/resume, confirmed delete and last-task
 > navigation keep their existing behavior and data paths.
+
+> **Manager open-shift clock + honest managersCanClock toggle + branch settings
+> redesign (2026-08-06, feature/bug/polish, NOT device-verified):** Three owner
+> asks about manager attendance and branch settings.
+> - **Managers now have a real open shift.** A manager's clock is presence
+>   tracking (`enforceSchedule: false`), but the **primary** Clock In fell
+>   through silently for a shift-less manager (`_resolveContext` set no
+>   `targetRecordId`/`shift`), so their only route was the buried "unscheduled
+>   shift" button behind a "No shift today" message. `_resolveContext` now
+>   synthesizes a presence-only target (time-of-day bucket, no scheduled window)
+>   for a presence role with no rostered slot, and drops the window even when a
+>   manager *is* rostered. The screen reframes to an **OPEN SHIFT / Manager
+>   shift** ready state with Clock In as the primary action.
+> - **"Managers can clock in / out" now actually does something.** The screen
+>   never read `config.enabled`, so the branch toggle changed nothing on device.
+>   New `disabled` phase: a switched-off branch shows an explanatory *"Clocking is
+>   off for managers here"* card + a Review-branch-attendance door. A live session
+>   always wins the phase check, so flipping the flag can't trap someone mid-shift.
+> - **Branch settings sheet redesigned** into grouped, labelled sections with a
+>   grab handle and per-row glyphs. The two rules the owner flagged now read in
+>   plain language: **Same role only** and **Minimum rest** (both with concrete
+>   examples). No behaviour/data change — same `createBranch`/`editBranch`.
+> - Managers gain a **My Clock** desktop sidebar door; the self-hosted Phosphor
+>   subset gained the `clock` glyph (0xe19a — TTFs are full fonts, no re-subset).
+> Pinned by 4 new `attendance_cubit_test` cases +
+> `test/attendance_open_shift_screen_test.dart` (open-shift ready vs. disabled).
+> **Branch-attendance oversight for managers was already shipped** (Manager Home →
+> *Branch attendance* → the live Late/Early/Absent board, branch-pinned) and is
+> unchanged.
+>
+> **Opening a chat clears its delivered OS notifications (2026-08-06,
+> feature/bug, NOT device-verified):** 5 messages from one conversation arrive
+> while backgrounded/closed; opening it left all 5 in iOS Notification Center.
+> Root cause: nothing cleared delivered notifications, and `firebase_messaging`
+> can't. The backend already stamped `apns.thread-id`/`android.collapseKey` with
+> the conversation id, so this was a missing client step. New native channel
+> `drop/notifications` (the app's first): iOS `UNUserNotificationCenter` removes
+> by `threadIdentifier`, Android `NotificationManager` cancels by `tag`; `clearAll`
+> on sign-out. Backend now also sets `android.notification.tag = conversationId`
+> (⚠️ **Android clearing is inert until drop-api is redeployed**; iOS needs no
+> backend change). Wired into the existing read-state seam — the
+> `createChatConversationCubit` `onReadSync` closure clears the thread's
+> notifications when the server confirms mark-read; other conversations keep
+> theirs. New `core/services/delivered_notifications.dart` (swallows
+> `MissingPluginException` → desktop/test no-op). Note: shared Android `tag`
+> collapses a conversation to one notification. Pinned by
+> `test/delivered_notifications_test.dart` + updated backend
+> `chat-push.subscriber.spec`. ⚠️ **NOT device-verified** — needs a real
+> background→open→read cycle on iOS + Android hardware, and the drop-api redeploy
+> for Android.
+
+> **Chat reconnects on app resume — inbox no longer goes silent (2026-08-06,
+> bug, NOT device-verified):** Investigating the reported "messages don't arrive
+> live / a message disappears." Root cause of the **not-live** half: the app had
+> **no global app-lifecycle observer** (the only one was the open-thread screen).
+> The shared inbox socket is an app-wide singleton; the OS suspends its transport
+> in the background, and **when no thread is open nothing reconnected it on
+> resume** — it stayed dead until a manual refresh. New `ChatRealtime.onAppResumed()`
+> (port + `ChatSocketService`, with `_ensureConnected(forceReconnect:)`) force-
+> reconnects a stale/dead socket on resume (leaving a healthy one untouched);
+> `ChatListCubit.onAppResumed()` forwards it; `ChatNotificationListener` (the one
+> global chat host) now observes lifecycle and calls it on resume. A reconnect
+> re-joins rooms and fires `ChatRealtimeConnected(isReconnect)`, which already
+> refreshes the inbox and reconciles any open thread. **The "disappear" half:**
+> text sends are durable (Drift outbox written *before* dispatch, dedupe-retried),
+> so they reappear on reopen/refresh — the visible vanish is the same not-live
+> staleness. ⚠️ **Attachment (photo) bytes are still never persisted** — a photo
+> caught mid-send by a crash is lost (noted, unchanged). Pinned by
+> `test/chat_list_realtime_test.dart`. Needs a real background/resume cycle on
+> hardware to confirm.
+
+> **New/renamed teammates resolve without an app restart (2026-08-06, bug,
+> NOT device-verified):** A just-provisioned employee showed as **"Teammate"**
+> in chat and **"Someone"** on a task assigned to them until the app was
+> relaunched. Two in-memory people-directory caches lived the whole session:
+> the chat directory (`AppDependencies._chatDirectory`, cached to sign-out) and
+> the task directory (`TaskCubit._directory`, memoized per branch). The chat one
+> now has a **5-minute TTL** + `forceRefresh`; the task one gains
+> `refreshDirectory()` (drops the `_fetchedBranches` memo, re-enriches from the
+> open task set). **Both are invalidated immediately** on any admin user-set
+> change via new `AppDependencies.invalidatePeopleDirectories()`, wired through
+> a new optional `AdminUsersCubit(onUsersChanged:)` fired after `createAccount`
+> and every `_mutate`. Chat is stale-while-revalidate (kept warm, no "Teammate"
+> flash) and proactively force-refreshed for the caller. Pinned by
+> `test/admin_users_directory_invalidation_test.dart`. ⚠️ **Realtime
+> "message disappears / not live" and the notification/APNs work from the same
+> report are NOT addressed here** — only the directory-staleness half.
 
 > **Task Details attributes and schedules honestly (2026-08-06, presentation +
 > one new pure domain file, NOT device-verified):** A generated shift task now
@@ -217,6 +488,50 @@
 > share one row. Pinned by `test/features/settings/` and the extended
 > `test/settings_page_test.dart`.
 
+> **Profile screen rebuilt (2026-08-07, presentation only, NOT device-verified):**
+> The account's own page was a 64px avatar, a flat list of label→value rows and
+> three action tiles; it now reads as the sibling of the Settings hub. New
+> compact identity lockup (cover + overlapping avatar + name + `[ROLE] @handle`
+> + bio + one CTA), facts grouped into **Workplace · Contact · Account**, and
+> rows that act: **tapping a self-service detail opens Edit Profile** (set or
+> not) while **copy is its own 44pt button**, so reading a value out and
+> correcting it no longer compete for one gesture.
+> - **Two fields that existed but were never shown now are:** `coverImage` (was
+>   uploadable from Edit Profile and visible nowhere) and `bio` (editable, never
+>   rendered).
+> - ✅ **The username had no input anywhere in the app**, while
+>   `ProfileEntity.isComplete` requires it — so **every account was permanently
+>   "incomplete"** and the prompt could never be satisfied, even though the
+>   datasource, repository, `CheckUsername` and the cubit's taken-handle
+>   rejection were all wired. Edit Profile now has the field
+>   (`Validators.username`: 3–20 chars, letters · digits · `.` · `_`, starts
+>   with a letter, stored lowercase). The prompt also names what is *actually*
+>   missing rather than always asking for both.
+> - ✅ **Settings is the account hub; Profile is a leaf of it** (owner ruling,
+>   same day). Profile had a **Settings** row while Settings' identity card
+>   opens Profile — a closed loop — and both carried their own **Sign out**, so
+>   the app's one destructive action lived on two screens. Profile now carries
+>   neither, and the **desktop sidebar footer opens Settings** instead of
+>   Profile, so both platforms have one door in. Do not re-add a navigation row
+>   to Profile; add it to Settings.
+> - **Profile never states `paymentNumber`** (owner ruling, same day) — for any
+>   role. It is set and changed in **Edit Profile** only; the schema and the
+>   private compensation subdoc are unchanged.
+> - **`settings_tiles.dart` moved to
+>   [core/widgets/](lib/core/widgets/settings_tiles.dart)** — Profile shares the
+>   grouped-row vocabulary and a feature must not import another feature's
+>   widget. Classes/behaviour unchanged; the two Settings screens changed one
+>   import each.
+> - An admin is offered no *add* door onto a form field they do not get. A
+>   **global admin has no `branchId`**, so the branch row states *All branches ·
+>   organisation-wide* rather than sitting empty.
+> - Also: pull-to-refresh (`forceRefresh`), the shared `AppErrorState` replacing
+>   a bespoke failure surface, a skeleton matching the new shape, and
+>   `ProfileEntity.initials` replacing the duplicated private helper.
+> Pinned by `test/features/profile/profile_page_test.dart` (9, including one
+> that fails if Profile grows a second hub or a second Sign out) +
+> `test/features/profile/edit_profile_username_test.dart` (3).
+
 > **Task review notifications now find a live reviewer (2026-08-07, client-only,
 > NOT device-verified):** `taskSubmitted` routed to `task.createdBy` and stopped,
 > which is **silence** — a task left in `waitingReview` with nobody told and no
@@ -250,17 +565,16 @@
 > ceiling), and the cursor advances off the last item **fetched**, not the last
 > **committed**.
 
-> 🚨 **PRODUCTION IS AHEAD OF THE TRUNK — A DEPLOY FROM `release/v1-preparation`
-> WOULD ROLL IT BACK (2026-08-07).** The 03:12 UTC functions deploy was run from
-> the `claude/single-active-session-aedee1` worktree. The source is safely
-> committed (`0085e81`) and pushed to `origin`, and the committed tree matches
-> what was deployed byte-for-byte — but the branch is **not merged**.
-> `release/v1-preparation` still carries the **old branch-only reachability
-> check**, so the next `firebase deploy --only functions` from trunk silently
-> reinstates the outage where no employee or manager can notify an admin.
-> **Merge the branch before any further functions deploy.** This is the inverse
-> of the 2026-07-31 incident (deployed source lagging the repo) and is the more
-> dangerous direction, because nothing about it looks broken.
+> ✅ **Trunk now matches production (2026-08-07).** The 03:12 UTC functions
+> deploy was run from the `claude/single-active-session-aedee1` worktree, which
+> briefly left `release/v1-preparation` carrying the **old branch-only
+> reachability check** — so a deploy from trunk would have silently reinstated
+> the outage where no employee or manager can notify an admin. The branch is
+> **merged**, so trunk is safe to deploy functions from again.
+> Worth keeping as a standing hazard: deploying from a worktree puts production
+> ahead of trunk, which is the inverse of the 2026-07-31 incident (deployed
+> source lagging the repo) and the more dangerous direction, because nothing
+> about it looks broken.
 
 > ✅ **Notification audit — a silent delivery outage, FIXED AND DEPLOYED
 > (2026-08-06, deployed 2026-08-07 03:12 UTC):** `sendNotification`'s reachability check was a
@@ -706,7 +1020,8 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1842 pass · 0 fail** (~44s) — re-run **2026-08-07** (+4: the clear-chat history drain; +6: the single-active-session stale-snapshot fix; +18 single active session, +17 the notification audit, +56 the reviewer ladder and the paged-sweep coverage; previous 1741). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1884 pass · 0 fail** (~41s) — re-run **2026-08-07**, after `claude/single-active-session-aedee1` and `claude/cursor-chat-visibility-notifications-003328` were both cherry-picked onto `release/v1-preparation` (+27 over the 1857 pre-merge: the session stale-snapshot fix, the clear-chat history drain, and the search-first chat picker). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **143 pass** (`cd functions && node --test`) — re-run **2026-08-07** (+7 sales recipients over 136; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) + `tsc --noEmit` clean — separate repo, re-run 2026-08-06 |
+| **Tests** | **1744 pass · 0 fail** (~42s) — re-run **2026-08-07** (+3 net: the search-first chat picker replaced one always-listed assertion with four). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **143 pass** (`cd functions && node --test`, re-run 2026-08-07 — the recorded 112 was stale; measured baseline 127); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
@@ -791,7 +1106,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | --- | --- |
 | **Auth** | Admin-provisioned email/password. No registration/Google/OTP/approval. First-login gate: force password change → profile completion → (employees) Welcome → role home. **Single active session** — a newer sign-in evicts every other device (client-enforced; not device-verified) |
 | **Roles & routing** | 59 routes, role-guarded. admin ⊇ manager |
-| **Profile** | View/edit, avatar/cover upload, contact + payment (payment in a private subdoc; hidden for admin) |
+| **Profile** | View/edit, avatar/cover upload, contact details. `paymentNumber` is **edit-only** (a private subdoc; the read-only profile never states it, and Edit Profile hides it from an admin) |
 | **Tasks** | Full workflow: create → execute (checklist · notes · proof) → review. Multi-assignee, recurrence, activity timeline, templates, shift assignment, work-type framework, Scheduling V2 (start/due windows + quick deadline presets). Upcoming tasks are visible immediately but `Start Task` / `Start Rework` stays disabled until `startsAt` (client gate + Firestore rules; no rework exception). Generated recurring shift tasks now persist their resolved weekly window and unfinished `pending`/`started` instances automatically close as server-owned **Missed** at shift end; the status is closed, visible, and excluded from active/overdue queues. **Automation business-day fix** (2026-07-30, uncommitted): recurring-shift generation keys and windows now use the Egypt business civil day, the generator is pinned to 01:00 Africa/Cairo, the client refuses to materialize a shift instance after its deadline, and per-task recurrence rolls successors forward until their deadline is future. **Requires a functions deploy for the server path.** **Cancelled** (2026-07-28, uncommitted) is the third terminal outcome — a manager/admin business decision taken from `pending`/`started` only, carrying a mandatory picklist reason, excluded from every count. The recurring-shift Automation Center is productionized: skeleton loading, premium header, slim tap-through cards, and a safe-area per-routine details sheet with a pinned Close action, compact schedule/outcome summary, collapsed technical details, last-task navigation, pause/resume and confirmed delete. |
 | **Schedule** | Weekly roster, shift swaps, leave, day notes, configurable shift hours, shift templates, Final View + PNG export |
 | **Branches** | CRUD, soft delete, swap policy, GPS geofences |

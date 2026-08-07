@@ -98,3 +98,35 @@ SalesDayPace salesDayPace({
       ? SalesDayPace.close
       : SalesDayPace.behind;
 }
+
+/// Where the **month** is headed against target — the "are we going to make it?"
+/// verdict the pace card leads with.
+///
+/// Deliberately read off the forecast ([monthEndForecastPiastres]), never a
+/// naive achieved-to-date vs. elapsed-days comparison: approvals lag by a day
+/// or more, so the latter reads "behind" every single day even for a branch
+/// comfortably on pace. The forecast counts recorded days at their real value
+/// and projects only unrecorded days at the branch's average approved day.
+enum SalesTargetOutlook {
+  /// Projected to finish at or above target. Green — the only "good" state.
+  ahead,
+
+  /// Projected to finish short of target. Amber — a nudge, not a failure.
+  behind,
+
+  /// No approved day yet, so any projection would be invented. Neutral.
+  tooEarly,
+}
+
+SalesTargetOutlook salesTargetOutlook({
+  required int expectedMonthEndPiastres,
+  required int targetPiastres,
+  required int approvedDayCount,
+}) {
+  if (targetPiastres <= 0 || approvedDayCount <= 0) {
+    return SalesTargetOutlook.tooEarly;
+  }
+  return expectedMonthEndPiastres >= targetPiastres
+      ? SalesTargetOutlook.ahead
+      : SalesTargetOutlook.behind;
+}

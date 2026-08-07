@@ -141,17 +141,26 @@ class _FakeScheduleRepository implements ScheduleRepository {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
-/// Branch repository fake — returns branch `b1` with (optionally) a geofence.
+/// Branch repository fake — returns branch `b1` with (optionally) a geofence
+/// and the manager clock-in policy under test.
 class _FakeBranchRepository implements BranchRepository {
   final BranchGeofence? geofence;
-  _FakeBranchRepository(this.geofence);
+  final bool managersCanClock;
+  _FakeBranchRepository(this.geofence, {this.managersCanClock = true});
 
   @override
   Future<List<BranchEntity>> getBranches({
     bool includeDeleted = false,
     bool forceRefresh = false,
   }) async =>
-      [BranchEntity(id: 'b1', name: 'Branch 1', geofence: geofence)];
+      [
+        BranchEntity(
+          id: 'b1',
+          name: 'Branch 1',
+          geofence: geofence,
+          managersCanClock: managersCanClock,
+        )
+      ];
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
@@ -196,6 +205,19 @@ void main() {
     isActive: true,
   );
 
+  // The same person as a manager — presence-only attendance (an open shift).
+  // Shares uid `u1` so the roster fixtures apply when a manager happens to be
+  // rostered.
+  final manager = UserEntity(
+    uid: 'u1',
+    email: 'u@x.com',
+    authProvider: 'password',
+    displayName: 'Ziad',
+    role: UserRole.manager,
+    branchId: 'b1',
+    isActive: true,
+  );
+
   // A fixed "now": Monday 2026-07-13, 09:00 (inside a morning shift window).
   final now = DateTime(2026, 7, 13, 9);
 
@@ -218,13 +240,15 @@ void main() {
     bool noSchedule = false,
     BranchGeofence? geofence = _geofence,
     LocationResult? location,
+    bool managersCanClock = true,
   }) {
     repo = _FakeAttendanceRepository();
     return AttendanceCubit(
       repository: repo,
       scheduleRepository:
           _FakeScheduleRepository(noSchedule ? null : rosterAllMornings()),
-      branchRepository: _FakeBranchRepository(geofence),
+      branchRepository:
+          _FakeBranchRepository(geofence, managersCanClock: managersCanClock),
       service: const AttendanceService(),
       locationService:
           _FakeLocationService(location ?? _fixNear(20)), // ~20 m: at the branch
@@ -352,6 +376,77 @@ void main() {
     await cubit.clockIn();
     expect(repo.clockedIn, isEmpty);
     await cubit.close();
+  });
+
+  group('manager open shift (presence-only)', () {
+    test('a manager with no roster still gets an open-shift clock target',
+        () async {
+      final cubit = build(noSchedule: true);
+      await cubit.load(manager);
+      repo.pushHistory([]);
+      await pump();
+
+      final s = cubit.state.mapOrNull(loaded: (x) => x);
+      expect(s, isNotNull);
+      // Presence-style: no schedule enforcement, and a target exists so the
+      // *primary* Clock In can act (the bug was clockIn falling through with a
+      // null target for a shift-less manager).
+      expect(s!.config.enforceSchedule, isFalse);
+      expect(s.shift, isNotNull);
+      expect(s.scheduledStart, isNull);
+      expect(s.scheduledEnd, isNull);
+      expect(cubit.clockInCheck.allowed, isTrue);
+      await cubit.close();
+    });
+
+    test('the primary Clock In writes a presence record for a shift-less manager',
+        () async {
+      final cubit = build(noSchedule: true);
+      await cubit.load(manager);
+      repo.pushHistory([]);
+      await pump();
+
+      await cubit.clockIn(); // the *primary* action, no reason required
+      expect(repo.clockedIn, hasLength(1));
+      final rec = repo.clockedIn.single;
+      expect(rec.presenceOnly, isTrue);
+      expect(rec.scheduledStart, isNull);
+      expect(rec.scheduledEnd, isNull);
+      expect(rec.clockInVerification, isNotNull); // GPS still applies
+      await cubit.close();
+    });
+
+    test('a rostered manager still clocks presence-only — no scheduled window',
+        () async {
+      final cubit = build(); // manager u1 is on the roster (all mornings)
+      await cubit.load(manager);
+      repo.pushHistory([]);
+      await pump();
+
+      final s = cubit.state.mapOrNull(loaded: (x) => x);
+      expect(s!.shift, ScheduleShift.morning); // the rostered bucket
+      expect(s.scheduledStart, isNull); // but the window is dropped
+      expect(s.scheduledEnd, isNull);
+
+      await cubit.clockIn();
+      expect(repo.clockedIn.single.scheduledStart, isNull);
+      await cubit.close();
+    });
+
+    test('clock-in is blocked when the branch has manager clock-in switched off',
+        () async {
+      final cubit = build(noSchedule: true, managersCanClock: false);
+      await cubit.load(manager);
+      repo.pushHistory([]);
+      await pump();
+
+      final s = cubit.state.mapOrNull(loaded: (x) => x);
+      expect(s!.config.enabled, isFalse);
+      expect(cubit.clockInCheck.allowed, isFalse);
+      await cubit.clockIn();
+      expect(repo.clockedIn, isEmpty);
+      await cubit.close();
+    });
   });
 
   group('unscheduled shift (ADR-018)', () {

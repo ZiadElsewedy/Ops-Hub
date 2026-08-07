@@ -24,7 +24,7 @@ users/{uid}                              identity + profile + role/branch (admin
 branches/{branchId}                      branch record (+ swapPolicy, + geofence, + salesTargetEnabled)
 
 branch_sales_months/{branchId}_{yyyyMM}  per-branch monthly sales target (Cairo month) — callable/Admin-SDK writes ONLY. See SALES_TARGETS.md
-branch_sales_submissions/{branchId}_{yyyyMMdd}  one daily sales close; client-created `pending`, server-decided; approved total re-summed on read (no stored accumulation)
+branch_sales_submissions/{branchId}_{yyyyMMdd}  one daily sales close; client-created `pending` OR manager/admin `recordApprovedDailySales` direct `approved` (Admin SDK, `recordedDirectly:true`), server-decided; approved total re-summed on read (no stored accumulation)
 
 tasks/{taskId}                           embedded checklist · activityLog · attachments
 task_templates/{id}                      reusable blueprint (branchId '' = global)

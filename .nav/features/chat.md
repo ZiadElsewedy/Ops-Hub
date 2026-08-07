@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `chat`
 
-> `lib/features/chat/` · **58 files** · layer-complete clean-architecture slice
+> `lib/features/chat/` · **59 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -38,6 +38,7 @@
 - `lib/features/chat/presentation/widgets/chat_message_actions.dart`
 - `lib/features/chat/presentation/widgets/chat_message_list.dart`
 - `lib/features/chat/presentation/widgets/chat_notification_listener.dart`
+- `lib/features/chat/presentation/widgets/chat_unread_launch_hint.dart`
 - `lib/features/chat/presentation/widgets/recent_messages_card.dart`
 
 **presentation:other**
@@ -105,6 +106,7 @@
 - `test/chat_conversation_presence_test.dart`
 - `test/chat_conversation_tile_test.dart`
 - `test/chat_conversation_view_test.dart`
+- `test/chat_deep_link_navigation_test.dart`
 - `test/chat_document_bubble_test.dart`
 - `test/chat_image_attachment_layout_test.dart`
 - `test/chat_list_realtime_test.dart`
@@ -116,6 +118,8 @@
 - `test/chat_realtime_sync_test.dart`
 - `test/chat_screen_test.dart`
 - `test/chat_served_preview_test.dart`
+- `test/chat_thread_args_test.dart`
+- `test/chat_unread_launch_hint_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)
 ```

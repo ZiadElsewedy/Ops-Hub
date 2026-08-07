@@ -5,10 +5,12 @@ import 'package:drop/features/branch/domain/repositories/branch_repository.dart'
 import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
 import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
 import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
 import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
 import 'package:drop/features/sales/domain/sales_business_time.dart';
 import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/edit_approved_sales_submission.dart';
+import 'package:drop/features/sales/domain/usecases/record_daily_sales.dart';
 import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/request_sales_correction.dart';
 import 'package:drop/features/sales/domain/usecases/set_branch_monthly_target.dart';
@@ -40,6 +42,7 @@ class SalesManagerDashboardLoaded extends SalesManagerDashboardState {
     this.branchName,
     this.busyId,
     this.message,
+    this.justRecorded,
   });
   final SalesMonthSnapshot snapshot;
 
@@ -56,7 +59,16 @@ class SalesManagerDashboardLoaded extends SalesManagerDashboardState {
   final String? branchName;
   final String? busyId;
   final String? message;
+
+  /// Set for exactly one emission after a manager/admin records a day directly,
+  /// so the screen can play the "+amount added" confirmation once. It rides a
+  /// separate channel from [message] so the celebration is not also a snackbar.
+  final SalesRecordResult? justRecorded;
   bool isBusy(String id) => busyId == id;
+
+  /// True while a direct record is being written — the "Add record" control
+  /// shows its own progress and every sibling control disables.
+  bool get isRecording => busyId == 'record';
 
   /// True while any action is running: sibling controls disable so a second
   /// decision cannot race the first.
@@ -72,6 +84,7 @@ class SalesManagerDashboardCubit extends Cubit<SalesManagerDashboardState> {
     required this._requestCorrection,
     required this._editApproved,
     required this._setTarget,
+    required this._record,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now,
        super(const SalesManagerDashboardLoading());
@@ -83,6 +96,7 @@ class SalesManagerDashboardCubit extends Cubit<SalesManagerDashboardState> {
   final RequestSalesCorrection _requestCorrection;
   final EditApprovedSalesSubmission _editApproved;
   final SetBranchMonthlyTarget _setTarget;
+  final RecordDailySales _record;
   final DateTime Function() _now;
 
   StreamSubscription<BranchSalesMonthEntity?>? _monthSub;
@@ -166,7 +180,7 @@ class SalesManagerDashboardCubit extends Cubit<SalesManagerDashboardState> {
     }, onError: _onError);
   }
 
-  void _emit([String? message]) => emit(
+  void _emit([String? message, SalesRecordResult? justRecorded]) => emit(
     SalesManagerDashboardLoaded(
       snapshot: SalesMonthSnapshot(target: _target, submissions: _submissions),
       monthKey: _monthKey ?? businessMonthKey(_now()),
@@ -174,6 +188,7 @@ class SalesManagerDashboardCubit extends Cubit<SalesManagerDashboardState> {
       branchName: _branchName,
       busyId: _busyId,
       message: message,
+      justRecorded: justRecorded,
     ),
   );
 
@@ -253,6 +268,41 @@ class SalesManagerDashboardCubit extends Cubit<SalesManagerDashboardState> {
       ),
       creating ? 'Monthly target set.' : 'Monthly target updated.',
     );
+  }
+
+  /// Record a day's sales directly (manager/admin). On success the record lands
+  /// already approved; the result rides [SalesManagerDashboardLoaded.justRecorded]
+  /// so the screen plays the "+amount added" confirmation exactly once. A null
+  /// [businessDateKey] means today (the server resolves the Cairo day).
+  Future<void> recordSales({
+    required int amountPiastres,
+    String? businessDateKey,
+    String? reason,
+  }) async {
+    if (_busyId != null) return;
+    final branchId = _branchId;
+    if (branchId == null || branchId.isEmpty) {
+      _emit('No branch is assigned to your account.');
+      return;
+    }
+    _busyId = 'record';
+    _emit();
+    try {
+      final result = await _record(
+        branchId: branchId,
+        amountPiastres: amountPiastres,
+        businessDateKey: businessDateKey,
+        reason: reason,
+      );
+      _busyId = null;
+      _emit(null, result);
+    } on Failure catch (e) {
+      _busyId = null;
+      _emit(e.message);
+    } catch (_) {
+      _busyId = null;
+      _emit('Couldn’t record sales right now. Please try again.');
+    }
   }
 
   Future<void> _cancelSubscriptions() async {

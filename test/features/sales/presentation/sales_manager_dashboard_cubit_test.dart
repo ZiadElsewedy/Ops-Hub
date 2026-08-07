@@ -6,9 +6,11 @@ import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
 import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
 import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
 import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
 import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/edit_approved_sales_submission.dart';
+import 'package:drop/features/sales/domain/usecases/record_daily_sales.dart';
 import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
 import 'package:drop/features/sales/domain/usecases/request_sales_correction.dart';
 import 'package:drop/features/sales/domain/usecases/set_branch_monthly_target.dart';
@@ -54,6 +56,27 @@ class _FakeSalesRepo implements SalesRepository {
     required int expectedRevision,
   }) async => calls.add('edit:$submissionId');
 
+  SalesRecordResult recordResult = const SalesRecordResult(
+    amountPiastres: 5900000,
+    achievedPiastres: 35900000,
+    targetPiastres: 100000000,
+    crossedTarget: false,
+  );
+  Object? recordError;
+
+  @override
+  Future<SalesRecordResult> recordDailySales({
+    required String branchId,
+    required int amountPiastres,
+    String? businessDateKey,
+    String? reason,
+  }) async {
+    calls.add('record:$amountPiastres:${businessDateKey ?? 'today'}');
+    if (hold != null) await hold!.future;
+    if (recordError != null) throw recordError!;
+    return recordResult;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -97,6 +120,7 @@ SalesManagerDashboardCubit _build(
   requestCorrection: RequestSalesCorrection(repo),
   editApproved: EditApprovedSalesSubmission(repo),
   setTarget: SetBranchMonthlyTarget(repo),
+  record: RecordDailySales(repo),
   now: () => DateTime.utc(2026, 8, 15),
 );
 
@@ -140,6 +164,46 @@ void main() {
     final first = cubit.approve('d1'); // still in flight (awaiting hold)
     await cubit.reject('other', 'nope'); // blocked by the busy guard
     expect(repo.calls, ['approve:d1']); // the reject never reached the use case
+
+    repo.hold!.complete();
+    await first;
+    await cubit.close();
+  });
+
+  test('recordSales delegates and surfaces the result once via justRecorded', () async {
+    final repo = _FakeSalesRepo();
+    final cubit = _build(repo);
+    await cubit.loadForBranch(branchId: 'b1');
+    repo.month.add(_target);
+    repo.subs.add(const []);
+    await Future<void>.delayed(Duration.zero);
+
+    await cubit.recordSales(amountPiastres: 5900000, businessDateKey: null);
+    expect(repo.calls, ['record:5900000:today']);
+    final loaded = cubit.state as SalesManagerDashboardLoaded;
+    expect(loaded.justRecorded, isNotNull);
+    expect(loaded.justRecorded!.amountPiastres, 5900000);
+    expect(loaded.busyId, isNull); // busy cleared after success
+
+    // A later ordinary emission must NOT keep replaying the celebration.
+    repo.subs.add([_sub('1', SalesSubmissionStatus.approved, 5900000)]);
+    await Future<void>.delayed(Duration.zero);
+    expect((cubit.state as SalesManagerDashboardLoaded).justRecorded, isNull);
+    await cubit.close();
+  });
+
+  test('recordSales is blocked while another action is in flight', () async {
+    final repo = _FakeSalesRepo();
+    final cubit = _build(repo);
+    await cubit.loadForBranch(branchId: 'b1');
+    repo.month.add(_target);
+    repo.subs.add([_sub('1', SalesSubmissionStatus.pending, 50000)]);
+    await Future<void>.delayed(Duration.zero);
+
+    repo.hold = Completer<void>();
+    final first = cubit.approve('d1'); // in flight
+    await cubit.recordSales(amountPiastres: 100); // blocked by the busy guard
+    expect(repo.calls, ['approve:d1']);
 
     repo.hold!.complete();
     await first;

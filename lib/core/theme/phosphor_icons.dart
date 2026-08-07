@@ -40,6 +40,7 @@ class PhosphorIconsRegular {
   static const identificationBadge = IconData(0xe6f6, fontFamily: _family);
   static const usersThree = IconData(0xe68e, fontFamily: _family);
   static const house = IconData(0xe2c2, fontFamily: _family);
+  static const clock = IconData(0xe19a, fontFamily: _family);
 }
 
 class PhosphorIconsFill {
@@ -62,4 +63,5 @@ class PhosphorIconsFill {
   static const identificationBadge = IconData(0xe6f6, fontFamily: _family);
   static const usersThree = IconData(0xe68e, fontFamily: _family);
   static const house = IconData(0xe2c2, fontFamily: _family);
+  static const clock = IconData(0xe19a, fontFamily: _family);
 }

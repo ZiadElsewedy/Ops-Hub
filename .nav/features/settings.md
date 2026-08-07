@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `settings`
 
-> `lib/features/settings/` · **3 files** · presentation-only account slice
+> `lib/features/settings/` · **4 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -10,11 +10,13 @@
 | `RouteNames.settings` | `/settings` |  |
 | `RouteNames.about` | `/settings/about` |  |
 | `RouteNames.changePassword` | `/settings/change-password` |  |
+| `RouteNames.notificationSettings` | `/settings/notifications` |  |
 
 ## Owner files (by layer)
 **presentation:page**
 - `lib/features/settings/presentation/pages/about_page.dart`
 - `lib/features/settings/presentation/pages/change_password_page.dart`
+- `lib/features/settings/presentation/pages/notifications_settings_screen.dart`
 - `lib/features/settings/presentation/pages/settings_page.dart`
 
 ## Backend surface
@@ -24,13 +26,18 @@
 - **Design spec(s):** —
 
 ## Tests
-_None matched by name — verify before assuming uncovered._
+- `test/features/settings/notifications_settings_screen_test.dart`
+- `test/settings_page_test.dart`
 
-## Standard data flow
+## Standard data flow (this feature follows the universal pattern)
 ```
-AuthCubit state → SettingsPage identity
-Settings actions → GoRouter destinations
-Sign out → AuthCubit.signOut()
+UI (page/widget)
+  → Cubit.method()            presentation/cubit/
+    → UseCase.call()          domain/usecases/
+      → Repository (contract) domain/repositories/
+        → RepositoryImpl      data/repositories/
+          → RemoteDatasource  data/datasources/   → Firestore/Functions/API
+  ← Model.fromJson → Entity ← Stream/Future ← Cubit emits state → UI rebuilds
 ```
 
 <!-- ═══════════════ HAND-AUTHORED INTELLIGENCE (edit freely) ═══════════════ -->

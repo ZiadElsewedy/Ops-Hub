@@ -2,12 +2,13 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `notifications`
 
-> `lib/features/notifications/` · **16 files** · layer-complete clean-architecture slice
+> `lib/features/notifications/` · **18 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
 |---|---|---|
 | `RouteNames.notifications` | `/notifications` |  |
+| `RouteNames.notificationSettings` | `/settings/notifications` |  |
 
 ## Owner files (by layer)
 **presentation:page**
@@ -23,6 +24,7 @@
 
 **presentation:other**
 - `lib/features/notifications/presentation/notification_format.dart`
+- `lib/features/notifications/presentation/notification_navigation.dart`
 
 **domain:entity**
 - `lib/features/notifications/domain/entities/notification_entity.dart`
@@ -44,6 +46,7 @@
 
 **data:datasource**
 - `lib/features/notifications/data/datasources/notification_remote_datasource.dart`
+- `lib/features/notifications/data/datasources/notification_sweep.dart`
 
 **data:model**
 - `lib/features/notifications/data/models/notification_model.dart`
@@ -55,11 +58,17 @@
 - **Design spec(s):** `docs/design/NOTIFICATIONS.md`
 
 ## Tests
+- `test/delivered_notifications_test.dart`
+- `test/features/settings/notification_preferences_test.dart`
+- `test/features/settings/notifications_settings_screen_test.dart`
 - `test/notification_cubit_test.dart`
 - `test/notification_deep_link_test.dart`
 - `test/notification_grouping_test.dart`
 - `test/notification_model_test.dart`
+- `test/notification_sweep_test.dart`
 - `test/notification_tap_flow_probe_test.dart`
+- `test/notification_tap_navigation_test.dart`
+- `test/notification_task_copy_test.dart`
 - `test/reminder_rules_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)

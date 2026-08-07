@@ -79,4 +79,21 @@ class ProfileEntity with _$ProfileEntity {
   bool get isComplete =>
       (fullName?.trim().isNotEmpty ?? false) &&
       (username?.trim().isNotEmpty ?? false);
+
+  /// One or two letters standing in for a missing avatar. Falls back through
+  /// full name → email → `?`, so it is never empty. The single source: the
+  /// profile and edit screens both drew this from a private copy of the same
+  /// function.
+  String get initials {
+    final name = fullName?.trim();
+    if (name != null && name.isNotEmpty) {
+      final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+      if (parts.length >= 2) {
+        return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+      }
+      if (parts.isNotEmpty) return parts.first[0].toUpperCase();
+    }
+    if (email.isNotEmpty) return email[0].toUpperCase();
+    return '?';
+  }
 }

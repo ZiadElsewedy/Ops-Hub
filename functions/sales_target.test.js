@@ -15,6 +15,14 @@ test("back-date window includes today and previous three Cairo days", () => {
   assert.equal(sales.isWithinLastBusinessDays("20260801", 3, now), false);
   assert.equal(sales.isWithinLastBusinessDays("not-a-date", 3, now), false);
 });
+test("a direct record accepts today or any past Cairo day, never the future", () => {
+  const now = new Date("2026-08-05T12:00:00Z");
+  for (const key of ["20260805", "20260804", "20260801", "20260715", "20250101"]) {
+    assert.ok(sales.isRecordableSalesDate(key, now), `${key} should be recordable`);
+  }
+  assert.equal(sales.isRecordableSalesDate("20260806", now), false); // tomorrow
+  assert.equal(sales.isRecordableSalesDate("not-a-date", now), false);
+});
 test("deterministic ids and validators bind branch and period", () => {
   assert.equal(sales.salesSubmissionId("b1", "20260805"), "b1_20260805");
   assert.equal(sales.salesMonthId("b1", "202608"), "b1_202608");
@@ -45,4 +53,53 @@ test("target-achieved crossing fires once, not on later approvals", () => {
   assert.ok(sales.targetAchievedCrossing(900, 1000, 1000));
   assert.equal(sales.targetAchievedCrossing(1000, 1100, 1000), false);
   assert.equal(sales.targetAchievedCrossing(900, 999, 1000), false);
+});
+
+// ─── Recipient policy ────────────────────────────────────────────────────
+// An admin has no `branchId`, so a branch query can never return one. These
+// pin that admins are an ADDITION to every sales recipient set, not the
+// fallback they used to be — which is why the whole feature was silent for
+// them.
+const branchStaff = [
+  { id: "mgr1", role: "manager" },
+  { id: "emp1", role: "employee" },
+  { id: "emp2", role: "employee" },
+];
+const admins = [{ id: "admin1" }, { id: "admin2" }];
+
+test("a branch-wide sales announcement reaches the branch and every admin", () => {
+  const got = sales.selectSalesRecipients({ branchUsers: branchStaff, admins });
+  assert.deepEqual(got.sort(), ["admin1", "admin2", "emp1", "emp2", "mgr1"]);
+});
+test("a review ping narrows the BRANCH to managers but still reaches every admin", () => {
+  const got = sales.selectSalesRecipients({ branchUsers: branchStaff, admins, managersOnly: true });
+  assert.deepEqual(got.sort(), ["admin1", "admin2", "mgr1"]);
+});
+test("admins are reached even when the branch has nobody at all", () => {
+  assert.deepEqual(sales.selectSalesRecipients({ branchUsers: [], admins, managersOnly: true }).sort(), ["admin1", "admin2"]);
+});
+test("a branch with no manager still reaches its admins (the old fallback case)", () => {
+  const got = sales.selectSalesRecipients({ branchUsers: [{ id: "emp1", role: "employee" }], admins, managersOnly: true });
+  assert.deepEqual(got.sort(), ["admin1", "admin2"]);
+});
+test("the actor is never notified of their own sales action", () => {
+  assert.deepEqual(
+    sales.selectSalesRecipients({ branchUsers: branchStaff, admins, excludeUid: "admin1" }).sort(),
+    ["admin2", "emp1", "emp2", "mgr1"],
+  );
+  assert.deepEqual(
+    sales.selectSalesRecipients({ branchUsers: branchStaff, admins, managersOnly: true, excludeUid: "mgr1" }).sort(),
+    ["admin1", "admin2"],
+  );
+});
+test("recipients are de-duplicated and never blank", () => {
+  const got = sales.selectSalesRecipients({
+    branchUsers: [{ id: "mgr1", role: "manager" }, { id: "" }, { id: "  admin1  " }],
+    admins: [{ id: "admin1" }, { id: "admin1" }],
+  });
+  assert.deepEqual(got.sort(), ["admin1", "mgr1"]);
+});
+test("an empty estate is a valid empty recipient set, not an error", () => {
+  assert.deepEqual(sales.selectSalesRecipients(), []);
+  assert.deepEqual(sales.selectSalesRecipients({ branchUsers: null, admins: undefined }), []);
 });

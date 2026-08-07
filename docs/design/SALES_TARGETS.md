@@ -27,8 +27,9 @@ forecast are **derived on read — never stored**.
 | **Target owner** | The **branch**, per accounting **month** — not an employee, not the mutable branch doc |
 | **Submission statuses** | `pending → approved \| rejected \| correctionRequested`. A `correctionRequested` doc, once resubmitted, returns to `pending`. A manager/admin edit of an already-`approved` amount stays `approved` and bumps `revision`. Admin reopen returns any terminal record to `pending` |
 | **Submit** | Any **active branch employee**. **One document per branch business day** — first valid submission wins (deterministic id); a second attempt opens the existing record, never overwrites it |
+| **Record (direct)** | Own-branch **manager** or **admin** may record a day **directly** via the `recordApprovedDailySales` callable. It lands **already `approved`** (the actor is the branch's approver — there is no self-review), for today or **any past** Cairo day (never the future), and counts toward the target immediately. Same deterministic id, so a day that already has any record is refused (`already-exists`) — edit it instead. Requires the month's target to exist. Optional note. This is why a client cannot write it: an `approved` doc is exactly the create the rules forbid, so it goes through the Admin SDK |
 | **Decide** | Own-branch **manager**, or **admin** (global). Approve / reject / request correction |
-| **Correct** | Manager/admin only, server-authoritative, **mandatory reason** — an approved amount can be edited; a terminal record can be reopened |
+| **Correct** | Manager/admin only, server-authoritative. Editing an already-approved amount takes an **optional reason** (owner call, 2026-08-07 — `salesReason(reason, false)`); reopening a terminal record keeps a **mandatory reason**. Reject / request-correction reasons stay mandatory (see Decide). ⚠️ Making the edit reason optional weakens the audit trail for a monetary change — the audit row now stores `reason: null` when none is given |
 | **Target** | Set/changed by own-branch manager or admin, **mandatory reason**, audited. A target **must exist before an employee can submit** |
 | **Accumulation** | **Never stored.** Approved total is always re-summed from the month's approved submissions |
 | **Time** | All month/date keys are **`Africa/Cairo`** business civil days ([ADR-015](../decisions/ADR-015-automation-business-timezone.md)) |
@@ -78,7 +79,8 @@ name. Branch name is a display join via `BranchRepository`.
 | `submittedBy{Id,Name}` `submittedAt` | provenance | |
 | `lastEditedBy{Id,Name}` `lastEditedAt` | nullable | |
 | `decisionBy{Id,Name,Role}` `decisionAt` | nullable | who decided |
-| `decisionReason` | string? | **mandatory** for reject / correction / reopen |
+| `decisionReason` | string? | **mandatory** for reject / correction / reopen; optional note for a direct record |
+| `recordedDirectly` | bool? | `true` on a manager/admin direct record (server-written); absent on an employee submission |
 | `createdAt` `updatedAt` `schemaVersion` | | |
 
 **Unknown/missing `status` maps to a non-approving read state — never to `approved`.**
@@ -99,6 +101,7 @@ known branch. **No global materialized rollup** — DROP's branch set is small.
 | Write | Who |
 | --- | --- |
 | Create initial `pending` submission | **Client** — own branch, own uid, `pending`, deterministic id, no decision fields, no overwrite. `NetworkGuard.ensureWritable()` first |
+| `recordApprovedDailySales` | **Callable** — manager/admin records a day **directly** as `approved`. Rejects a future day, a day that already has a record, or a month with no target. Actor is both `submittedBy` and `decisionBy` (a deliberate direct entry, **not** the self-approval `canDecideSubmission` forbids). Stamps `recordedDirectly: true`. Fires the target-achieved crossing like any approval |
 | `setBranchSalesTarget` | **Callable** — creates month record if absent, else bumps `targetRevision` (expects prior revision) |
 | `decideDailySalesSubmission` (`approve\|reject\|requestCorrection\|reopen`) | **Callable** — transaction on the submission |
 | `editApprovedDailySalesSubmission` | **Callable** — edits approved amount, bumps `revision` |
@@ -149,7 +152,9 @@ Vertical slice `lib/features/sales/` mirroring `requests/` and `branch/`.
   `watchSubmission` · `watchBranchMonthSummaries` (admin, composed not persisted) +
   the write methods above.
 - **Use cases** (verb-phrase, one action each): `GetCurrentSalesMonth` ·
-  `WatchSalesSubmissions` · `SubmitDailySales` · `SetBranchMonthlyTarget` ·
+  `WatchSalesSubmissions` · `SubmitDailySales` · `RecordDailySales` (returns a
+  `SalesRecordResult`: amount, new achieved total, target, target-crossed flag)
+  · `SetBranchMonthlyTarget` ·
   `ApproveSalesSubmission` · `RejectSalesSubmission` · `RequestSalesCorrection` ·
   `ResubmitCorrectedSales` · `EditApprovedSalesSubmission` · `ReopenSalesSubmission`.
 - **Data**: `BranchSalesMonthModel` · `DailySalesSubmissionModel`
@@ -164,7 +169,10 @@ Vertical slice `lib/features/sales/` mirroring `requests/` and `branch/`.
   with two entry points — `loadForEmployee` adds the employee's own records,
   `loadForBranch` is the manager Home read and omits that stream. ⚠️ Its
   submission getters — `canSubmitToday` above all — are meaningless in branch
-  mode and must never drive a CTA there) · `SalesManagerDashboardCubit` ·
+  mode and must never drive a CTA there) · `SalesManagerDashboardCubit` (also
+  owns `recordSales`; on success it carries a one-shot `justRecorded`
+  `SalesRecordResult` on the loaded state — a **separate** channel from `message`
+  so the celebration is an overlay, not also a snackbar) ·
   `SalesSubmissionDetailCubit` (per submission) · `SalesTargetEditorCubit` (per sheet)
   · `SalesAdminOverviewCubit` (page-owned). Wire all datasource/repo/use case/cubit
   additions into `core/di/injection.dart`.
@@ -183,7 +191,8 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
 | **Employee sales page** (`/sales/mine`) | The team month (`SalesMoneyRow`) → **Needed per day**, toned by today → today's close and its status → the one CTA. A day sent back for correction keeps a single actionable row; there is no month-history table |
 | **Submission screen** | `PageHero`, piastres-safe EGP field, Cairo business-date confirmation, one `AppButton`. Dual mode: new close, or a correction seeded with the amount under review and the manager's reason. Already-closed / no-target / teammate-closed each render their own panel instead of a dead CTA |
 | **Manager Home card** | The same `SalesTargetCard` as Employee Home — **target · achieved · remaining**, one tap into `/sales` — sitting under *On shift today*. Fed by `SalesMonthCubit.loadForBranch`, which is `loadForEmployee` minus the own-submissions stream: a manager never closes a day. Gates itself **and its spacing**; an opted-out branch renders nothing. It replaced a *Branch sales* `DigestEntry` that carried no figure and — alone among the sales surfaces — never consulted `salesTargetEnabled`, so it offered an opted-out manager a door onto the Disabled screen |
-| **Manager dashboard** | The branch month (**"Set target"** until one exists, **"Edit target"** after) → **Needed per day** → the review queue with inline approve/reject → four `MetricTile`s, each opening a **different** filtered ledger |
+| **Manager dashboard** | The one **rich** surface. The branch month — **achieved · a monochrome progress ring · remaining**, then the target (**"Set target"** until one exists, **"Edit target"** after) → **Needed per day** → a **Record sales** button (manager/admin direct entry) → the review queue with inline approve/reject → **one** *All submissions* door → a **Pace** card. See the manager-dashboard note below |
+| **Record sales (direct)** | A `showSalesRecordSheet` collects the amount, the business day (today by default, or any past day this month via a date picker), and an optional note. On success a `showSalesRecordAddedOverlay` plays once: the figure **counts up** to "**+ {amount} EGP** added to the branch total", with a slim achieved-of-target bar. Strictly monochrome — the **only** chromatic pixel is the **success** tint that appears solely when this record is the one that **reached** the monthly target ("Monthly target reached"). Auto-dismisses (~2.6s), tap to close, reduced motion rests on the final frame |
 | **Approval / detail** | Evidence block (amount · day · submitter · decision provenance · revision). Actions render only for a manager or admin; reopen only for an admin on a terminal record. One primary action per state |
 | **Admin overview** | One row per **opted-in** branch: name + **target · achieved · remaining**. Opted-out branches are absent, not greyed — `salesEnabledBranches` is the single scope rule, shared with Admin Home |
 | **Admin Home summary** | One line per opted-in branch: name + achieved *of* target. Gates itself and its heading; with nothing opted in it never builds its cubit, so Home costs nothing |
@@ -195,14 +204,38 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
   achieved · remaining** in that order on every surface. The currency is named
   **once** per row, not three times; each figure `scaleDown`s so a seven-digit
   target cannot clip its column.
-- **One statistic survives: Needed per day.** Progress bars, progress
-  percentages, average-per-day, expected-month-end and the recent-approved-days
-  list were all deleted. They restated the same month from five angles.
-- **That statistic is the only colour.** `salesDayPace` compares **today's**
-  close to what a day needs: `>= 100%` green · `>= 50%` amber · below red ·
-  nothing to judge (no target, target met, day not submitted) stays monochrome.
-  An unsubmitted day is never rendered as a failure. Colour is carried by a
-  hairline and the figure, never by a filled block.
+- **The shared surfaces stay lean.** Employee Home, the employee page, the
+  Manager Home card and both admin surfaces show **target · achieved · remaining**
+  (plus *Needed per day* where a day is closed) and nothing else — no chart, no
+  ring. Simplicity there is deliberate and unchanged.
+- **The manager dashboard is the one rich surface (owner-directed, 2026-08-07).**
+  It is where a manager runs the month, so it earns more: a **progress ring**
+  (the *how far* percentage), and a **Pace** card that pairs the month's
+  target-outlook **verdict** with the **last-7-days approved-takings chart** (the
+  *how fast*). This re-enriches what an earlier pass had stripped to *Needed per
+  day* alone; the enrichment lives **only** here.
+- **The achievement figures carry a status tint (ADR-004-compliant).** ACHIEVED,
+  the **ring** (arc + %) and the chart's **today** bar take
+  `salesOutlookTint(outlook)` — **green** when the month is projected ahead of
+  target, **amber** when behind, **white** before there's anything to project.
+  This is colour as *status*, the same rule Needed per day follows, so it ties the
+  hero numbers to the Pace verdict without breaking monochrome. Target, remaining,
+  the edit button, the door and the other bars stay neutral. (A chromatic *brand*
+  accent — indigo, regardless of status — was tried on these figures and reverted
+  on 2026-08-07; the status tint is what stuck.)
+- **The four filtered tiles are now one door.** Pending / Approved / Rejected /
+  History each opened the **same** history screen with a different `?status=`, so
+  as four `MetricTile`s they read as four destinations that were one. A single
+  *All submissions* row opens the unfiltered ledger; the counts survive as an
+  inline breakdown. Pending work is still acted on in the *Waiting on you* queue
+  above, so the row is reference, not the primary action.
+- **Colour stays status-only.** Two derivations own every coloured pixel:
+  `salesDayPace` (Needed per day) and `salesTargetOutlook` (the Pace verdict **and**
+  the achievement-figure tint via `salesOutlookTint`). Both are
+  success / amber / red for a real judgement and neutral when there is nothing to
+  judge. Colour is carried by a hairline, a glyph, a ring arc and the figure —
+  never a filled surface. An unsubmitted or not-yet-projectable state is never a
+  failure. There is **no chromatic brand accent** (ADR-004 holds).
 - **Money is grouped from the right.** `formatEgp` counts in threes from the
   last digit. A lookahead once matched at index 0 whenever the digit count was a
   multiple of three, so `945000` shipped to users as **`,945,000`**.
@@ -234,7 +267,8 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
 
 Reuse `audit_logs` + `EventTrackingService` + `AuditLogEntry`; **do not** create a
 sales audit collection. Add `sales_month` / `daily_sales_submission` entity types and
-event ids: `sales.submitted` · `sales.approved` · `sales.rejected` ·
+event ids: `sales.submitted` · `sales.recorded` (manager/admin direct record) ·
+`sales.approved` · `sales.rejected` ·
 `sales.correction_requested` · `sales.resubmitted` · `sales.approved_amount_edited` ·
 `sales.target_changed` · `sales.reopened`. Metadata carries branch/month/date keys,
 submission/target id, actor id/name/role, old/new amount & target piastres & revision,
@@ -249,11 +283,29 @@ Extend `resolveNotificationRoute`, not a second push path.
 
 | Event | Producer | Recipient | `route` |
 | --- | --- | --- | --- |
-| New submission | server create trigger | own-branch manager(s) | `sales_submission` |
+| New submission | server create trigger | own-branch manager(s) **+ every active admin**, minus the submitter | `sales_submission` |
+| Sales recorded | `recordApprovedDailySales` callable | own-branch manager(s) + branch employees **+ every active admin**, minus the actor | `sales_submission` |
+| Corrected submission | resubmit callable | own-branch manager(s) **+ every active admin**, minus the actor | `sales_submission` |
 | Approved / Rejected / Correction requested | decision callable | submitting employee | `sales_submission` |
-| Target updated | target callable | branch employees + manager(s) | `sales_target` |
-| Target achieved | approval/correction callable, **only on a `< target → >= target` crossing** | manager(s) + branch employees | `sales_submission` (it names the crossing submission) |
+| Target updated | target callable | branch employees + manager(s) **+ every active admin**, minus the actor | `sales_target` |
+| Target achieved | approval/correction callable, **only on a `< target → >= target` crossing** | manager(s) + branch employees **+ every active admin**, minus the actor | `sales_submission` (it names the crossing submission) |
 | Month completed | deferred scheduled job (00:05 Cairo, day 1) — build only if genuinely wanted | manager(s), optionally admin | `sales_target` |
+
+Recipients come from one place: the pure `selectSalesRecipients`
+(`functions/sales_target.js`), read into by `salesRecipients` in `index.js`.
+
+> ⚠️ **Admins are an ADDITION, never a fallback (fixed 2026-08-07).** An admin has
+> no `branchId` — the role is global — so `where("branchId", "==", …)` can never
+> return one. The original resolver consulted admins *only when the branch query
+> came back empty*, which on every real branch is never, so an admin received
+> **nothing at all** from this feature. This is the same shape
+> `resolveRequestApprovers` / `resolveAttendanceReviewers` have always had.
+> `managersOnly` narrows the **branch** side only; an admin can decide any
+> submission, so they are a reviewer in both shapes.
+>
+> **Nobody is notified of their own action.** Every call passes the acting uid as
+> `excludeUid` — otherwise adding admins would page the admin who just edited the
+> target about their own edit.
 
 `sales_submission` carries `salesSubmissionId` → `/sales/submission/:id`.
 `sales_target` carries only `monthKey` — there is no per-month screen, so every
@@ -274,34 +326,41 @@ record. Clients never construct sales notification docs.
 
 ## KPIs (derived-on-read only)
 
-`computeSalesKpis` still derives the full set (pure, `now` injected, unit-tested),
-but **only one is rendered**: *Needed per day*. The rest stay available for a
-future surface that can justify them; nothing on screen shows them today.
+`computeSalesKpis` derives the full set (pure, `now` injected, unit-tested). The
+shared surfaces render only *Needed per day*; the **manager dashboard** renders
+the rest through the ring and the Pace card (see the manager-dashboard note).
 
 | Figure | Formula | Rendered? |
 | --- | --- | --- |
-| **Achieved** | Σ approved `amountPiastres` | ✅ |
-| **Remaining** | `max(0, target − achieved)` | ✅ |
+| **Achieved** | Σ approved `amountPiastres` | ✅ everywhere |
+| **Remaining** | `max(0, target − achieved)` | ✅ everywhere |
 | **Days left** | `daysInMonth − dayOfMonth + 1` — **includes today** | ✅ (beside Needed per day) |
-| **Needed per day** | `ceil(remaining / daysLeft)` | ✅ — **the only coloured figure** |
-| **Average per day** | `achieved ÷ distinct days with an approved record` | ❌ derived, not shown |
-| **Expected month end** | `achieved + average × days with no record at all` | ❌ derived, not shown |
-| **Progress %** | `achieved / target` | ❌ **deleted** |
+| **Needed per day** | `ceil(remaining / daysLeft)` | ✅ — a coloured figure (`salesDayPace`) |
+| **Progress %** | `achieved / target`, capped at 100% | ✅ manager dashboard **ring** |
+| **Average per day** | `achieved ÷ distinct days with an approved record` | ✅ manager dashboard Pace card |
+| **Expected month end** | `achieved + average × days with no record at all` | ✅ feeds the Pace **verdict** |
+| **Month outlook** | `salesTargetOutlook`: forecast `≥ target` → ahead, else behind, `tooEarly` with no approved day | ✅ manager dashboard Pace card (coloured) |
+| **7-day trend** | `computeSalesTrend`: per-day approved takings, this window's avg vs the prior window's | ✅ manager dashboard Pace chart |
 
-Three formula choices, each reversing a wrong one:
+Formula choices, each reversing a wrong one:
 
 - **Days left includes today.** The exclusive count made *Needed per day* read
   `0 EGP` on the last day of every month while the branch was still short.
-- **The average divides by approved DAYS, not elapsed calendar days.** Approvals
-  lag, so the newest day or two never has an approved record; dividing by elapsed
-  days understated the pace daily. Distinct business days, not documents — a
-  corrected-and-resubmitted day is still one day.
+- **Every "per day" average divides by approved DAYS, not elapsed calendar
+  days.** Approvals lag, so the newest day or two never has an approved record;
+  dividing by elapsed days understated the pace daily. This holds for the KPI
+  average **and** for the 7-day trend's window average. Distinct business days,
+  not documents — a corrected-and-resubmitted day is still one day.
 - **The forecast only projects days with no record at all.** Recorded days count
   at their real value and are never re-projected.
+- **The outlook is read off the forecast, never achieved-to-date vs. elapsed
+  days.** Because approvals lag, an achieved-vs-elapsed comparison reads "behind"
+  every day even for a branch comfortably on pace; the forecast-based verdict does
+  not.
 
-`completionDateEstimate` and the month-level `salesPace` verdict were both
-**removed**: the first returned *today* whenever the target was met (printing "On
-track by \<today\>"), and the second lost its only caller when the Pace strip went.
+`completionDateEstimate` stays **removed** (it returned *today* whenever the target
+was met). The month-level pace verdict returned, rebuilt as the forecast-based
+`salesTargetOutlook`, when the Pace card was reintroduced (2026-08-07).
 
 **No** `sales_analytics`, rollups, scorecards, leaderboards, exports, or per-read
 write aggregation — that is an ADR decision, not a default (ADR-009/010, ADR-022).

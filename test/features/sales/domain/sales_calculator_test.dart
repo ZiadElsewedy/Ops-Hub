@@ -206,4 +206,55 @@ void main() {
       );
     });
   });
+
+  group('month outlook — the pace verdict', () {
+    test('a forecast at or above target reads ahead', () {
+      expect(
+        salesTargetOutlook(
+          expectedMonthEndPiastres: 31000,
+          targetPiastres: 31000,
+          approvedDayCount: 2,
+        ),
+        SalesTargetOutlook.ahead,
+      );
+      expect(
+        salesTargetOutlook(
+          expectedMonthEndPiastres: 40000,
+          targetPiastres: 31000,
+          approvedDayCount: 1,
+        ),
+        SalesTargetOutlook.ahead,
+      );
+    });
+
+    test('a forecast below target reads behind', () {
+      expect(
+        salesTargetOutlook(
+          expectedMonthEndPiastres: 20000,
+          targetPiastres: 31000,
+          approvedDayCount: 3,
+        ),
+        SalesTargetOutlook.behind,
+      );
+    });
+
+    test('no approved day or no target is too early to project', () {
+      expect(
+        salesTargetOutlook(
+          expectedMonthEndPiastres: 0,
+          targetPiastres: 31000,
+          approvedDayCount: 0,
+        ),
+        SalesTargetOutlook.tooEarly,
+      );
+      expect(
+        salesTargetOutlook(
+          expectedMonthEndPiastres: 5000,
+          targetPiastres: 0,
+          approvedDayCount: 4,
+        ),
+        SalesTargetOutlook.tooEarly,
+      );
+    });
+  });
 }

@@ -61,6 +61,9 @@ class _FakeRealtime implements ChatRealtime {
 
   @override
   Future<void> detachInbox() async {}
+
+  @override
+  Future<void> onAppResumed() async {}
 }
 
 class _FakeChatRepository implements ChatRepository {
