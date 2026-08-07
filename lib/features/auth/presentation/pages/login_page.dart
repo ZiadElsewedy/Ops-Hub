@@ -138,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                 const FadeSlideTransition(
                   delay: Duration(milliseconds: 140),
                   child: Text(
-                    'Sign in to your DROP account',
+                    'Sign in to your Drop Operations account',
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyLarge,
                   ),
@@ -180,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                     const Text('Welcome back', style: AppTypography.h1),
                     const SizedBox(height: AppSpacing.sm),
                     const Text(
-                      'Sign in to your DROP account',
+                      'Sign in to your Drop Operations account',
                       style: AppTypography.body,
                     ),
                     const SizedBox(height: AppSpacing.xxxl),

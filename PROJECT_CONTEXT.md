@@ -33,7 +33,10 @@ activity. Three roles — **admin · manager · employee**.
 
 The repository folder is **`Drop-operations`**. The Dart package remains `drop`
 (valid package identifiers cannot contain a hyphen); platform-safe identifiers use
-`dropoperation` where needed.
+`dropoperation` where needed. The **user-facing app name is `Drop Operations`** —
+`AppConstants.appName` and every platform display name (iOS/Android/macOS/Windows/
+Linux) plus the `DropWordmark` logotype. Only user-invisible identifiers keep the
+short `drop`/`dropoperation` forms; code comments still say "DROP" as shorthand.
 
 It is **not** a social network, an ERP, an analytics engine, or a SaaS product. It
 has no buyers, only users: a small, known set of people across a handful of

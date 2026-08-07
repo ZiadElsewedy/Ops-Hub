@@ -60,7 +60,7 @@ void main() {
   ) async {
     await pumpWelcome(tester, name: 'Ahmed Ali');
 
-    expect(find.text('Welcome to DROP, Ahmed.'), findsOneWidget);
+    expect(find.text('Welcome to Drop Operations, Ahmed.'), findsOneWidget);
     expect(find.text("You're part of the team now."), findsOneWidget);
     // The three expectations — accountability · teamwork · clarity.
     expect(find.text('Own your shifts and tasks.'), findsOneWidget);
@@ -75,7 +75,7 @@ void main() {
     tester,
   ) async {
     await pumpWelcome(tester);
-    expect(find.text('Welcome to DROP.'), findsOneWidget);
+    expect(find.text('Welcome to Drop Operations.'), findsOneWidget);
   });
 
   testWidgets('Get started dismisses onboarding via the cubit', (tester) async {

@@ -11,9 +11,9 @@ void main() {
   Widget host(Widget child) =>
       MaterialApp(home: Scaffold(body: child));
 
-  testWidgets('DropWordmark renders the DROP logotype', (tester) async {
+  testWidgets('DropWordmark renders the Drop Operations logotype', (tester) async {
     await tester.pumpWidget(host(const DropWordmark()));
-    expect(find.text('DROP'), findsOneWidget);
+    expect(find.text('Drop Operations'), findsOneWidget);
   });
 
   testWidgets('DropEmptyState shows title + message (+ optional action)',
@@ -48,7 +48,7 @@ void main() {
       const BrandWatermark(child: Text('hero content')),
     ));
     expect(find.text('hero content'), findsOneWidget);
-    expect(find.text('DROP'), findsOneWidget); // the watermark mark
+    expect(find.text('Drop Operations'), findsOneWidget); // the watermark mark
   });
 
   testWidgets('BrandWatermark can use the real asset-backed DROP logo',

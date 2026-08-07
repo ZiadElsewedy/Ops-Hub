@@ -99,7 +99,7 @@ class FinalScheduleSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'DROP',
+                'Drop Operations',
                 style: AppTypography.caption.copyWith(
                   color: AppColors.textTertiary,
                   fontWeight: FontWeight.w800,
@@ -480,7 +480,7 @@ class FinalScheduleSheet extends StatelessWidget {
     return Row(
       children: [
         Text(
-          'DROP  ·  OPERATIONS',
+          'Drop Operations',
           style: AppTypography.caption.copyWith(
             color: AppColors.textTertiary,
             fontWeight: FontWeight.w700,

@@ -95,7 +95,7 @@ class NotificationService {
             'fcm',
             'notifications are ${settings.authorizationStatus.name} — iOS will '
             'not issue an APNs token, so no push can arrive until this is '
-            'granted (Settings > DROP > Notifications).');
+            'granted (Settings > Drop Operations > Notifications).');
       }
 
       // iOS ONLY: without this, iOS shows nothing while the app is open — the

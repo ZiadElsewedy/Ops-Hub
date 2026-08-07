@@ -3,7 +3,21 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-07.
+> **Last verified against the code:** 2026-08-08.
+
+> **App display name is now "Drop Operations" (2026-08-08, polish, NOT
+> device-verified):** The user-facing name was renamed DROP → **Drop Operations**
+> across every surface that shows it — `AppConstants.appName`, the window titles,
+> the `DropWordmark` logotype, the schedule Final-view + PDF header/footer
+> wordmarks, login/onboarding/splash copy, and the platform display names (iOS
+> `CFBundleDisplayName`/`CFBundleName`, Android `android:label`, macOS
+> `PRODUCT_NAME`, Windows/Linux window titles). **Unchanged:** the `DropLogo` PNG
+> artwork, the "DROP OPERATIONS SYSTEM" auth tagline, the **DROP THE SHOP**
+> company name, and all bundle/package identifiers (`drop`,
+> `com.example.dropoperation` — not user-visible, can't hold a space). No logic,
+> schema, rules, or functions changed. `flutter analyze` clean, 1893 Dart tests
+> green (3 brand/copy tests updated). ⚠️ **NOT device-verified** — the icon label
+> and window-title rendering need a real build per platform.
 
 > **A deactivated account disappears from chat (2026-08-07, feature,
 > client-only, NOT device-verified):** Owner: *"when I make an account inactive

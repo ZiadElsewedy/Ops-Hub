@@ -14,6 +14,35 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — App display name renamed DROP → Drop Operations (polish; LOW risk)
+
+The user-facing app name is now **Drop Operations** everywhere it is shown. One
+source of truth per surface changed; no logic, schema, rules, or functions
+touched.
+
+- **App identity:** `AppConstants.appName`, the two `MaterialApp` `title`s
+  (`main.dart`), the crash-recovery banner, and the OS-settings hints in
+  `notification_service.dart` / `attachment_picker.dart`.
+- **Brand wordmark (owner: rename everything, incl. wordmark):**
+  `DropWordmark`'s logotype, the schedule Final-view header/footer wordmarks
+  (`final_schedule_sheet.dart`, `final_schedule_mobile_view.dart`) and the
+  exported PDF header/footer (`schedule_final_pdf.dart`). The `DropLogo` PNG
+  artwork, the "DROP OPERATIONS SYSTEM" auth tagline, and the **DROP THE SHOP**
+  company name are unchanged.
+- **User-facing copy:** login ("Sign in to your Drop Operations account"),
+  onboarding welcome, splash could-not-start + a11y labels, broadcast fallback
+  sender.
+- **Platform display names:** iOS `CFBundleDisplayName`/`CFBundleName`, Android
+  `android:label`, macOS `PRODUCT_NAME`, Windows window title + `Runner.rc`
+  ProductName/FileDescription, Linux window/header-bar title. Bundle/package
+  identifiers (`drop`, `com.example.dropoperation`) are unchanged — they are not
+  user-visible and cannot carry a space/hyphen.
+- **Tests:** `brand_primitives_test`, `onboarding_welcome_page_test`,
+  `schedule_final_view_test` updated to the new strings (the Final-view brand mark
+  now legitimately appears twice — header + footer). `flutter analyze` clean,
+  1893 Dart tests green. NOT device-verified (icon-label / window-title rendering
+  needs a real build on each platform).
+
 ## 2026-08-07 — A deactivated account disappears from chat (feature; LOW risk, client-only)
 
 Owner ask: deactivating an account should make it drop out everywhere it's used

@@ -96,7 +96,8 @@ void main() {
       );
 
       // Document header: brand · branch · week · generated · manager.
-      expect(find.text('DROP'), findsOneWidget);
+      // The brand mark appears twice: the header wordmark and the footer byline.
+      expect(find.text('Drop Operations'), findsNWidgets(2));
       expect(find.text('Drop The Shop | Arkan'), findsOneWidget);
       expect(find.text('05/07 – 11/07'), findsOneWidget);
       expect(find.text('MANAGER'), findsOneWidget);

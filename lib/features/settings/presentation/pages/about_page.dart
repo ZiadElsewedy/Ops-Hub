@@ -191,7 +191,7 @@ class _BrandCard extends StatelessWidget {
               Container(width: 44, height: 1, color: AppColors.darkBorder),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'DROP runs the day-to-day of a multi-branch operation. '
+                'Drop Operations runs the day-to-day of a multi-branch operation. '
                 'Tasks, shifts, attendance and approvals live in one place, '
                 'so every branch opens and closes the same way — and a manager '
                 'can see that it did, without asking.',
