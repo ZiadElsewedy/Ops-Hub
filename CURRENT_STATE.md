@@ -312,6 +312,45 @@
 > ✅ **Both follow-ups from this audit are now closed (2026-08-07)** — the
 > reviewer ladder and the sweep's test coverage; see the entry below.
 
+> **Clear chat drains the whole history (2026-08-07, client-only, NOT
+> device-verified):** `clearChatForMe()` deleted only the messages already paged
+> in, while its dialog promised *"removes **every** message from your view"* — so
+> on any thread longer than the first page the older ones came back on scroll-up.
+> *Delete conversation?* ran the same call and had the same gap. It now pages
+> back through the full history via the existing `LoadChatHistory` use case,
+> collects every server-confirmed id, then makes one pooled delete-for-me pass.
+> **All or nothing on the collect step** — if the history can't be drained
+> completely, nothing is deleted and the failure is retryable; a half-clear
+> against "every message" is the bug being fixed. A cursor that doesn't advance
+> raises, and a 500-page bound catches any other non-terminating history (both
+> mean the pagination is wrong, not that the chat is long). `loadOlder` and
+> single-message delete stand down while a clear runs. No new backend endpoint.
+> Per-message *Delete for me* was already correct across all four tiers (REST →
+> in-memory → Drift row → session cache) and is unchanged.
+
+> 🔴 **FALSE EVICTION — FIXED (2026-08-07, client-only, NOT device-verified).**
+> First field report of the feature below: *"I open my account, log out on the
+> device, then log in on another device and it says your account has been signed
+> in on another device."* No second device was involved.
+> **A cached Firestore snapshot was being read as a hostile login.**
+> `snapshots()` replays the **locally cached** document the instant you
+> subscribe, so a device that had been signed in before received its *previous*
+> session's `activeSessionId` as the watcher's first emission — while it already
+> held the id it had just claimed. Mismatch → teardown → Login with the takeover
+> message. The very first device on a fresh account never reproduced it, because
+> its cached document carried a **null** id, which the back-compat rule already
+> ignores; that is why this shipped looking correct.
+> Fixed in two narrow places: `watchUser` now emits **server-confirmed snapshots
+> only** (`!metadata.isFromCache` — every consumer of that stream ends a session,
+> so none of them may act on a cached copy), and `AuthCubit` **forgives the one
+> id it superseded** until its own claim comes back. Any *other* mismatch still
+> evicts on the spot, so a genuine takeover racing a sign-in is enforced live.
+> ⚠️ **The test fake is why this shipped green:** it returned a bare
+> `StreamController`, which emits nothing on subscribe, so no test ever
+> exercised Firestore's replayed first snapshot. It now models the cached
+> replay. +6 tests, including the reported A-signs-out → B-signs-in sequence.
+> Amendment recorded on [ADR-023](docs/decisions/ADR-023-single-active-session.md).
+
 > **Single active session — one account, one signed-in device (2026-08-06, NOT
 > device-verified):** A newer sign-in now evicts every older one. `AuthCubit`
 > mints a session id at sign-in, claims it on `users/{uid}.activeSessionId`, and
@@ -667,7 +706,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1832 pass · 0 fail** (~44s) — re-run **2026-08-07** (+18 single active session, +17 the notification audit, +56 the reviewer ladder and the paged-sweep coverage; previous 1741). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1842 pass · 0 fail** (~44s) — re-run **2026-08-07** (+4: the clear-chat history drain; +6: the single-active-session stale-snapshot fix; +18 single active session, +17 the notification audit, +56 the reviewer ladder and the paged-sweep coverage; previous 1741). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

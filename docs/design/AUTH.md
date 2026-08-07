@@ -104,6 +104,13 @@ session silently, so this is the only place it becomes visible), and
   *release* the account for whichever stale device still holds a matching id.
 - **Eviction and sign-out share one teardown** (`_signOutInternal`), so an eviction
   can never clean up less than the Settings button does.
+- **Only a server-confirmed snapshot may evict** (fixed 2026-08-07). `snapshots()`
+  replays the locally cached document on subscribe, so a device that has signed in
+  before receives its *previous* session's id as the watcher's first emission —
+  which evicted the device that had just signed in. `watchUser` now filters
+  `metadata.isFromCache`, and `AuthCubit` additionally forgives the **one** id it
+  superseded until its own claim comes back. Any other mismatch still evicts on the
+  spot. **A cached snapshot is not evidence.**
 
 **No rules change and no deploy.** `activeSessionId` is not in the privileged
 freeze-list of the `users` update rule, so the existing owner-update clause already

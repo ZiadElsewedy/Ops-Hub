@@ -290,6 +290,10 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
   Future<void> loadOlder() async {
     final cursor = _nextCursor;
     if (cursor == null || _loadingOlder || _conversation == null) return;
+    // A clear is draining the same cursor and will empty the thread; letting a
+    // scroll-back prepend a page mid-drain would strand messages it had already
+    // collected past.
+    if (_clearing) return;
 
     _loadingOlder = true;
     _emit();
@@ -579,7 +583,9 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
   /// succeeded; failures surface through the transient-error convention.
   /// One delete in flight at a time.
   Future<bool> deleteMessageForMe(String messageId) async {
-    if (_deletingMessageId != null || _conversation == null) return false;
+    if (_deletingMessageId != null || _conversation == null || _clearing) {
+      return false;
+    }
     _deletingMessageId = messageId;
     _emit();
     try {
@@ -628,27 +634,51 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
     }
   }
 
-  /// Clears the conversation **for me only** — a bulk delete-for-me over every
-  /// loaded, server-confirmed message (the counterpart keeps their copy). Uses
-  /// the existing per-message delete API (no new backend), pooled so a long
-  /// thread doesn't fan out a request per message at once. Optimistic local
-  /// bubbles (unsent) are left in place. Returns whether it succeeded.
+  /// Hard bound on how many history pages a clear will drain.
+  ///
+  /// Not a size limit on real conversations — at the server's page size this is
+  /// far more messages than this product will ever hold in one thread. It exists
+  /// so a cursor that never terminates (or never advances) cannot spin forever.
+  /// Reaching it means the pagination is wrong, not that the chat is long, so it
+  /// is treated as a failed drain rather than a silent partial clear.
+  static const _maxClearPages = 500;
+
+  /// Clears the conversation **for me only** — a bulk delete-for-me over the
+  /// **entire** history, not just what happens to be on screen (the counterpart
+  /// keeps their copy). Uses the existing per-message delete API (no new
+  /// backend), pooled so a long thread doesn't fan out a request per message at
+  /// once. Optimistic local bubbles (unsent) are left in place. Returns whether
+  /// it succeeded.
+  ///
+  /// It used to delete only the loaded window, while the confirm dialog promised
+  /// *"removes every message from your view"* — so on any thread longer than the
+  /// first page the older messages came straight back on scroll-up. It now pages
+  /// back through the whole history first (see [_collectHistoryIds]).
+  ///
+  /// **All or nothing on the collect step.** If the history cannot be drained
+  /// completely, nothing is deleted and the caller sees a failure — a half-clear
+  /// against a promise of "every message" is the bug this is fixing, and a
+  /// clean failure is retryable. (Once deleting starts, a mid-way network
+  /// failure can still leave a partial delete; those messages are genuinely gone
+  /// server-side, and a second Clear picks up the remainder.)
   Future<bool> clearChatForMe() async {
     if (_conversation == null || _clearing) return false;
-    final ids = _messages
-        .where((m) => !_isLocal(m))
-        .map((m) => m.id)
-        .toList(growable: false);
-    if (ids.isEmpty) return true;
     _clearing = true;
     _deletingMessageId = null;
     _emit();
     try {
-      await mapPooled(3, [
-        for (final id in ids)
-          () => _deleteForMe(conversationId: conversationId, messageId: id),
-      ]);
+      final ids = await _collectHistoryIds();
+      if (ids.isNotEmpty) {
+        await mapPooled(3, [
+          for (final id in ids)
+            () => _deleteForMe(conversationId: conversationId, messageId: id),
+        ]);
+      }
       _messages = _messages.where(_isLocal).toList();
+      // The whole history is gone from this side, so there is nothing older to
+      // page back to. Leaving the cursor would offer a "load older" that can
+      // only return messages we just deleted.
+      _nextCursor = null;
       return true;
     } on Failure catch (e) {
       emit(ChatConversationState.error(e.message));
@@ -663,6 +693,47 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
       _clearing = false;
       _emit();
     }
+  }
+
+  /// Every server-confirmed message id in the conversation — what is loaded,
+  /// plus everything older, drained page by page from [_nextCursor].
+  ///
+  /// Deliberately collects the **whole** set before a single delete is sent, so
+  /// a clear either covers the entire history or does nothing at all.
+  ///
+  /// Throws when the history cannot be drained: a page fetch failing propagates
+  /// (the caller reports it), and a cursor that does not terminate or does not
+  /// advance raises rather than looping. Local (unsent) bubbles are excluded —
+  /// they were never on the server and are left on screen.
+  Future<List<String>> _collectHistoryIds() async {
+    final ids = <String>{
+      for (final m in _messages)
+        if (!_isLocal(m)) m.id,
+    };
+    var cursor = _nextCursor;
+    var pages = 0;
+    while (cursor != null) {
+      if (pages++ >= _maxClearPages) {
+        AppLog.warning('chat',
+            'clear chat: history did not terminate after $pages pages');
+        throw const ServerFailure('Could not load the full conversation.');
+      }
+      final page = await _loadHistory(
+        conversationId: conversationId,
+        cursor: cursor,
+      );
+      for (final m in page.items) {
+        if (!_isLocal(m)) ids.add(m.id);
+      }
+      final next = page.nextCursor;
+      // A cursor handing back itself would page the same slice forever.
+      if (next == cursor) {
+        AppLog.warning('chat', 'clear chat: history cursor did not advance');
+        throw const ServerFailure('Could not load the full conversation.');
+      }
+      cursor = next;
+    }
+    return ids.toList(growable: false);
   }
 
   /// Shared-media / document counts over the loaded window — for the
