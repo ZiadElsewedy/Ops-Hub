@@ -28,7 +28,7 @@ visibility, no database backups, and QA that has never touched real hardware.
 | --- | --- | --- |
 | Analyzer | `flutter analyze` | **1 info**, 0 errors/warnings — the pre-existing `use_null_aware_elements` lint in `test/task_submission_gate_test.dart` |
 | Dart suite | `flutter test` | **1670 pass · 0 fail** (~40s) |
-| Cloud Functions | `cd functions && node --test` | **112 pass · 0 fail** |
+| Cloud Functions | `cd functions && node --test` | **143 pass · 0 fail** (2026-08-07) |
 | Firestore rules | `cd firestore-tests && npm test` | **68 pass · 0 fail** |
 | iOS release build | `flutter build ios --release --no-codesign` | **✓ built** — `Runner.app`, 87.4 MB |
 | Android release build | `flutter build appbundle --release` | **✓ built** — `app-release.aab`, 93.1 MB |
@@ -149,6 +149,15 @@ What is missing is the credential itself.
 
 Without this, **iOS gets zero push**, which is most of what the notifications,
 tasks, cases, requests and chat features are for.
+
+⚠️ **This entry needs re-verification — it may already be done (2026-08-07).**
+The owner reports that push **works today**: notifications arrive on the lock
+screen and tapping one opens the right screen. FCM cannot deliver to iOS at all
+without an APNs credential, so delivery working implies the `.p8` is uploaded
+and this blocker is stale. **Confirm in Firebase Console → Project Settings →
+Cloud Messaging** before the release checklist counts it as closed, and keep the
+`aps-environment` development-vs-production warning above — it is the half that
+can still break specifically on TestFlight.
 
 ### B6 · Attendance has never been QA'd on real hardware 🔴
 

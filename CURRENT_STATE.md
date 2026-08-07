@@ -5,6 +5,91 @@
 >
 > **Last verified against the code:** 2026-08-07.
 
+> 🔴 **THE ADMIN BUG: `sendNotification` refused every client notification
+> aimed at an admin. FIXED, ⚠️ NEEDS A FUNCTIONS DEPLOY (2026-08-07).**
+> Owner: *"the admin isn't receiving notifications — just chat; other things
+> no, and it doesn't appear in the inbox."*
+>
+> The callable is the **only** path a client has for writing a
+> `notifications/{id}` doc, and its reachability rule read:
+> ```js
+> const reachable = callerIsAdmin || (callerBranch !== "" && recipientBranch === callerBranch);
+> if (!reachable) throw new HttpsError("permission-denied", …);
+> ```
+> **An admin has no `branchId`**, so for an admin recipient this compares
+> `"" === "b1"` → false → `permission-denied`. A rule written to stop a
+> cross-branch leak was catching the one role that is in no branch. Both
+> callers (`NotifyTaskEvent`, `NotifySwapEvent`) are best-effort and swallow
+> the error, so **it failed completely silently** — no doc, no push, no inbox
+> row, no log on the device.
+>
+> What it removed: **an employee submitting a task for review notifies
+> `task.createdBy`**, and an admin creates most tasks — the single most common
+> admin notification in the product, refused every time. Same for every task
+> event where an admin is an assignee (assigned · approved · rejected · rework
+> · cancelled · reported-incorrect).
+>
+> **Blast radius beyond admins:** it threw *before* committing, so one
+> unreachable recipient discarded the **whole batch** — a task assigned to
+> three people, one of them an admin, notified **nobody**. Unreachable
+> recipients are now skipped, counted, and returned as `skipped` (the doc is
+> withheld exactly as before; it just no longer takes the legitimate
+> recipients down with it).
+>
+> Policy is the pure `canNotify`
+> ([functions/notification_reach.js](functions/notification_reach.js)) — admin
+> reaches anyone, admin is reachable **by** anyone, everyone else same-branch;
+> a blank branch never matches a blank branch. 9 tests.
+>
+> ℹ️ **Two branches found this independently and it merged into one fix.** The
+> reachability half arrived with `claude/single-active-session-aedee1`
+> (`canNotify`, kept); the **skip-instead-of-throw** half arrived with
+> `claude/cursor-chat-visibility-notifications-003328`, whose duplicate
+> `canReachRecipient` was dropped at the merge. One predicate, one call site.
+>
+> ✅ **Push itself is healthy — owner-confirmed 2026-08-07.** Pushes arrive on
+> the lock screen and tapping one opens the right screen. An earlier read of
+> this bug blamed the missing APNs credential; that was wrong and is retracted
+> (see [RELEASE_V1 B5](docs/RELEASE_V1.md), which now needs re-verification —
+> delivery working implies the credential is in place).
+
+> **Sales notifications reached no admin at all — FIXED, ⚠️ NEEDS A FUNCTIONS
+> DEPLOY (2026-08-07):** `salesRecipients` resolved recipients from
+> `where("branchId", "==", branchId)` and consulted admins only as a
+> **fallback** when that came back empty. An admin has no `branchId`, so a
+> branch query can never return one — meaning on every real branch an admin
+> received nothing from the whole feature: no *New sales submission*, no
+> *Corrected sales submission*, no *Sales target updated*, no *Sales target
+> achieved*, in push **or** inbox. Admins are now an addition, matching
+> `resolveRequestApprovers` / `resolveAttendanceReviewers`; the policy is the
+> pure `selectSalesRecipients` in `functions/sales_target.js` (7 tests).
+> `managersOnly` narrows the branch side only — an admin decides submissions,
+> so they are a reviewer in both shapes. The **actor is now excluded** from
+> sales notifications (a manager was previously told about their own target
+> change). Inert until `firebase deploy --only functions`.
+>
+> ⚠️ **The admin is still absent from other event classes — by owner decision,
+> not by oversight.** The same audit found: **task lifecycle** events
+> (submitted / approved / rejected / rework / cancelled / reported-incorrect)
+> reach assignees and `task.createdBy` only; **task reminders**
+> (`runTaskReminders`) and **generated shift-task assignment** reach the
+> rostered crew only; a **`branch`-audience broadcast** uses the same
+> branch-query blind spot. **Missed tasks** keep admins as a deliberate
+> fallback (`selectMissedNotifyTargets` — a manager-covered branch must not
+> page an admin, or every miss in the estate lands in one inbox). If the owner
+> later wants admins on task events, that is a one-line addition to
+> `NotifyTaskEvent._recipientsFor` plus the `sendNotification` reachability
+> path — but it is a **noise** decision, not a bug.
+
+> **New Chat is search-first (2026-08-07, presentation only, NOT
+> device-verified):** The teammate picker opened onto the entire org directory
+> (org-wide by ADR-012), so a new conversation began with a scroll past
+> everyone. It now opens on a focused search field and lists people only once
+> something is typed — three distinct empty states (*No teammates yet* ·
+> *Search for a teammate* · *No matches*). The directory read, its flat scope
+> and the start-conversation path are unchanged; this is the view's filter
+> only. Pinned by the rewritten `test/chat_new_conversation_test.dart`.
+
 > 🚦 **V1 RELEASE GATE — [docs/RELEASE_V1.md](docs/RELEASE_V1.md).** The full
 > release runbook, audited against code *and* live production on 2026-08-05.
 > Read it before planning any release work; it is the authority on what blocks
@@ -876,7 +961,8 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1857 pass · 0 fail** (~45s) — re-run **2026-08-07** (+12 for the branch-sales dashboard redesign: `sales_trend_test`, `salesTargetOutlook` cases, and the `sales_dashboard_widgets` overflow guard; prior merged-tree baseline 1845). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) + `tsc --noEmit` clean — separate repo, re-run 2026-08-06 |
+| **Tests** | **1884 pass · 0 fail** (~41s) — re-run **2026-08-07 on the merged tree**, after `claude/single-active-session-aedee1` and `claude/cursor-chat-visibility-notifications-003328` both landed in `release/v1-preparation` (+27 over the 1857 pre-merge: the session stale-snapshot fix, the clear-chat history drain, and the search-first chat picker). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **143 pass** (`cd functions && node --test`) — re-run **2026-08-07 on the merged tree** (+7 sales recipients over 136; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) + `tsc --noEmit` clean — separate repo, re-run 2026-08-06 |
+| **Tests** | **1744 pass · 0 fail** (~42s) — re-run **2026-08-07** (+3 net: the search-first chat picker replaced one always-listed assertion with four). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **143 pass** (`cd functions && node --test`, re-run 2026-08-07 — the recorded 112 was stale; measured baseline 127); **Firestore rules: 68 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI + a JDK) — both re-run 2026-08-05. NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

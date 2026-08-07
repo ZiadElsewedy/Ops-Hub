@@ -273,11 +273,28 @@ Extend `resolveNotificationRoute`, not a second push path.
 
 | Event | Producer | Recipient | `route` |
 | --- | --- | --- | --- |
-| New submission | server create trigger | own-branch manager(s) | `sales_submission` |
+| New submission | server create trigger | own-branch manager(s) **+ every active admin**, minus the submitter | `sales_submission` |
+| Corrected submission | resubmit callable | own-branch manager(s) **+ every active admin**, minus the actor | `sales_submission` |
 | Approved / Rejected / Correction requested | decision callable | submitting employee | `sales_submission` |
-| Target updated | target callable | branch employees + manager(s) | `sales_target` |
-| Target achieved | approval/correction callable, **only on a `< target → >= target` crossing** | manager(s) + branch employees | `sales_submission` (it names the crossing submission) |
+| Target updated | target callable | branch employees + manager(s) **+ every active admin**, minus the actor | `sales_target` |
+| Target achieved | approval/correction callable, **only on a `< target → >= target` crossing** | manager(s) + branch employees **+ every active admin**, minus the actor | `sales_submission` (it names the crossing submission) |
 | Month completed | deferred scheduled job (00:05 Cairo, day 1) — build only if genuinely wanted | manager(s), optionally admin | `sales_target` |
+
+Recipients come from one place: the pure `selectSalesRecipients`
+(`functions/sales_target.js`), read into by `salesRecipients` in `index.js`.
+
+> ⚠️ **Admins are an ADDITION, never a fallback (fixed 2026-08-07).** An admin has
+> no `branchId` — the role is global — so `where("branchId", "==", …)` can never
+> return one. The original resolver consulted admins *only when the branch query
+> came back empty*, which on every real branch is never, so an admin received
+> **nothing at all** from this feature. This is the same shape
+> `resolveRequestApprovers` / `resolveAttendanceReviewers` have always had.
+> `managersOnly` narrows the **branch** side only; an admin can decide any
+> submission, so they are a reviewer in both shapes.
+>
+> **Nobody is notified of their own action.** Every call passes the acting uid as
+> `excludeUid` — otherwise adding admins would page the admin who just edited the
+> target about their own edit.
 
 `sales_submission` carries `salesSubmissionId` → `/sales/submission/:id`.
 `sales_target` carries only `monthKey` — there is no per-month screen, so every

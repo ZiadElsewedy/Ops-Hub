@@ -267,7 +267,33 @@ void main() {
       return MaterialApp.router(routerConfig: router);
     }
 
-    testWidgets('lists teammates (excludes current user) with name and role', (
+    // ─── Search-first ──────────────────────────────────────────────────
+    // The picker never opens onto the whole roster: it prompts, and lists
+    // people only once something is typed.
+
+    testWidgets('opens on the search prompt, listing nobody', (tester) async {
+      final auth = _FakeAuthRepository([
+        _me(),
+        _teammate('u-sara', 'Sara K', role: UserRole.manager),
+        _teammate('u-omar', 'Omar N'),
+      ]);
+      final list = _listCubit(
+        _FakeChatRepository(onStart: (_) => _conversation('c1', 'x')),
+      );
+      await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Search for a teammate'), findsOneWidget);
+      expect(find.text('Sara K'), findsNothing);
+      expect(find.text('Omar N'), findsNothing);
+      // The directory is still loaded — search is instant, not a per-keystroke
+      // fetch.
+      expect(auth.allUsersReads, 1);
+      await list.close();
+    });
+
+    testWidgets('a search lists matches (excludes current user) with role', (
       tester,
     ) async {
       final auth = _FakeAuthRepository([
@@ -283,10 +309,50 @@ void main() {
       await tester.pump();
       await tester.pump();
 
+      // 'a' matches Sara K, Omar N and "Me" — the caller is excluded upstream.
+      await tester.enterText(find.byType(TextField), 'a');
+      await tester.pump();
+
       expect(find.text('Sara K'), findsOneWidget);
       expect(find.text('Omar N'), findsOneWidget);
       expect(find.text('Store Manager'), findsOneWidget);
       expect(find.text('Me'), findsNothing); // current user excluded
+      await list.close();
+    });
+
+    testWidgets('clearing the search returns to the prompt', (tester) async {
+      final auth = _FakeAuthRepository([_teammate('u-omar', 'Omar N')]);
+      final list = _listCubit(
+        _FakeChatRepository(onStart: (_) => _conversation('c1', 'x')),
+      );
+      await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
+      await tester.pump();
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField), 'omar');
+      await tester.pump();
+      expect(find.text('Omar N'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pump();
+      expect(find.text('Omar N'), findsNothing);
+      expect(find.text('Search for a teammate'), findsOneWidget);
+      await list.close();
+    });
+
+    testWidgets('a search that matches nobody says so', (tester) async {
+      final auth = _FakeAuthRepository([_teammate('u-omar', 'Omar N')]);
+      final list = _listCubit(
+        _FakeChatRepository(onStart: (_) => _conversation('c1', 'x')),
+      );
+      await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
+      await tester.pump();
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField), 'zzz');
+      await tester.pump();
+      expect(find.text('No matches'), findsOneWidget);
+      expect(find.text('Search for a teammate'), findsNothing);
       await list.close();
     });
 
@@ -329,6 +395,8 @@ void main() {
         await tester.pump();
         await tester.pump();
 
+        await tester.enterText(find.byType(TextField), 'omar');
+        await tester.pump();
         await tester.tap(find.text('Omar N'));
         await tester.pumpAndSettle();
 
@@ -361,6 +429,8 @@ void main() {
         await tester.pump();
         await tester.pump();
 
+        await tester.enterText(find.byType(TextField), 'omar');
+        await tester.pump();
         await tester.tap(find.text('Omar N'));
         await tester.pumpAndSettle();
 
@@ -390,6 +460,11 @@ void main() {
       await tester.pump();
       await tester.pump();
 
+      // One query that matches all three — scope is what's under test, not
+      // the search itself.
+      await tester.enterText(find.byType(TextField), 'a');
+      await tester.pump();
+
       expect(find.text('Omar N'), findsOneWidget); // same branch
       expect(find.text('Sara K'), findsOneWidget); // OTHER branch
       expect(find.text('Dina A'), findsOneWidget); // branchless admin
@@ -415,6 +490,9 @@ void main() {
       await tester.pump();
       await tester.pump();
 
+      await tester.enterText(find.byType(TextField), 'a');
+      await tester.pump();
+
       expect(find.text('Omar N'), findsOneWidget);
       expect(find.text('Sara K'), findsOneWidget);
       expect(find.text('No teammates yet'), findsNothing);
@@ -432,6 +510,10 @@ void main() {
       );
       await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
       await tester.pump();
+      await tester.pump();
+
+      // 'o' matches both names — only the active one may come back.
+      await tester.enterText(find.byType(TextField), 'o');
       await tester.pump();
 
       expect(find.text('Omar N'), findsOneWidget);
@@ -455,6 +537,9 @@ void main() {
       );
       await tester.pumpWidget(host(list, auth, onNavigate: (_) {}));
       await tester.pump();
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField), 'legacy');
       await tester.pump();
 
       expect(find.text('Legacy P'), findsOneWidget);

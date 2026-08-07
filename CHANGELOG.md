@@ -678,6 +678,108 @@ This must stay consistent with the category selected in App Store Connect. Confi
 only — no code, no behavior change; iOS/Android untouched.
 
 ---
+## 2026-08-07 — `sendNotification` refused every client notification aimed at an admin (bug; HIGH impact — needs a functions deploy)
+
+Owner: *"the admin isn't receiving notifications — just chat; other things no, and
+it doesn't appear in the inbox."*
+
+**The `sendNotification` callable is the only path a client has for writing a
+`notifications/{id}` doc**, and its reachability rule was
+`callerIsAdmin || (callerBranch !== "" && recipientBranch === callerBranch)`. An
+admin has no `branchId`, so for an admin recipient that compares `"" === "b1"` →
+false → `permission-denied`. A rule written to stop a cross-branch leak was
+catching the one role that belongs to no branch. `NotifyTaskEvent` and
+`NotifySwapEvent` are both best-effort and swallow the error, so it failed
+**silently** — no doc, no push, no inbox row, nothing in the device log.
+
+- **What it removed:** an employee submitting a task for review notifies
+  `task.createdBy`, and an admin creates most tasks — the most common admin
+  notification in the product, refused every time. Likewise every task event with
+  an admin among the assignees (assigned · approved · rejected · rework ·
+  cancelled · reported-incorrect).
+- **It also hurt non-admins.** The check threw *before* the batch committed, so a
+  single unreachable recipient discarded the entire call: a task assigned to three
+  people, one an admin, notified **nobody**. Unreachable recipients are now
+  skipped, logged and returned as a `skipped` count — the doc is withheld exactly
+  as before, it just no longer takes the legitimate recipients with it.
+- Policy is the pure `canNotify`
+  ([functions/notification_reach.js](functions/notification_reach.js)): admin
+  reaches anyone · admin is reachable **by** anyone · everyone else same-branch ·
+  a blank branch never matches a blank branch (only the admin *role* opens the
+  door, never a missing `branchId`). 9 tests.
+- **Found twice, merged once.** `claude/single-active-session-aedee1` reached the
+  same root cause independently and landed `canNotify` first; this branch's
+  duplicate `canReachRecipient` was dropped when the two merged into
+  `release/v1-preparation`, keeping the skip-instead-of-throw half. One
+  predicate, one call site.
+- No rules change, no client change.
+
+⚠️ **Inert until `firebase deploy --only functions`.**
+
+**Retraction:** an earlier read of this same report blamed the missing APNs
+credential, on the theory that the chat notifications the owner sees are the in-app
+socket banner. The owner confirmed push works end to end — lock screen, correct
+deep link — so that was wrong. [RELEASE_V1](docs/RELEASE_V1.md) B5 is flagged for
+re-verification instead: FCM cannot reach iOS at all without the credential, so
+working delivery implies it is already uploaded.
+
+## 2026-08-07 — The sales feature was silent for every admin (bug; MED risk — needs a functions deploy)
+
+Owner: *"admin account no receiving notification, just notification from chat —
+other things no, and doesn't appear in the inbox."*
+
+**Root cause: `salesRecipients` made admins a *fallback*, and an admin has no
+`branchId`.** It resolved recipients with
+`where("branchId", "==", branchId)`, then consulted admins **only when that query
+returned nothing**. Since account provisioning deliberately omits the branch for a
+global role ([PROJECT_CONTEXT §8](PROJECT_CONTEXT.md)), a branch query can never
+return an admin — so on any branch with at least one active user (i.e. every real
+branch) an admin received **nothing** from the entire sales feature: not *New sales
+submission*, not *Corrected sales submission*, not *Sales target updated*, not
+*Sales target achieved*. Neither push nor inbox, because no `notifications` doc was
+ever written with their uid.
+
+- Admins are now an **addition**, not a fallback — the same shape
+  `resolveRequestApprovers` and `resolveAttendanceReviewers` have always had. The
+  policy moved into the pure `selectSalesRecipients`
+  ([functions/sales_target.js](functions/sales_target.js)) and is pinned by 7 tests;
+  `salesRecipients` in `index.js` is now just the two reads that feed it.
+- `managersOnly` still narrows the **branch** side to its managers (a review ping vs.
+  a branch-wide announcement) but never narrows the admin side — an admin can decide
+  any submission, so they are a reviewer in both shapes.
+- **New: the actor is excluded.** Adding admins would otherwise page the admin who
+  just edited the target about their own edit. This also fixes the pre-existing case
+  where the manager who changed a target was notified of their own change. Same rule
+  `dispatchBroadcast` already applies to an implicit audience.
+- Gates: `cd functions && node --test` **134 pass** (was 127 — the 112 recorded in
+  CURRENT_STATE was stale). No rules change, no index change, no client change.
+
+⚠️ **Inert until `firebase deploy --only functions`.** Notification *policy* lives
+in Cloud Functions, so nothing about this reaches a device from a client build.
+
+⚠️ **This is one class of event, not the whole complaint.** The audit found the
+admin is also absent from task lifecycle events (assignees + `createdBy` only),
+task reminders, generated shift-task assignment, and a `branch`-audience broadcast
+(same branch-query blind spot). Those were left as-is by owner decision. See
+CURRENT_STATE.
+
+## 2026-08-07 — New Chat is search-first (polish; LOW risk)
+
+Owner: *"msh 3aiez lma a3ml open chat lazem yawreni kol da — ana bs a search by
+name w yazhar"* ("I don't want the whole list when I open a new chat — I just want
+to search by name").
+
+The teammate picker (`/chat/new`) opened onto the **entire** org directory, which
+is org-wide by [ADR-012](docs/decisions/ADR-012-chat-directory-is-flat.md), so the
+first thing on screen was a scroll of everyone. It now opens on a prompt with the
+search field **focused**, and lists people only once something is typed. The
+searchable set, the flat single-read directory, and the start-conversation path are
+all unchanged — this is the view's filter only
+([new_chat_screen.dart](lib/features/chat/presentation/pages/new_chat_screen.dart)).
+
+Three distinct empty states, never one generic blank: *No teammates yet* (nobody to
+message at all) · *Search for a teammate* (nothing typed) · *No matches* (nothing
+found). `flutter test` **1744 pass**. NOT device-verified.
 
 ## 2026-08-06 — Navigation icons moved to Phosphor, self-hosted (polish; LOW risk)
 

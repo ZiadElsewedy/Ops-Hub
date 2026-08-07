@@ -499,6 +499,15 @@ Mirrored in `firestore.rules` — the client is never the enforcement point.
 > that **no `where('branchId', ...)` query can ever return an admin, or return
 > anything at all *for* an admin** — a branch read is not a directory.
 >
+> ⚠️ **This is how a whole feature goes silent for admins.** Any recipient set
+> for a branch event must add admins **explicitly and unconditionally** —
+> `resolveRequestApprovers` · `resolveAttendanceReviewers` ·
+> `selectSalesRecipients` all do. Adding them as a *fallback* ("use admins if the
+> branch query returned nobody") looks correct and is not: on a branch that has
+> anyone at all, the fallback never fires, so the admin is never told. That was
+> the sales bug of 2026-08-07. The one deliberate exception is
+> `selectMissedNotifyTargets`, whose fallback is the documented policy.
+>
 > **Exception — `users` READS are flat** ([ADR-012](docs/decisions/ADR-012-chat-directory-is-flat.md)):
 > any signed-in user may read any user document, because chat's directory is
 > org-wide (anyone may message anyone). The table above still governs every other
