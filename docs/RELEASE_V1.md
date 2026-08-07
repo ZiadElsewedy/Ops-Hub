@@ -27,7 +27,7 @@ visibility, no database backups, and QA that has never touched real hardware.
 | Gate | Command | Result |
 | --- | --- | --- |
 | Analyzer | `flutter analyze` | **1 info**, 0 errors/warnings — the pre-existing `use_null_aware_elements` lint in `test/task_submission_gate_test.dart` |
-| Dart suite | `flutter test` | **1670 pass · 0 fail** (~40s) |
+| Dart suite | `flutter test` | **1884 pass · 0 fail** (~41s, 2026-08-07) |
 | Cloud Functions | `cd functions && node --test` | **143 pass · 0 fail** (2026-08-07) |
 | Firestore rules | `cd firestore-tests && npm test` | **68 pass · 0 fail** |
 | iOS release build | `flutter build ios --release --no-codesign` | **✓ built** — `Runner.app`, 87.4 MB |

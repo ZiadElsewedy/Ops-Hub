@@ -709,7 +709,7 @@ catching the one role that belongs to no branch. `NotifyTaskEvent` and
   door, never a missing `branchId`). 9 tests.
 - **Found twice, merged once.** `claude/single-active-session-aedee1` reached the
   same root cause independently and landed `canNotify` first; this branch's
-  duplicate `canReachRecipient` was dropped when the two merged into
+  duplicate `canReachRecipient` was dropped when both were cherry-picked onto
   `release/v1-preparation`, keeping the skip-instead-of-throw half. One
   predicate, one call site.
 - No rules change, no client change.
