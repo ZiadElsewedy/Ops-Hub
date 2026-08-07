@@ -18,12 +18,17 @@ class SalesProgressRing extends StatelessWidget {
     required this.ratio,
     this.diameter = 104,
     this.stroke = 9,
+    this.tint = AppColors.primary,
   });
 
   /// Progress in `0..1`. Values above 1 (over target) render a full ring.
   final double ratio;
   final double diameter;
   final double stroke;
+
+  /// The arc + centre-percent colour. Defaults to white; the manager dashboard
+  /// passes the outlook status tint (green ahead / amber behind / white early).
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +43,7 @@ class SalesProgressRing extends StatelessWidget {
           width: diameter,
           height: diameter,
           child: CustomPaint(
-            painter: _RingPainter(ratio: capped, stroke: stroke),
+            painter: _RingPainter(ratio: capped, stroke: stroke, arcColor: tint),
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -57,6 +62,7 @@ class SalesProgressRing extends StatelessWidget {
                     style: AppTypography.h3.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.3,
+                      color: tint,
                     ),
                   ),
                 ],
@@ -70,10 +76,15 @@ class SalesProgressRing extends StatelessWidget {
 }
 
 class _RingPainter extends CustomPainter {
-  const _RingPainter({required this.ratio, required this.stroke});
+  const _RingPainter({
+    required this.ratio,
+    required this.stroke,
+    required this.arcColor,
+  });
 
   final double ratio;
   final double stroke;
+  final Color arcColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -91,7 +102,7 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round
-      ..color = AppColors.primary;
+      ..color = arcColor;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       -math.pi / 2, // start at 12 o'clock
@@ -103,5 +114,5 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RingPainter old) =>
-      old.ratio != ratio || old.stroke != stroke;
+      old.ratio != ratio || old.stroke != stroke || old.arcColor != arcColor;
 }

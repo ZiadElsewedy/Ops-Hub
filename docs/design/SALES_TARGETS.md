@@ -205,7 +205,8 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
   target-outlook **verdict** with the **last-7-days approved-takings chart** (the
   *how fast*). This re-enriches what an earlier pass had stripped to *Needed per
   day* alone; the enrichment lives **only** here, and stays strictly monochrome
-  (ADR-004) — the ring and bars are white/grey, colour remains status-only.
+  (ADR-004) — the ring and bars are white/grey, colour remains status-only. (A
+  brand accent on these figures was tried and reverted on 2026-08-07.)
 - **The four filtered tiles are now one door.** Pending / Approved / Rejected /
   History each opened the **same** history screen with a different `?status=`, so
   as four `MetricTile`s they read as four destinations that were one. A single
@@ -215,8 +216,8 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
 - **Colour stays status-only.** `salesDayPace` (Needed per day) and
   `salesTargetOutlook` (the Pace verdict) are the only coloured signals:
   success / amber / red for a real judgement, monochrome when there is nothing to
-  judge. Colour is carried by a hairline, a glyph and the figure — never a filled
-  block. An unsubmitted or not-yet-projectable state is never a failure.
+  judge. Colour is carried by a hairline, a glyph and the figure, never by a
+  filled block. An unsubmitted or not-yet-projectable state is never a failure.
 - **Money is grouped from the right.** `formatEgp` counts in threes from the
   last digit. A lookahead once matched at index 0 whenever the digit count was a
   multiple of three, so `945000` shipped to users as **`,945,000`**.

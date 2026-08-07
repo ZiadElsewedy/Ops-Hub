@@ -1,10 +1,15 @@
 # ADR-004 — Strictly monochrome UI; indigo is rejected
 
-**Status:** Accepted · **Date:** 2026-06-14, reaffirmed 2026-06-25 and 2026-07-08
+**Status:** Accepted · **Date:** 2026-06-14, reaffirmed 2026-06-25, 2026-07-08 and 2026-08-07
 
 > This decision has been reversed and re-reversed more than any other in DROP.
 > It is written down so it stops being re-argued. **Read this before proposing a
 > brand colour.**
+>
+> A brand accent (periwinkle indigo) was tried once more on the Branch Sales
+> figures on **2026-08-07** and **reverted the same day** — the owner did not like
+> it on device. The app is monochrome. Do not reintroduce a chromatic brand accent
+> without a new, explicit decision.
 
 ## Context
 

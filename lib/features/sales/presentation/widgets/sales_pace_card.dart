@@ -10,6 +10,7 @@ import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/features/sales/domain/sales_calculator.dart';
 import 'package:drop/features/sales/domain/sales_trend.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
+import 'package:drop/features/sales/presentation/sales_outlook_tint.dart';
 
 /// **Pace** — how the month is trending, in one card: the target verdict up top
 /// (are we going to make it?), then the last-7-days approved-takings chart that
@@ -124,7 +125,7 @@ class SalesPaceCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl),
 
           // ── Chart ────────────────────────────────────────────────────────
-          _TrendChart(trend: trend),
+          _TrendChart(trend: trend, todayTint: salesOutlookTint(outlook)),
 
           if (average > 0) ...[
             const SizedBox(height: AppSpacing.md),
@@ -180,8 +181,11 @@ class _TrendChip extends StatelessWidget {
 }
 
 class _TrendChart extends StatelessWidget {
-  const _TrendChart({required this.trend});
+  const _TrendChart({required this.trend, required this.todayTint});
   final SalesTrend trend;
+
+  /// The status tint for today's bar — matches the hero ACHIEVED figure.
+  final Color todayTint;
 
   static const double _height = 128;
 
@@ -205,6 +209,7 @@ class _TrendChart extends StatelessWidget {
                       ? 'Today'
                       : _weekday(day.businessDateKey),
                   isToday: day.isToday,
+                  todayTint: todayTint,
                   maxBarHeight: _height,
                 ),
               ),
@@ -234,6 +239,7 @@ class _Bar extends StatelessWidget {
     required this.valueLabel,
     required this.dayLabel,
     required this.isToday,
+    required this.todayTint,
     required this.maxBarHeight,
   });
 
@@ -241,6 +247,7 @@ class _Bar extends StatelessWidget {
   final String valueLabel;
   final String dayLabel;
   final bool isToday;
+  final Color todayTint;
   final double maxBarHeight;
 
   @override
@@ -258,7 +265,7 @@ class _Bar extends StatelessWidget {
           Text(
             valueLabel,
             style: AppTypography.caption.copyWith(
-              color: isToday ? AppColors.textPrimary : AppColors.textTertiary,
+              color: isToday ? todayTint : AppColors.textTertiary,
               fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
               fontSize: 10,
             ),
@@ -276,7 +283,10 @@ class _Bar extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: isToday
-                    ? const [AppColors.primary, AppColors.primaryDark]
+                    ? [
+                        todayTint,
+                        Color.lerp(todayTint, AppColors.darkBg, 0.55)!,
+                      ]
                     : const [
                         AppColors.darkSurfaceElevated,
                         AppColors.darkBorder,
@@ -288,7 +298,7 @@ class _Bar extends StatelessWidget {
           Text(
             dayLabel,
             style: AppTypography.caption.copyWith(
-              color: isToday ? AppColors.textPrimary : AppColors.textTertiary,
+              color: isToday ? todayTint : AppColors.textTertiary,
               fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
               fontSize: 10,
             ),

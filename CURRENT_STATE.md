@@ -86,9 +86,11 @@
 > (ADR-004 — ring/bars white/grey, colour status-only), no schema/rules/server
 > change. Pinned by `sales_trend_test.dart`, new `salesTargetOutlook` cases in
 > `sales_calculator_test.dart`, and `sales_dashboard_widgets_test.dart` (a 375pt
-> overflow guard). ⚠️ **NOT device-verified** — needs a look on hardware with a
-> sales-enabled branch (production runs targets on `Arkan` only). Design doc
-> [SALES_TARGETS](docs/design/SALES_TARGETS.md) updated.
+> overflow guard). Design doc [SALES_TARGETS](docs/design/SALES_TARGETS.md)
+> updated. **Verified running on macOS desktop and iOS** (the dashboard renders
+> end to end); GPS/hardware-specific QA still pending. A brand-accent (indigo)
+> experiment on the figures was tried and **reverted the same day** (owner didn't
+> like it on device) — the screen is monochrome and ADR-004 stands.
 
 > **iOS swipe-back added; every back button kept (2026-08-05, NOT
 > device-verified):** A pushed screen on iOS now carries the native interactive
@@ -327,6 +329,33 @@
 > `features/settings/presentation/widgets/settings_tiles.dart` so both screens
 > share one row. Pinned by `test/features/settings/` and the extended
 > `test/settings_page_test.dart`.
+
+> **Profile screen rebuilt (2026-08-07, presentation only, NOT device-verified):**
+> The account's own page was a 64px avatar, a flat list of label→value rows and
+> three action tiles; it now reads as the sibling of the Settings hub. New
+> compact identity lockup (cover + overlapping avatar + `@handle · Position` +
+> role chip + bio + one CTA), facts grouped into **Workplace · Contact ·
+> Account**, and rows that act: **tap-to-copy** on email/phone/emergency, and an
+> unset self-service detail that says *Not set* and opens Edit Profile instead
+> of silently not rendering.
+> - **Two fields that existed but were never shown now are:** `coverImage` (was
+>   uploadable from Edit Profile and visible nowhere) and `bio` (editable, never
+>   rendered).
+> - **Profile never states `paymentNumber`** (owner ruling, same day) — for any
+>   role. It is set and changed in **Edit Profile** only; the schema and the
+>   private compensation subdoc are unchanged.
+> - **`settings_tiles.dart` moved to
+>   [core/widgets/](lib/core/widgets/settings_tiles.dart)** — Profile shares the
+>   grouped-row vocabulary and a feature must not import another feature's
+>   widget. Classes/behaviour unchanged; the two Settings screens changed one
+>   import each.
+> - An admin is offered no *add* door onto a form field they do not get. A
+>   **global admin has no `branchId`**, so the branch row states *All branches ·
+>   organisation-wide* rather than sitting empty.
+> - Also: pull-to-refresh (`forceRefresh`), the shared `AppErrorState` replacing
+>   a bespoke failure surface, a skeleton matching the new shape, and
+>   `ProfileEntity.initials` replacing the duplicated private helper.
+> Pinned by `test/features/profile/profile_page_test.dart` (8).
 
 > **Task review notifications now find a live reviewer (2026-08-07, client-only,
 > NOT device-verified):** `taskSubmitted` routed to `task.createdBy` and stopped,
@@ -862,7 +891,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | --- | --- |
 | **Auth** | Admin-provisioned email/password. No registration/Google/OTP/approval. First-login gate: force password change → profile completion → (employees) Welcome → role home. **Single active session** — a newer sign-in evicts every other device (client-enforced; not device-verified) |
 | **Roles & routing** | 59 routes, role-guarded. admin ⊇ manager |
-| **Profile** | View/edit, avatar/cover upload, contact + payment (payment in a private subdoc; hidden for admin) |
+| **Profile** | View/edit, avatar/cover upload, contact details. `paymentNumber` is **edit-only** (a private subdoc; the read-only profile never states it, and Edit Profile hides it from an admin) |
 | **Tasks** | Full workflow: create → execute (checklist · notes · proof) → review. Multi-assignee, recurrence, activity timeline, templates, shift assignment, work-type framework, Scheduling V2 (start/due windows + quick deadline presets). Upcoming tasks are visible immediately but `Start Task` / `Start Rework` stays disabled until `startsAt` (client gate + Firestore rules; no rework exception). Generated recurring shift tasks now persist their resolved weekly window and unfinished `pending`/`started` instances automatically close as server-owned **Missed** at shift end; the status is closed, visible, and excluded from active/overdue queues. **Automation business-day fix** (2026-07-30, uncommitted): recurring-shift generation keys and windows now use the Egypt business civil day, the generator is pinned to 01:00 Africa/Cairo, the client refuses to materialize a shift instance after its deadline, and per-task recurrence rolls successors forward until their deadline is future. **Requires a functions deploy for the server path.** **Cancelled** (2026-07-28, uncommitted) is the third terminal outcome — a manager/admin business decision taken from `pending`/`started` only, carrying a mandatory picklist reason, excluded from every count. The recurring-shift Automation Center is productionized: skeleton loading, premium header, slim tap-through cards, and a safe-area per-routine details sheet with a pinned Close action, compact schedule/outcome summary, collapsed technical details, last-task navigation, pause/resume and confirmed delete. |
 | **Schedule** | Weekly roster, shift swaps, leave, day notes, configurable shift hours, shift templates, Final View + PNG export |
 | **Branches** | CRUD, soft delete, swap policy, GPS geofences |

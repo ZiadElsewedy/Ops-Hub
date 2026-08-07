@@ -14,6 +14,64 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — Profile screen rebuilt as the sibling of the Settings hub (polish; LOW risk)
+
+Owner ask: *"see the current profile page — I want it professional and way more
+better."* **Presentation only** (plus one pure entity getter). No new reads, no
+schema/rules/server change, strictly monochrome (ADR-004).
+
+- **The account row vocabulary moved to `core/`.** `settings_tiles.dart` is now
+  [core/widgets/settings_tiles.dart](lib/core/widgets/settings_tiles.dart) —
+  Profile needed the same grouped card, medallion, inset hairline and corner
+  rounding, and a feature must not import another feature's widget. Classes and
+  behaviour unchanged; the two Settings screens only changed an import.
+- **New identity lockup**
+  ([profile_identity_card.dart](lib/features/profile/presentation/widgets/profile_identity_card.dart)):
+  cover + overlapping avatar + name + `@handle` + role/position chips + **bio**,
+  closing with the screen's single CTA. Two things that existed but were never
+  shown now are: **`coverImage`** (uploadable from Edit Profile since it shipped,
+  visible nowhere) and **`bio`** (editable, never rendered). A photo sits under a
+  top-to-bottom scrim; with no photo the band is the shared neutral wash + the
+  quiet DROP mark, so it is a finished surface rather than a hole.
+- **Incomplete is a status, not a link.** The old bare *"Complete your profile"*
+  text became the card's semantic warning edge, an explicit line saying what is
+  missing, and a CTA relabelled *Complete profile* — same destination, one CTA.
+- **Facts became rows that do something**
+  ([profile_detail_row.dart](lib/features/profile/presentation/widgets/profile_detail_row.dart)):
+  caption above, value in the bright step (the value is what the user came for),
+  and **tap-to-copy** on email / phone / emergency contact / payment number. A
+  detail that is *not set* now says so and opens Edit Profile — previously the
+  row was simply absent, so "I never filled this in" and "this screen doesn't
+  show it" looked identical.
+- **Grouped into Workplace · Contact · Account.** Workplace carries the branch's
+  real logo (`BranchAvatar`) and the assigned shift. **A global admin has no
+  `branchId`**, so instead of an empty row the group states *All branches ·
+  organisation-wide*.
+- **Payroll is not a profile fact (owner ruling, same day).** The *Salary sent
+  to* row is gone from Profile entirely — for every role, not just admin.
+  `paymentNumber` is still editable in **Edit Profile** and unchanged in the
+  schema; the profile simply does not state it.
+- **The identity card is compact** (owner: *"minimize the big card"*): cover
+  102→72, avatar 78→62, name `h2`→`h3`, bio 4→2 lines, and the closing divider +
+  helper paragraph deleted — the role chip and the CTA now share one line,
+  which is ~100pt shorter. **Position moved onto the identity line**
+  (`@handle · Shift Supervisor`) rather than a second chip: at 390pt two chips
+  plus the CTA wrapped to two rows. The admin rules are unchanged and now hold in
+  both directions: no Payroll block, and no *add* door onto a form that has no
+  such field for them.
+- **Account** gained *Last updated*, and the sign-in method reads
+  `Email and password` rather than the raw provider string (`password` was
+  falling through the old `switch` verbatim).
+- Pull-to-refresh (`forceRefresh`, bypassing the cubit's revisit guard), the
+  shared `AppErrorState` in place of a bespoke icon + text + `TextButton`, a
+  skeleton matching the new shape, and the same isolated destructive sign-out
+  card Settings uses.
+- `ProfileEntity.initials` replaces the byte-identical private `_initials`
+  copies in the profile and edit screens.
+- Gates: `flutter analyze` clean (1 pre-existing info). `flutter test` **1864
+  pass / 0 fail** — new `test/features/profile/profile_page_test.dart` (7).
+  ⚠️ **NOT device-verified.**
+
 ## 2026-08-07 — Branch sales manager dashboard re-enriched: progress ring + one door + Pace card (polish/feature; LOW risk)
 
 Owner-directed redesign of the manager branch-sales dashboard
@@ -48,6 +106,10 @@ change; strictly monochrome (ADR-004) preserved.**
   "*Needed per day* is the only statistic" simplification; the shared surfaces
   stay lean. Colour stays status-only. Design doc updated
   ([SALES_TARGETS](docs/design/SALES_TARGETS.md)).
+- **A brand accent (periwinkle indigo) was tried on the figures and reverted the
+  same day.** The owner asked for colour, chose a chromatic accent, saw it on
+  device and did not like it; the screen is back to monochrome. ADR-004 stands —
+  its status line now records the attempt so it is not re-argued.
 - Gates: `flutter analyze` clean (1 pre-existing info). `flutter test` **1857
   pass / 0 fail**. New: `sales_trend_test.dart` (6), outlook cases in
   `sales_calculator_test.dart` (3), `sales_dashboard_widgets_test.dart` (4,

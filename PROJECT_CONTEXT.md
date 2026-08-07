@@ -351,7 +351,8 @@ only accent. The only chromatic colours are semantic `success` / `error` / `warn
 
 This is the single most re-litigated decision in DROP — read
 [ADR-004](docs/decisions/ADR-004-monochrome-design.md) **before** proposing a brand
-colour.
+colour. (A brand accent on the Branch Sales figures was tried and reverted on
+2026-08-07 — the ADR records it.)
 
 - **Calm through hierarchy, not reduction.** DROP is premium, not minimal. A 4-step
   grey ramp (`FFFFFF` / `A7A7AF` / `6E6E77` / `48484E`) does the work colour would;
@@ -421,6 +422,7 @@ colour.
 | Fact row | `StatStrip` (read-only facts; if a cell should drill, use `MetricTile`) |
 | Feed row | `ActivityCard` |
 | Status pill | `StatusBadge` (`.task` is canonical) |
+| Grouped account rows (Settings, Profile) | `SettingsSectionHeader` + `SettingsGroup` + `SettingsRow` / `SettingsSwitchRow` + `SettingsIconMedallion` (`core/widgets/settings_tiles.dart`) — one card, inset hairlines, 40px medallions. A new account surface must not fork it |
 | Task card edge | `TaskAttentionSurface` + `taskAttentionTone` (Employee Home) |
 | Empty state | `DropEmptyState` |
 | Loading | `Skeleton` / `DropLoadingState` |

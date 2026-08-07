@@ -180,8 +180,28 @@ so Home stays current without a re-login.
 
 **`ProfileCubit.loadProfile(uid)` is idempotent.** Once a uid is in memory (loaded
 *or* updated via `save` — both stamp `_loadedUid`), revisiting the screen skips the
-Firestore re-read and the skeleton flash. `forceRefresh` overrides. There is no
-pull-to-refresh, so `save` is the only in-session mutation.
+Firestore re-read and the skeleton flash. `forceRefresh` overrides, and the Profile
+screen's **pull-to-refresh** and its error-state **Retry** are the only callers that
+pass it — ordinary navigation must not.
+
+### The Profile screen
+
+`ProfilePage` is the sibling of the Settings hub and shares its row vocabulary
+(`core/widgets/settings_tiles.dart` — one grouped glass card, inset hairlines, 40px
+medallions). What is specific to it:
+
+- **`ProfileIdentityCard`** — cover (`coverImage`) under a scrim, overlapping avatar,
+  name, an identity line (`@handle · Position`), the role chip, `bio`, and the
+  screen's one CTA. Role and position come from the **auth session**, never the
+  profile document: privileged fields are deliberately kept off `ProfileEntity`.
+  It is deliberately compact — position rides the identity line rather than taking a
+  second chip, because at 390pt two chips plus the CTA wrap to two rows.
+- **`ProfileDetailRow`** — caption above, value in the bright step of the ramp, with
+  tap-to-copy on email / phone / emergency contact. An unset self-service detail
+  reads *Not set* and opens Edit Profile.
+- Facts group as **Workplace · Contact · Account**.
+- **An admin has no `branchId`**, so the Workplace group states *All branches ·
+  organisation-wide* rather than rendering an empty branch row.
 
 ### Contact & compensation
 
@@ -193,8 +213,13 @@ it there (`editMap` never emits the key).
 Edit Profile exposes Contact details + Salary payment number **for managers and
 employees only — hidden for admin**. Owner ruling: the admin manages compensation and
 has no manager to be reached by. An admin save never writes those fields, and the
-Profile page hides the "Salary sent to" row for admin. The admin-only salary fields
-(amount/type/method) are **not** part of the profile contract.
+Profile page offers an admin no *add* door on an unset contact row — the form they
+would land on has no such field. The admin-only salary fields (amount/type/method)
+are **not** part of the profile contract.
+
+**Profile never states `paymentNumber`** (owner ruling, 2026-08-07) — for any role.
+It is set and changed in **Edit Profile** only; the read-only profile has no payroll
+section. The field itself is unchanged in the schema and in `users/{uid}/private/compensation`.
 
 ## Known gaps
 

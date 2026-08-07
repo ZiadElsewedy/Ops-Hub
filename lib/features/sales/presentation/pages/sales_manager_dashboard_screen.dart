@@ -18,6 +18,7 @@ import 'package:drop/features/sales/domain/sales_calculator.dart';
 import 'package:drop/features/sales/domain/sales_kpis_calculator.dart';
 import 'package:drop/features/sales/domain/sales_trend.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
+import 'package:drop/features/sales/presentation/sales_outlook_tint.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_month_overview.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_needed_per_day.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_pace_card.dart';
@@ -206,6 +207,7 @@ class _SalesManagerDashboardScreenState
                         achievedPiastres: snapshot.approvedTotalPiastres,
                         remainingPiastres: snapshot.remainingPiastres,
                         progressRatio: snapshot.progressRatioCapped,
+                        tint: salesOutlookTint(outlook),
                       ),
                   ],
                 ),

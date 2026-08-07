@@ -20,6 +20,7 @@ class SalesMonthOverview extends StatelessWidget {
     required this.achievedPiastres,
     required this.remainingPiastres,
     required this.progressRatio,
+    this.tint = AppColors.textPrimary,
   });
 
   final int targetPiastres;
@@ -28,6 +29,11 @@ class SalesMonthOverview extends StatelessWidget {
 
   /// Capped `0..1` progress toward target — the ring's fill.
   final double progressRatio;
+
+  /// The outlook status tint for ACHIEVED + the ring (green ahead / amber
+  /// behind / white early). Defaults to white so the widget reads plainly on
+  /// its own; the dashboard passes `salesOutlookTint(outlook)`.
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
@@ -50,11 +56,11 @@ class SalesMonthOverview extends StatelessWidget {
                   child: _Figure(
                     label: 'ACHIEVED',
                     value: formatEgp(achievedPiastres),
-                    emphasised: true,
+                    color: tint,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                SalesProgressRing(ratio: progressRatio),
+                SalesProgressRing(ratio: progressRatio, tint: tint),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: _Figure(
@@ -112,14 +118,17 @@ class _Figure extends StatelessWidget {
   const _Figure({
     required this.label,
     required this.value,
-    this.emphasised = false,
+    this.color,
     this.alignEnd = false,
     this.footnote,
   });
 
   final String label;
   final String value;
-  final bool emphasised;
+
+  /// The figure's colour — the brand accent for the leading figures (achieved),
+  /// null for a supporting figure (remaining), which reads in the grey ramp.
+  final Color? color;
   final bool alignEnd;
   final String? footnote;
 
@@ -149,9 +158,7 @@ class _Figure extends StatelessWidget {
             value,
             maxLines: 1,
             style: AppTypography.h2.copyWith(
-              color: emphasised
-                  ? AppColors.textPrimary
-                  : AppColors.textSecondary,
+              color: color ?? AppColors.textSecondary,
             ),
           ),
         ),

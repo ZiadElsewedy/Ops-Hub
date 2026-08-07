@@ -24,6 +24,7 @@
 - **Design spec(s):** —
 
 ## Tests
+- `test/features/sales/presentation/sales_manager_dashboard_cubit_test.dart`
 - `test/manager_home_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)

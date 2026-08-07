@@ -249,7 +249,7 @@ class _Form extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _ImagesHeader(
-              initials: _initials(initial),
+              initials: initial.initials,
               avatarUrl: initial.profileImage,
               coverUrl: initial.coverImage,
               avatarFile: avatarFile,
@@ -580,17 +580,4 @@ class _UploadOverlay extends StatelessWidget {
       ],
     );
   }
-}
-
-String _initials(ProfileEntity p) {
-  final name = p.fullName?.trim();
-  if (name != null && name.isNotEmpty) {
-    final parts = name.split(' ');
-    if (parts.length >= 2) {
-      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-    }
-    return parts.first[0].toUpperCase();
-  }
-  if (p.email.isNotEmpty) return p.email[0].toUpperCase();
-  return '?';
 }

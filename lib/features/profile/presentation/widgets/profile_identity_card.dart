@@ -44,15 +44,21 @@ class ProfileIdentityCard extends StatelessWidget {
 
   final VoidCallback onEdit;
 
-  static const double _coverHeight = 118;
-  static const double _avatarSize = 78;
+  static const double _coverHeight = 72;
+  static const double _avatarSize = 62;
   static const double _avatarOverlap = _avatarSize / 2;
 
   @override
   Widget build(BuildContext context) {
     final incomplete = !profile.isComplete;
     final bio = profile.bio?.trim() ?? '';
-    final secondary = profile.handle.isNotEmpty ? profile.handle : profile.email;
+    // Position rides the identity line rather than taking a second chip: at
+    // 390pt the chip row shares its line with the CTA, and "Shift Supervisor"
+    // beside a role chip wrapped to two lines there.
+    final secondary = [
+      profile.handle.isNotEmpty ? profile.handle : profile.email,
+      ?_position,
+    ].join(' · ');
 
     return Semantics(
       container: true,
@@ -82,7 +88,7 @@ class ProfileIdentityCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
-                _avatarOverlap + AppSpacing.md,
+                _avatarOverlap + AppSpacing.sm,
                 AppSpacing.lg,
                 AppSpacing.lg,
               ),
@@ -91,12 +97,12 @@ class ProfileIdentityCard extends StatelessWidget {
                 children: [
                   Text(
                     profile.displayName,
-                    style: AppTypography.h2,
+                    style: AppTypography.h3,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (secondary.isNotEmpty) ...[
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       secondary,
                       style: AppTypography.bodySmall,
@@ -104,27 +110,51 @@ class ProfileIdentityCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  if (_pills.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: _pills,
-                    ),
-                  ],
                   if (bio.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       bio,
-                      style: AppTypography.body,
-                      maxLines: 4,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const SizedBox(height: AppSpacing.lg),
-                  const Divider(height: 1, color: AppColors.darkBorder),
                   const SizedBox(height: AppSpacing.md),
-                  _Footer(incomplete: incomplete, onEdit: onEdit),
+                  // The chips and the screen's one CTA share a line — the
+                  // divider + helper paragraph the card used to close with cost
+                  // ~60pt of height and said nothing the button doesn't.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.xs,
+                          children: _pills,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      PremiumButton(
+                        label: incomplete ? 'Complete profile' : 'Edit profile',
+                        icon: Icons.edit_outlined,
+                        style: PremiumButtonStyle.filled,
+                        onPressed: onEdit,
+                      ),
+                    ],
+                  ),
+                  // Only an incomplete profile earns an extra line: it has to
+                  // say *what* is missing, which the CTA label cannot.
+                  if (incomplete) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Add your name and username to finish setting up.',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.warning,
+                      ),
+                      maxLines: 2,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -134,50 +164,18 @@ class ProfileIdentityCard extends StatelessWidget {
     );
   }
 
+  /// The job title, or null when the admin has not set one.
+  String? get _position {
+    final p = (position ?? '').trim();
+    return p.isEmpty ? null : p;
+  }
+
   List<Widget> get _pills => [
     if (role != null) ProfileMetaPill(label: _roleLabel(role!), strong: true),
-    if ((position ?? '').trim().isNotEmpty)
-      ProfileMetaPill(label: position!.trim()),
   ];
 
   static String _roleLabel(UserRole role) =>
       '${role.name[0].toUpperCase()}${role.name.substring(1)}';
-}
-
-/// The footer line: what the card is for, and the screen's single CTA.
-class _Footer extends StatelessWidget {
-  const _Footer({required this.incomplete, required this.onEdit});
-
-  final bool incomplete;
-  final VoidCallback onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            incomplete
-                ? 'Add your name and username to finish setting up.'
-                : 'Keep your details current — your manager uses them.',
-            style: AppTypography.caption.copyWith(
-              color: incomplete
-                  ? AppColors.warning
-                  : AppColors.textTertiary,
-            ),
-            maxLines: 2,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        PremiumButton(
-          label: incomplete ? 'Complete profile' : 'Edit profile',
-          icon: Icons.edit_outlined,
-          style: PremiumButtonStyle.filled,
-          onPressed: onEdit,
-        ),
-      ],
-    );
-  }
 }
 
 /// The cover strip. A photo is always scrimmed towards the card surface so the
