@@ -186,7 +186,11 @@ sidebar (+⌘K) and a home-screen tile — their first attendance-oversight surf
 **Weekly & monthly reports and their exports have since shipped** (client-side
 CSV timesheet + PDF summary, gated by `attendance_export_gate.dart`; see
 [ADR-019](../decisions/ADR-019-operational-exports-and-week-review.md)) — the
-"Report generation" surfaces under `presentation/reporting/`. Still deferred, holding
+"Report generation" surfaces under `presentation/reporting/`. The hub also carries a
+**Rankings** board (`attendance_rankings.dart` + `AttendanceRankingsCard`) that ranks
+the streamed ledger by a chosen metric — overtime · lateness · absences · missing
+punches · hours worked — answering "*who* has the most X this period", with no extra
+read. Still deferred, holding
 [ADR-009](../decisions/ADR-009-no-analytics-pipeline.md) +
 [ADR-010](../decisions/ADR-010-lean-over-enterprise.md): a performance score,
 analytics/heatmaps/trends, and a machine-readable payroll export — the ledger data

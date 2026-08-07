@@ -5,6 +5,22 @@
 >
 > **Last verified against the code:** 2026-08-07.
 
+> **Attendance reports gained ranked exception boards (2026-08-07, feature,
+> presentation + pure domain, client-only, NO deploy, NOT device-verified):** The
+> reports hub answered "which periods need attention" but not "**who** — who has
+> the highest overtime, who's late the most, who's missing clock-outs" without
+> scanning the table. New pure `attendanceRankings` (`attendance_rankings.dart`)
+> ranks the ledger rows the hub **already streams** by a chosen
+> `AttendanceRankingMetric` — Overtime · Lateness · Absences · Missing punches ·
+> Hours worked — summed per employee, highest-first, zero-value people left off
+> (a leaderboard shows who *has* the thing), ties broken by name. A new
+> `AttendanceRankingsCard` (metric chip row + ranked list, strictly monochrome per
+> ADR-004 — "most overtime" is a fact, not a status) sits under the report
+> headline, scoped to the same branch + period the hub is showing. **Zero new
+> reads, no cubit, no route, no schema/rules/functions change.** Pinned by
+> `attendance_rankings_test` (7) + `attendance_rankings_card_test` (3).
+> `flutter analyze` clean, 1911 Dart tests green.
+
 > **Attendance history filters & search, sharpened (2026-08-07, feature,
 > presentation + pure domain, client-only, NO deploy, NOT device-verified):**
 > Three P1 gaps from the attendance audit, all in the History/Review ledger.

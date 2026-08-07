@@ -14,6 +14,18 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — Attendance reports: ranked exception boards (feature; LOW risk, client-only, no deploy)
+
+The reports hub could say which periods need attention but not *who* has the most
+overtime / lateness / absences / missing clock-outs without scanning. New pure
+`attendanceRankings` ranks the ledger rows the hub already streams by a chosen
+`AttendanceRankingMetric` (Overtime · Lateness · Absences · Missing punches · Hours
+worked), summed per employee, highest-first, zero-value people excluded. A new
+monochrome `AttendanceRankingsCard` (metric chip row + ranked list) renders under the
+report headline, scoped to the hub's current branch + period. Zero new reads, no new
+cubit/route/schema/rules/functions. Pinned by `attendance_rankings_test` (7) +
+`attendance_rankings_card_test` (3). `flutter analyze` clean, 1911 Dart tests green.
+
 ## 2026-08-07 — Attendance history: multi-select status, Today/Yesterday presets, Arabic-aware search (feature; LOW risk, client-only, no deploy)
 
 Three P1 findings from the attendance audit, all in the History/Review ledger and

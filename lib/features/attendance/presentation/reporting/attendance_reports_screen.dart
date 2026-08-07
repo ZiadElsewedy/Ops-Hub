@@ -19,6 +19,7 @@ import 'package:drop/features/attendance/presentation/reporting/attendance_repor
 import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_coverage.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_headline.dart';
+import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_rankings_card.dart';
 import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_report_scope_bar.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
@@ -302,6 +303,9 @@ class _ReportBody extends StatelessWidget {
         verdict,
         const SizedBox(height: AppSpacing.md),
         AttendanceReportHeadline(summary: state.summary),
+        const SizedBox(height: AppSpacing.xxl),
+        // "Who has the most X?" — ranked over the same period the hub is showing.
+        AttendanceRankingsCard(rows: state.rows),
         const SizedBox(height: AppSpacing.xxl),
         deeper,
       ],
