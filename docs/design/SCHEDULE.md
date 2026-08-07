@@ -222,6 +222,20 @@ Each pillar states **Goal · Architecture · UX · Logic · Risk · Out-of-scope
   come from the resolved
   `WeeklyScheduleEntity.hoursFor`, so a weekend-late night surfaces as
   "· Wknd 16:00–00:00" rather than a hardcoded time.
+
+**Amended 2026-08-08 — a manager can mark their own day off (owner ask):**
+- A manager works an **open (presence) shift**, so the Morning/Night assignment
+  picker has always excluded managers (it lists `role.isEmployee` only) — a
+  manager cannot be put in a shift, which is correct. But employees still need
+  to see **which day the manager is off**. The day sheet's **Leave** picker
+  (`day_details_sheet._showLeavePicker`) now includes the **editing manager
+  themselves** in addition to the branch employees, and a manager's own pick is
+  forced to **`LeaveType.dayOff`** (no leave-type choice). **Self only:** an
+  admin editing the branch is not a manager, so the manager is not selectable in
+  their picker; employees keep the full leave-type choice. A manager's day off
+  is an ordinary `leave` entry, so it renders everywhere leave already does — the
+  day sheet's leave list *and* the Final-view **Off row / export** — with no
+  other change. Pinned by `schedule_manager_day_off_test.dart` (3).
 - **One pure source for all three outputs.** New `domain/reporting/final_schedule_grid.dart`
   (`buildFinalScheduleGrid`) reduces a week + members to the grid (names resolved
   and sorted once, orphans dropped, roster = scheduled-only). The on-screen

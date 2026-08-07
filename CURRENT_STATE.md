@@ -5,6 +5,21 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **A manager can mark their own day off in the schedule (2026-08-08, feature,
+> client-only, NOT device-verified):** A manager works an open/presence shift and
+> so is (and stays) unassignable to a Morning/Night slot — the shift picker was
+> already `role.isEmployee`-only. The gap was that employees couldn't see the
+> **manager's day off**, because the day sheet's Leave picker was *also*
+> employees-only. Now `day_details_sheet._showLeavePicker` includes the **editing
+> manager themselves**, forced to **`LeaveType.dayOff`** (no type choice).
+> **Self only** — an admin editing the branch can't mark the manager off, and
+> employees keep the full leave-type choice. The day off is a plain `leave`
+> entry, so it shows everywhere leave already renders (day-sheet leave list +
+> Final-view Off row / export). No rules/schema/functions change; the branch
+> roster read already returns the manager. `flutter analyze` clean, +3 tests
+> (`schedule_manager_day_off_test.dart`). Design doc
+> [SCHEDULE](docs/design/SCHEDULE.md) amended.
+
 > **App display name is now "Drop Operations" (2026-08-08, polish, NOT
 > device-verified):** The user-facing name was renamed DROP → **Drop Operations**
 > across every surface that shows it — `AppConstants.appName`, the window titles,

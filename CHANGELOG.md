@@ -14,6 +14,27 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — A manager can mark their own day off in the schedule (feature; LOW risk, client-only)
+
+Owner ask: a manager has no Morning/Night shift (they work an open/presence
+shift), so they must not be placeable into a shift slot — but employees need to
+see **which day the manager is off**. The shift-assignment picker already
+excluded managers (`role.isEmployee` only), so that half held. The gap was the
+day sheet's **Leave** picker, which was *also* employees-only, so a manager could
+not be marked off at all.
+
+`day_details_sheet._showLeavePicker` now includes the **editing manager
+themselves** alongside the branch employees, and a manager's own pick is forced
+to **`LeaveType.dayOff`** (no leave-type choice). **Self only** — an admin
+editing the branch is not a manager, so the manager stays unselectable there;
+employees keep the full annual/sick/day-off/pending choice. A manager's day off
+is a plain `leave` entry, so it surfaces everywhere leave already renders (the
+day-sheet leave list and the Final-view **Off row / export**) with no other
+change. The branch roster read already returns the manager, so their off-day row
+resolves for everyone. `flutter analyze` clean, +3 tests
+(`schedule_manager_day_off_test.dart`). NOT device-verified. Design doc
+[SCHEDULE](docs/design/SCHEDULE.md) amended.
+
 ## 2026-08-08 — App display name renamed DROP → Drop Operations (polish; LOW risk)
 
 The user-facing app name is now **Drop Operations** everywhere it is shown. One
