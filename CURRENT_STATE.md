@@ -3,7 +3,7 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-06.
+> **Last verified against the code:** 2026-08-07.
 
 > 🚦 **V1 RELEASE GATE — [docs/RELEASE_V1.md](docs/RELEASE_V1.md).** The full
 > release runbook, audited against code *and* live production on 2026-08-05.
@@ -217,6 +217,39 @@
 > share one row. Pinned by `test/features/settings/` and the extended
 > `test/settings_page_test.dart`.
 
+> **Task review notifications now find a live reviewer (2026-08-07, client-only,
+> NOT device-verified):** `taskSubmitted` routed to `task.createdBy` and stopped,
+> which is **silence** — a task left in `waitingReview` with nobody told and no
+> error anywhere — whenever that account was deactivated, hard-deleted, demoted
+> to employee, or moved branch. The last two are worse than silence: rules refuse
+> their approval, so it notified the one person who *cannot* act and nobody who
+> can. A generated shift task made it routine, not exotic: it inherits the
+> **template's** `createdBy`, so a template set up by someone who has since left
+> produced a task **every day** whose submission notified a dead account.
+> New pure ladder (`task/domain/task_review_routing.dart`): **creator, if they
+> can still review it → the branch's active managers → active admins.** The gate
+> mirrors the `tasks` update rule in `firestore.rules`. **No new business rule
+> was invented** — the escalation is the same shape as the server's existing
+> `salesRecipients(managersOnly: true, adminsFallback: true)`. Reads stay on the
+> rare paths: one branch read, an individual creator lookup only for a
+> (branchless) admin creator, and the org-wide read only when the branch has
+> nobody. Pinned by `test/task_review_routing_test.dart` +
+> `test/task_submitted_recipients_test.dart`.
+> ⚠️ Its tier-3 admin escalation reaches nobody until the
+> `functions:sendNotification` deploy below lands.
+>
+> **The paged notification sweep is now verified rather than manually QA'd
+> (2026-08-07):** the paging moved into `sweepPages`
+> (`notifications/data/datasources/notification_sweep.dart`), generic over the
+> page item, so it is testable apart from Firestore. 23 tests run it over 5,000-
+> and 15,000-item sets, across page boundaries, and with a commit that *deletes*
+> what it touched. **It caught a real off-by-one**: a collection ending exactly
+> on the 15,000 ceiling threw "too many notifications" after successfully
+> sweeping all of them. The ceiling is now checked after the fetch. Also pinned:
+> no batch approaches Firestore's 500-op cap (the page size *is* the batch
+> ceiling), and the cursor advances off the last item **fetched**, not the last
+> **committed**.
+
 > ⚠️ **Notification audit — a silent delivery outage fixed; SERVER HALF NEEDS A
 > FUNCTIONS DEPLOY (2026-08-06):** `sendNotification`'s reachability check was a
 > branch comparison only, and **an admin has no `branchId`** (the role is
@@ -258,12 +291,8 @@
 > - **The due label was on a different clock** from Task Details (`Due today
 >   4:30 PM` vs `16:30`). Now `AppDateFormatter` + an injected clock; earns
 >   `Tomorrow` for free.
-> ⚠️ **The paged sweep is not unit-tested** — its cursor/termination logic runs
-> against Firestore and there is no Dart Firestore fake in the project. Needs
-> on-device QA against an inbox larger than one page.
-> ⚠️ **Known gap, deliberately open:** `taskSubmitted` routes to a single uid, so
-> a **deactivated or deleted** creator still means nobody is notified. A
-> branch-reviewer fallback is the fix and wants an owner ruling first.
+> ✅ **Both follow-ups from this audit are now closed (2026-08-07)** — the
+> reviewer ladder and the sweep's test coverage; see the entry below.
 
 > **Single active session — one account, one signed-in device (2026-08-06, NOT
 > device-verified):** A newer sign-in now evicts every older one. `AuthCubit`
@@ -620,7 +649,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1776 pass · 0 fail** (~40s) — re-run **2026-08-06** (+18 single active session, +17 the notification audit; previous 1741). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
+| **Tests** | **1832 pass · 0 fail** (~44s) — re-run **2026-08-07** (+18 single active session, +17 the notification audit, +56 the reviewer ladder and the paged-sweep coverage; previous 1741). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) — separate repo, verified 2026-08-03 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

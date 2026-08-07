@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:drop/core/constants/app_constants.dart';
 import 'package:drop/core/errors/exceptions.dart';
+import 'package:drop/features/notifications/data/datasources/notification_sweep.dart';
 import 'package:drop/features/notifications/data/models/notification_model.dart';
 
 abstract class NotificationRemoteDataSource {
@@ -164,13 +165,15 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
   /// fires every 30 minutes on a per-task ladder, so 500 is reachable.
   ///
   /// 300 leaves generous headroom under the cap while keeping the page count
-  /// (and therefore the round trips) low.
-  static const int _sweepPageSize = 300;
-
-  /// Safety valve: at most 15,000 documents per sweep. An inbox larger than
-  /// this is a different problem, and running unbounded loops against Firestore
-  /// from a phone is not the way to discover it.
-  static const int _maxSweepPages = 50;
+  /// (and therefore the round trips) low. `maxPages: 50` is the safety valve —
+  /// at most 15,000 documents per sweep. An inbox larger than that is a
+  /// different problem, and running an unbounded loop against Firestore from a
+  /// phone is not the way to discover it.
+  ///
+  /// The paging itself lives in `notification_sweep.dart`, where it is unit
+  /// tested over thousands of items; what remains here is the Firestore query.
+  static const SweepPolicy _sweepPolicy =
+      SweepPolicy(pageSize: 300, maxPages: 50);
 
   /// Pages [uid]'s notifications newest-first, and for every page applies
   /// [apply] to the documents [selects] accepts, one `WriteBatch` per page.
@@ -205,29 +208,27 @@ class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
     required String failureMessage,
   }) async {
     try {
-      DocumentSnapshot<Map<String, dynamic>>? cursor;
-      for (var page = 0; page < _maxSweepPages; page++) {
-        var query = _notifications
-            .where('recipientUid', isEqualTo: uid)
-            .orderBy('createdAt', descending: true)
-            .limit(_sweepPageSize);
-        if (cursor != null) query = query.startAfterDocument(cursor);
-
-        final snap = await query.get();
-        if (snap.docs.isEmpty) return;
-        cursor = snap.docs.last;
-
-        final hits = snap.docs.where((d) => selects(d.data())).toList();
-        if (hits.isNotEmpty) {
+      await sweepPages<QueryDocumentSnapshot<Map<String, dynamic>>>(
+        policy: _sweepPolicy,
+        fetchPage: (cursor) async {
+          var query = _notifications
+              .where('recipientUid', isEqualTo: uid)
+              .orderBy('createdAt', descending: true)
+              .limit(_sweepPolicy.pageSize);
+          if (cursor != null) query = query.startAfterDocument(cursor);
+          final snap = await query.get();
+          return snap.docs;
+        },
+        selects: (doc) => selects(doc.data()),
+        commit: (hits) async {
           final batch = _firestore.batch();
-          for (final d in hits) {
-            apply(batch, d.reference);
+          for (final doc in hits) {
+            apply(batch, doc.reference);
           }
           await batch.commit();
-        }
-        // A short page is the last page.
-        if (snap.docs.length < _sweepPageSize) return;
-      }
+        },
+      );
+    } on SweepLimitExceeded {
       throw ServerException(
         'There were too many notifications to do that in one go. '
         'Please try again.',

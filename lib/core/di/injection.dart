@@ -38,6 +38,7 @@ import 'package:drop/features/task/domain/repositories/task_repository.dart';
 import 'package:drop/features/task/domain/usecases/create_task.dart';
 import 'package:drop/features/task/domain/usecases/update_task.dart';
 import 'package:drop/features/task/domain/usecases/delete_task.dart';
+import 'package:drop/features/task/domain/usecases/resolve_task_reviewers.dart';
 import 'package:drop/features/task/domain/usecases/assign_task.dart';
 import 'package:drop/features/task/domain/usecases/upload_task_attachment.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
@@ -811,6 +812,12 @@ class AppDependencies {
       getUsersByBranch: GetUsersByBranch(authRepository),
       notifyTaskEvent: NotifyTaskEvent(notificationRepository),
       eventTracking: eventTracking,
+      // Who is told a task is waiting for review. Without this the submitted
+      // notice goes to `task.createdBy` alone, which is silence whenever that
+      // account has been deactivated, deleted, demoted, or moved branch — and
+      // a generated shift task inherits its TEMPLATE's creator, so that is a
+      // daily occurrence once the person who set it up leaves.
+      resolveTaskReviewers: ResolveTaskReviewers(authRepository),
     );
 
     // ─── Case Management (private conversation until resolution) ─────────

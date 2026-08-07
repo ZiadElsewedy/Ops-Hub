@@ -43,6 +43,7 @@ import 'package:drop/features/task/domain/work_types/task_work_x.dart';
 import 'package:drop/features/task/domain/usecases/assign_task.dart';
 import 'package:drop/features/task/domain/usecases/create_task.dart';
 import 'package:drop/features/task/domain/usecases/delete_task.dart';
+import 'package:drop/features/task/domain/usecases/resolve_task_reviewers.dart';
 import 'package:drop/features/task/domain/usecases/update_task.dart';
 import 'package:drop/features/task/domain/usecases/upload_task_attachment.dart';
 import 'package:drop/features/task/presentation/submission_progress.dart';
@@ -71,6 +72,16 @@ class TaskCubit extends Cubit<TaskState> {
   /// Immutable audit trail (optional — null in tests that don't exercise it).
   /// Every task-lifecycle write records one event through this single seam.
   final EventTrackingService? _eventTracking;
+
+  /// Resolves who is told a task is waiting for review (optional — null in
+  /// tests that don't exercise it, following [_eventTracking]'s precedent in
+  /// this same constructor).
+  ///
+  /// When null, `taskSubmitted` degrades to `NotifyTaskEvent`'s own fallback of
+  /// `[task.createdBy]` — i.e. exactly the behaviour that shipped before the
+  /// reviewer ladder existed. DI always supplies it; see
+  /// `task/domain/task_review_routing.dart` for the rule.
+  final ResolveTaskReviewers? _resolveTaskReviewers;
 
   UserEntity? _user;
 
@@ -122,6 +133,7 @@ class TaskCubit extends Cubit<TaskState> {
     required this._getUsersByBranch,
     required this._notifyTaskEvent,
     this._eventTracking,
+    this._resolveTaskReviewers,
   }) : super(const TaskState.initial());
 
   /// Records an immutable audit event for a task action — best-effort and
@@ -1334,6 +1346,7 @@ class TaskCubit extends Cubit<TaskState> {
         task: task,
         type: NotificationType.taskSubmitted,
         actor: _user!,
+        recipientOverride: await _reviewerRecipients(task),
       );
     }
   }
@@ -1546,12 +1559,14 @@ class TaskCubit extends Cubit<TaskState> {
       if (!isClosed) {
         emit(TaskState.loaded(_tasks, busy: false, directory: _directory));
       }
-      // Notify the reviewer who created the task (best-effort).
+      // Notify whoever can actually review it (best-effort) — the creator when
+      // they still can, else the branch's managers, else an admin.
       if (_user != null) {
         await _notifyTaskEvent(
           task: task,
           type: NotificationType.taskSubmitted,
           actor: _user!,
+          recipientOverride: await _reviewerRecipients(task),
         );
       }
       // Audit: the business facts (unchanged), plus upload analytics with metrics.
@@ -2042,6 +2057,22 @@ class TaskCubit extends Cubit<TaskState> {
         appendLog: appendLog,
       ),
     );
+  }
+
+  /// Recipients for a **submitted-for-review** notice — the reviewer ladder in
+  /// `task/domain/task_review_routing.dart` (creator → branch managers →
+  /// admins). Null when the resolver isn't wired, which leaves
+  /// `NotifyTaskEvent` on its `[createdBy]` fallback.
+  ///
+  /// Returning an empty list is meaningful and must be passed through as-is:
+  /// `NotifyTaskEvent` reads a non-null empty override as "we looked and there
+  /// is nobody", which is the honest outcome for a branch with no reviewer at
+  /// all — never as "fall back to the assignees", which would tell the person
+  /// who just submitted the work that it had been submitted.
+  Future<List<String>?> _reviewerRecipients(TaskEntity task) async {
+    final resolve = _resolveTaskReviewers;
+    if (resolve == null) return null;
+    return resolve(task);
   }
 
   /// Recipients for a manager/admin review action (approve / reject / rework).

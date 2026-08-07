@@ -142,12 +142,90 @@ reaches the wrong account even during an account-switch/token-drift race.
    type, and payload remain server-owned.
 5. **Delete** — the recipient (or an admin) hard-deletes the doc.
 
+### Who is told a task is waiting for review
+
+`taskSubmitted` does **not** route to `task.createdBy`. It walks a three-tier
+ladder, pure and unit-tested in
+[`task/domain/task_review_routing.dart`](../../lib/features/task/domain/task_review_routing.dart)
+(`taskReviewRecipients`), fed by the `ResolveTaskReviewers` use case:
+
+| Tier | Recipients | When |
+|---|---|---|
+| 1 | **the creator** | they can still review it — active, and admin or manager *of this branch* |
+| 2 | **the branch's active managers** | the creator cannot |
+| 3 | **active admins** | the branch has no manager who can act |
+
+`canReviewTask` is the gate, and it mirrors the `tasks` update rule in
+`firestore.rules` (and the server's own `requireSalesManager`): **active**, and
+either a global admin or a manager of *this* branch. If the predicate and the
+rule ever disagree, the rule wins and the predicate is the bug.
+
+> **Why a ladder rather than one uid.** `createdBy` alone is silence in four
+> situations, all of which leave a task in `waitingReview` with **nobody told**
+> and no error anywhere — `sendNotification` skips an absent recipient without
+> raising: the creator is **deactivated**, **hard-deleted**, **demoted** to
+> employee, or has **moved branch**. The last two are worse than silence: rules
+> would refuse their approval, so notifying them tells the one person who
+> *cannot* act and nobody who can.
+>
+> A generated shift task makes this routine rather than exotic. It inherits the
+> **template's** `createdBy` (which is exactly why `task_origin.dart` warns that
+> `createdBy` cannot answer "who made this"), so a template set up a year ago by
+> someone who has since left produces a task **every single day** whose
+> submission notifies a dead account.
+
+The escalation is deliberately the same shape as the server's
+`salesRecipients(branchId, {managersOnly: true, adminsFallback: true})`, which
+already answers this question for branch-scoped review routing — two analogous
+decisions must not use two different rules.
+
+Costs stay on the rare paths: the branch directory is read once (a manager
+creator is already in it), the creator is looked up individually only when the
+branch list does not contain them (in practice an **admin** creator, who is
+branchless and can never appear in a branch query), and the org-wide read for
+tier 3 happens only when tiers 1 and 2 both come up empty.
+
+Two behaviours worth keeping straight:
+
+- **An empty result is passed through as an empty override, not as null.**
+  `NotifyTaskEvent` reads a non-null empty list as "we looked and there is
+  nobody". A null would fall back to `[createdBy]`, and an *assignee* fallback
+  would tell the person who just submitted the work that it had been submitted.
+- **An admin sitting in a branch list does not satisfy tier 2.** Tier 3 is the
+  only door for admins, so the escalation stays explicit.
+
+Pinned by `test/task_review_routing_test.dart` (the rule + the use case's read
+pattern) and `test/task_submitted_recipients_test.dart` (that `TaskCubit`
+actually consults it).
+
 ### The bulk actions are swept, not fanned out
 
-**Mark all read** and **Clear archived** both go through one paged sweep
-(`NotificationRemoteDataSourceImpl._sweep`): 300 documents per page over the
-existing `recipientUid + createdAt` index, one `WriteBatch` per page, newest
-first, `startAfterDocument` as the cursor. **No new index, no deploy.**
+**Mark all read** and **Clear archived** both go through one paged sweep: 300
+documents per page over the existing `recipientUid + createdAt` index, one
+`WriteBatch` per page, newest first, `startAfterDocument` as the cursor. **No new
+index, no deploy.**
+
+The paging is separated from Firestore on purpose. The **driver** —
+`sweepPages` in
+[`notification_sweep.dart`](../../lib/features/notifications/data/datasources/notification_sweep.dart)
+— owns cursor advancement, page-boundary arithmetic, termination and the
+ceiling, and is generic over the page item so it never inspects a document. The
+datasource supplies only the query and the batch. That split is what makes the
+risky half testable: `test/notification_sweep_test.dart` exercises it over
+5,000- and 15,000-item collections, across page boundaries, and with a commit
+that *deletes* what it touched — and it caught a real off-by-one, where a
+collection ending exactly on the ceiling was reported as "too many" after having
+successfully finished.
+
+Three invariants it pins, each corresponding to a way the old code failed:
+
+- **the page size is the batch ceiling** — no batch can approach Firestore's
+  500-operation cap, because a batch is only ever one page's selected items;
+- **the cursor advances off the last item *fetched*, not the last committed** —
+  a page where nothing matched still moves forward, and a delete sweep does not
+  re-read the window it just emptied;
+- **the ceiling trips only when work remains** — checked after the fetch, so
+  finishing exactly on the boundary is a success, not a false alarm.
 
 Each replaced a broken implementation, and both failures were invisible:
 
@@ -386,18 +464,6 @@ take effect:
 
 ## 7. Known limitations / future
 
-- **`taskSubmitted` routes to `task.createdBy` alone.** Now that admins are
-  reachable this delivers, but the recipient is still a single uid: if the
-  creator has been **deactivated or deleted** the submission notifies nobody and
-  no live reviewer is told (`sendNotification` skips an absent recipient
-  silently). It also inherits the template's creator on a generated shift task,
-  which `task_origin.dart` warns is *not* "who made this". A branch-reviewer
-  fallback is the fix; not done, because it changes who gets notified and wants
-  an owner ruling first.
-- **The paged bulk sweep is not unit-tested.** `_sweep`'s cursor/termination
-  logic runs against Firestore and there is no Dart Firestore fake in the
-  project; the rules half is covered by the emulator suite, the sequencing is
-  not. Worth exercising on device against an inbox larger than one page.
 - **Unread badge counts the loaded window** (≤ page size, grows with pagination).
   At pilot scale unread rarely exceeds a page; a dedicated count query was
   intentionally not added (avoids a second listener). Revisit if needed.

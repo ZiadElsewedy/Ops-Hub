@@ -14,6 +14,75 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — Review-notification reviewer ladder + the paged sweep is now tested (bug; MED risk)
+
+Closes the two items the 2026-08-06 notification audit left open.
+
+### `taskSubmitted` no longer routes to a single uid
+
+It walked to `task.createdBy` and stopped, which is **silence** — a task left in
+`waitingReview` with nobody told and no error anywhere, since
+`sendNotification` skips an absent recipient without raising — in four
+situations: the creator is **deactivated**, **hard-deleted**, **demoted** to
+employee, or has **moved branch**. The last two are worse than silence: rules
+would refuse their approval, so it notified the one person who *cannot* act and
+nobody who can.
+
+A generated shift task made this routine rather than exotic: it inherits the
+**template's** `createdBy` (precisely what `task_origin.dart` warns about), so a
+template set up by someone who has since left produced a task **every day** whose
+submission notified a dead account.
+
+New pure, unit-tested ladder in
+[task/domain/task_review_routing.dart](lib/features/task/domain/task_review_routing.dart):
+**the creator when they can still review it → the branch's active managers →
+active admins.** The gate (`canReviewTask`) mirrors the `tasks` update rule in
+`firestore.rules` and the server's `requireSalesManager` — active, and either a
+global admin or a manager *of this branch*.
+
+**No business rule was invented.** The escalation is deliberately the same shape
+as the server's existing
+`salesRecipients(branchId, {managersOnly: true, adminsFallback: true})`, which
+already answers this question for branch-scoped review routing; two analogous
+decisions must not use two different rules.
+
+The new `ResolveTaskReviewers` use case keeps the cost on the rare paths: one
+branch read (a manager creator is already in it), an individual creator lookup
+only when the branch list lacks them — in practice an **admin**, who is
+branchless and can never appear in a branch query — and the org-wide read only
+when tiers 1 and 2 both come up empty. Two details that matter: an empty result
+is passed through as an **empty override, not null** (null would fall back to
+`[createdBy]`, and an assignee fallback would tell the person who just submitted
+the work that it had been submitted), and an admin sitting in a branch list does
+**not** satisfy tier 2 — tier 3 is the only door for admins.
+
+### The paged sweep is verified, not manually QA'd
+
+The paging moved out of the datasource into `sweepPages`
+([notification_sweep.dart](lib/features/notifications/data/datasources/notification_sweep.dart)),
+generic over the page item, so the part that can be wrong is separable from
+Firestore. `test/notification_sweep_test.dart` (23 tests) runs it over 5,000-
+and 15,000-item collections, across page boundaries, with sparse selections, and
+with a commit that *deletes* what it touched.
+
+**It immediately caught a real off-by-one:** a collection ending exactly on the
+15,000-item ceiling threw "too many notifications" *after having successfully
+swept all of them*. The ceiling is now checked after the fetch, so it trips only
+when work genuinely remains. Also pinned: no batch can approach Firestore's
+500-operation cap (the page size *is* the batch ceiling), and the cursor
+advances off the last item **fetched** rather than the last **committed**, so a
+page where nothing matched still moves forward and a delete sweep does not
+re-read the window it just emptied.
+
+Gates: `flutter analyze` clean (1 pre-existing info) · `flutter test` **1832
+pass** (+56) · `functions` node --test **136 pass** · `firestore-tests` **74
+pass**. No deploy: this change is client-only. ⚠️ The
+`functions:sendNotification` deploy from the 2026-08-06 entry is **still
+outstanding** — without it, the tier-3 admin escalation this adds is delivered
+to nobody.
+
+---
+
 ## 2026-08-06 — Notification audit: a silent delivery outage + four correctness fixes (bug; MED risk)
 
 Six findings from a review of the notification system, fixed in priority order.

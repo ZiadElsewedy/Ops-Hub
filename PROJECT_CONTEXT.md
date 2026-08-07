@@ -232,6 +232,7 @@ Reuse these. Do not re-implement or duplicate them.
 | Worked/late/overtime minutes | `attendance/domain/attendance_calculator.dart` |
 | Task visibility | `task/domain/task_access.dart` (`canUserAccessTask`) |
 | Was a task made by a person or by the server? | `task/domain/task_origin.dart` (`taskOrigin`) — **never read `createdBy` for this**: a generated instance inherits its template's creator |
+| Who reviews a task / who is told it was submitted | `task/domain/task_review_routing.dart` (`taskReviewRecipients` · `canReviewTask`) — **never `createdBy` alone**: that account can be deactivated, deleted, demoted or moved branch, and a generated instance inherits the *template's* creator. `canReviewTask` mirrors the `tasks` update rule; if they disagree, the rule wins |
 | Naming an activity-event actor | `task/presentation/activity_format.dart` (`activityActorName` / `activityActorRole`) — `actorId: "system"` is not a uid and must not fall through to the directory |
 | Notification routing | `notifications/domain/notification_deep_link.dart` |
 | **What screen is the user actually on?** | `core/routes/router_extensions.dart` → `topLocationOrNull`. **Never** the match list's own `uri` (`currentLocationOrNull`): an imperative `push` does not rewrite it, and every chat/notification destination is reached by `push`, so the two disagree exactly when it matters. `currentLocationOrNull` remains the duplicate-push guard it was written for |
