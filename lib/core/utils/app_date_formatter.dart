@@ -25,7 +25,16 @@ class AppDateFormatter {
     'Thursday', 'Friday', 'Saturday', 'Sunday',
   ];
 
+  static const _weekdaysShort = [
+    'Mon', 'Tue', 'Wed', //
+    'Thu', 'Fri', 'Sat', 'Sun',
+  ];
+
   static String _mon(int month) => _monthsShort[month - 1];
+
+  /// Abbreviated weekday — e.g. `Wed`. For dense axes (the sales trend chart)
+  /// where the long form (`Wednesday`) will not fit under a bar.
+  static String weekdayShort(DateTime dt) => _weekdaysShort[dt.weekday - 1];
 
   /// Wall-clock time, 12-hour with an AM/PM suffix — e.g. `4:32 PM`, `12:05 AM`.
   static String time(DateTime dt) {

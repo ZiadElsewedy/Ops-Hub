@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/theme/app_colors.dart';
@@ -14,22 +13,28 @@ import 'package:drop/core/widgets/brand_watermark.dart';
 import 'package:drop/core/widgets/drop_empty_state.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/core/widgets/metric_tile.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
+import 'package:drop/features/sales/domain/sales_calculator.dart';
 import 'package:drop/features/sales/domain/sales_kpis_calculator.dart';
+import 'package:drop/features/sales/domain/sales_trend.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_money_row.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_month_overview.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_needed_per_day.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_pace_card.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_reason_sheet.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_submissions_door.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_target_editor_sheet.dart';
 
-/// The branch sales dashboard: the month's three money facts, what today needs,
-/// the queue to act on, and four doors into the ledger.
+/// The branch sales dashboard, top to bottom: the **month** (achieved · a
+/// progress ring · remaining, then the target), what **today** needs, the
+/// **queue** to act on, **one door** into the full ledger, and a **Pace** card
+/// (the target verdict + the last-7-days chart).
 ///
-/// The progress bar, the percentage, the four-figure Pace strip and the "Recent
-/// approved days" list were all removed — they restated the same month from four
-/// angles and buried the only thing a manager comes here to do: approve.
+/// The four filtered tiles were collapsed to one door — they opened the same
+/// list screen — and the old pace strip returned as a single card that pairs the
+/// "are we going to make it?" verdict with the trend that backs it, rather than
+/// restating the month from four angles.
 class SalesManagerDashboardScreen extends StatefulWidget {
   const SalesManagerDashboardScreen({super.key, this.branchId});
   final String? branchId;
@@ -128,7 +133,16 @@ class _SalesManagerDashboardScreenState
         final cubit = context.read<SalesManagerDashboardCubit>();
         final target = snapshot.target;
         final branchId = _branchId ?? '';
-        final kpis = computeSalesKpis(snapshot, now: DateTime.now());
+        // One `now` feeds both derivations so the KPIs and the trend cannot
+        // disagree about which Cairo day it is.
+        final now = DateTime.now();
+        final kpis = computeSalesKpis(snapshot, now: now);
+        final trend = computeSalesTrend(snapshot, now: now);
+        final outlook = salesTargetOutlook(
+          expectedMonthEndPiastres: kpis.expectedMonthEndPiastres,
+          targetPiastres: target?.targetPiastres ?? 0,
+          approvedDayCount: kpis.approvedDayCount,
+        );
         final queue = [...snapshot.pending, ...snapshot.correctionRequested]
           ..sort((a, b) => b.businessDateKey.compareTo(a.businessDateKey));
 
@@ -187,10 +201,11 @@ class _SalesManagerDashboardScreenState
                         ),
                       )
                     else
-                      SalesMoneyRow(
+                      SalesMonthOverview(
                         targetPiastres: target.targetPiastres,
                         achievedPiastres: snapshot.approvedTotalPiastres,
                         remainingPiastres: snapshot.remainingPiastres,
+                        progressRatio: snapshot.progressRatioCapped,
                       ),
                   ],
                 ),
@@ -237,53 +252,30 @@ class _SalesManagerDashboardScreenState
                 ),
             ],
 
-            // ── Four doors, four different lists ───────────────────────
-            const SizedBox(height: AppSpacing.xl),
-            MetricTileRow(
-              tiles: [
-                MetricTile(
-                  value: snapshot.pending.length,
-                  label: 'Pending',
-                  icon: Icons.pending_actions_rounded,
-                  onTap: () => context.push(
-                    RouteNames.salesHistoryFor(
-                      branchId: branchId,
-                      status: SalesSubmissionStatus.pending.name,
-                    ),
-                  ),
+            // ── One door into the whole ledger ─────────────────────────
+            if (target != null) ...[
+              const SizedBox(height: AppSpacing.xl),
+              SalesSubmissionsDoor(
+                pending: snapshot.pending.length,
+                approved: snapshot.approved.length,
+                rejected: snapshot.rejected.length,
+                total: snapshot.submissions.length,
+                onTap: () => context.push(
+                  RouteNames.salesHistoryFor(branchId: branchId),
                 ),
-                MetricTile(
-                  value: snapshot.approved.length,
-                  label: 'Approved',
-                  icon: Icons.check_rounded,
-                  onTap: () => context.push(
-                    RouteNames.salesHistoryFor(
-                      branchId: branchId,
-                      status: SalesSubmissionStatus.approved.name,
-                    ),
-                  ),
-                ),
-                MetricTile(
-                  value: snapshot.rejected.length,
-                  label: 'Rejected',
-                  icon: Icons.close_rounded,
-                  onTap: () => context.push(
-                    RouteNames.salesHistoryFor(
-                      branchId: branchId,
-                      status: SalesSubmissionStatus.rejected.name,
-                    ),
-                  ),
-                ),
-                MetricTile(
-                  value: snapshot.submissions.length,
-                  label: 'History',
-                  icon: Icons.history_rounded,
-                  onTap: () => context.push(
-                    RouteNames.salesHistoryFor(branchId: branchId),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
+
+            // ── Pace: the verdict + the last-7-days trend ──────────────
+            if (target != null && trend.hasAnyApproved) ...[
+              const SizedBox(height: AppSpacing.lg),
+              SalesPaceCard(
+                trend: trend,
+                outlook: outlook,
+                projectedDeltaPiastres:
+                    kpis.expectedMonthEndPiastres - target.targetPiastres,
+              ),
+            ],
           ],
         );
       },

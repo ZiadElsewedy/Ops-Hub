@@ -6,12 +6,15 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_glass_card.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 
-/// The Settings row vocabulary — one grouped glass card, rows separated by an
-/// inset hairline, each row a 40px medallion + label + supporting line.
+/// The **account-surface row vocabulary** — one grouped glass card, rows
+/// separated by an inset hairline, each row a 40px medallion + label +
+/// supporting line.
 ///
-/// Extracted from `settings_page.dart` unchanged so every Settings surface
-/// (the hub and its sub-screens) draws the *same* row rather than a lookalike.
-/// Nothing here is new visual language; adding a screen must not fork it.
+/// Extracted from `settings_page.dart` unchanged so every account surface draws
+/// the *same* row rather than a lookalike. It now lives in `core/widgets/`
+/// because Profile shares it with Settings (a feature must not import another
+/// feature's widget). Nothing here is new visual language; adding a screen must
+/// not fork it.
 
 /// The small uppercase label above a [SettingsGroup].
 class SettingsSectionHeader extends StatelessWidget {

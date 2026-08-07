@@ -66,6 +66,30 @@
 > config-diff audit fully supports it. The ADR-011 execution record is **written
 > daily and read by no screen**.
 >
+> **Branch sales manager dashboard re-enriched (2026-08-07, presentation + two
+> pure domain helpers, owner-directed, NOT device-verified):** The manager
+> branch-sales dashboard (`/sales`) was redesigned from a mockup signed off
+> before any Dart. The month card now leads with **achieved · a monochrome
+> progress ring · remaining**, then the target; the four Pending/Approved/
+> Rejected/History `MetricTile`s — which all opened the **same** history screen
+> with a different `?status=` — collapsed to **one** *All submissions* door with
+> an inline count breakdown; and the previously-deleted pace strip returned as a
+> single **Pace** card pairing a forecast-based target-outlook **verdict** with a
+> **last-7-days approved-takings chart**. New pure, unit-tested
+> `salesTargetOutlook` (in `sales_calculator.dart`) and `computeSalesTrend`
+> (`sales_trend.dart`); both average over **approved days**, not elapsed calendar
+> days, and the outlook reads off the forecast so a lagging approval can't fake
+> "behind". New widgets `SalesProgressRing` · `SalesMonthOverview` ·
+> `SalesPaceCard` · `SalesSubmissionsDoor`; `SalesMoneyRow` and every other sales
+> surface are untouched, so the re-enrichment is this screen only. **Zero new
+> reads** (derived from the snapshot already streamed), **strictly monochrome**
+> (ADR-004 — ring/bars white/grey, colour status-only), no schema/rules/server
+> change. Pinned by `sales_trend_test.dart`, new `salesTargetOutlook` cases in
+> `sales_calculator_test.dart`, and `sales_dashboard_widgets_test.dart` (a 375pt
+> overflow guard). ⚠️ **NOT device-verified** — needs a look on hardware with a
+> sales-enabled branch (production runs targets on `Arkan` only). Design doc
+> [SALES_TARGETS](docs/design/SALES_TARGETS.md) updated.
+
 > **iOS swipe-back added; every back button kept (2026-08-05, NOT
 > device-verified):** A pushed screen on iOS now carries the native interactive
 > left-edge swipe **in addition to** its app-bar back button — both, always, as
@@ -753,7 +777,7 @@
 | --- | --- |
 | **Branch** | `release/v1-preparation` — `claude/ui-fix-608998` merged in via PR #25 (`6584808`) |
 | **Build** | `flutter analyze`: exactly 1 pre-existing info (`use_null_aware_elements` in `test/task_submission_gate_test.dart`), no errors/warnings — re-verified **2026-08-06**. Both release artifacts build: `flutter build ios --release --no-codesign` → `Runner.app` 87.4 MB · `flutter build appbundle --release` → `app-release.aab` 93.1 MB |
-| **Tests** | **1845 pass · 0 fail** (~45s) — re-measured on the MERGED tree, **2026-08-07** (the branch contributed +91: single active session, the notification audit, the reviewer ladder and the paged-sweep coverage; trunk contributed its own). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) + `tsc --noEmit` clean — separate repo, re-run 2026-08-06 |
+| **Tests** | **1857 pass · 0 fail** (~45s) — re-run **2026-08-07** (+12 for the branch-sales dashboard redesign: `sales_trend_test`, `salesTargetOutlook` cases, and the `sales_dashboard_widgets` overflow guard; prior merged-tree baseline 1845). ✅ **`splash_visual_centering_test.dart` is GREEN (fixed 2026-08-05).** It had thrown `FormatException: Invalid character (at character 65630)` while `base64Decode`-ing the Lottie's embedded WebP frames — the root cause was **not** whitespace but **5 frames (39/47/55/68/69) corrupted by a stray `-`** (invalid in standard base64) when `b260c39` "Change the name fbro" re-exported `assets/0704.json`. Fixed by restoring the pre-`b260c39` blob `7bd8d6a` (all 102 frames valid); the stray `-` could not be stripped in place (invalid resulting lengths). This corruption was also the real reason the **cold-start launch animation misrendered** at runtime, since the `lottie` player uses the same strict decode. Cloud Functions: **136 pass** (`cd functions && node --test`) — re-run **2026-08-06** (+9: notification reachability; the previously-recorded 112 was stale, the measured baseline was 127); **Firestore rules: 74 pass** (`cd firestore-tests && npm test` — needs the Firebase CLI, a JDK, **and `npm ci` in that directory**, which a fresh worktree does not have) — re-run **2026-08-06** (+6: the single-active-session claim). NestJS chat backend: **105 pass** (`cd ~/Desktop/Developer/drop-api && npx jest`) + `tsc --noEmit` clean — separate repo, re-run 2026-08-06 |
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 

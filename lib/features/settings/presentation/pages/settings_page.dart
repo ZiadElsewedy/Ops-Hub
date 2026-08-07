@@ -13,7 +13,7 @@ import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/settings/presentation/widgets/settings_tiles.dart';
+import 'package:drop/core/widgets/settings_tiles.dart';
 
 /// The signed-in user's account hub.
 ///

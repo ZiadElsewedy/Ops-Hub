@@ -183,7 +183,7 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
 | **Employee sales page** (`/sales/mine`) | The team month (`SalesMoneyRow`) → **Needed per day**, toned by today → today's close and its status → the one CTA. A day sent back for correction keeps a single actionable row; there is no month-history table |
 | **Submission screen** | `PageHero`, piastres-safe EGP field, Cairo business-date confirmation, one `AppButton`. Dual mode: new close, or a correction seeded with the amount under review and the manager's reason. Already-closed / no-target / teammate-closed each render their own panel instead of a dead CTA |
 | **Manager Home card** | The same `SalesTargetCard` as Employee Home — **target · achieved · remaining**, one tap into `/sales` — sitting under *On shift today*. Fed by `SalesMonthCubit.loadForBranch`, which is `loadForEmployee` minus the own-submissions stream: a manager never closes a day. Gates itself **and its spacing**; an opted-out branch renders nothing. It replaced a *Branch sales* `DigestEntry` that carried no figure and — alone among the sales surfaces — never consulted `salesTargetEnabled`, so it offered an opted-out manager a door onto the Disabled screen |
-| **Manager dashboard** | The branch month (**"Set target"** until one exists, **"Edit target"** after) → **Needed per day** → the review queue with inline approve/reject → four `MetricTile`s, each opening a **different** filtered ledger |
+| **Manager dashboard** | The one **rich** surface. The branch month — **achieved · a monochrome progress ring · remaining**, then the target (**"Set target"** until one exists, **"Edit target"** after) → **Needed per day** → the review queue with inline approve/reject → **one** *All submissions* door → a **Pace** card. See the manager-dashboard note below |
 | **Approval / detail** | Evidence block (amount · day · submitter · decision provenance · revision). Actions render only for a manager or admin; reopen only for an admin on a terminal record. One primary action per state |
 | **Admin overview** | One row per **opted-in** branch: name + **target · achieved · remaining**. Opted-out branches are absent, not greyed — `salesEnabledBranches` is the single scope rule, shared with Admin Home |
 | **Admin Home summary** | One line per opted-in branch: name + achieved *of* target. Gates itself and its heading; with nothing opted in it never builds its cubit, so Home costs nothing |
@@ -195,14 +195,28 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
   achieved · remaining** in that order on every surface. The currency is named
   **once** per row, not three times; each figure `scaleDown`s so a seven-digit
   target cannot clip its column.
-- **One statistic survives: Needed per day.** Progress bars, progress
-  percentages, average-per-day, expected-month-end and the recent-approved-days
-  list were all deleted. They restated the same month from five angles.
-- **That statistic is the only colour.** `salesDayPace` compares **today's**
-  close to what a day needs: `>= 100%` green · `>= 50%` amber · below red ·
-  nothing to judge (no target, target met, day not submitted) stays monochrome.
-  An unsubmitted day is never rendered as a failure. Colour is carried by a
-  hairline and the figure, never by a filled block.
+- **The shared surfaces stay lean.** Employee Home, the employee page, the
+  Manager Home card and both admin surfaces show **target · achieved · remaining**
+  (plus *Needed per day* where a day is closed) and nothing else — no chart, no
+  ring. Simplicity there is deliberate and unchanged.
+- **The manager dashboard is the one rich surface (owner-directed, 2026-08-07).**
+  It is where a manager runs the month, so it earns more: a **progress ring**
+  (the *how far* percentage), and a **Pace** card that pairs the month's
+  target-outlook **verdict** with the **last-7-days approved-takings chart** (the
+  *how fast*). This re-enriches what an earlier pass had stripped to *Needed per
+  day* alone; the enrichment lives **only** here, and stays strictly monochrome
+  (ADR-004) — the ring and bars are white/grey, colour remains status-only.
+- **The four filtered tiles are now one door.** Pending / Approved / Rejected /
+  History each opened the **same** history screen with a different `?status=`, so
+  as four `MetricTile`s they read as four destinations that were one. A single
+  *All submissions* row opens the unfiltered ledger; the counts survive as an
+  inline breakdown. Pending work is still acted on in the *Waiting on you* queue
+  above, so the row is reference, not the primary action.
+- **Colour stays status-only.** `salesDayPace` (Needed per day) and
+  `salesTargetOutlook` (the Pace verdict) are the only coloured signals:
+  success / amber / red for a real judgement, monochrome when there is nothing to
+  judge. Colour is carried by a hairline, a glyph and the figure — never a filled
+  block. An unsubmitted or not-yet-projectable state is never a failure.
 - **Money is grouped from the right.** `formatEgp` counts in threes from the
   last digit. A lookahead once matched at index 0 whenever the digit count was a
   multiple of three, so `945000` shipped to users as **`,945,000`**.
@@ -274,34 +288,41 @@ record. Clients never construct sales notification docs.
 
 ## KPIs (derived-on-read only)
 
-`computeSalesKpis` still derives the full set (pure, `now` injected, unit-tested),
-but **only one is rendered**: *Needed per day*. The rest stay available for a
-future surface that can justify them; nothing on screen shows them today.
+`computeSalesKpis` derives the full set (pure, `now` injected, unit-tested). The
+shared surfaces render only *Needed per day*; the **manager dashboard** renders
+the rest through the ring and the Pace card (see the manager-dashboard note).
 
 | Figure | Formula | Rendered? |
 | --- | --- | --- |
-| **Achieved** | Σ approved `amountPiastres` | ✅ |
-| **Remaining** | `max(0, target − achieved)` | ✅ |
+| **Achieved** | Σ approved `amountPiastres` | ✅ everywhere |
+| **Remaining** | `max(0, target − achieved)` | ✅ everywhere |
 | **Days left** | `daysInMonth − dayOfMonth + 1` — **includes today** | ✅ (beside Needed per day) |
-| **Needed per day** | `ceil(remaining / daysLeft)` | ✅ — **the only coloured figure** |
-| **Average per day** | `achieved ÷ distinct days with an approved record` | ❌ derived, not shown |
-| **Expected month end** | `achieved + average × days with no record at all` | ❌ derived, not shown |
-| **Progress %** | `achieved / target` | ❌ **deleted** |
+| **Needed per day** | `ceil(remaining / daysLeft)` | ✅ — a coloured figure (`salesDayPace`) |
+| **Progress %** | `achieved / target`, capped at 100% | ✅ manager dashboard **ring** |
+| **Average per day** | `achieved ÷ distinct days with an approved record` | ✅ manager dashboard Pace card |
+| **Expected month end** | `achieved + average × days with no record at all` | ✅ feeds the Pace **verdict** |
+| **Month outlook** | `salesTargetOutlook`: forecast `≥ target` → ahead, else behind, `tooEarly` with no approved day | ✅ manager dashboard Pace card (coloured) |
+| **7-day trend** | `computeSalesTrend`: per-day approved takings, this window's avg vs the prior window's | ✅ manager dashboard Pace chart |
 
-Three formula choices, each reversing a wrong one:
+Formula choices, each reversing a wrong one:
 
 - **Days left includes today.** The exclusive count made *Needed per day* read
   `0 EGP` on the last day of every month while the branch was still short.
-- **The average divides by approved DAYS, not elapsed calendar days.** Approvals
-  lag, so the newest day or two never has an approved record; dividing by elapsed
-  days understated the pace daily. Distinct business days, not documents — a
-  corrected-and-resubmitted day is still one day.
+- **Every "per day" average divides by approved DAYS, not elapsed calendar
+  days.** Approvals lag, so the newest day or two never has an approved record;
+  dividing by elapsed days understated the pace daily. This holds for the KPI
+  average **and** for the 7-day trend's window average. Distinct business days,
+  not documents — a corrected-and-resubmitted day is still one day.
 - **The forecast only projects days with no record at all.** Recorded days count
   at their real value and are never re-projected.
+- **The outlook is read off the forecast, never achieved-to-date vs. elapsed
+  days.** Because approvals lag, an achieved-vs-elapsed comparison reads "behind"
+  every day even for a branch comfortably on pace; the forecast-based verdict does
+  not.
 
-`completionDateEstimate` and the month-level `salesPace` verdict were both
-**removed**: the first returned *today* whenever the target was met (printing "On
-track by \<today\>"), and the second lost its only caller when the Pace strip went.
+`completionDateEstimate` stays **removed** (it returned *today* whenever the target
+was met). The month-level pace verdict returned, rebuilt as the forecast-based
+`salesTargetOutlook`, when the Pace card was reintroduced (2026-08-07).
 
 **No** `sales_analytics`, rollups, scorecards, leaderboards, exports, or per-read
 write aggregation — that is an ADR decision, not a default (ADR-009/010, ADR-022).

@@ -14,6 +14,46 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-07 — Branch sales manager dashboard re-enriched: progress ring + one door + Pace card (polish/feature; LOW risk)
+
+Owner-directed redesign of the manager branch-sales dashboard
+([sales_manager_dashboard_screen.dart](lib/features/sales/presentation/pages/sales_manager_dashboard_screen.dart)),
+prototyped as an interactive mockup and signed off before any Dart. **Presentation
++ two new pure domain helpers; no new Firestore reads, no schema/rules/server
+change; strictly monochrome (ADR-004) preserved.**
+
+- **Progress ring.** The month card became **achieved · a monochrome progress
+  ring · remaining**, then the target. New `SalesProgressRing` (a `CustomPaint`
+  arc, white on a hairline track) + `SalesMonthOverview`. The shared
+  `SalesMoneyRow` is untouched — every other sales surface stays the flat
+  three-figure row.
+- **Four tiles → one door.** Pending / Approved / Rejected / History each opened
+  the **same** history screen with a different `?status=`; they are now a single
+  `SalesSubmissionsDoor` into the unfiltered ledger, counts kept as an inline
+  breakdown. Pending work is still acted on in the *Waiting on you* queue above.
+- **Pace card.** The old (deleted) pace strip returns as one card pairing the
+  month's **target-outlook verdict** with the **last-7-days approved-takings
+  chart**. Two new pure, unit-tested domain functions: `salesTargetOutlook`
+  (in [sales_calculator.dart](lib/features/sales/domain/sales_calculator.dart) —
+  forecast `≥ target` → ahead, else behind, `tooEarly` before any approved day;
+  read off `expectedMonthEndPiastres`, **not** achieved-vs-elapsed, which reads
+  "behind" every day approvals lag) and `computeSalesTrend`
+  ([sales_trend.dart](lib/features/sales/domain/sales_trend.dart) — per-day
+  approved sums for the trailing 7 Cairo days + a prior-window baseline; average
+  over **approved** days, the same lag-safe divisor the month KPI uses). The card
+  hides itself when the window has no approved day.
+- Additive helpers: `AppDateFormatter.weekdayShort`, `formatEgpCompact`
+  (`14.2K`/`1.3M` chart labels).
+- This reverses, **for the manager dashboard only**, the earlier
+  "*Needed per day* is the only statistic" simplification; the shared surfaces
+  stay lean. Colour stays status-only. Design doc updated
+  ([SALES_TARGETS](docs/design/SALES_TARGETS.md)).
+- Gates: `flutter analyze` clean (1 pre-existing info). `flutter test` **1857
+  pass / 0 fail**. New: `sales_trend_test.dart` (6), outlook cases in
+  `sales_calculator_test.dart` (3), `sales_dashboard_widgets_test.dart` (4,
+  overflow guard at 375pt). ⚠️ **NOT device-verified** — needs a look on
+  hardware with a sales-enabled branch (production: only `Arkan`).
+
 ## 2026-08-07 — Review-notification reviewer ladder + the paged sweep is now tested (bug; MED risk)
 
 Closes the two items the 2026-08-06 notification audit left open.
