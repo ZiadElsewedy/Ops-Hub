@@ -14,6 +14,78 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Home Branch-sales card redesigned with a mini ring (polish; LOW risk, client-only)
+
+The employee Home `SalesTargetCard` module dropped the flat `SalesMoneyRow` for
+the redesign layout: a small **progress ring** on the left, then the achieved
+figure over the target (**`112,000 / 1,000,000`**, achieved white + rolling, the
+`/ target` in the grey ramp) with **`… EGP remaining`** beneath. Achieved rolls
+in with the shared premium count-up (+ light sweep); the ring arc sweeps on the
+same `kPremiumSettle` curve; remaining rolls quietly a beat later. The DROP
+corner mark was dropped from this card to match the mockup — a chevron is the
+only trailing glyph. `SalesMoneyRow` is retained (still used by the admin
+overview). `flutter analyze` clean, NOT device-verified.
+
+## 2026-08-08 — Sales figures roll on a slot-machine odometer + premium palette (polish; LOW risk, client-only)
+
+Replaced the sales count-up with a **per-digit odometer**. New reusable
+`core/widgets/rolling_number.dart` — `RollingDigit` (one vertical reel, forward
+roll with a multi-turn slot-machine flourish, exact landing) and `RollingNumber`
+(digits keyed by place value; commas/decimal static; leading digits roll in from
+0; reels settle left→right in ~0.5–0.9 s; no opacity/scale; honours reduce-motion).
+Drives every sales figure and the ring percentages; `AnimatedCountText` is retired
+from the sales feature. Palette moved off raw `success`/`warning`/`error` to muted
+**sales accents** (`salesEmerald`/`salesEmeraldGlow`/`salesAmber`/`salesCoral`):
+emerald gauge/%/Achieved, gold Remaining, softened-coral pace danger, Target grey.
+Ring sweeps shortened to ~1.2 s (`kReelSettle`). Hero brand watermark moved to the
+top-right (was behind Remaining) via new `BrandWatermark.corner`. `flutter analyze`
+clean; NOT device-verified (owner testing on device).
+
+## 2026-08-08 — Employee pace card counts a day closed by anyone (fix; LOW risk, client-only)
+
+The employee Branch-sales **Needed per day** card contradicted the Today card:
+when a manager, admin or teammate closed today (so the employee had no *own*
+record), the pace card still read "Today hasn't been submitted yet" while the
+Today card correctly showed "Closed by a teammate." Cause: the pace card was fed
+only `todaySubmission` (the employee's own close). It now falls back to the
+branch's recorded close for today (`snapshot.submissionFor(todayDateKey)`), so a
+day closed by anyone judges pace and only a genuinely un-closed day reads as not
+submitted. `flutter analyze` clean, NOT device-verified.
+
+## 2026-08-08 — Branch-sales hero gains semantic-tint colour (polish; LOW risk, client-only)
+
+By owner ruling the employee Branch-sales **hero only** softens strict
+monochrome (ADR-004), using the existing semantic tokens so the palette stays
+disciplined: the gauge (green sweep gradient + soft halo), its centre **%**, and
+the **Achieved** figure read `success` green; **Remaining** reads `warning`
+amber; **Target** stays on the neutral grey ramp. `SalesRingPainter` gained an
+optional `arcColorEnd` (sweep gradient) and `glow` (blurred halo) — the compact
+rings on Home and the manager dashboard pass neither, so they stay flat and
+monochrome. Count-up timing unchanged (3.2s `kPremiumSettle`). `flutter analyze`
+clean, NOT device-verified (owner testing on device). **Superseded same day** by
+the odometer + premium-palette entry above — the raw `success`/`warning` tints
+were replaced with the muted `salesEmerald`/`salesAmber` accents.
+
+## 2026-08-08 — Employee Branch-sales screen leads with an animated target hero (polish; LOW risk, client-only)
+
+The employee `EmployeeSalesScreen` month card now opens with a **hero gauge**
+instead of the flat `SalesMoneyRow`: a large centred progress ring — the arc
+sweeps in and the big centre percentage counts up together — over **Target ·
+Achieved · Remaining** read as three labelled columns. Matches the redesign
+mockup and stays strictly monochrome (ADR-004): white arc + white Achieved, grey
+ramp for the rest. The employee's question is "how far is the team?", so the
+screen leads with the gauge that answers it.
+
+New `sales_target_hero.dart` (`SalesTargetHero`) composes the animated ring +
+the three rolling figures on the shared `AnimatedCountText` / `kPremiumSettle`
+motion (staggered cascade, rise, and a light sweep on the Achieved hero). The
+ring painter was made reusable — `_RingPainter` → **`SalesRingPainter`** in
+`sales_progress_ring.dart` — so the compact manager ring and the big employee
+hero share one gauge. Needed-per-day and the Today card are unchanged. No
+domain/data/state change — render layer only. `flutter analyze` clean, NOT
+device-verified. (Manager dashboard still uses the compact ring beside its
+figures; the hero is employee-only for now.)
+
 ## 2026-08-08 — Editing an approved sales record notifies the original submitter (fix; LOW risk, server-side)
 
 Closed a notification asymmetry: recording a **new** day tells the whole branch

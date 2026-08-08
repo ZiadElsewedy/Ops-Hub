@@ -3,7 +3,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_count_text.dart';
+import 'package:drop/core/widgets/rolling_number.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_progress_ring.dart';
 
@@ -58,8 +58,6 @@ class SalesMonthOverview extends StatelessWidget {
                     label: 'ACHIEVED',
                     valuePiastres: achievedPiastres,
                     color: tint,
-                    // The hero fires first and catches the light sweep.
-                    shimmer: true,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -100,14 +98,13 @@ class SalesMonthOverview extends StatelessWidget {
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: AnimatedCountText(
+                        child: RollingNumber(
                           value: targetPiastres,
                           formatter: (v) =>
                               formatEgp(v.round(), withSuffix: true),
                           animateOnMount: true,
                           // Last in the cascade, below the hero row.
-                          delay: const Duration(milliseconds: 400),
-                          maxLines: 1,
+                          delay: const Duration(milliseconds: 360),
                           style: AppTypography.h3.copyWith(
                             color: AppColors.textSecondary,
                             fontFeatures: const [FontFeature.tabularFigures()],
@@ -134,7 +131,6 @@ class _Figure extends StatelessWidget {
     this.alignEnd = false,
     this.footnote,
     this.delay = Duration.zero,
-    this.shimmer = false,
   });
 
   final String label;
@@ -146,10 +142,8 @@ class _Figure extends StatelessWidget {
   final bool alignEnd;
   final String? footnote;
 
-  /// Stagger + light-sweep, forwarded to the rolling figure so the row resolves
-  /// as a cascade with the hero catching the shimmer.
+  /// Stagger forwarded to the rolling figure so the row resolves as a cascade.
   final Duration delay;
-  final bool shimmer;
 
   @override
   Widget build(BuildContext context) {
@@ -173,17 +167,11 @@ class _Figure extends StatelessWidget {
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: boxAlign,
-          child: AnimatedCountText(
+          child: RollingNumber(
             value: valuePiastres,
             formatter: (v) => formatEgp(v.round()),
             animateOnMount: true,
             delay: delay,
-            shimmer: shimmer,
-            maxLines: 1,
-            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
-            pulseAlignment: alignEnd
-                ? Alignment.centerRight
-                : Alignment.centerLeft,
             style: AppTypography.h2.copyWith(
               color: color ?? AppColors.textSecondary,
               fontFeatures: const [FontFeature.tabularFigures()],

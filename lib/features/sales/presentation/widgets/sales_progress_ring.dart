@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_count_text.dart' show kPremiumSettle;
+import 'package:drop/core/widgets/rolling_number.dart' show kReelSettle;
 
 /// The month's progress toward target as a monochrome ring — a white arc over a
 /// hairline track, the percentage read in the middle.
@@ -48,14 +48,14 @@ class SalesProgressRing extends StatelessWidget {
           // sale lands or the target is edited.
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: capped),
-            duration: const Duration(milliseconds: 3200),
-            curve: kPremiumSettle,
+            duration: const Duration(milliseconds: 2800),
+            curve: kReelSettle,
             builder: (context, value, _) {
               final percent = value >= 0.9995
                   ? '100%'
                   : '${(value * 100).toStringAsFixed(1)}%';
               return CustomPaint(
-                painter: _RingPainter(
+                painter: SalesRingPainter(
                   ratio: value,
                   stroke: stroke,
                   arcColor: tint,
@@ -94,21 +94,36 @@ class SalesProgressRing extends StatelessWidget {
   }
 }
 
-class _RingPainter extends CustomPainter {
-  const _RingPainter({
+class SalesRingPainter extends CustomPainter {
+  const SalesRingPainter({
     required this.ratio,
     required this.stroke,
     required this.arcColor,
+    this.arcColorEnd,
+    this.glow = false,
   });
 
   final double ratio;
   final double stroke;
   final Color arcColor;
 
+  /// When set, the arc is painted as a sweep gradient [arcColor] → [arcColorEnd]
+  /// that follows the fill, giving the hero gauge a soft metallic depth instead
+  /// of one flat tone. Null keeps the plain single-colour arc used by the small
+  /// rings elsewhere.
+  final Color? arcColorEnd;
+
+  /// A soft outer halo under the arc, in the arc's own colour — the premium
+  /// glow reserved for the large hero gauge. Off for the compact rings.
+  final bool glow;
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final radius = (math.min(size.width, size.height) - stroke) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    const startAngle = -math.pi / 2; // 12 o'clock
+    final sweep = 2 * math.pi * ratio; // clockwise
 
     final track = Paint()
       ..style = PaintingStyle.stroke
@@ -117,21 +132,40 @@ class _RingPainter extends CustomPainter {
     canvas.drawCircle(center, radius, track);
 
     if (ratio <= 0) return;
+
+    // Soft halo first, so the crisp arc sits on top of its own glow.
+    if (glow) {
+      final halo = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..color = arcColor.withValues(alpha: 0.22)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      canvas.drawArc(rect, startAngle, sweep, false, halo);
+    }
+
     final progress = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round
-      ..color = arcColor;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2, // start at 12 o'clock
-      2 * math.pi * ratio, // clockwise
-      false,
-      progress,
-    );
+      ..strokeCap = StrokeCap.round;
+    if (arcColorEnd != null) {
+      progress.shader = SweepGradient(
+        startAngle: 0,
+        endAngle: 2 * math.pi,
+        colors: [arcColor, arcColorEnd!],
+        transform: const GradientRotation(startAngle),
+      ).createShader(rect);
+    } else {
+      progress.color = arcColor;
+    }
+    canvas.drawArc(rect, startAngle, sweep, false, progress);
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) =>
-      old.ratio != ratio || old.stroke != stroke || old.arcColor != arcColor;
+  bool shouldRepaint(SalesRingPainter old) =>
+      old.ratio != ratio ||
+      old.stroke != stroke ||
+      old.arcColor != arcColor ||
+      old.arcColorEnd != arcColorEnd ||
+      old.glow != glow;
 }

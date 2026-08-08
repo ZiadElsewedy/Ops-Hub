@@ -89,6 +89,18 @@ class AppColors {
   /// edge, never as a fill, so the monochrome ruling (ADR-004) holds.
   static const Color info = Color(0xFF64A0FF);
 
+  // ─── Sales accents — premium, muted, branch-sales surfaces only ───────────
+  // A restrained three-tone accent layered over the monochrome base by owner
+  // ruling (softens ADR-004 on the sales surfaces only, never app-wide). These
+  // are deliberately *desaturated* — a refined emerald, a deep gold and a warm
+  // coral, not the neon `success`/`warning`/`error` used for status chips. Used
+  // for the progress ring, the percentage and the Achieved/Remaining/pace
+  // figures so the sales screen reads as one premium palette.
+  static const Color salesEmerald = Color(0xFF3FC29A); // achieved · progress
+  static const Color salesEmeraldGlow = Color(0xFF7FE0C4); // arc gradient tip
+  static const Color salesAmber = Color(0xFFCFA457); // remaining (not a warning)
+  static const Color salesCoral = Color(0xFFDC6E62); // below-pace (softened red)
+
   // ─── Utility ─────────────────────────────────────────────────────────────
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);

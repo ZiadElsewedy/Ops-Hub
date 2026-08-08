@@ -3,19 +3,20 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_count_text.dart';
+import 'package:drop/core/widgets/rolling_number.dart';
 import 'package:drop/features/sales/domain/sales_calculator.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
 
 /// **Needed per day** — the one pace figure the sales surfaces keep.
 ///
-/// Its tone is the only chromatic colour in the feature, and it reports *today*:
-/// green when today's close met the requirement, amber at 50–99%, red below
+/// It reports *today* in the muted sales palette: [AppColors.salesEmerald] when
+/// today's close met the requirement, [AppColors.salesAmber] at 50–99%, and
+/// [AppColors.salesCoral] (a softened red — intentional, not aggressive) below
 /// half. With nothing to judge (no target, target met, or no close yet) it stays
 /// monochrome — an unsubmitted day is not a failed one.
 ///
-/// Colour is carried by a hairline, a tinted glyph and the figure itself, never
-/// by a filled block: DROP's semantic colours express status, not surface.
+/// Colour is carried by a hairline, a tinted glyph and the [RollingNumber]
+/// figure itself, never by a filled block: colour expresses status, not surface.
 class SalesNeededPerDay extends StatelessWidget {
   const SalesNeededPerDay({
     super.key,
@@ -37,9 +38,9 @@ class SalesNeededPerDay extends StatelessWidget {
       todayPiastres: todayPiastres,
     );
     final tone = switch (pace) {
-      SalesDayPace.onPace => AppColors.success,
-      SalesDayPace.close => AppColors.warning,
-      SalesDayPace.behind => AppColors.error,
+      SalesDayPace.onPace => AppColors.salesEmerald,
+      SalesDayPace.close => AppColors.salesAmber,
+      SalesDayPace.behind => AppColors.salesCoral,
       SalesDayPace.none => AppColors.darkBorder,
     };
     final valueColor = pace == SalesDayPace.none
@@ -84,17 +85,15 @@ class SalesNeededPerDay extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
-                    AnimatedCountText(
+                    RollingNumber(
                       value: neededPerDayPiastres,
                       formatter: (v) => formatEgp(v.round(), withSuffix: true),
                       animateOnMount: true,
-                      delay: const Duration(milliseconds: 520),
+                      delay: const Duration(milliseconds: 480),
                       style: AppTypography.h2.copyWith(
                         color: valueColor,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(

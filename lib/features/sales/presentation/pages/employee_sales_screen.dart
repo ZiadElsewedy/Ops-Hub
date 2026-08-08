@@ -19,8 +19,8 @@ import 'package:drop/features/sales/domain/sales_kpis_calculator.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
 import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_money_row.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_needed_per_day.dart';
+import 'package:drop/features/sales/presentation/widgets/sales_target_hero.dart';
 import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.dart';
 
 /// The employee's view of **the branch's** sales month. Five things and nothing
@@ -112,6 +112,9 @@ class EmployeeSalesScreen extends StatelessWidget {
                 opacity: 0.05,
                 assetLogo: true,
                 assetHeight: 46,
+                // Top-right, clear of the Achieved/Remaining figures that sit in
+                // the bottom corners of this card.
+                corner: Alignment.topRight,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -125,10 +128,11 @@ class EmployeeSalesScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     if (snapshot.hasTarget)
-                      SalesMoneyRow(
+                      SalesTargetHero(
                         targetPiastres: snapshot.target!.targetPiastres,
                         achievedPiastres: snapshot.approvedTotalPiastres,
                         remainingPiastres: snapshot.remainingPiastres,
+                        progressRatio: snapshot.progressRatioCapped,
                       )
                     else
                       Text(
@@ -147,8 +151,15 @@ class EmployeeSalesScreen extends StatelessWidget {
             if (snapshot.hasTarget) ...[
               const SizedBox(height: AppSpacing.lg),
               SalesNeededPerDay(
+                // The branch's close for today — the employee's own record if
+                // they closed it, otherwise whoever did (a manager, admin or
+                // teammate). Pace judges the *branch's* day, so a teammate's
+                // close counts here just as it does in the card below; only a
+                // genuinely un-closed day reads as "not submitted yet".
                 neededPerDayPiastres: kpis.neededPerDayPiastres,
-                todayPiastres: today?.amountPiastres,
+                todayPiastres:
+                    (today ?? snapshot.submissionFor(state.todayDateKey))
+                        ?.amountPiastres,
                 daysRemaining: kpis.daysRemaining,
               ),
             ],

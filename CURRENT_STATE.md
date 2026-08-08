@@ -5,6 +5,42 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Home Branch-sales card redesigned with a mini ring (2026-08-08, polish,
+> client-only, NOT device-verified):** The employee Home `SalesTargetCard`
+> dropped the flat `SalesMoneyRow` for a small **progress ring** + achieved-over-
+> target (`112,000 / 1,000,000`) + `… EGP remaining`. Achieved rolls in (shared
+> premium count-up + light sweep), the ring sweeps on `kPremiumSettle`, remaining
+> rolls a beat later. DROP corner mark removed from this card to match the mockup
+> (chevron only). `SalesMoneyRow` retained for the admin overview.
+
+> **Employee Branch-sales screen leads with an animated target hero (2026-08-08,
+> polish, client-only, NOT device-verified):** `EmployeeSalesScreen`'s month card
+> now opens with a **hero gauge** instead of the flat `SalesMoneyRow` — a large
+> centred progress ring (arc sweeps + centre % counts up together) over **Target
+> · Achieved · Remaining** as three labelled columns. New `sales_target_hero.dart`
+> (`SalesTargetHero`) on the shared `AnimatedCountText` / `kPremiumSettle` motion
+> (cascade + rise + light sweep on Achieved). The ring painter is now reusable
+> (`_RingPainter` → **`SalesRingPainter`**) so the compact manager ring and the
+> big employee hero share one gauge. Manager dashboard keeps its compact ring —
+> the hero is employee-only for now. **Odometer + premium-palette update
+> (2026-08-08):** the count-up was replaced by a **slot-machine / odometer** —
+> new reusable `core/widgets/rolling_number.dart` (`RollingDigit` +
+> `RollingNumber`): each digit is an independent vertical reel keyed by place
+> value, rolling *forward* (with a multi-turn flourish that spins harder toward
+> the units) and settling exactly on the value; commas/decimal stay static, and
+> leading digits roll in from 0 as the number grows. No opacity/scale/whole-string
+> rebuilds; reels settle left→right in ~0.5–0.9 s; honours reduce-motion. It now
+> drives **every** sales figure (hero, Home `SalesTargetCard`, `SalesNeededPerDay`,
+> manager `SalesMonthOverview`) and the ring percentages. `AnimatedCountText` is
+> retired from the sales feature (still defines `kPremiumSettle`, used by nothing
+> sales-side now). Palette moved off the raw `success`/`warning`/`error` to muted
+> **sales accents** (`AppColors.salesEmerald`/`salesEmeraldGlow`/`salesAmber`/
+> `salesCoral`): emerald gauge+%+Achieved, gold Remaining, softened-coral pace
+> danger, Target on the grey ramp. Ring sweeps shortened to ~1.2 s on `kReelSettle`.
+> Hero brand watermark moved to the **top-right** corner (was bottom-right, behind
+> Remaining) via a new `BrandWatermark.corner`. Render layer only; ADR-004 still
+> softened on sales surfaces only, by owner ruling.
+
 > **Editing an approved sales record notifies its submitter (2026-08-08, fix,
 > server-side, needs deploy):** Closed a gap where editing an approved record's
 > amount notified nobody, while recording a new day and editing the target both
