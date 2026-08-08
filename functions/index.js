@@ -1451,6 +1451,16 @@ exports.editApprovedDailySalesSubmission = onCall(async (request) => {
     result = { sub, oldAmount: sub.amountPiastres, revision: revision + 1, crossing };
   });
   try { await writeSalesAudit({ eventType: "sales.approved_amount_edited", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.oldAmount, newAmountPiastres: data.amountPiastres, revision: result.revision, reason: reason || null, schemaVersion: 1 } });
+    // Tell the person who submitted the day that their approved figure changed —
+    // the same courtesy approve/reject already extends. Targeted, NOT branch-wide:
+    // an edit is a correction, and blasting the whole branch on every fix is noise.
+    // Skipped when the editor IS the submitter (a manager editing their own direct
+    // record needs no self-notice) or the amount is unchanged.
+    const submitterUid = String(result.sub.submittedById || "");
+    if (submitterUid && submitterUid !== actor.id && Number(result.oldAmount || 0) !== data.amountPiastres) {
+      const pounds = Math.round(data.amountPiastres / 100).toLocaleString("en-US");
+      await writeSalesNotifications([submitterUid], { title: "Sales record updated", body: `${actor.name} changed your approved sales to ${pounds} EGP.`, submissionId, monthKey: result.sub.monthKey });
+    }
     if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId, { excludeUid: actor.id }), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
   } catch (err) { logger.warn("failed to write sales edit side effects", { error: String(err), submissionId }); }
   return { success: true, revision: result.revision };

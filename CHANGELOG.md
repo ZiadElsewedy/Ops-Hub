@@ -14,6 +14,26 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Editing an approved sales record notifies the original submitter (fix; LOW risk, server-side)
+
+Closed a notification asymmetry: recording a **new** day tells the whole branch
+(*"{name} added {X} EGP…"*) and editing the **target** tells the whole branch,
+but editing an existing approved record's **amount** notified *nobody* (only the
+target-achieved crossing fired). The submitter of a day whose figure a manager
+later changed heard nothing — even though approve/reject already tells them.
+
+`editApprovedDailySalesSubmission` ([functions/index.js](functions/index.js))
+now sends a **targeted** notification to the record's `submittedById`: *"{name}
+changed your approved sales to {X} EGP."* Deliberately **not** branch-wide — an
+edit is a correction, and broadcasting every fix (including downward ones) is
+noise; branch-wide pushes stay reserved for the "something advanced" moments
+(new day, target changed, target achieved). Skipped when the editor **is** the
+submitter (a manager editing their own direct record) or the amount is
+unchanged. Reuses the existing `salesSubmission` type + `sales_submission`
+deep-link route — no new notification type. `node --check` clean, existing 155
+function tests green (no new producer test; the notification producers aren't
+unit-tested). **Requires a Cloud Functions deploy to take effect.**
+
 ## 2026-08-08 — Branch-sales hero figures roll to their new value (polish; LOW risk, client-only)
 
 The manager **Branch sales** dashboard hero now *animates* its figures instead

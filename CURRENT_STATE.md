@@ -5,6 +5,17 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Editing an approved sales record notifies its submitter (2026-08-08, fix,
+> server-side, needs deploy):** Closed a gap where editing an approved record's
+> amount notified nobody, while recording a new day and editing the target both
+> notify the whole branch. `editApprovedDailySalesSubmission` now sends a
+> **targeted** push to the record's `submittedById` (*"{name} changed your
+> approved sales to {X} EGP."*) — not branch-wide, since an edit is a correction
+> and broadcasting every fix is noise. Skipped when editor == submitter or the
+> amount is unchanged; the target-achieved crossing still notifies the branch.
+> Reuses the `salesSubmission` type + `sales_submission` route. **Requires a
+> Cloud Functions deploy.**
+
 > **Branch-sales hero figures roll to their new value (2026-08-08, polish,
 > client-only, NOT device-verified):** The manager Branch-sales dashboard hero
 > animates instead of snapping — Achieved, Remaining, Target and Needed-per-day
