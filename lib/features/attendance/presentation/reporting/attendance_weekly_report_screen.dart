@@ -106,9 +106,12 @@ class _AttendanceWeeklyReportViewState
     if (period != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        final me = context.currentUser;
         context.read<AttendanceReportCubit>().watchBranchWindow(
           branchId: period.branchId,
           window: period.window,
+          viewerUid: me?.uid,
+          employeesOnly: me?.role.isManager ?? false,
         );
       });
     }

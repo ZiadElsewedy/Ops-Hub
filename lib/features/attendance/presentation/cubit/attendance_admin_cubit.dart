@@ -7,6 +7,7 @@ import 'package:drop/core/enums/attendance_status.dart';
 import 'package:drop/core/enums/request_status.dart';
 import 'package:drop/core/enums/schedule_day.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
+import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/errors/failures.dart';
 import 'package:drop/features/attendance/domain/attendance_board.dart';
 import 'package:drop/features/attendance/domain/attendance_config.dart';
@@ -60,6 +61,12 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   DateTime? _businessDate;
   List<BranchEntity> _branches = const [];
   List<AttendanceRosterEntry> _roster = const [];
+  /// uid → role for the scoped branch (from the users directory). Drives the
+  /// manager-viewer visibility filter in [_emit]: a manager sees only their
+  /// employees plus their own row, never a peer manager/admin. Client-side only
+  /// — a presentation filter, not a security boundary (reads stay branch-scoped
+  /// in `firestore.rules`, which cannot partially filter a collection query).
+  Map<String, UserRole> _roleByUid = const {};
   List<AttendanceEntity> _records = const [];
   List<AttendanceCorrectionEntity> _corrections = const [];
   AttendanceConfig _config = const AttendanceConfig(enabled: true);
@@ -153,7 +160,14 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
     await _recordsSub?.cancel();
     await _correctionsSub?.cancel();
 
-    _roster = await _buildRoster(branchId);
+    // One directory fetch feeds both the roster names and the role map (the
+    // latter drives the manager-viewer visibility filter in [_emit]). Built here
+    // rather than inside [_buildRoster] so the roles are known even on a branch
+    // with no schedule, where unscheduled manager clock-ins still arrive as
+    // records that must be filtered out for a manager viewer.
+    final users = await _getUsersByBranch(branchId);
+    _roleByUid = {for (final u in users) u.uid: u.role};
+    _roster = await _buildRoster(branchId, users);
     final dayKey = attendanceDayKey(_today());
 
     _recordsSub = _repository.watchBranchDay(branchId, dayKey).listen(
@@ -177,14 +191,16 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   }
 
   /// Resolve the branch roster for the scoped day from the schedule + users.
-  Future<List<AttendanceRosterEntry>> _buildRoster(String branchId) async {
+  Future<List<AttendanceRosterEntry>> _buildRoster(
+    String branchId,
+    List<UserEntity> users,
+  ) async {
     final now = _today();
     final day = ScheduleDay.fromDate(now);
     final weekStart = ScheduleWeek.startOf(now);
     final schedule = await _scheduleRepository.getSchedule(branchId, weekStart);
     if (schedule == null) return const [];
 
-    final users = await _getUsersByBranch(branchId);
     final names = {
       for (final u in users) u.uid: (u.displayName ?? u.email),
     };
@@ -531,9 +547,29 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
 
   void _emit() {
     if (isClosed || _branchId == null) return;
+    // A MANAGER viewer sees only their employees plus their own row — never a
+    // peer manager/admin (product rule: managers are peers, admins handle
+    // managers). An admin viewer sees everyone. Presentation only; the server
+    // read rules stay branch-scoped (a collection query can't be partially
+    // filtered by rules), so this narrows what is shown, not what is readable.
+    final viewer = _admin;
+    final hidePeers = viewer != null && viewer.role.isManager;
+    final selfUid = viewer?.uid;
+    bool visible(String uid) =>
+        !hidePeers || uid == selfUid || !_isReviewerRole(uid);
+
+    final roster =
+        hidePeers ? _roster.where((e) => visible(e.uid)).toList() : _roster;
+    final records = hidePeers
+        ? _records.where((r) => visible(r.userId)).toList()
+        : _records;
+    final corrections = hidePeers
+        ? _corrections.where((c) => visible(c.userId)).toList()
+        : _corrections;
+
     final board = computeAttendanceBoard(
-      roster: _roster,
-      records: _records,
+      roster: roster,
+      records: records,
       now: _now(),
       config: _config,
     );
@@ -541,10 +577,18 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
       branchId: _branchId!,
       branches: _branches,
       board: board,
-      corrections: _corrections,
+      corrections: corrections,
       now: _now(),
       deciding: _deciding,
     ));
+  }
+
+  /// A uid whose attendance a manager may not see (a peer manager or an admin).
+  /// Unknown uids — not in the branch directory — default to *visible*, so a
+  /// real employee is never hidden by a stale/missing directory entry.
+  bool _isReviewerRole(String uid) {
+    final role = _roleByUid[uid];
+    return role == UserRole.manager || role == UserRole.admin;
   }
 
   @override

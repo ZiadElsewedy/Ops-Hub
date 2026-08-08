@@ -14,6 +14,29 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Managers are scoped to their employees for attendance (permission + visibility; MEDIUM risk)
+
+Two related rules, following the self-review fix below: **(1)** a manager may
+correct/review only an **employee's** attendance — never a peer manager's; only
+an **admin** corrects a manager (managers are peers). Enforced **server-side** via
+a new `isEmployeeUser(uid)` helper gating the manager branch of three
+`firestore.rules` write paths — `attendance_corrections` create (direct approved
+correction) and update (decide/soft-delete), and the `attendance` reviewer-update
+(soft-delete) path; admins stay unrestricted. **(2)** A manager now **sees only
+their employees plus their own row** across the branch board, Daily Review,
+Corrections, and reports. This is a **client-side visibility filter** (a Firestore
+collection query can't be partially filtered by rules, so reads stay
+branch-scoped): `AttendanceAdminCubit` filters roster/records/corrections by a
+`uid → role` map from the branch directory, and `AttendanceReportCubit` gained
+`employeesOnly` + `viewerUid` params (default off — admin callers and all existing
+tests keep the full-branch view) that filter ledger rows and recompute the
+summary from them. Unknown-role uids default to **visible** so a real employee is
+never hidden by a missing directory entry. No change to the correction flow,
+use-cases, or calculators. Tests: new `attendance_admin_visibility_test.dart` and
+report-cubit cases (manager hides peers, keeps employees + self; admin sees all);
+new rules cases (manager can't correct/decide a peer manager, admin can) — **93/93
+rules tests and the full attendance suite green**.
+
 ## 2026-08-08 — Attendance UI no longer offers self-review it can't perform (UX; LOW risk)
 
 Closed a UX gap where the branch attendance surfaces showed a manager the direct

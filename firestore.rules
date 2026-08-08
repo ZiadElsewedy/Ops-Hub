@@ -22,6 +22,17 @@ service cloud.firestore {
     function isAdmin()   { return isSignedIn() && selfRole() == 'admin'; }
     function isManager() { return isSignedIn() && selfRole() == 'manager'; }
 
+    // The TARGET user's role, by uid. Managers are peers: a manager may correct
+    // an EMPLOYEE's attendance but never another manager's (or an admin's) —
+    // only an admin corrects a manager. The user doc is provisioned before any
+    // attendance exists, so this get() is safe on the correction/record paths
+    // (an absent record still resolves its owner's role). `exists()` guards a
+    // uid with no user doc, which then reads as "not an employee".
+    function isEmployeeUser(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+        && get(/databases/$(database)/documents/users/$(uid)).data.get('role', '') == 'employee';
+    }
+
     // Branch scoping. Admin is global (any branch); a manager reaches only their
     // own branch. Employees never reach a whole branch — only their own data.
     function canReachBranch(branch) {
@@ -934,8 +945,13 @@ service cloud.firestore {
         // A reviewer acting on someone ELSE's record in their scope (e.g. a
         // soft-delete). The server-authoritative correction path is preferred for
         // edits; self is excluded so a reviewer's own clock-out is pinned below.
+        // A manager may act only on an EMPLOYEE's record — never a peer manager's
+        // (an admin alone corrects a manager).
         (
-          (isAdmin() || (isManager() && resource.data.get('branchId', '') == selfBranch()))
+          (isAdmin()
+           || (isManager()
+               && resource.data.get('branchId', '') == selfBranch()
+               && isEmployeeUser(resource.data.get('userId', ''))))
           && request.auth.uid != resource.data.get('userId', '')
           && request.resource.data.get('userId', '') == resource.data.get('userId', '')
         )
@@ -1041,21 +1057,28 @@ service cloud.firestore {
             && (isAdmin()
                 || request.resource.data.get('branchId', '') == selfBranch())
           )
-          // (b) reviewer direct action — approved correction for another user
+          // (b) reviewer direct action — approved correction for another user.
+          // A manager may only correct an EMPLOYEE; an admin alone corrects a
+          // manager (managers are peers — no manager-on-manager review).
           || (
             (isAdmin()
              || (isManager()
-                 && request.resource.data.get('branchId', '') == selfBranch()))
+                 && request.resource.data.get('branchId', '') == selfBranch()
+                 && isEmployeeUser(request.resource.data.get('userId', ''))))
             && request.resource.data.get('status', '') == 'approved'
             && request.resource.data.get('decidedBy', '') == request.auth.uid
             && request.auth.uid != request.resource.data.get('userId', '')
           )
         );
 
+      // A manager decides a correction only on an EMPLOYEE's attendance; an admin
+      // alone decides one on a manager's (no manager-on-manager review, and no
+      // self-approval via the `auth.uid != userId` guard below).
       allow update: if
         (isAdmin()
          || (isManager()
-             && resource.data.get('branchId', '') == selfBranch()))
+             && resource.data.get('branchId', '') == selfBranch()
+             && isEmployeeUser(resource.data.get('userId', ''))))
         && request.auth.uid != resource.data.get('userId', '')
         && request.resource.data.get('userId', '') ==
            resource.data.get('userId', '')

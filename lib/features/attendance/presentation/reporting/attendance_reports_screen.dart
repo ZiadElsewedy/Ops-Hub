@@ -82,9 +82,12 @@ class _AttendanceReportsViewState extends State<_AttendanceReportsView> {
     if (!mounted) return;
     final branchId = _selectedBranchId;
     if (branchId == null || branchId.trim().isEmpty) return;
+    final me = context.currentUser;
     context.read<AttendanceReportCubit>().watchBranchWindow(
       branchId: branchId,
       window: _window,
+      viewerUid: me?.uid,
+      employeesOnly: me?.role.isManager ?? false,
     );
   }
 
