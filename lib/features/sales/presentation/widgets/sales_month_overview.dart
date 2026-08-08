@@ -58,6 +58,8 @@ class SalesMonthOverview extends StatelessWidget {
                     label: 'ACHIEVED',
                     valuePiastres: achievedPiastres,
                     color: tint,
+                    // The hero fires first and catches the light sweep.
+                    shimmer: true,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -69,6 +71,9 @@ class SalesMonthOverview extends StatelessWidget {
                     valuePiastres: remainingPiastres,
                     alignEnd: true,
                     footnote: '${leftPercent.toStringAsFixed(1)}% left',
+                    // …then Remaining follows a beat later — a left-to-right
+                    // cascade across the hero row.
+                    delay: const Duration(milliseconds: 260),
                   ),
                 ),
               ],
@@ -100,6 +105,8 @@ class SalesMonthOverview extends StatelessWidget {
                           formatter: (v) =>
                               formatEgp(v.round(), withSuffix: true),
                           animateOnMount: true,
+                          // Last in the cascade, below the hero row.
+                          delay: const Duration(milliseconds: 400),
                           maxLines: 1,
                           style: AppTypography.h3.copyWith(
                             color: AppColors.textSecondary,
@@ -126,6 +133,8 @@ class _Figure extends StatelessWidget {
     this.color,
     this.alignEnd = false,
     this.footnote,
+    this.delay = Duration.zero,
+    this.shimmer = false,
   });
 
   final String label;
@@ -136,6 +145,11 @@ class _Figure extends StatelessWidget {
   final Color? color;
   final bool alignEnd;
   final String? footnote;
+
+  /// Stagger + light-sweep, forwarded to the rolling figure so the row resolves
+  /// as a cascade with the hero catching the shimmer.
+  final Duration delay;
+  final bool shimmer;
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +177,8 @@ class _Figure extends StatelessWidget {
             value: valuePiastres,
             formatter: (v) => formatEgp(v.round()),
             animateOnMount: true,
+            delay: delay,
+            shimmer: shimmer,
             maxLines: 1,
             textAlign: alignEnd ? TextAlign.right : TextAlign.left,
             pulseAlignment: alignEnd

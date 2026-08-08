@@ -48,7 +48,7 @@ class SalesProgressRing extends StatelessWidget {
           // sale lands or the target is edited.
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: capped),
-            duration: const Duration(milliseconds: 2600),
+            duration: const Duration(milliseconds: 3200),
             curve: kPremiumSettle,
             builder: (context, value, _) {
               final percent = value >= 0.9995

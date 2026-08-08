@@ -23,12 +23,16 @@ load (the reveal after the skeleton) and, more importantly, whenever a sale is
 recorded or the target is edited — the number visibly travels from the old value
 to the new one.
 
-The roll is deliberately slow and theatrical: ~2.6s on the shared
+The roll is deliberately slow and theatrical: ~3.2s on the shared
 `kPremiumSettle` curve (`cubic-bezier(0.16, 1, 0.3, 1)` — a deep ease-out-expo
-that leaps early then settles almost imperceptibly). Each figure also
-**materializes** into place — scales ~0.82 → 1.0 with a soft `easeOutBack`
-overshoot and fades up from low opacity, anchored to its aligned edge so it
-never shifts or clips. The progress ring sweeps on the same curve and duration.
+that leaps early then settles almost imperceptibly). Each figure
+**materializes** into place — scales ~0.88 → 1.0 with a soft `easeOutBack`
+overshoot and brightens from dim to full, anchored to its aligned edge so it
+never shifts or clips. The figures resolve as a **staggered cascade** (Achieved
++ ring first, then Remaining ~260ms, Target ~400ms, Needed-per-day ~520ms), and
+a **light sweep** (`ShaderMask` band on a sliding `GradientTransform`) travels
+across the Achieved hero as it settles. The progress ring sweeps on the same
+curve and duration.
 
 New reusable `core/widgets/animated_count_text.dart` (`AnimatedCountText`) —
 tweens between values with an `AnimationController`, reformats every frame so

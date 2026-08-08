@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 /// The house count-up easing — `cubic-bezier(0.16, 1, 0.3, 1)`, a deep
@@ -16,6 +18,12 @@ const Curve kPremiumSettle = Cubic(0.16, 1.0, 0.3, 1.0);
 /// premium reveal when the dashboard finishes loading; leave it off for a
 /// figure that should simply be present.
 ///
+/// The motion is layered for a premium feel: as it counts, the figure **rises**
+/// (scales up with a soft overshoot) and **brightens** (fades from dim to full),
+/// so it *materializes* into place rather than ticking. A [delay] staggers the
+/// start so a row of figures resolves as a cascade, and [shimmer] sweeps a band
+/// of light across the figure as it settles.
+///
 /// Honours the platform "reduce motion" setting: when animations are disabled
 /// it shows the exact value with no roll.
 class AnimatedCountText extends StatefulWidget {
@@ -24,7 +32,7 @@ class AnimatedCountText extends StatefulWidget {
     required this.value,
     required this.formatter,
     required this.style,
-    this.duration = const Duration(milliseconds: 2600),
+    this.duration = const Duration(milliseconds: 3200),
     this.curve = kPremiumSettle,
     this.textAlign,
     this.maxLines,
@@ -32,6 +40,8 @@ class AnimatedCountText extends StatefulWidget {
     this.animateOnMount = false,
     this.pulse = true,
     this.pulseAlignment = Alignment.centerLeft,
+    this.delay = Duration.zero,
+    this.shimmer = false,
   });
 
   /// The target value. Ints or doubles both work; [formatter] decides how the
@@ -51,14 +61,24 @@ class AnimatedCountText extends StatefulWidget {
   /// Count up from zero the first time the widget is shown (not just on change).
   final bool animateOnMount;
 
-  /// Also **rise** into place: the figure scales up from small to full with a
-  /// slight overshoot as it counts, so a change reads as a lively pop rather
-  /// than a flat tick. The scale peaks at ~1.0, so it never overflows its box.
+  /// Also **rise + brighten** into place: the figure scales up from small to
+  /// full with a slight overshoot and fades from dim to full as it counts, so a
+  /// change reads as a lively arrival rather than a flat tick. The scale peaks
+  /// at ~1.0, so it never overflows its box.
   final bool pulse;
 
   /// The anchor the rise scales about — keep it on the side the figure is
   /// aligned to (left for Achieved, right for Remaining) so it grows in place.
   final Alignment pulseAlignment;
+
+  /// Hold before the roll starts. Give the figures in a row increasing delays to
+  /// make them resolve as a cascade instead of all at once. During the hold the
+  /// figure sits in its dimmed start state, then charges up into the new value.
+  final Duration delay;
+
+  /// Sweep a band of light across the figure as it settles — most visible on a
+  /// tinted (non-white) figure. Reserve it for the one hero number in a group.
+  final bool shimmer;
 
   @override
   State<AnimatedCountText> createState() => _AnimatedCountTextState();
@@ -69,6 +89,7 @@ class _AnimatedCountTextState extends State<AnimatedCountText>
   late final AnimationController _controller;
   late num _from;
   late num _to;
+  Timer? _delayTimer;
 
   @override
   void initState() {
@@ -77,7 +98,7 @@ class _AnimatedCountTextState extends State<AnimatedCountText>
     _to = widget.value;
     _controller = AnimationController(vsync: this, duration: widget.duration);
     if (widget.animateOnMount && widget.value != 0) {
-      _controller.forward();
+      _start();
     } else {
       _controller.value = 1;
     }
@@ -90,10 +111,24 @@ class _AnimatedCountTextState extends State<AnimatedCountText>
       // Roll from wherever we are right now so back-to-back changes stay smooth.
       _from = _liveValue();
       _to = widget.value;
-      _controller
-        ..duration = widget.duration
-        ..forward(from: 0);
+      _controller.duration = widget.duration;
+      _start();
     }
+  }
+
+  /// Drop to the dimmed start state, then (after [AnimatedCountText.delay]) run
+  /// the roll. The hold leaves the figure sitting in its charge-up state so the
+  /// cascade has no flash between waiting and animating.
+  void _start() {
+    _delayTimer?.cancel();
+    _controller.value = 0;
+    if (widget.delay == Duration.zero) {
+      _controller.forward(from: 0);
+      return;
+    }
+    _delayTimer = Timer(widget.delay, () {
+      if (mounted) _controller.forward(from: 0);
+    });
   }
 
   num _liveValue() {
@@ -103,6 +138,7 @@ class _AnimatedCountTextState extends State<AnimatedCountText>
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -116,24 +152,45 @@ class _AnimatedCountTextState extends State<AnimatedCountText>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
-        final text = _text(_liveValue());
-        if (!widget.pulse) return text;
-        // Rise from ~0.82 to 1.0 with a soft overshoot, and fade in from a low
-        // opacity — the figure *materializes* into place rather than just
-        // ticking. Anchored to the aligned edge so it never shifts or clips.
+        Widget out = _text(_liveValue());
+        if (widget.shimmer) out = _shimmered(out);
+        if (!widget.pulse) return out;
+        // Rise from ~0.88 to 1.0 with a soft overshoot, and brighten from a dim
+        // 0.4 to full — the figure materializes into place. During a stagger
+        // hold the controller sits at 0, so the figure waits in this same dimmed
+        // start state (no flash when the roll begins).
         final rise = Curves.easeOutBack.transform(_controller.value);
-        final scale = 0.82 + 0.18 * rise;
-        final opacity = (0.25 + 1.15 * Curves.easeOut.transform(_controller.value))
+        final scale = 0.88 + 0.12 * rise;
+        final opacity = (0.4 + 1.1 * Curves.easeOut.transform(_controller.value))
             .clamp(0.0, 1.0);
         return Opacity(
           opacity: opacity,
           child: Transform.scale(
             scale: scale,
             alignment: widget.pulseAlignment,
-            child: text,
+            child: out,
           ),
         );
       },
+    );
+  }
+
+  /// A single band of light travelling left→right across the figure, driven by
+  /// the roll's progress. At rest (progress 1) the band has left the frame, so
+  /// the figure reads in its plain colour.
+  Widget _shimmered(Widget child) {
+    final base = widget.style.color ?? Colors.white;
+    final highlight = Color.lerp(base, Colors.white, 0.9)!;
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (rect) => LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [base, highlight, base],
+        stops: const [0.35, 0.5, 0.65],
+        transform: _SweepTransform(_controller.value),
+      ).createShader(rect),
+      child: child,
     );
   }
 
@@ -144,4 +201,17 @@ class _AnimatedCountTextState extends State<AnimatedCountText>
     maxLines: widget.maxLines,
     overflow: widget.overflow,
   );
+}
+
+/// Slides a gradient across its bounds as [t] goes 0→1: fully off the left edge
+/// at 0, fully off the right at 1. Lets the shimmer band travel without touching
+/// the gradient stops (so they never need clamping).
+class _SweepTransform extends GradientTransform {
+  const _SweepTransform(this.t);
+  final double t;
+
+  @override
+  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) {
+    return Matrix4.translationValues((t * 2 - 1) * bounds.width, 0, 0);
+  }
 }

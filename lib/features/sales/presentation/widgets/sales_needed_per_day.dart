@@ -88,6 +88,7 @@ class SalesNeededPerDay extends StatelessWidget {
                       value: neededPerDayPiastres,
                       formatter: (v) => formatEgp(v.round(), withSuffix: true),
                       animateOnMount: true,
+                      delay: const Duration(milliseconds: 520),
                       style: AppTypography.h2.copyWith(
                         color: valueColor,
                         fontFeatures: const [FontFeature.tabularFigures()],
