@@ -14,6 +14,19 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Admin Home Branch-sales rows adopt the manager card's mini ring (polish; LOW risk)
+
+The Admin Home `AdminBranchSalesSummary` per-branch line was a flat text row
+(*name … 111,700 of 1,000,000 EGP*) while the manager Home `SalesTargetCard`
+already leads with a compact emerald progress ring + achieved / target +
+*… EGP remaining*. Each admin branch row now uses that same layout: a compact
+`_MiniRing` (reusing `SalesRingPainter` from `sales_progress_ring.dart`) beside
+the branch name, the rolling achieved figure over the target, and a rolling
+*remaining* line. No-target and loading rows updated to match. Presentation only
+— no new reads, no cubit/state/schema/rules/functions change, still strictly the
+sales emerald accent. `flutter analyze` clean; no test references the widget.
+NOT device-verified.
+
 ## 2026-08-08 — Managers are scoped to their employees for attendance (permission + visibility; MEDIUM risk)
 
 Two related rules, following the self-review fix below: **(1)** a manager may

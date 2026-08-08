@@ -5,6 +5,17 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Admin Home Branch-sales rows now match the manager card (2026-08-08, polish,
+> client-only, NOT device-verified):** The Admin Home `AdminBranchSalesSummary`
+> per-branch line dropped its flat text row (*name … 111,700 of 1,000,000 EGP*)
+> for the same layout the manager Home `SalesTargetCard` leads with — a compact
+> emerald progress ring (`_MiniRing`, reusing `SalesRingPainter`) beside the
+> branch name, the rolling achieved figure over the target, and a rolling
+> *… EGP remaining* line. No-target and loading rows updated to match. Render
+> layer only — no new reads, no cubit/state/schema/rules/functions change; still
+> the sales emerald accent (ADR-004 as already softened on sales surfaces).
+> `flutter analyze` clean; no test references the widget.
+
 > **Home Branch-sales card redesigned with a mini ring (2026-08-08, polish,
 > client-only, NOT device-verified):** The employee Home `SalesTargetCard`
 > dropped the flat `SalesMoneyRow` for a small **progress ring** + achieved-over-
