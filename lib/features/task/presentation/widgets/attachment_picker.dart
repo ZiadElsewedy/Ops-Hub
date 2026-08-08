@@ -274,9 +274,9 @@ class AttachmentPickerField extends StatelessWidget {
     final code = error is PlatformException ? error.code : '';
     switch (code) {
       case 'camera_access_denied':
-        return 'Camera access is off. Enable it for DROP in Settings.';
+        return 'Camera access is off. Enable it for Drop Operations in Settings.';
       case 'photo_access_denied':
-        return 'Photo access is off. Enable it for DROP in Settings.';
+        return 'Photo access is off. Enable it for Drop Operations in Settings.';
       case 'no_available_camera':
         return 'No camera on this device — choose a photo instead.';
       default:

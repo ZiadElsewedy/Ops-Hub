@@ -196,6 +196,18 @@ class RequestsListCubit extends Cubit<RequestsListState> {
     }
   }
 
+  /// Drops the user-scoped stream and cached branch names, returning the cubit
+  /// to [RequestsListState.initial]. Called on sign-out and on
+  /// single-active-session eviction — see `AuthCubit._signOutInternal`.
+  void reset() {
+    _sub?.cancel();
+    _sub = null;
+    _mutating = false;
+    _branchNames.clear();
+    _user = null;
+    if (!isClosed) emit(const RequestsListState.initial());
+  }
+
   @override
   Future<void> close() {
     _sub?.cancel();

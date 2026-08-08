@@ -270,6 +270,25 @@ class SalesMonthCubit extends Cubit<SalesMonthState> {
     _ownSub = null;
   }
 
+  /// Drops all three user-scoped streams and the cached month, returning the
+  /// cubit to [SalesMonthState.initial]. Called on sign-out and on
+  /// single-active-session eviction. Clearing `_branchId`/`_uid`/`_monthKey`
+  /// also disarms the same-scope freshness short-circuit in `loadForEmployee`,
+  /// so the next user's first load actually re-subscribes instead of being
+  /// treated as a repeat of the previous user's.
+  Future<void> reset() async {
+    await _cancelSubscriptions();
+    _target = null;
+    _approved = const [];
+    _own = const [];
+    _branchId = null;
+    _uid = null;
+    _monthKey = null;
+    _todayDateKey = '';
+    _busy = false;
+    if (!isClosed) emit(const SalesMonthState.initial());
+  }
+
   @override
   Future<void> close() async {
     await _cancelSubscriptions();

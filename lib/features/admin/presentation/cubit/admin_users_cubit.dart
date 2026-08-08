@@ -19,10 +19,25 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
   final UserAdminRepository _users;
   final BranchRepository _branches;
 
+  /// Invoked after any change to the user set (create / rename / deactivate /
+  /// delete / branch or position change). Wired to invalidate the app's
+  /// in-memory people-directory caches so a new or renamed teammate resolves to
+  /// a real name in chat and tasks without an app restart. Optional so tests and
+  /// non-provisioning callers can omit it.
+  final void Function()? _onUsersChanged;
+
   AdminUserFilter _filter = AdminUserFilter.employees;
 
-  AdminUsersCubit(this._users, this._branches)
-      : super(const AdminUsersState.initial());
+  // The public parameter is `onUsersChanged` while the field is private, so an
+  // initializing formal (`this._onUsersChanged`) would leak the private name to
+  // call sites — hence the explicit assignment.
+  AdminUsersCubit(
+    this._users,
+    this._branches, {
+    void Function()? onUsersChanged,
+    // ignore: prefer_initializing_formals
+  })  : _onUsersChanged = onUsersChanged,
+        super(const AdminUsersState.initial());
 
   List<UserEntity> get _current =>
       state.maybeWhen(loaded: (u, _) => u, orElse: () => const []);
@@ -68,16 +83,22 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     String? branchId,
     String? assignedShift,
     String? position,
-  }) =>
-      _users.createAccount(
-        name: name,
-        email: email,
-        temporaryPassword: temporaryPassword,
-        role: role,
-        branchId: branchId,
-        assignedShift: assignedShift,
-        position: position,
-      );
+  }) async {
+    final uid = await _users.createAccount(
+      name: name,
+      email: email,
+      temporaryPassword: temporaryPassword,
+      role: role,
+      branchId: branchId,
+      assignedShift: assignedShift,
+      position: position,
+    );
+    // The new account joins the org directory — refresh the name caches so the
+    // employee is named at once in chat and on a task assigned to them, rather
+    // than showing "Teammate" / "Someone" until the app is relaunched.
+    _onUsersChanged?.call();
+    return uid;
+  }
 
   /// Reset an account: new temp password + re-force a password change.
   Future<void> resetAccount(UserEntity user, String temporaryPassword) =>
@@ -223,6 +244,10 @@ class AdminUsersCubit extends Cubit<AdminUsersState> {
     emit(AdminUsersState.loaded(prev, busy: true));
     try {
       await action();
+      // A rename / deactivate / delete / branch or position change alters the
+      // directory too — refresh the name caches so the change is reflected in
+      // chat and tasks without an app restart.
+      _onUsersChanged?.call();
       emit(AdminUsersState.loaded(await _fetch(_filter)));
     } on Failure catch (e) {
       emit(AdminUsersState.error(e.message));

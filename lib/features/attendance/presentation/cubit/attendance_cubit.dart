@@ -226,14 +226,42 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
   /// Resolve today's rostered shift + scheduled window from the schedule (one
   /// cached read). Degrades gracefully to "no shift" when nothing is rostered.
+  ///
+  /// **Presence-style roles (managers) always get a clock target.** Their
+  /// attendance is an *open shift* — clock in and out at any time — so the
+  /// primary [clockIn] must work with or without a rostered slot. When nothing
+  /// is rostered the target is the time-of-day bucket ([unscheduledShiftFor]);
+  /// when they *do* happen to be on the roster the bucket is that shift, but the
+  /// scheduled window is dropped either way (there is nothing to be late for).
+  /// The record carries `presenceOnly: true`, so this is not an anomaly — it is
+  /// what a manager's clock means.
   Future<void> _resolveContext(UserEntity user, {BranchEntity? branch}) async {
     final now = _now();
     final todayDate = DateTime(now.year, now.month, now.day);
     final day = ScheduleDay.fromDate(now);
+    final presenceOnly = !_config.enforceSchedule;
+
+    // A presence-only clock target: an open shift keyed on the current
+    // time-of-day bucket, with no scheduled window. Used whenever a manager has
+    // no rostered slot resolved (which is the normal case).
+    _TodayContext presenceCtx({LeaveType? leave, BranchGeofence? geofence}) {
+      final shift = unscheduledShiftFor(now);
+      return _TodayContext(
+        todayDate: todayDate,
+        shift: shift,
+        leave: leave,
+        geofence: geofence,
+        targetRecordId:
+            attendanceDocId(uid: user.uid, date: todayDate, shift: shift),
+      );
+    }
+
     try {
       final branchId = user.branchId;
       if (branchId == null || branchId.isEmpty) {
-        _ctx = _TodayContext(todayDate: todayDate);
+        _ctx = presenceOnly
+            ? presenceCtx()
+            : _TodayContext(todayDate: todayDate);
         return;
       }
       // Resolved before the schedule lookup on purpose: an unscheduled clock-in
@@ -243,15 +271,19 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       final weekStart = ScheduleWeek.startOf(now);
       final schedule = await _scheduleRepository.getSchedule(branchId, weekStart);
       if (schedule == null) {
-        _ctx = _TodayContext(todayDate: todayDate, geofence: geofence);
+        _ctx = presenceOnly
+            ? presenceCtx(geofence: geofence)
+            : _TodayContext(todayDate: todayDate, geofence: geofence);
         return;
       }
       final leave = schedule.leaveTypeOf(user.uid, day);
       final shifts = schedule.shiftsFor(user.uid, day);
       final target = _pickTargetShift(shifts, schedule, weekStart, day, now);
       if (target == null) {
-        _ctx = _TodayContext(
-            todayDate: todayDate, leave: leave, geofence: geofence);
+        _ctx = presenceOnly
+            ? presenceCtx(leave: leave, geofence: geofence)
+            : _TodayContext(
+                todayDate: todayDate, leave: leave, geofence: geofence);
         return;
       }
       final hours = schedule.hoursFor(day, target);
@@ -260,14 +292,19 @@ class AttendanceCubit extends Cubit<AttendanceState> {
         shift: target,
         leave: leave,
         geofence: geofence,
-        scheduledStart: ShiftWindow.startOf(weekStart, day, hours),
-        scheduledEnd: ShiftWindow.endOf(weekStart, day, hours),
+        // A presence-style role carries no scheduled window even when rostered,
+        // so its clock never re-acquires the early/late semantics it exists to
+        // avoid (mirrors the record built in [clockIn]).
+        scheduledStart:
+            presenceOnly ? null : ShiftWindow.startOf(weekStart, day, hours),
+        scheduledEnd:
+            presenceOnly ? null : ShiftWindow.endOf(weekStart, day, hours),
         targetRecordId:
             attendanceDocId(uid: user.uid, date: todayDate, shift: target),
       );
     } catch (e, st) {
       AppLog.error('attendance', 'resolveContext failed', e, st);
-      _ctx = _TodayContext(todayDate: todayDate);
+      _ctx = presenceOnly ? presenceCtx() : _TodayContext(todayDate: todayDate);
     }
   }
 
@@ -741,6 +778,34 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     if (isClosed) return;
     emit(AttendanceState.error(message));
     _emitLoaded();
+  }
+
+  /// Drops both user-scoped streams, the live ticker and every cached record,
+  /// returning the cubit to [AttendanceState.initial]. Called on sign-out and on
+  /// single-active-session eviction. The ticker matters as much as the streams:
+  /// this cubit is app-wide, so a `Timer` left running keeps rebuilding a
+  /// signed-out user's clock state forever.
+  void reset() {
+    _timer?.cancel();
+    _timer = null;
+    _sub?.cancel();
+    _sub = null;
+    _correctionsSub?.cancel();
+    _correctionsSub = null;
+    _user = null;
+    _branch = null;
+    _ctx = null;
+    _config = const AttendanceConfig(enabled: true);
+    _history = const [];
+    _myCorrections = const [];
+    _offline = false;
+    _syncing = false;
+    _verifying = false;
+    _previewing = false;
+    _previewVerification = null;
+    _previewError = null;
+    _busy = false;
+    if (!isClosed) emit(const AttendanceState.initial());
   }
 
   @override

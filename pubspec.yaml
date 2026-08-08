@@ -77,6 +77,17 @@ dependencies:
   # Observability — crash-report persistence (Application Support dir).
   path_provider: ^2.1.4
 
+  # Single-active-session enforcement — the device's session id lives in the
+  # Keychain (iOS/macOS) / EncryptedSharedPreferences (Android), NOT in the
+  # uid-namespaced JSON stores in `core/services/`: those are per-user
+  # preferences, while this is the credential the auth layer compares against
+  # `users/{uid}.activeSessionId` to decide whether THIS device still owns the
+  # session. It must survive nothing else being readable and must not be
+  # trivially editable. The single seam is `core/services/session_store.dart`;
+  # nothing else may import this package. (Still NOT `shared_preferences` —
+  # see PROJECT_CONTEXT §4 "Single-source seams".)
+  flutter_secure_storage: ^9.2.2
+
   # Code Generation (annotations only at runtime)
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
@@ -96,8 +107,8 @@ dependencies:
   open_filex: ^4.7.0
   # Weekly attendance PDF (ADR-019). Pure Dart — deliberately NOT `printing`,
   # which adds platform plugin code for a print dialog we do not need: the file
-  # is written beside the Schedule PNG export and opened with `open_filex`,
-  # exactly like a chat document.
+  # is written beside the Schedule PNG export and handed to the OS share sheet
+  # through `core/services/export_sharing.dart` (share_plus).
   pdf: ^3.11.1
   # Weekly schedule Excel (.xlsx) export. There is no pure-Dart xlsx writer we
   # can use — the `excel` package pins `archive ^3`, which conflicts with
@@ -115,6 +126,14 @@ dependencies:
   # one colour, which turned Gmail's four-colour M into a flat red glyph, and a
   # wrong logo reads worse than no logo.
   flutter_svg: ^2.0.10
+  # The OS share sheet for an exported file (attendance PDF/CSV, schedule
+  # PNG/PDF/XLSX). Owner-approved exception to the dependency-light stance
+  # (2026-08-07): `open_filex` could only open a local viewer, so *sending* an
+  # export took an extra hop through Quick Look. `share_plus` raises the real
+  # share sheet (WhatsApp · Mail · AirDrop · Files) on iOS/Android/macOS. The
+  # single seam is `core/services/export_sharing.dart`; never import `share_plus`
+  # elsewhere.
+  share_plus: ^12.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

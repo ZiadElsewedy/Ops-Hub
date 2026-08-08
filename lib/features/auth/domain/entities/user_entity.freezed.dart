@@ -76,7 +76,19 @@ mixin _$UserEntity {
 
   /// The admin uid that provisioned this account (audit). Null for accounts
   /// created out of band (e.g. the bootstrapped first admin).
-  String? get createdBy => throw _privateConstructorUsedError;
+  String? get createdBy =>
+      throw _privateConstructorUsedError; // ─── Single active session ──────────────────────────────────
+  /// The id of the ONE sign-in currently allowed to hold this account, minted
+  /// per device at sign-in (`generateSessionId`) and claimed on the user
+  /// document. A device stays signed in only while this matches the id in its
+  /// own `SessionStore`; a newer sign-in elsewhere overwrites it and evicts
+  /// every other device (see `AuthCubit`).
+  ///
+  /// **Null means "no claim on record"** — legacy documents, and any account
+  /// that has not signed in since the feature shipped. Null is deliberately
+  /// NOT an eviction: it is the back-compat state, so an app upgrade never
+  /// signs the whole company out at once.
+  String? get activeSessionId => throw _privateConstructorUsedError;
 
   /// Create a copy of UserEntity
   /// with the given fields replaced by the non-null parameter values.
@@ -113,6 +125,7 @@ abstract class $UserEntityCopyWith<$Res> {
     bool hasCompletedOnboarding,
     String employmentStatus,
     String? createdBy,
+    String? activeSessionId,
   });
 }
 
@@ -151,6 +164,7 @@ class _$UserEntityCopyWithImpl<$Res, $Val extends UserEntity>
     Object? hasCompletedOnboarding = null,
     Object? employmentStatus = null,
     Object? createdBy = freezed,
+    Object? activeSessionId = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -234,6 +248,10 @@ class _$UserEntityCopyWithImpl<$Res, $Val extends UserEntity>
                 ? _value.createdBy
                 : createdBy // ignore: cast_nullable_to_non_nullable
                       as String?,
+            activeSessionId: freezed == activeSessionId
+                ? _value.activeSessionId
+                : activeSessionId // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -270,6 +288,7 @@ abstract class _$$UserEntityImplCopyWith<$Res>
     bool hasCompletedOnboarding,
     String employmentStatus,
     String? createdBy,
+    String? activeSessionId,
   });
 }
 
@@ -307,6 +326,7 @@ class __$$UserEntityImplCopyWithImpl<$Res>
     Object? hasCompletedOnboarding = null,
     Object? employmentStatus = null,
     Object? createdBy = freezed,
+    Object? activeSessionId = freezed,
   }) {
     return _then(
       _$UserEntityImpl(
@@ -390,6 +410,10 @@ class __$$UserEntityImplCopyWithImpl<$Res>
             ? _value.createdBy
             : createdBy // ignore: cast_nullable_to_non_nullable
                   as String?,
+        activeSessionId: freezed == activeSessionId
+            ? _value.activeSessionId
+            : activeSessionId // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -419,6 +443,7 @@ class _$UserEntityImpl extends _UserEntity {
     this.hasCompletedOnboarding = true,
     this.employmentStatus = 'active',
     this.createdBy,
+    this.activeSessionId,
   }) : super._();
 
   @override
@@ -508,10 +533,23 @@ class _$UserEntityImpl extends _UserEntity {
   /// created out of band (e.g. the bootstrapped first admin).
   @override
   final String? createdBy;
+  // ─── Single active session ──────────────────────────────────
+  /// The id of the ONE sign-in currently allowed to hold this account, minted
+  /// per device at sign-in (`generateSessionId`) and claimed on the user
+  /// document. A device stays signed in only while this matches the id in its
+  /// own `SessionStore`; a newer sign-in elsewhere overwrites it and evicts
+  /// every other device (see `AuthCubit`).
+  ///
+  /// **Null means "no claim on record"** — legacy documents, and any account
+  /// that has not signed in since the feature shipped. Null is deliberately
+  /// NOT an eviction: it is the back-compat state, so an app upgrade never
+  /// signs the whole company out at once.
+  @override
+  final String? activeSessionId;
 
   @override
   String toString() {
-    return 'UserEntity(uid: $uid, email: $email, authProvider: $authProvider, displayName: $displayName, photoUrl: $photoUrl, phoneNumber: $phoneNumber, address: $address, emergencyContact: $emergencyContact, isEmailVerified: $isEmailVerified, createdAt: $createdAt, role: $role, branchId: $branchId, isActive: $isActive, assignedShift: $assignedShift, position: $position, mustChangePassword: $mustChangePassword, isProfileCompleted: $isProfileCompleted, hasCompletedOnboarding: $hasCompletedOnboarding, employmentStatus: $employmentStatus, createdBy: $createdBy)';
+    return 'UserEntity(uid: $uid, email: $email, authProvider: $authProvider, displayName: $displayName, photoUrl: $photoUrl, phoneNumber: $phoneNumber, address: $address, emergencyContact: $emergencyContact, isEmailVerified: $isEmailVerified, createdAt: $createdAt, role: $role, branchId: $branchId, isActive: $isActive, assignedShift: $assignedShift, position: $position, mustChangePassword: $mustChangePassword, isProfileCompleted: $isProfileCompleted, hasCompletedOnboarding: $hasCompletedOnboarding, employmentStatus: $employmentStatus, createdBy: $createdBy, activeSessionId: $activeSessionId)';
   }
 
   @override
@@ -554,7 +592,9 @@ class _$UserEntityImpl extends _UserEntity {
             (identical(other.employmentStatus, employmentStatus) ||
                 other.employmentStatus == employmentStatus) &&
             (identical(other.createdBy, createdBy) ||
-                other.createdBy == createdBy));
+                other.createdBy == createdBy) &&
+            (identical(other.activeSessionId, activeSessionId) ||
+                other.activeSessionId == activeSessionId));
   }
 
   @override
@@ -580,6 +620,7 @@ class _$UserEntityImpl extends _UserEntity {
     hasCompletedOnboarding,
     employmentStatus,
     createdBy,
+    activeSessionId,
   ]);
 
   /// Create a copy of UserEntity
@@ -613,6 +654,7 @@ abstract class _UserEntity extends UserEntity {
     final bool hasCompletedOnboarding,
     final String employmentStatus,
     final String? createdBy,
+    final String? activeSessionId,
   }) = _$UserEntityImpl;
   const _UserEntity._() : super._();
 
@@ -693,7 +735,19 @@ abstract class _UserEntity extends UserEntity {
   /// The admin uid that provisioned this account (audit). Null for accounts
   /// created out of band (e.g. the bootstrapped first admin).
   @override
-  String? get createdBy;
+  String? get createdBy; // ─── Single active session ──────────────────────────────────
+  /// The id of the ONE sign-in currently allowed to hold this account, minted
+  /// per device at sign-in (`generateSessionId`) and claimed on the user
+  /// document. A device stays signed in only while this matches the id in its
+  /// own `SessionStore`; a newer sign-in elsewhere overwrites it and evicts
+  /// every other device (see `AuthCubit`).
+  ///
+  /// **Null means "no claim on record"** — legacy documents, and any account
+  /// that has not signed in since the feature shipped. Null is deliberately
+  /// NOT an eviction: it is the back-compat state, so an app upgrade never
+  /// signs the whole company out at once.
+  @override
+  String? get activeSessionId;
 
   /// Create a copy of UserEntity
   /// with the given fields replaced by the non-null parameter values.

@@ -37,6 +37,14 @@ class ChatListCubit extends Cubit<ChatListState> {
   final StartConversation _startConversation;
   final GetCachedConversations? _getCachedConversations;
   final ChatRealtime? _realtime;
+
+  /// Supplies the Firebase uids of deactivated accounts (the live session cache
+  /// in `AppDependencies`). A conversation whose counterpart is in this set is
+  /// hidden from the inbox and excluded from the unread total — a deactivated
+  /// teammate disappears everywhere the inbox drives. Null (tests, or before the
+  /// directory has loaded) means "hide nothing", so a not-yet-loaded directory
+  /// never blanks the inbox.
+  final Set<String> Function()? _deactivatedCounterpartUids;
   StreamSubscription<ChatRealtimeEvent>? _realtimeSub;
   bool _inboxAttached = false;
 
@@ -66,19 +74,47 @@ class ChatListCubit extends Cubit<ChatListState> {
       StreamController<ChatIncomingMessage>.broadcast();
   Stream<ChatIncomingMessage> get incoming => _incomingController.stream;
 
-  /// Total unread across every conversation — powers the sidebar/nav badge and
-  /// the dashboard widget. Reactive: emitted state changes (a live message, an
-  /// opened conversation) rebuild any [BlocBuilder] reading it.
-  int get totalUnread =>
-      _unread.values.fold(0, (sum, count) => sum + count);
+  /// Total unread across every **visible** conversation — powers the sidebar/nav
+  /// badge and the dashboard widget. Excludes conversations hidden because their
+  /// counterpart was deactivated, so the badge can't count a row the user can no
+  /// longer see. Reactive: emitted state changes (a live message, an opened
+  /// conversation) rebuild any [BlocBuilder] reading it.
+  int get totalUnread => _visibleConversations()
+      .fold(0, (sum, c) => sum + (_unread[c.id] ?? 0));
 
   ChatListCubit({
     required this._getConversations,
     required this._startConversation,
     this._getCachedConversations,
     this._realtime,
+    this._deactivatedCounterpartUids,
   }) : super(const ChatListState.initial()) {
     _realtimeSub = _realtime?.events.listen(_onRealtimeEvent);
+  }
+
+  /// Whether [c]'s counterpart has been deactivated (so the row is hidden). A
+  /// conversation the backend hasn't provisioned a counterpart uid for yet
+  /// (`counterpartExternalId == null`) is never hidden — we only hide on a
+  /// positive match.
+  bool _isDeactivated(ChatConversationSummary c) {
+    final deactivated = _deactivatedCounterpartUids?.call();
+    if (deactivated == null || deactivated.isEmpty) return false;
+    final uid = c.counterpartExternalId;
+    return uid != null && deactivated.contains(uid);
+  }
+
+  /// The conversations the inbox may show — [_conversations] minus any whose
+  /// counterpart is deactivated. The raw list is kept intact (a reactivation
+  /// brings a row straight back with no re-fetch); filtering happens only on the
+  /// way out to the UI and the unread total.
+  List<ChatConversationSummary> _visibleConversations() =>
+      _conversations.where((c) => !_isDeactivated(c)).toList(growable: false);
+
+  /// Re-emits the current inbox against the latest deactivated set — called
+  /// after the chat directory (re)loads, so turning an account off (or back on)
+  /// mid-session hides or restores its conversation without a server round trip.
+  void refilter() {
+    if (_hasLoaded && !isClosed) _emitLoaded();
   }
 
   @override
@@ -92,7 +128,7 @@ class ChatListCubit extends Cubit<ChatListState> {
   void _emitLoaded() {
     if (isClosed) return;
     emit(ChatListState.loaded(
-      List.of(_conversations),
+      _visibleConversations(),
       refreshing: _refreshing,
       loadingMore: _loadingMore,
       hasMore: _nextCursor != null,
@@ -166,6 +202,14 @@ class ChatListCubit extends Cubit<ChatListState> {
   }
 
   Future<void> refresh() => load(forceRefresh: true);
+
+  /// Forwards an app-foreground signal to the shared socket so it reconnects
+  /// after an OS suspension — without it the inbox's realtime stays dead until
+  /// something else happens to reconnect (nothing does, when no thread is open),
+  /// so messages arrive only on a manual refresh. A live connection is left
+  /// untouched; a reconnect refreshes the inbox via `ChatRealtimeConnected`.
+  /// No-op when realtime isn't wired.
+  void onAppResumed() => unawaited(_realtime?.onAppResumed() ?? Future.value());
 
   /// Drops all in-memory inbox state back to first-run, for account switching
   /// on a shared device. This cubit is an app-wide singleton that outlives a
@@ -367,6 +411,10 @@ class ChatListCubit extends Cubit<ChatListState> {
       _notifyIncoming(message, counterpartExternalId: null);
       return;
     }
+
+    // A deactivated counterpart's conversation is hidden — a stray late event
+    // must not bump it back into view, re-count it unread, or raise a banner.
+    if (_isDeactivated(_conversations[index])) return;
 
     final bumped =
         _conversations[index].withLastMessageAt(message.createdAt);

@@ -28,6 +28,39 @@ create notification docs directly — `firestore.rules` denies it
 validated `sendNotification` callable, and all server producers use the Admin
 SDK (which bypasses rules).
 
+### Who a client may notify — `sendNotification` reachability
+
+The predicate is pure and lives in
+[`functions/notification_reach.js`](../../functions/notification_reach.js)
+(`canNotify`), tested in `functions/test/notification_reach.test.js`:
+
+- **the caller is an admin** → anyone, any branch (the role is global);
+- **the recipient is an admin** → allowed, whoever is calling;
+- **otherwise** → same branch only.
+
+> ⚠️ **The middle clause is not a convenience — its absence was a silent outage.**
+> Until 2026-08-06 the rule was branch-comparison only, and **an admin has no
+> `branchId`** (PROJECT_CONTEXT §8 — the role is global, so provisioning omits
+> it). So `recipientBranch === callerBranch` compared `""` against the caller's
+> branch and **no employee or manager could ever notify an admin.**
+>
+> What that cost: `NotifyTaskEvent` routes `taskSubmitted` to `task.createdBy`,
+> so **every task an admin created was submitted for review and the admin was
+> never told.** The callable threw `permission-denied`, the datasource turned it
+> into a `ServerException`, and `NotifyTaskEvent`'s deliberate catch-all
+> swallowed it to a `developer.log` — the employee saw an ordinary successful
+> submission. The same held for any generated shift task whose template an admin
+> set up, since the instance inherits the template's `createdBy`.
+>
+> Any new branch-scoped check against a user must ask "does this reach an
+> admin?" — a branch comparison never does.
+
+Reachability is **not** authorization. What may be *sent* is constrained
+separately: the `CLIENT_NOTIFICATION_TYPES` whitelist, the 120/500 title/body
+caps, the payload key whitelist, the 50-item cap, and the server-stamped
+`senderUid`. Widening reach to admins widens who can be told, not what can be
+forged.
+
 ---
 
 ## 2. Notification flow
@@ -102,12 +135,120 @@ reaches the wrong account even during an account-switch/token-drift race.
    (array + legacy single field), pushes chunked, and **prunes dead tokens**
    (`messaging/registration-token-not-registered`, etc.).
 3. **Read** — a tap or swipe sets `readAt` (server timestamp). The live stream
-   re-emits; no optimistic write. `markAllRead` batches every unread doc.
+   re-emits; no optimistic write.
 4. **Archive** — `archivedAt` set/cleared (hidden from the default inbox, kept
    for history). `pinnedAt` similarly. Firestore rules permit the recipient to
    update **only** `readAt`, `archivedAt`, and `pinnedAt`; `recipientUid`, content,
    type, and payload remain server-owned.
 5. **Delete** — the recipient (or an admin) hard-deletes the doc.
+
+### Who is told a task is waiting for review
+
+`taskSubmitted` does **not** route to `task.createdBy`. It walks a three-tier
+ladder, pure and unit-tested in
+[`task/domain/task_review_routing.dart`](../../lib/features/task/domain/task_review_routing.dart)
+(`taskReviewRecipients`), fed by the `ResolveTaskReviewers` use case:
+
+| Tier | Recipients | When |
+|---|---|---|
+| 1 | **the creator** | they can still review it — active, and admin or manager *of this branch* |
+| 2 | **the branch's active managers** | the creator cannot |
+| 3 | **active admins** | the branch has no manager who can act |
+
+`canReviewTask` is the gate, and it mirrors the `tasks` update rule in
+`firestore.rules` (and the server's own `requireSalesManager`): **active**, and
+either a global admin or a manager of *this* branch. If the predicate and the
+rule ever disagree, the rule wins and the predicate is the bug.
+
+> **Why a ladder rather than one uid.** `createdBy` alone is silence in four
+> situations, all of which leave a task in `waitingReview` with **nobody told**
+> and no error anywhere — `sendNotification` skips an absent recipient without
+> raising: the creator is **deactivated**, **hard-deleted**, **demoted** to
+> employee, or has **moved branch**. The last two are worse than silence: rules
+> would refuse their approval, so notifying them tells the one person who
+> *cannot* act and nobody who can.
+>
+> A generated shift task makes this routine rather than exotic. It inherits the
+> **template's** `createdBy` (which is exactly why `task_origin.dart` warns that
+> `createdBy` cannot answer "who made this"), so a template set up a year ago by
+> someone who has since left produces a task **every single day** whose
+> submission notifies a dead account.
+
+The escalation is deliberately the same shape as the server's
+`salesRecipients(branchId, {managersOnly: true, adminsFallback: true})`, which
+already answers this question for branch-scoped review routing — two analogous
+decisions must not use two different rules.
+
+Costs stay on the rare paths: the branch directory is read once (a manager
+creator is already in it), the creator is looked up individually only when the
+branch list does not contain them (in practice an **admin** creator, who is
+branchless and can never appear in a branch query), and the org-wide read for
+tier 3 happens only when tiers 1 and 2 both come up empty.
+
+Two behaviours worth keeping straight:
+
+- **An empty result is passed through as an empty override, not as null.**
+  `NotifyTaskEvent` reads a non-null empty list as "we looked and there is
+  nobody". A null would fall back to `[createdBy]`, and an *assignee* fallback
+  would tell the person who just submitted the work that it had been submitted.
+- **An admin sitting in a branch list does not satisfy tier 2.** Tier 3 is the
+  only door for admins, so the escalation stays explicit.
+
+Pinned by `test/task_review_routing_test.dart` (the rule + the use case's read
+pattern) and `test/task_submitted_recipients_test.dart` (that `TaskCubit`
+actually consults it).
+
+### The bulk actions are swept, not fanned out
+
+**Mark all read** and **Clear archived** both go through one paged sweep: 300
+documents per page over the existing `recipientUid + createdAt` index, one
+`WriteBatch` per page, newest first, `startAfterDocument` as the cursor. **No new
+index, no deploy.**
+
+The paging is separated from Firestore on purpose. The **driver** —
+`sweepPages` in
+[`notification_sweep.dart`](../../lib/features/notifications/data/datasources/notification_sweep.dart)
+— owns cursor advancement, page-boundary arithmetic, termination and the
+ceiling, and is generic over the page item so it never inspects a document. The
+datasource supplies only the query and the batch. That split is what makes the
+risky half testable: `test/notification_sweep_test.dart` exercises it over
+5,000- and 15,000-item collections, across page boundaries, and with a commit
+that *deletes* what it touched — and it caught a real off-by-one, where a
+collection ending exactly on the ceiling was reported as "too many" after having
+successfully finished.
+
+Three invariants it pins, each corresponding to a way the old code failed:
+
+- **the page size is the batch ceiling** — no batch can approach Firestore's
+  500-operation cap, because a batch is only ever one page's selected items;
+- **the cursor advances off the last item *fetched*, not the last committed** —
+  a page where nothing matched still moves forward, and a delete sweep does not
+  re-read the window it just emptied;
+- **the ceiling trips only when work remains** — checked after the fetch, so
+  finishing exactly on the boundary is a success, not a false alarm.
+
+Each replaced a broken implementation, and both failures were invisible:
+
+| | Was | Failed at | Looked like |
+|---|---|---|---|
+| **Mark all read** | one unbounded read + **one** `WriteBatch` | **500 unread** — Firestore's hard batch cap | the button silently stopped working, forever (the error was swallowed into a log) |
+| **Clear archived** | client-side fan-out over the **loaded page** | **> one page** archived (30 by default) | confirm "delete all", watch the list refill, conclude it is broken |
+
+Consequences that are now part of the contract:
+
+- Both are **`NetworkGuard`-guarded**. They read pages to decide what to touch,
+  and offline those pages come from a partial cache — so they would act on a
+  subset while reporting success.
+- Both **report failure** (they return a message; the screen snackbars it). A
+  bulk action that silently does nothing is indistinguishable from one that
+  worked, which is how the 500-cap failure hid.
+- The sweep has a **15,000-document ceiling** (50 pages) and **throws** when it
+  is exhausted rather than returning quietly — the caller promised the user
+  "all", and a silent partial is the exact defect being fixed.
+- `markRead` (single) is deliberately **not** guarded — see the impl comment: it
+  is a set-once idempotent receipt whose only consumer is a null check, and
+  guarding it would make opening a notification fail offline on a screen the
+  offline policy keeps readable.
 
 ### Token lifecycle
 - `registerToken(uid)` on sign-in / app start (Apple: waits for the APNS token
@@ -234,17 +375,41 @@ broadcasts · swaps · cases · requests · attendance · sales). Adding a type 
 adding its producer in the same change.
 
 > **A type the enum doesn't know is not a no-op — it is a lie.**
-> `NotificationModel.fromMap` falls back to `taskAssigned` for an unknown `type`
-> (deliberately: better than throwing on a stale doc). The sales workflow shipped
-> writing `type: "salesSubmission"` with no matching enum value, so for its whole
-> life every branch-sales notification took that fallback and *impersonated a
-> task*: a clipboard glyph, filed under the **Tasks** pill, ranked `high` above
-> genuinely overdue work. Fixed 2026-08-06 by adding the value — one type for the
-> whole sales workflow, matching its single producer `writeSalesNotifications` —
-> plus a **Sales** filter pill and `normal` priority. Pinned by
-> `test/notification_model_test.dart` + `test/notification_grouping_test.dart`.
-> **Whenever a producer stamps a new `type` string, add the enum value in the
-> same change** — the fallback will hide the omission indefinitely.
+> `NotificationModel.fromMap` used to fall back to **`taskAssigned`** for an
+> unknown `type`. That is not a neutral default: `type` drives the glyph, the
+> category pill *and* the priority ordering. The sales workflow shipped writing
+> `type: "salesSubmission"` with no matching enum value, so for its whole life
+> every branch-sales notification took that fallback and *impersonated a task* —
+> a clipboard glyph, filed under the **Tasks** pill, ranked `high` above
+> genuinely overdue work.
+>
+> Adding the `salesSubmission` value (2026-08-06) fixed the symptom. The
+> **mechanism** was fixed the same day by `NotificationType.unknown`:
+>
+> - `fromMap` resolves an unrecognised (or missing) `type` to `unknown` — never
+>   to a real type. `fromString` still returns `null`, because "I don't
+>   recognise this" is the honest answer and the caller decides what to do.
+> - `unknown` ranks [`low`] — the floor. It can never outrank real work.
+> - It shows under **All** and under **no pill** (`categoryOf` returns `null`
+>   for it, and `NotificationCategory.matches` short-circuits). Filing it
+>   anywhere would repeat the original defect; inventing an "Other" pill would
+>   add a filter for a type no producer writes.
+> - It renders a neutral bell with no semantic accent, and its stored
+>   `title`/`body` show in full — so it is still **readable**.
+> - **It still deep-links.** Routing keys off `payload.route`, never `type`, so
+>   a notification from a newer server build opens the right screen regardless.
+>
+> This matters because the *correct* deploy order is functions-first, then the
+> client build — which guarantees a window where the server writes types the
+> installed app has never heard of. `unknown` makes that window honest instead
+> of misleading.
+>
+> **Whenever a producer stamps a new `type` string, still add the enum value in
+> the same change.** `unknown` is a safety net, not a substitute — a real type
+> gets a real pill, glyph and priority. Pinned by
+> `test/notification_model_test.dart` + `test/notification_grouping_test.dart`
+> (including a case asserting every type *except* `unknown` has a category, so
+> the next value cannot silently land in `null`).
 
 ### Automated-tasks types (spec §9)
 

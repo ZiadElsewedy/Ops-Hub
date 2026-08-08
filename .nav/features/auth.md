@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `auth`
 
-> `lib/features/auth/` · **28 files** · layer-complete clean-architecture slice
+> `lib/features/auth/` · **29 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -55,6 +55,9 @@
 **domain:repository-contract**
 - `lib/features/auth/domain/repositories/auth_repository.dart`
 
+**domain:other**
+- `lib/features/auth/domain/session_id.dart`
+
 **data:repository-impl**
 - `lib/features/auth/data/repositories/auth_repository_impl.dart`
 
@@ -67,11 +70,14 @@
 
 ## Backend surface
 - **Firestore collections:** `users`
-- **Cloud Functions:** `adminResetPassword`, `claimFcmToken`, `createUserAccount`
+- **Cloud Functions:** `adminResetPassword`, `claimFcmToken`, `createUserAccount`, `deleteUserAccount`
 - **Security rules:** `firestore.rules` (search the collection names above) · `storage.rules` if it uploads media
 - **Design spec(s):** `docs/design/AUTH.md`
 
 ## Tests
+- `test/admin_users_delete_test.dart`
+- `test/admin_users_directory_invalidation_test.dart`
+- `test/features/profile/edit_profile_username_test.dart`
 - `test/first_login_gate_test.dart`
 - `test/onboarding_welcome_page_test.dart`
 - `test/splash_centering_test.dart`

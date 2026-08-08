@@ -7,9 +7,9 @@ import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
+import 'package:drop/core/widgets/settings_tiles.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/settings/presentation/widgets/settings_tiles.dart';
 
 /// Notification preferences for the signed-in user, **on this device**.
 ///
@@ -142,7 +142,7 @@ class _NotificationsSettingsScreenState
       SettingsSwitchRow(
         icon: Icons.notifications_active_outlined,
         label: 'Enable Notifications',
-        subtitle: 'Turn every DROP notification on or off',
+        subtitle: 'Turn every Drop Operations notification on or off',
         value: _prefs.enabled,
         onChanged: (v) => _update(_prefs.copyWith(enabled: v)),
         isFirst: true,

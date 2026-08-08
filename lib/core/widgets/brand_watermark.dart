@@ -18,6 +18,7 @@ class BrandWatermark extends StatelessWidget {
     this.fontSize = 88,
     this.assetLogo = false,
     this.assetHeight = 92,
+    this.corner = Alignment.bottomRight,
   }) : assert(opacity <= 0.05, 'Keep the watermark subtle (≤ 0.05).');
 
   final Widget child;
@@ -29,6 +30,11 @@ class BrandWatermark extends StatelessWidget {
   final bool assetLogo;
   final double assetHeight;
 
+  /// Which corner the mark tucks into (bleeding a few px off that edge). Only
+  /// the four corners are meaningful; defaults to bottom-right so existing
+  /// heroes are unchanged. Move it when a corner would sit behind live figures.
+  final Alignment corner;
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -36,8 +42,10 @@ class BrandWatermark extends StatelessWidget {
       children: [
         child,
         Positioned(
-          right: -6,
-          bottom: -10,
+          left: corner.x < 0 ? -6 : null,
+          right: corner.x > 0 ? -6 : null,
+          top: corner.y < 0 ? -10 : null,
+          bottom: corner.y > 0 ? -10 : null,
           child: IgnorePointer(
             child: Opacity(
               opacity: opacity,

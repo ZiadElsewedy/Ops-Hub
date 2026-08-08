@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "DROP OPERATIONS" "\0"
+            VALUE "FileDescription", "Drop Ops" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "DROP" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 DROP THE SHOP. All rights reserved." "\0"
             VALUE "OriginalFilename", "drop.exe" "\0"
-            VALUE "ProductName", "DROP" "\0"
+            VALUE "ProductName", "Drop Ops" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

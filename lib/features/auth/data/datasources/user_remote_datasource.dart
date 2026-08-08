@@ -30,6 +30,16 @@ abstract class UserRemoteDataSource {
   /// self-write — `hasCompletedOnboarding` is a non-privileged field, so the
   /// existing owner-update rule already permits it (no rules change).
   Future<void> setOnboardingCompleted(String uid, bool value);
+
+  /// Claims the account's ONE active session for the calling device by stamping
+  /// [sessionId] on `users/{uid}.activeSessionId`. Every other device is
+  /// watching this document, sees an id that is not the one in its own
+  /// `SessionStore`, and signs itself out.
+  ///
+  /// A self-write. `activeSessionId` is deliberately NOT in the privileged
+  /// freeze-list of the `users` update rule, so the existing owner-update
+  /// clause already permits it — **no rules change and no deploy**.
+  Future<void> claimSession(String uid, String sessionId);
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDataSource {
@@ -77,9 +87,27 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     }
   }
 
+  /// Live user document — **server-confirmed snapshots only**.
+  ///
+  /// `snapshots()` replays the locally cached document the instant you
+  /// subscribe, before the backend has said anything. Every consumer of this
+  /// stream acts on it destructively — deactivated, hard-deleted, or session
+  /// taken over all end the session — so acting on a cached copy means ending a
+  /// session on data that may be minutes or days old. That is exactly what
+  /// signed a device out the moment it signed in: its cache still held the
+  /// PREVIOUS session's `activeSessionId`.
+  ///
+  /// `isFromCache` is false only once the document has been read from the
+  /// backend, so filtering on it keeps every decision here server-authoritative.
+  /// A device that is offline simply gets no emissions — it stays signed in,
+  /// which matches "offline gates the writes, never the app".
   @override
   Stream<UserModel?> watchUser(String uid) {
-    return _users.doc(uid).snapshots().map(
+    return _users
+        .doc(uid)
+        .snapshots()
+        .where((doc) => !doc.metadata.isFromCache)
+        .map(
           (doc) => (!doc.exists || doc.data() == null)
               ? null
               : UserModel.fromMap(doc.data()!),
@@ -119,6 +147,23 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       }, SetOptions(merge: true));
     } on FirebaseException catch (e) {
       throw AuthException(e.message ?? 'Failed to update account.');
+    }
+  }
+
+  @override
+  Future<void> claimSession(String uid, String sessionId) async {
+    try {
+      await _users.doc(uid).set({
+        'activeSessionId': sessionId,
+        // When the claim was made. Not read by the client — it exists so an
+        // admin looking at a "why was I signed out?" report can see when the
+        // account was last taken over, and from a support view that is the only
+        // evidence the eviction was legitimate.
+        'activeSessionAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      throw AuthException(e.message ?? 'Failed to start your session.');
     }
   }
 }

@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `schedule`
 
-> `lib/features/schedule/` · **57 files** · layer-complete clean-architecture slice
+> `lib/features/schedule/` · **66 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -30,6 +30,8 @@
 - `lib/features/schedule/presentation/cubit/shift_template_cubit.dart`
 - `lib/features/schedule/presentation/cubit/shift_template_state.dart`
 - `lib/features/schedule/presentation/cubit/shift_template_state.freezed.dart`
+- `lib/features/schedule/presentation/cubit/today_coverage_cubit.dart`
+- `lib/features/schedule/presentation/cubit/today_coverage_state.dart`
 
 **presentation:widget**
 - `lib/features/schedule/presentation/widgets/assignment_chip.dart`
@@ -38,8 +40,10 @@
 - `lib/features/schedule/presentation/widgets/day_details_sheet.dart`
 - `lib/features/schedule/presentation/widgets/employee_picker_sheet.dart`
 - `lib/features/schedule/presentation/widgets/employee_row.dart`
+- `lib/features/schedule/presentation/widgets/final_schedule_mobile_view.dart`
 - `lib/features/schedule/presentation/widgets/final_schedule_sheet.dart`
 - `lib/features/schedule/presentation/widgets/manager_schedule_view.dart`
+- `lib/features/schedule/presentation/widgets/schedule_day_editor.dart`
 - `lib/features/schedule/presentation/widgets/schedule_grid.dart`
 - `lib/features/schedule/presentation/widgets/schedule_helpers.dart`
 - `lib/features/schedule/presentation/widgets/schedule_inspector_drawer.dart`
@@ -49,6 +53,7 @@
 - `lib/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart`
 - `lib/features/schedule/presentation/widgets/shift_templates_sheet.dart`
 - `lib/features/schedule/presentation/widgets/swap_alert_card.dart`
+- `lib/features/schedule/presentation/widgets/swap_roster_sync.dart`
 - `lib/features/schedule/presentation/widgets/swap_view.dart`
 - `lib/features/schedule/presentation/widgets/today_roster_sheet.dart`
 
@@ -68,6 +73,9 @@
 **domain:other**
 - `lib/features/schedule/domain/employee_week_stats.dart`
 - `lib/features/schedule/domain/move_validation.dart`
+- `lib/features/schedule/domain/reporting/final_schedule_grid.dart`
+- `lib/features/schedule/domain/reporting/schedule_final_pdf.dart`
+- `lib/features/schedule/domain/reporting/schedule_final_xlsx.dart`
 - `lib/features/schedule/domain/schedule_week.dart`
 - `lib/features/schedule/domain/shift_hours.dart`
 - `lib/features/schedule/domain/shift_plan.dart`
@@ -76,6 +84,7 @@
 - `lib/features/schedule/domain/swap_eligibility.dart`
 - `lib/features/schedule/domain/swap_policy.dart`
 - `lib/features/schedule/domain/swap_validation.dart`
+- `lib/features/schedule/domain/today_coverage.dart`
 - `lib/features/schedule/domain/today_roster.dart`
 
 **data:repository-impl**
@@ -98,18 +107,24 @@
 - **Design spec(s):** `docs/design/AUTO_SCHEDULE.md`, `docs/design/SCHEDULE.md`
 
 ## Tests
+- `test/attendance_open_shift_screen_test.dart`
 - `test/attendance_weekly_pdf_test.dart`
 - `test/attendance_weekly_report_screen_test.dart`
 - `test/attendance_weekly_report_test.dart`
 - `test/broadcast_schedule_model_test.dart`
+- `test/features/schedule/final_schedule_grid_test.dart`
+- `test/features/schedule/schedule_final_xlsx_test.dart`
 - `test/my_schedule_tab_test.dart`
 - `test/recurring_shift_task_test.dart`
+- `test/schedule_day_editor_test.dart`
 - `test/schedule_exchange_test.dart`
 - `test/schedule_final_view_test.dart`
+- `test/schedule_final_view_toolbar_test.dart`
 - `test/schedule_grid_test.dart`
 - `test/schedule_helpers_test.dart`
 - `test/schedule_insights_test.dart`
 - `test/schedule_inspector_drawer_test.dart`
+- `test/schedule_read_caching_test.dart`
 - `test/schedule_silent_reload_test.dart`
 - `test/schedule_undo_test.dart`
 - `test/shift_hours_scope_dialog_test.dart`
@@ -118,8 +133,10 @@
 - `test/shift_template_model_test.dart`
 - `test/shift_template_test.dart`
 - `test/shift_window_test.dart`
+- `test/swap_approval_attribution_test.dart`
 - `test/swap_eligibility_test.dart`
 - `test/swap_policy_test.dart`
+- `test/swap_roster_sync_test.dart`
 - `test/swap_shift_test.dart`
 - `test/swap_validation_test.dart`
 - `test/task_model_schedule_test.dart`

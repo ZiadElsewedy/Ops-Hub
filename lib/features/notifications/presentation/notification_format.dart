@@ -86,6 +86,11 @@ NotificationPriority notificationPriority(NotificationType type) =>
       // nobody has to act on.
       NotificationType.salesSubmission =>
         NotificationPriority.normal,
+      // A type this build does not recognise cannot be ranked honestly, so it
+      // takes the floor. `low` was reserved for exactly this ("future
+      // system/archive noise") and now has its first real occupant: an unknown
+      // row must never outrank work someone actually has to do.
+      NotificationType.unknown => NotificationPriority.low,
     };
 
 // ─── Category ───────────────────────────────────────────────────────
@@ -114,12 +119,28 @@ enum NotificationCategory {
       };
 
   /// Whether [type] belongs to this category (`all` always matches).
-  bool matches(NotificationType type) =>
-      this == NotificationCategory.all || categoryOf(type) == this;
+  ///
+  /// [NotificationType.unknown] matches **only** `all`. Filing it under any pill
+  /// would repeat the exact defect `unknown` exists to prevent — claiming a
+  /// notification is something it is not — and inventing an "Other" pill would
+  /// add a filter for a type no producer writes, against this file's own rule
+  /// that a pill ships alongside its producer and never before. So it stays
+  /// readable in the main list and is absent from every filtered view.
+  bool matches(NotificationType type) {
+    if (type == NotificationType.unknown) return this == NotificationCategory.all;
+    return this == NotificationCategory.all || categoryOf(type) == this;
+  }
 }
 
-/// The content category a notification type belongs to (never `all`).
-NotificationCategory categoryOf(NotificationType type) => switch (type) {
+/// The content category a notification type belongs to (never `all`), or
+/// **null** for [NotificationType.unknown] — a type this build does not
+/// recognise has no honest category, and every caller has to decide what that
+/// means rather than being handed a plausible-looking wrong answer.
+///
+/// The nullability is not ceremony: the counter behind the filter pills adds
+/// each notification to its own category *and* to `all`, so returning `all`
+/// here would have counted an unknown row twice in the All badge.
+NotificationCategory? categoryOf(NotificationType type) => switch (type) {
       NotificationType.taskAssigned ||
       NotificationType.taskReminder ||
       NotificationType.taskOverdue ||
@@ -168,6 +189,7 @@ NotificationCategory categoryOf(NotificationType type) => switch (type) {
       // change is not an approval, and burying it under Tasks (where the
       // missing enum value used to land it) made the sales workflow invisible.
       NotificationType.salesSubmission => NotificationCategory.sales,
+      NotificationType.unknown => null,
     };
 
 // ─── Row text ───────────────────────────────────────────────────────

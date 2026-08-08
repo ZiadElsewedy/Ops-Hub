@@ -26,6 +26,23 @@ String _groupThousands(int value) {
   return buffer.toString();
 }
 
+/// A compact EGP figure for tight chart labels: `14.2K`, `1.3M`, `840`.
+///
+/// Rounds to one significant fractional digit and drops a trailing `.0`, so a
+/// bar's caption stays two–four characters wide however large the day. Negative
+/// inputs are treated as zero — a day's takings are never negative.
+String formatEgpCompact(int piastres) {
+  final pounds = (piastres < 0 ? 0 : piastres) ~/ 100;
+  if (pounds >= 1000000) return '${_trimTenth(pounds / 1000000)}M';
+  if (pounds >= 1000) return '${_trimTenth(pounds / 1000)}K';
+  return '$pounds';
+}
+
+String _trimTenth(double value) {
+  final text = value.toStringAsFixed(1);
+  return text.endsWith('.0') ? text.substring(0, text.length - 2) : text;
+}
+
 int? parseEgpToPiastres(String input) {
   final value = input.trim().replaceAll(',', '');
   final match = RegExp(r'^(\d+)(?:\.(\d{1,2}))?$').firstMatch(value);

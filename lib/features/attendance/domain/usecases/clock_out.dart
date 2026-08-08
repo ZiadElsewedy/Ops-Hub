@@ -5,9 +5,13 @@ import 'package:drop/features/attendance/domain/attendance_gps.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
 
-/// Clocks out — **finalizes** the record. This is the one place the minute
-/// snapshot is persisted (everywhere else totals are computed live), via
-/// [AttendanceCalculator]. Returns the computed totals for immediate UI feedback.
+/// Clocks out — sets the clock-out time + status on the record. The worked /
+/// late / early / overtime minute snapshot is **not** persisted from here: those
+/// feed payroll, so they are recomputed server-side by `onAttendanceWritten` with
+/// the Admin SDK, and the client is forbidden by rules from writing them
+/// (ADR-024). The totals are still computed here — with the same
+/// [AttendanceCalculator] the server mirrors — and returned for immediate UI
+/// feedback, so the screen never waits for the server round-trip.
 class ClockOut {
   final AttendanceRepository _repository;
   const ClockOut(this._repository);

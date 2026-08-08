@@ -302,9 +302,17 @@ class _ReviewRow extends StatelessWidget {
     final row = item.row;
     final record = row.record;
 
+    // A reviewer may never settle their OWN shift (no self-approval — enforced
+    // in `firestore.rules`). Detect the own row by uid so it holds for a
+    // no-show/absent row that has no materialized record yet. On the own row the
+    // direct actions are replaced by a notice pointing to the correction path.
+    final isOwnRow = context.currentUser?.uid == row.uid;
+
     // Never a severity label — no "blocking", no "exception class". The order
     // communicates priority; a taxonomy does not need to be shown to be used.
-    final actions = <Widget>[
+    final actions = isOwnRow
+        ? const <Widget>[]
+        : <Widget>[
       if (item.kind == DailyReviewKind.missingClockOut && record != null)
         PremiumButton(
           label: 'Set the time',
@@ -375,7 +383,10 @@ class _ReviewRow extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
         ),
-        if (actions.isNotEmpty) ...[
+        if (isOwnRow) ...[
+          const SizedBox(height: AppSpacing.md),
+          const OwnAttendanceNotice(),
+        ] else if (actions.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.sm,

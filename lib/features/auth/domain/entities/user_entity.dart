@@ -58,6 +58,18 @@ class UserEntity with _$UserEntity {
     /// The admin uid that provisioned this account (audit). Null for accounts
     /// created out of band (e.g. the bootstrapped first admin).
     String? createdBy,
+    // ─── Single active session ──────────────────────────────────
+    /// The id of the ONE sign-in currently allowed to hold this account, minted
+    /// per device at sign-in (`generateSessionId`) and claimed on the user
+    /// document. A device stays signed in only while this matches the id in its
+    /// own `SessionStore`; a newer sign-in elsewhere overwrites it and evicts
+    /// every other device (see `AuthCubit`).
+    ///
+    /// **Null means "no claim on record"** — legacy documents, and any account
+    /// that has not signed in since the feature shipped. Null is deliberately
+    /// NOT an eviction: it is the back-compat state, so an app upgrade never
+    /// signs the whole company out at once.
+    String? activeSessionId,
     // NOTE (C2 fix, 2026-07-03): compensation (salaryAmount / salaryType /
     // paymentMethod / paymentNumber) is deliberately NOT on this entity — it
     // lives in the private subdocument `users/{uid}/private/compensation`

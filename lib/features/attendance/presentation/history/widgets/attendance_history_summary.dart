@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/widgets/stat_strip.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
@@ -50,7 +51,13 @@ class _AttendanceHistorySummaryState extends State<AttendanceHistorySummary> {
   void _sync() {
     final cubit = context.read<AttendanceReportCubit>();
     if (widget.isReview) {
-      cubit.watchBranchWindow(branchId: widget.branchId, window: widget.window);
+      final me = context.currentUser;
+      cubit.watchBranchWindow(
+        branchId: widget.branchId,
+        window: widget.window,
+        viewerUid: me?.uid,
+        employeesOnly: me?.role.isManager ?? false,
+      );
     } else {
       cubit.watchUserWindow(userId: widget.userId, window: widget.window);
     }

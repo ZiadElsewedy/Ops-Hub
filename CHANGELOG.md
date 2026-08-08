@@ -14,6 +14,1207 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Pending Review drill-down collapses single-choice levels (polish; LOW risk)
+
+The admin Pending Review flow (`PendingReviewScreen`) is a guided drill-down —
+Summary → Branch → Employee → task. It never collapsed, so "one task, one branch,
+one person" still cost **4 taps** to reach the single task (Home → branch →
+employee → card). Now any level with exactly one option is **auto-descended** —
+one branch with pending work, or one employee inside it — on the way in *and* on
+the way back (`_back` / `PopScope.canPop` skip auto levels too), so the common
+case lands straight on the task. The full drill-down is unchanged the moment a
+level offers more than one row (multi-branch estate keeps the by-branch summary).
+Presentation only — the effective branch/employee ids are derived from the same
+`waitingReview` grouping already computed; no new cubit/reads/schema/rules/
+functions. Pinned by `test/pending_review_collapse_test.dart` (3).
+`flutter analyze` clean. NOT device-verified.
+
+## 2026-08-08 — Admin Home Branch-sales rows adopt the manager card's mini ring (polish; LOW risk)
+
+The Admin Home `AdminBranchSalesSummary` per-branch line was a flat text row
+(*name … 111,700 of 1,000,000 EGP*) while the manager Home `SalesTargetCard`
+already leads with a compact emerald progress ring + achieved / target +
+*… EGP remaining*. Each admin branch row now uses that same layout: a compact
+`_MiniRing` (reusing `SalesRingPainter` from `sales_progress_ring.dart`) beside
+the branch name, the rolling achieved figure over the target, and a rolling
+*remaining* line. No-target and loading rows updated to match. Presentation only
+— no new reads, no cubit/state/schema/rules/functions change, still strictly the
+sales emerald accent. `flutter analyze` clean; no test references the widget.
+NOT device-verified.
+
+## 2026-08-08 — Managers are scoped to their employees for attendance (permission + visibility; MEDIUM risk)
+
+Two related rules, following the self-review fix below: **(1)** a manager may
+correct/review only an **employee's** attendance — never a peer manager's; only
+an **admin** corrects a manager (managers are peers). Enforced **server-side** via
+a new `isEmployeeUser(uid)` helper gating the manager branch of three
+`firestore.rules` write paths — `attendance_corrections` create (direct approved
+correction) and update (decide/soft-delete), and the `attendance` reviewer-update
+(soft-delete) path; admins stay unrestricted. **(2)** A manager now **sees only
+their employees plus their own row** across the branch board, Daily Review,
+Corrections, and reports. This is a **client-side visibility filter** (a Firestore
+collection query can't be partially filtered by rules, so reads stay
+branch-scoped): `AttendanceAdminCubit` filters roster/records/corrections by a
+`uid → role` map from the branch directory, and `AttendanceReportCubit` gained
+`employeesOnly` + `viewerUid` params (default off — admin callers and all existing
+tests keep the full-branch view) that filter ledger rows and recompute the
+summary from them. Unknown-role uids default to **visible** so a real employee is
+never hidden by a missing directory entry. No change to the correction flow,
+use-cases, or calculators. Tests: new `attendance_admin_visibility_test.dart` and
+report-cubit cases (manager hides peers, keeps employees + self; admin sees all);
+new rules cases (manager can't correct/decide a peer manager, admin can) — **93/93
+rules tests and the full attendance suite green**.
+
+## 2026-08-08 — Attendance UI no longer offers self-review it can't perform (UX; LOW risk)
+
+Closed a UX gap where the branch attendance surfaces showed a manager the direct
+review actions (*Set the time / Approve / Excuse / They worked / Resolve / Add
+record*) on **their own** shift row — actions the server always rejects, because
+correcting your own attendance is self-approval and is forbidden in
+`firestore.rules` (`request.auth.uid != userId` on both the correction create and
+update paths). The UI now detects the own row by **uid** (`row.uid`, so it holds
+even for an absent row with no record yet) and replaces those buttons with a short
+notice: *"You can't review your own shift. File a correction from My Attendance
+and another manager or admin will approve it."* The correction path (self-file a
+*pending* correction that a different reviewer approves) is unchanged and remains
+the manager's route for their own record. **Presentation only** — no change to
+`firestore.rules`, the correction flow, cubits, use-cases, or the permission
+model; the server stays the sole gate. Touched the two action sites
+(`attendance_daily_review_screen.dart`, `admin_attendance_screen.dart`) plus a
+shared `OwnAttendanceNotice` in `attendance_manager_actions.dart`. Tests: new
+`attendance_daily_review_own_row_test.dart` (own row → notice + no buttons; other
+rows unchanged); a `firestore-tests` pin-test asserting a manager can't decide a
+correction on their own attendance while another reviewer still can (90/90 rules
+tests green; full attendance suite green).
+
+## 2026-08-08 — Managers can reopen approved tasks (permission; MEDIUM risk)
+
+Reopening an `approved` task is now available to **managers (own branch)**, not
+just admins — realigning the code with the Product Spec §6 permission table
+("Reopen Approved | Manager: Own branch | Admin: All branches"), which the
+implementation had silently narrowed to admin-only. Three layers changed in
+lockstep: the UI gate (`canReopen` in `task_details_screen.dart` now keys off
+`isManagerOrAdmin`; `manager_task_card.dart` drops the `isAdmin` check — that card
+is never shown to employees), and the **server enforcement** in `firestore.rules`
+(the move OUT of `approved` no longer requires `isAdmin()`, but is still fenced by
+`canReachBranch`, so a manager reopens only their own branch and an employee never
+can). In-place edits of an approved task stay blocked; the admin-only §6.4 terminal
+correction (Missed/Cancelled → Pending) is unchanged. Docs synced (TASKS.md,
+DATA_MODEL.md) and the stale "admin-only reopen" code comments corrected. The
+`firestore-tests/tasks.rules.test.mjs` "approved reopen" case was rewritten to
+assert the full contract and **passes against the emulator** (own-branch manager
+✓, other-branch manager ✗, admin ✓, employee ✗, in-place edit/delete still frozen);
+the Dart suite passes unchanged (it exercises `reopenTask`, which was never
+role-gated in the cubit).
+
+## 2026-08-08 — OS label split to "Drop Ops"; in-app name stays "Drop Operations" (polish; LOW risk)
+
+The short name the operating system shows was changed **Drop Operations → Drop
+Ops** on OS-level surfaces only: iOS `CFBundleDisplayName`/`CFBundleName`, Android
+`android:label`, macOS `INFOPLIST_KEY_CFBundleDisplayName` (stray trailing space
+also removed), Windows `FileDescription`/`ProductName`, Linux window/header-bar
+titles, and both `MaterialApp` `title`s. Everything inside the app is unchanged and
+still reads *Drop Operations* — `AppConstants.appName`, the `DropWordmark`
+logotype, the splash label, and all copy (About, login, onboarding, notifications,
+schedule Final-view + PDF headers). Supersedes the earlier same-day DROP → Drop
+Operations rename, which had set the OS labels to "Drop Operations" as well. Only
+`main.dart` is a Dart edit; the rest are platform config. `flutter analyze` clean,
+no tests changed. NOT device-verified — the launcher label and window title need a
+real per-platform build.
+
+## 2026-08-08 — Home Branch-sales card redesigned with a mini ring (polish; LOW risk, client-only)
+
+The employee Home `SalesTargetCard` module dropped the flat `SalesMoneyRow` for
+the redesign layout: a small **progress ring** on the left, then the achieved
+figure over the target (**`112,000 / 1,000,000`**, achieved white + rolling, the
+`/ target` in the grey ramp) with **`… EGP remaining`** beneath. Achieved rolls
+in with the shared premium count-up (+ light sweep); the ring arc sweeps on the
+same `kPremiumSettle` curve; remaining rolls quietly a beat later. The DROP
+corner mark was dropped from this card to match the mockup — a chevron is the
+only trailing glyph. `SalesMoneyRow` is retained (still used by the admin
+overview). `flutter analyze` clean, NOT device-verified.
+
+## 2026-08-08 — Record-added overlay + submissions door go premium; overlay Material fix (polish/fix; LOW risk, client-only)
+
+The manager/admin "record added" celebration (`sales_record_added_overlay`) was
+redesigned: the amount now **rolls in** as an emerald `RollingNumber` (short
+~0.85 s so it settles before the 2.6 s auto-dismiss), the achieved-of-target line
+rolls emerald over an emerald progress bar, and the whole thing is emerald
+(glowing when the record crosses the monthly target) instead of raw `success`.
+**Bug fix:** the dialog content is now wrapped in a `Material` — without it, text
+in the raw `showGeneralDialog` route rendered with the framework's yellow
+"no-Material" debug underlines (visible under "+ … EGP" / "added to the branch
+total"). The `SalesSubmissionsDoor` was reorganised from a cramped inline
+breakdown (which truncated to "0 Reje…") into a header (icon · title · total ·
+chevron) over three evenly-split, hairline-divided status segments — each a count
+over an uppercase label, tinted by status (Pending gold / Approved emerald /
+Rejected coral; zero stays faint grey). Home
+`SalesTargetCard` mini-ring got the hero's gradient+halo arc. Submission-detail
+correction copy no longer hard-codes "employee" — it names the actual submitter.
+`flutter analyze` clean; NOT device-verified.
+
+## 2026-08-08 — Odometer + premium palette extended to manager & admin sales (polish; LOW risk, client-only)
+
+Carried the same treatment to the manager dashboard and admin overview.
+`salesOutlookTint` now returns the muted **sales accents** (emerald ahead / gold
+behind / white early) instead of raw `success`/`warning`, so the manager month
+ring, Achieved figure and Pace card go premium while keeping the ahead/behind
+*status* meaning. `SalesProgressRing` (manager ring) gained the hero's premium
+arc — a soft sweep toward white + restrained halo, in the tint. The admin
+per-branch `SalesMoneyRow` was switched from static text to `RollingNumber`
+odometers (Achieved emerald, Remaining gold, Target grey), deliberately snappier
+(~0.7–1.0 s) since it renders in a scrolling list. The admin **Home** module
+(`AdminBranchSalesSummary`) per-branch line also rolls its Achieved figure in
+emerald, keeping `of {target} EGP` as the grey caption. `flutter analyze` clean;
+NOT device-verified.
+
+## 2026-08-08 — Sales figures roll on a slot-machine odometer + premium palette (polish; LOW risk, client-only)
+
+Replaced the sales count-up with a **per-digit odometer**. New reusable
+`core/widgets/rolling_number.dart` — `RollingDigit` (one vertical reel, forward
+roll with a multi-turn slot-machine flourish, exact landing) and `RollingNumber`
+(digits keyed by place value; commas/decimal static; leading digits roll in from
+0; reels settle left→right in ~0.5–0.9 s; no opacity/scale; honours reduce-motion).
+Drives every sales figure and the ring percentages; `AnimatedCountText` is retired
+from the sales feature. Palette moved off raw `success`/`warning`/`error` to muted
+**sales accents** (`salesEmerald`/`salesEmeraldGlow`/`salesAmber`/`salesCoral`):
+emerald gauge/%/Achieved, gold Remaining, softened-coral pace danger, Target grey.
+Ring sweeps shortened to ~1.2 s (`kReelSettle`). Hero brand watermark moved to the
+top-right (was behind Remaining) via new `BrandWatermark.corner`. `flutter analyze`
+clean; NOT device-verified (owner testing on device).
+
+## 2026-08-08 — Employee pace card counts a day closed by anyone (fix; LOW risk, client-only)
+
+The employee Branch-sales **Needed per day** card contradicted the Today card:
+when a manager, admin or teammate closed today (so the employee had no *own*
+record), the pace card still read "Today hasn't been submitted yet" while the
+Today card correctly showed "Closed by a teammate." Cause: the pace card was fed
+only `todaySubmission` (the employee's own close). It now falls back to the
+branch's recorded close for today (`snapshot.submissionFor(todayDateKey)`), so a
+day closed by anyone judges pace and only a genuinely un-closed day reads as not
+submitted. `flutter analyze` clean, NOT device-verified.
+
+## 2026-08-08 — Branch-sales hero gains semantic-tint colour (polish; LOW risk, client-only)
+
+By owner ruling the employee Branch-sales **hero only** softens strict
+monochrome (ADR-004), using the existing semantic tokens so the palette stays
+disciplined: the gauge (green sweep gradient + soft halo), its centre **%**, and
+the **Achieved** figure read `success` green; **Remaining** reads `warning`
+amber; **Target** stays on the neutral grey ramp. `SalesRingPainter` gained an
+optional `arcColorEnd` (sweep gradient) and `glow` (blurred halo) — the compact
+rings on Home and the manager dashboard pass neither, so they stay flat and
+monochrome. Count-up timing unchanged (3.2s `kPremiumSettle`). `flutter analyze`
+clean, NOT device-verified (owner testing on device). **Superseded same day** by
+the odometer + premium-palette entry above — the raw `success`/`warning` tints
+were replaced with the muted `salesEmerald`/`salesAmber` accents.
+
+## 2026-08-08 — Employee Branch-sales screen leads with an animated target hero (polish; LOW risk, client-only)
+
+The employee `EmployeeSalesScreen` month card now opens with a **hero gauge**
+instead of the flat `SalesMoneyRow`: a large centred progress ring — the arc
+sweeps in and the big centre percentage counts up together — over **Target ·
+Achieved · Remaining** read as three labelled columns. Matches the redesign
+mockup and stays strictly monochrome (ADR-004): white arc + white Achieved, grey
+ramp for the rest. The employee's question is "how far is the team?", so the
+screen leads with the gauge that answers it.
+
+New `sales_target_hero.dart` (`SalesTargetHero`) composes the animated ring +
+the three rolling figures on the shared `AnimatedCountText` / `kPremiumSettle`
+motion (staggered cascade, rise, and a light sweep on the Achieved hero). The
+ring painter was made reusable — `_RingPainter` → **`SalesRingPainter`** in
+`sales_progress_ring.dart` — so the compact manager ring and the big employee
+hero share one gauge. Needed-per-day and the Today card are unchanged. No
+domain/data/state change — render layer only. `flutter analyze` clean, NOT
+device-verified. (Manager dashboard still uses the compact ring beside its
+figures; the hero is employee-only for now.)
+
+## 2026-08-08 — Editing an approved sales record notifies the original submitter (fix; LOW risk, server-side)
+
+Closed a notification asymmetry: recording a **new** day tells the whole branch
+(*"{name} added {X} EGP…"*) and editing the **target** tells the whole branch,
+but editing an existing approved record's **amount** notified *nobody* (only the
+target-achieved crossing fired). The submitter of a day whose figure a manager
+later changed heard nothing — even though approve/reject already tells them.
+
+`editApprovedDailySalesSubmission` ([functions/index.js](functions/index.js))
+now sends a **targeted** notification to the record's `submittedById`: *"{name}
+changed your approved sales to {X} EGP."* Deliberately **not** branch-wide — an
+edit is a correction, and broadcasting every fix (including downward ones) is
+noise; branch-wide pushes stay reserved for the "something advanced" moments
+(new day, target changed, target achieved). Skipped when the editor **is** the
+submitter (a manager editing their own direct record) or the amount is
+unchanged. Reuses the existing `salesSubmission` type + `sales_submission`
+deep-link route — no new notification type. `node --check` clean, existing 155
+function tests green (no new producer test; the notification producers aren't
+unit-tested). **Requires a Cloud Functions deploy to take effect.**
+
+## 2026-08-08 — Branch-sales hero figures roll to their new value (polish; LOW risk, client-only)
+
+The manager **Branch sales** dashboard hero now *animates* its figures instead
+of snapping: Achieved, Remaining, Target and Needed-per-day count up, and the
+progress ring's arc + centre percentage sweep in together. They roll on first
+load (the reveal after the skeleton) and, more importantly, whenever a sale is
+recorded or the target is edited — the number visibly travels from the old value
+to the new one.
+
+The roll is deliberately slow and theatrical: ~3.2s on the shared
+`kPremiumSettle` curve (`cubic-bezier(0.16, 1, 0.3, 1)` — a deep ease-out-expo
+that leaps early then settles almost imperceptibly). Each figure
+**materializes** into place — scales ~0.88 → 1.0 with a soft `easeOutBack`
+overshoot and brightens from dim to full, anchored to its aligned edge so it
+never shifts or clips. The figures resolve as a **staggered cascade** (Achieved
++ ring first, then Remaining ~260ms, Target ~400ms, Needed-per-day ~520ms), and
+a **light sweep** (`ShaderMask` band on a sliding `GradientTransform`) travels
+across the Achieved hero as it settles. The progress ring sweeps on the same
+curve and duration.
+
+New reusable `core/widgets/animated_count_text.dart` (`AnimatedCountText`) —
+tweens between values with an `AnimationController`, reformats every frame so
+grouping/suffix stay correct, rolls from the *current* value on back-to-back
+changes, adds the optional rise (`pulse`), and honours the platform
+**reduce-motion** setting (no roll when animations are disabled). Wired into `sales_month_overview.dart` (Achieved /
+Remaining / Target `_Figure`s now take piastres, not a pre-formatted string),
+`sales_progress_ring.dart` (arc + percent via `TweenAnimationBuilder`), and
+`sales_needed_per_day.dart`. All animated figures use tabular figures so width
+stays steady as digits change. No domain/data/state change — purely the render
+layer. `flutter analyze` clean. NOT device-verified.
+
+## 2026-08-08 — A manager can mark their own day off in the schedule (feature; LOW risk, client-only)
+
+Owner ask: a manager has no Morning/Night shift (they work an open/presence
+shift), so they must not be placeable into a shift slot — but employees need to
+see **which day the manager is off**. The shift-assignment picker already
+excluded managers (`role.isEmployee` only), so that half held. The gap was the
+day sheet's **Leave** picker, which was *also* employees-only, so a manager could
+not be marked off at all.
+
+`day_details_sheet._showLeavePicker` now includes the **editing manager
+themselves** alongside the branch employees, and a manager's own pick is forced
+to **`LeaveType.dayOff`** (no leave-type choice). **Self only** — an admin
+editing the branch is not a manager, so the manager stays unselectable there;
+employees keep the full annual/sick/day-off/pending choice. A manager's day off
+is a plain `leave` entry, so it surfaces everywhere leave already renders (the
+day-sheet leave list and the Final-view **Off row / export**) with no other
+change. The branch roster read already returns the manager, so their off-day row
+resolves for everyone. `flutter analyze` clean, +3 tests
+(`schedule_manager_day_off_test.dart`). NOT device-verified. Design doc
+[SCHEDULE](docs/design/SCHEDULE.md) amended.
+
+## 2026-08-08 — App display name renamed DROP → Drop Operations (polish; LOW risk)
+
+The user-facing app name is now **Drop Operations** everywhere it is shown. One
+source of truth per surface changed; no logic, schema, rules, or functions
+touched.
+
+- **App identity:** `AppConstants.appName`, the two `MaterialApp` `title`s
+  (`main.dart`), the crash-recovery banner, and the OS-settings hints in
+  `notification_service.dart` / `attachment_picker.dart`.
+- **Brand wordmark (owner: rename everything, incl. wordmark):**
+  `DropWordmark`'s logotype, the schedule Final-view header/footer wordmarks
+  (`final_schedule_sheet.dart`, `final_schedule_mobile_view.dart`) and the
+  exported PDF header/footer (`schedule_final_pdf.dart`). The `DropLogo` PNG
+  artwork, the "DROP OPERATIONS SYSTEM" auth tagline, and the **DROP THE SHOP**
+  company name are unchanged.
+- **User-facing copy:** login ("Sign in to your Drop Operations account"),
+  onboarding welcome, splash could-not-start + a11y labels, broadcast fallback
+  sender.
+- **Platform display names:** iOS `CFBundleDisplayName`/`CFBundleName`, Android
+  `android:label`, macOS `PRODUCT_NAME`, Windows window title + `Runner.rc`
+  ProductName/FileDescription, Linux window/header-bar title. Bundle/package
+  identifiers (`drop`, `com.example.dropoperation`) are unchanged — they are not
+  user-visible and cannot carry a space/hyphen.
+- **Tests:** `brand_primitives_test`, `onboarding_welcome_page_test`,
+  `schedule_final_view_test` updated to the new strings (the Final-view brand mark
+  now legitimately appears twice — header + footer). `flutter analyze` clean,
+  1893 Dart tests green. NOT device-verified (icon-label / window-title rendering
+  needs a real build on each platform).
+## 2026-08-07 — Attendance review search is directory-backed (feature; LOW risk, client-only, no deploy)
+
+The manager/admin review-ledger name search matched only employees with a record or
+a rostered-absence gap in the window, so searching a teammate who had neither read as
+"No matches". The review cubit now loads the branch's active employees once per branch
+(`GetUsersByBranch`, cached, carried on the loaded state as `directory`, re-emitted on
+arrival so a deep-linked person search still resolves). New pure
+`attendanceDirectoryOnlyMatches` returns searched-for teammates with no attendance this
+period — gated on a non-empty term (no flooding) and using the same
+`attendanceSearchNormalize` fold — rendered as quiet "No attendance recorded in this
+period" rows. One bounded per-branch users read (already permitted; `users` reads are
+flat per ADR-012); no rules/functions/schema change. Pinned by
+`attendance_directory_match_test` (5) + a review-mode cubit case. `flutter analyze`
+clean, 1917 Dart tests green.
+
+## 2026-08-07 — Attendance history: curated quick-view presets (feature; LOW risk, client-only, no deploy)
+
+A "Quick views" chip row on the history/review filters applies a whole view in one
+tap — Problems this week / Late this week / Absent this week / Overtime this month —
+setting the date range + status set and clearing the shift facet while keeping any
+name search. Curated, not user-saved (ADR-010 signal-over-volume): a short fixed
+`kAttendanceHistoryPresets`, pure `attendance_history_preset.dart` (apply/isActive) +
+`AttendanceHistoryCubit.applyPreset` + one filter-widget row. No new read or
+schema/rules/functions change. Pinned by `attendance_history_preset_test` (7) + an
+`applyPreset` cubit case. `flutter analyze` clean, 1924 Dart tests green.
+
+## 2026-08-07 — Exports open the real OS share sheet (feature; LOW risk, client-only, no deploy, adds share_plus)
+
+Attendance (PDF/CSV) and schedule (PNG/PDF/XLSX) exports opened the file in a local
+viewer (`open_filex`), so sending one on took an extra hop through Quick Look. New
+single seam `core/services/export_sharing.dart` (`writeExportFile` +
+`shareExportedFile`) writes the file somewhere findable and hands it to the OS share
+sheet via `share_plus` ^12.0.2 (imported only there; iPad/macOS popover anchored to
+the button). Both screens' duplicated `_writeExport`/`_open` helpers were removed.
+Owner-approved exception to the dependency-light stance. `open_filex` stays (chat
+uses it). `flutter analyze` clean, 1917 Dart tests green. NOT device-verified — the
+share sheet / Android FileProvider / macOS entitlements need a real run per platform.
+
+## 2026-08-07 — Attendance reports: ranked exception boards (feature; LOW risk, client-only, no deploy)
+
+The reports hub could say which periods need attention but not *who* has the most
+overtime / lateness / absences / missing clock-outs without scanning. New pure
+`attendanceRankings` ranks the ledger rows the hub already streams by a chosen
+`AttendanceRankingMetric` (Overtime · Lateness · Absences · Missing punches · Hours
+worked), summed per employee, highest-first, zero-value people excluded. A new
+monochrome `AttendanceRankingsCard` (metric chip row + ranked list) renders under the
+report headline, scoped to the hub's current branch + period. Zero new reads, no new
+cubit/route/schema/rules/functions. Pinned by `attendance_rankings_test` (7) +
+`attendance_rankings_card_test` (3). `flutter analyze` clean, 1911 Dart tests green.
+
+## 2026-08-07 — Attendance history: multi-select status, Today/Yesterday presets, Arabic-aware search (feature; LOW risk, client-only, no deploy)
+
+Three P1 findings from the attendance audit, all in the History/Review ledger and
+all pure/presentation. Status filtering became **multi-select** (`AttendanceHistoryQuery.statuses`,
+a `Set` combined with OR — "Late or Absent" in one view; the *All* chip clears it).
+**Today** and **Yesterday** single-day presets joined `AttendanceDateRange`. Employee
+search is now **Arabic- and diacritic-insensitive** via a new pure
+`attendanceSearchNormalize` (folds case, tashkeel/tatweel, alef/hamza/ta-marbuta and
+common Latin accents), applied to both the search term and each record's name, and
+shared with the absence-gap list. No new read, no schema/rules/functions change.
+`flutter analyze` clean, 1901 Dart tests green. Still window-bound — a directory-backed
+search that finds employees with no records in range is the deferred P1 remainder.
+
+## 2026-08-07 — Attendance minutes are server-authoritative; client can no longer forge pay (security; HIGH risk, needs functions + rules deploy)
+
+The record's "forgery-resistant" promise was client-side honesty only: the
+`attendance` owner-update rule pinned just `userId` and the create rule just
+`status`, so a client talking to Firestore directly could write any
+`workedMinutes`, backdate `clockIn`, or be born clocked-in with pay already on it
+— all of which flow into the payroll ledger. Payroll minutes are now computed
+solely by the Admin SDK: new `functions/attendance_totals.js` (a port of
+`AttendanceCalculator`) + a finalize step in `onAttendanceWritten` recompute the
+snapshot over server-stamped clock times; the client clock-out stops persisting
+minutes (the summary recomputes live); and `firestore.rules` pin every
+payroll-sensitive field on both create and owner-update. `flutter analyze` clean,
+1893 Dart + 155 node + 89 rules tests green (17 new record-rules tests, 11 new
+totals tests). ⚠️ Inert until `firebase deploy --only functions,firestore:rules`.
+[ADR-024](docs/decisions/ADR-024-server-authoritative-attendance-minutes.md).
+
+## 2026-08-07 — A deactivated account disappears from chat (feature; LOW risk, client-only)
+
+Owner ask: deactivating an account should make it drop out everywhere it's used
+— its chat gone, unmessageable, unassignable. Audit found most of it already
+held (task/schedule/broadcast/new-chat pickers and login all exclude
+`isActive == false`); the real gap was an **existing** chat conversation, which
+the inbox surfaces from past threads rather than the filtered picker.
+`GetChatDirectory.resolve` now returns a `ChatDirectorySnapshot` — the active
+directory **plus** the set of deactivated uids, from the same single
+`getAllUsers` read — cached beside the name directory in `AppDependencies`.
+`ChatListCubit` hides any conversation whose counterpart is in that set (off the
+list, out of `totalUnread`, ignored for live bump/notify) and re-emits on
+`refilter()` when the directory reloads; `ChatConversationScreen` refuses to open
+a deactivated thread (person-off empty state, no history/composer) even by deep
+link. Positive-signal filter (hide only on a real "off" flag → an unloaded
+directory never blanks the inbox). Task assignment unchanged (already excludes
+inactive; an already-assigned inactive user still resolves for display).
+`test/chat_deactivated_counterpart_test.dart` (5); analyze clean; 1893 tests
+green; no rules/functions/schema change. ⚠️ Client-side only — `drop-api` (separate
+repo) does not yet reject sends to a deactivated user.
+
+## 2026-08-07 — Managers & admins can record sales directly, with a celebratory overlay (feature; MED risk, ⚠️ NEEDS FUNCTIONS DEPLOY)
+
+Owner ask: let admins and managers add a sales record, not only employees, and
+show a creative "+amount added to target" confirmation. New
+`recordApprovedDailySales` callable writes an own-branch manager/admin's day as
+an already-`approved` record via the Admin SDK (the actor is both submitter and
+decider — a direct entry, not the self-approval `canDecideSubmission` forbids —
+stamped `recordedDirectly:true`). Accepts today or any past Cairo day, refuses
+the future, a duplicate day (`already-exists`), and a month with no target;
+fires the same target-achieved crossing as an approval. Client: `RecordDailySales`
+use case, `SalesRecordResult`, a **Record sales** button on the manager
+dashboard, `showSalesRecordSheet` (amount · day picker · optional note), and
+`showSalesRecordAddedOverlay` — a monochrome count-up to "+ {amount} EGP added to
+the branch total" with a success tint **only** on a genuine target crossing
+(ADR-004). New pure `isRecordableSalesDate`, audit `sales.recorded`. Inert until
+`firebase deploy --only functions:recordApprovedDailySales`; no rules/index
+change. Pinned by 2 cubit + 2 overlay + 2 node tests. Docs:
+[SALES_TARGETS](docs/design/SALES_TARGETS.md), DATA_MODEL, PROJECT_CONTEXT
+(function count 24→31, was already stale).
+
+## 2026-08-07 — Editing an approved sales amount: reason is now optional (feature; LOW risk, ⚠️ NEEDS FUNCTIONS DEPLOY)
+
+Owner ask on the sales submission detail's **Edit approved amount** sheet. Reason
+was mandatory in **both** the client sheet and the `editApprovedDailySalesSubmission`
+callable, so it had to change in both or the save would fail server-side.
+
+- **Client:** `showSalesTargetEditorSheet` gains `reasonRequired` (default **true**,
+  so the **Set/Edit monthly target** flow that shares this sheet is unchanged); the
+  edit-approved call passes `false`. Label reads *Reason (optional)*; empty passes
+  validation.
+- **Server:** `editApprovedDailySalesSubmission` now calls `salesReason(data.reason,
+  false)`; the `sales.approved_amount_edited` audit row stores `reason: null` when
+  none is given.
+- **Scope:** only the approved-amount edit. Reject / request-correction / reopen and
+  the target-change reason all **stay mandatory**.
+- ⚠️ **Trade-off:** this weakens the audit trail for a monetary change — recorded in
+  [SALES_TARGETS](docs/design/SALES_TARGETS.md).
+- ⚠️ **Inert until `firebase deploy --only functions:editApprovedDailySalesSubmission`.**
+  Until then the deployed callable still rejects an empty reason, so a blank save
+  errors on device. Gates: `flutter analyze` clean, `flutter test` sales green,
+  `functions` node --test **136 pass**.
+
+## 2026-08-07 — Profile screen rebuilt as the sibling of the Settings hub (polish; LOW risk)
+
+Owner ask: *"see the current profile page — I want it professional and way more
+better."* **Presentation only** (plus one pure entity getter). No new reads, no
+schema/rules/server change, strictly monochrome (ADR-004).
+
+- **The account row vocabulary moved to `core/`.** `settings_tiles.dart` is now
+  [core/widgets/settings_tiles.dart](lib/core/widgets/settings_tiles.dart) —
+  Profile needed the same grouped card, medallion, inset hairline and corner
+  rounding, and a feature must not import another feature's widget. Classes and
+  behaviour unchanged; the two Settings screens only changed an import.
+- **New identity lockup**
+  ([profile_identity_card.dart](lib/features/profile/presentation/widgets/profile_identity_card.dart)):
+  cover + overlapping avatar + name + `@handle` + role/position chips + **bio**,
+  closing with the screen's single CTA. Two things that existed but were never
+  shown now are: **`coverImage`** (uploadable from Edit Profile since it shipped,
+  visible nowhere) and **`bio`** (editable, never rendered). A photo sits under a
+  top-to-bottom scrim; with no photo the band is the shared neutral wash + the
+  quiet DROP mark, so it is a finished surface rather than a hole.
+- **Incomplete is a status, not a link.** The old bare *"Complete your profile"*
+  text became the card's semantic warning edge, an explicit line saying what is
+  missing, and a CTA relabelled *Complete profile* — same destination, one CTA.
+- **Facts became rows that do something**
+  ([profile_detail_row.dart](lib/features/profile/presentation/widgets/profile_detail_row.dart)):
+  caption above, value in the bright step (the value is what the user came for),
+  and **tap-to-copy** on email / phone / emergency contact / payment number. A
+  detail that is *not set* now says so and opens Edit Profile — previously the
+  row was simply absent, so "I never filled this in" and "this screen doesn't
+  show it" looked identical.
+- **The username had no input anywhere in the app.** `ProfileEntity.isComplete`
+  requires it, so **every account was permanently "incomplete"** and the
+  profile's prompt could never be satisfied — while the whole stack behind it
+  (datasource · repository · `CheckUsername` · `ProfileCubit.save`'s
+  taken-handle rejection) was wired and unreachable. Edit Profile now has the
+  field, with a new `Validators.username` / `usernameInput` (3–20 chars,
+  letters · digits · `.` · `_`, must start with a letter; stored lowercase, so
+  `Ziad` and `ziad` cannot both exist). The incomplete line also names **what
+  is actually missing** instead of always asking for both.
+- **A detail the user owns is edited by tapping it** (owner ask). Every
+  self-service row opens Edit Profile — set or not — and says so with a pencil;
+  **copy moved to its own 44pt trailing button**, so reading a value out and
+  correcting it stopped competing for one gesture. An admin's contact rows carry
+  no `InkWell` at all, since the form they would reach has no such field.
+- **Grouped into Workplace · Contact · Account.** Workplace carries the branch's
+  real logo (`BranchAvatar`), position and the assigned shift. **A global admin
+  has no `branchId`**, so instead of an empty row the group states *All branches
+  · organisation-wide*.
+- **Settings is the account hub; Profile is a leaf of it** (owner: *"what's the
+  idea of Profile vs Settings, and you put a Settings row in it too?"*). Profile
+  offered a **Settings** row while Settings' identity card opens Profile — a
+  closed loop — and both screens carried their own **Sign out**, so the app's
+  one destructive action lived in two places. Profile now carries neither. The
+  desktop sidebar footer opens **Settings** instead of Profile, so both
+  platforms have one door into the account hub (it was the only account door on
+  desktop, and would have been left with no route to Sign out otherwise).
+- **Payroll is not a profile fact (owner ruling, same day).** The *Salary sent
+  to* row is gone from Profile entirely — for every role, not just admin.
+  `paymentNumber` is still editable in **Edit Profile** and unchanged in the
+  schema; the profile simply does not state it.
+- **The identity card is compact** (owner: *"minimize the big card"*): cover
+  102→60, avatar 78→54, name `h2`→`h3`, bio 4→2 lines, and the closing divider +
+  helper paragraph deleted. Name on line one, `[ROLE] @handle` on line two, the
+  CTA beside them — roughly **140pt shorter** than it started. Two intermediate
+  layouts were rejected against a render at 390pt: chips beside the CTA wrapped
+  to two rows, and the role chip beside the name truncated it to *"Manager …"*.
+  Position went back to being a Workplace row for the same reason. The admin rules are unchanged and now hold in
+  both directions: no Payroll block, and no *add* door onto a form that has no
+  such field for them.
+- **Account** gained *Last updated*, and the sign-in method reads
+  `Email and password` rather than the raw provider string (`password` was
+  falling through the old `switch` verbatim).
+- Pull-to-refresh (`forceRefresh`, bypassing the cubit's revisit guard), the
+  shared `AppErrorState` in place of a bespoke icon + text + `TextButton`, a
+  skeleton matching the new shape, and the same isolated destructive sign-out
+  card Settings uses.
+- `ProfileEntity.initials` replaces the byte-identical private `_initials`
+  copies in the profile and edit screens.
+- Gates: `flutter analyze` clean (1 pre-existing info). `flutter test` **1871
+  pass / 0 fail** — new `test/features/profile/profile_page_test.dart` (9,
+  including one that fails if Profile grows a second hub or a second Sign out) +
+  `edit_profile_username_test.dart` (3).
+  ⚠️ **NOT device-verified.**
+
+## 2026-08-07 — Branch sales manager dashboard re-enriched: progress ring + one door + Pace card (polish/feature; LOW risk)
+
+Owner-directed redesign of the manager branch-sales dashboard
+([sales_manager_dashboard_screen.dart](lib/features/sales/presentation/pages/sales_manager_dashboard_screen.dart)),
+prototyped as an interactive mockup and signed off before any Dart. **Presentation
++ two new pure domain helpers; no new Firestore reads, no schema/rules/server
+change; strictly monochrome (ADR-004) preserved.**
+
+- **Progress ring.** The month card became **achieved · a monochrome progress
+  ring · remaining**, then the target. New `SalesProgressRing` (a `CustomPaint`
+  arc, white on a hairline track) + `SalesMonthOverview`. The shared
+  `SalesMoneyRow` is untouched — every other sales surface stays the flat
+  three-figure row.
+- **Four tiles → one door.** Pending / Approved / Rejected / History each opened
+  the **same** history screen with a different `?status=`; they are now a single
+  `SalesSubmissionsDoor` into the unfiltered ledger, counts kept as an inline
+  breakdown. Pending work is still acted on in the *Waiting on you* queue above.
+- **Pace card.** The old (deleted) pace strip returns as one card pairing the
+  month's **target-outlook verdict** with the **last-7-days approved-takings
+  chart**. Two new pure, unit-tested domain functions: `salesTargetOutlook`
+  (in [sales_calculator.dart](lib/features/sales/domain/sales_calculator.dart) —
+  forecast `≥ target` → ahead, else behind, `tooEarly` before any approved day;
+  read off `expectedMonthEndPiastres`, **not** achieved-vs-elapsed, which reads
+  "behind" every day approvals lag) and `computeSalesTrend`
+  ([sales_trend.dart](lib/features/sales/domain/sales_trend.dart) — per-day
+  approved sums for the trailing 7 Cairo days + a prior-window baseline; average
+  over **approved** days, the same lag-safe divisor the month KPI uses). The card
+  hides itself when the window has no approved day.
+- Additive helpers: `AppDateFormatter.weekdayShort`, `formatEgpCompact`
+  (`14.2K`/`1.3M` chart labels).
+- This reverses, **for the manager dashboard only**, the earlier
+  "*Needed per day* is the only statistic" simplification; the shared surfaces
+  stay lean. Colour stays status-only. Design doc updated
+  ([SALES_TARGETS](docs/design/SALES_TARGETS.md)).
+- **A brand accent (periwinkle indigo) was tried on the figures and reverted the
+  same day.** The owner asked for colour, chose a chromatic accent, saw it on
+  device and did not like it. ADR-004 stands — its status line records the attempt
+  so it is not re-argued.
+- **A status tint landed instead (ADR-004-compliant).** ACHIEVED, the progress
+  ring and the chart's today bar now take `salesOutlookTint(outlook)` — **green**
+  ahead of target, **amber** behind, **white** too-early — via new
+  [sales_outlook_tint.dart](lib/features/sales/presentation/sales_outlook_tint.dart)
+  and a `tint` param on `SalesProgressRing`/`SalesMonthOverview`. This is colour as
+  *status* (the Needed-per-day rule), not brand, so monochrome holds; it ties the
+  hero numbers to the Pace verdict. Covered by two new cases in
+  `sales_dashboard_widgets_test.dart` (the mapping + the tint reaching ACHIEVED).
+- Gates: `flutter analyze` clean (1 pre-existing info). `flutter test` **1857
+  pass / 0 fail**. New: `sales_trend_test.dart` (6), outlook cases in
+  `sales_calculator_test.dart` (3), `sales_dashboard_widgets_test.dart` (4,
+  overflow guard at 375pt). ⚠️ **NOT device-verified** — needs a look on
+  hardware with a sales-enabled branch (production: only `Arkan`).
+## 2026-08-07 — Clear chat now clears the whole history, not the loaded window (bug; MED risk, client-only)
+
+`clearChatForMe()` deleted only the messages already paged in, while its confirm
+dialog promised *"This removes **every** message from your view."* On any thread
+longer than the first page the older messages were untouched and came straight
+back on scroll-up — and "Delete conversation?" runs the same call, so it had the
+same gap.
+
+It now **drains the full history first** (`_collectHistoryIds`): the loaded
+window plus every older page, walked from `_nextCursor` through the existing
+`LoadChatHistory` use case, then one pooled delete-for-me pass over the whole set.
+No new backend endpoint. `_nextCursor` is cleared afterwards, so the thread no
+longer offers a "load older" that could only return what was just deleted.
+
+- **All or nothing on the collect step.** If the history cannot be drained
+  completely, **nothing** is deleted and the caller gets a clean, retryable
+  failure — a half-clear against a promise of "every message" is the bug being
+  fixed. (Once deleting starts, a mid-way network failure can still leave a
+  partial delete; those are genuinely gone server-side and a second Clear picks
+  up the remainder.)
+- **Two guards against a non-terminating history**: a cursor that hands back
+  itself raises instead of paging the same slice forever, and a hard 500-page
+  bound catches anything else. Hitting either means the pagination is wrong, not
+  that the chat is long, so both fail rather than silently under-delete.
+- **`loadOlder` and single-message delete now stand down while a clear runs** —
+  a scroll-back mid-drain would otherwise prepend a page the drain had already
+  paged past.
+
++5 tests (`chat_conversation_actions_test.dart`) including a 3-page history, a
+failing page, a stuck cursor and an empty conversation. `flutter test` **1842
+pass** · `flutter analyze` clean. Per-message *Delete for me* was already correct
+across all four tiers (REST ack → in-memory → Drift row → session cache) and is
+unchanged.
+
+## 2026-08-07 — Single active session evicted the device that just signed in (bug; HIGH impact, client-only)
+
+Owner: *"I open my account, log out on the device, then log in on another device
+and it says your account has been signed in on another device."*
+
+**A cached Firestore snapshot was being read as a hostile login.** `snapshots()`
+replays the **locally cached** document the instant you subscribe, before the
+backend confirms anything. A device that had been signed in before therefore got
+its *previous* session's `activeSessionId` as the watcher's first emission, while
+it already held the id it had just claimed — mismatch → full teardown → Login with
+the takeover message, on a session nobody took over. The first device on a fresh
+account never reproduced it, because its cached document carried a **null** id,
+which the back-compat rule already ignores. That is why the feature looked correct
+right up until a second device existed.
+
+Two narrow fixes:
+
+- **`UserRemoteDataSourceImpl.watchUser` now emits server-confirmed snapshots only**
+  (`!doc.metadata.isFromCache`). Every consumer of that stream ends the session —
+  deactivated · hard-deleted · taken over — so none of them should act on a cached
+  copy. Offline means no emissions: the user stays signed in, matching *offline
+  gates the writes, never the app*.
+- **`AuthCubit` forgives the superseded id, once.** It remembers the id it replaced
+  at sign-in and ignores a snapshot still reporting exactly that value until its own
+  claim comes back. Deliberately one value, not a grace period — any *other*
+  mismatch still evicts immediately, so a genuine takeover racing a sign-in is
+  enforced live rather than deferred to the next cold start.
+
+The test fake was the reason this shipped green: it returned a bare
+`StreamController` that emits **nothing** on subscribe, so no test ever exercised
+Firestore's replayed first snapshot. It now models the cached replay, and 6 new
+tests cover the reported sequence end to end (including device A signing out, then
+device B signing in on the same account document). `flutter test` **1838 pass** ·
+`flutter analyze` clean. Recorded as an amendment to
+[ADR-023](docs/decisions/ADR-023-single-active-session.md).
+
+## 2026-08-07 — Review-notification reviewer ladder + the paged sweep is now tested (bug; MED risk)
+
+Closes the two items the 2026-08-06 notification audit left open.
+
+### `taskSubmitted` no longer routes to a single uid
+
+It walked to `task.createdBy` and stopped, which is **silence** — a task left in
+`waitingReview` with nobody told and no error anywhere, since
+`sendNotification` skips an absent recipient without raising — in four
+situations: the creator is **deactivated**, **hard-deleted**, **demoted** to
+employee, or has **moved branch**. The last two are worse than silence: rules
+would refuse their approval, so it notified the one person who *cannot* act and
+nobody who can.
+
+A generated shift task made this routine rather than exotic: it inherits the
+**template's** `createdBy` (precisely what `task_origin.dart` warns about), so a
+template set up by someone who has since left produced a task **every day** whose
+submission notified a dead account.
+
+New pure, unit-tested ladder in
+[task/domain/task_review_routing.dart](lib/features/task/domain/task_review_routing.dart):
+**the creator when they can still review it → the branch's active managers →
+active admins.** The gate (`canReviewTask`) mirrors the `tasks` update rule in
+`firestore.rules` and the server's `requireSalesManager` — active, and either a
+global admin or a manager *of this branch*.
+
+**No business rule was invented.** The escalation is deliberately the same shape
+as the server's existing
+`salesRecipients(branchId, {managersOnly: true, adminsFallback: true})`, which
+already answers this question for branch-scoped review routing; two analogous
+decisions must not use two different rules.
+
+The new `ResolveTaskReviewers` use case keeps the cost on the rare paths: one
+branch read (a manager creator is already in it), an individual creator lookup
+only when the branch list lacks them — in practice an **admin**, who is
+branchless and can never appear in a branch query — and the org-wide read only
+when tiers 1 and 2 both come up empty. Two details that matter: an empty result
+is passed through as an **empty override, not null** (null would fall back to
+`[createdBy]`, and an assignee fallback would tell the person who just submitted
+the work that it had been submitted), and an admin sitting in a branch list does
+**not** satisfy tier 2 — tier 3 is the only door for admins.
+
+### The paged sweep is verified, not manually QA'd
+
+The paging moved out of the datasource into `sweepPages`
+([notification_sweep.dart](lib/features/notifications/data/datasources/notification_sweep.dart)),
+generic over the page item, so the part that can be wrong is separable from
+Firestore. `test/notification_sweep_test.dart` (23 tests) runs it over 5,000-
+and 15,000-item collections, across page boundaries, with sparse selections, and
+with a commit that *deletes* what it touched.
+
+**It immediately caught a real off-by-one:** a collection ending exactly on the
+15,000-item ceiling threw "too many notifications" *after having successfully
+swept all of them*. The ceiling is now checked after the fetch, so it trips only
+when work genuinely remains. Also pinned: no batch can approach Firestore's
+500-operation cap (the page size *is* the batch ceiling), and the cursor
+advances off the last item **fetched** rather than the last **committed**, so a
+page where nothing matched still moves forward and a delete sweep does not
+re-read the window it just emptied.
+
+Gates: `flutter analyze` clean (1 pre-existing info) · `flutter test` **1832
+pass** (+56) · `functions` node --test **136 pass** · `firestore-tests` **74
+pass**. No deploy: this change is client-only, and the `sendNotification` deploy
+its tier-3 escalation depends on landed the same day (verified — see the
+2026-08-06 entry).
+
+---
+
+## 2026-08-06 — Notification audit: a silent delivery outage + four correctness fixes (bug; MED risk)
+
+Six findings from a review of the notification system, fixed in priority order.
+**One is a live production outage; the server half needs a functions deploy.**
+
+### P0 — an employee could never notify an admin (SILENT, LIVE, NEEDS DEPLOY)
+
+`sendNotification`'s reachability check was a branch comparison only — and **an
+admin has no `branchId`** (PROJECT_CONTEXT §8: the role is global, so
+provisioning deliberately omits it). So `recipientBranch === callerBranch`
+compared `""` against the caller's branch and **no employee or manager could ever
+notify an admin.**
+
+What that cost, silently: `NotifyTaskEvent` routes `taskSubmitted` to
+`task.createdBy`, so **every task an admin created was submitted for review and
+the admin was never told.** The callable threw `permission-denied`, the datasource
+turned it into a `ServerException`, and `NotifyTaskEvent`'s deliberate catch-all
+swallowed it to a `developer.log` — the employee saw an ordinary successful
+submission and nothing anywhere reported a failure. Generated shift tasks whose
+template an admin set up were affected too, since the instance inherits the
+template's `createdBy`.
+
+The rule is now pure, documented and tested in
+[functions/notification_reach.js](functions/notification_reach.js): **admin →
+anyone · anyone → an admin · otherwise same branch.** Reachability is not
+authorization — the `CLIENT_NOTIFICATION_TYPES` whitelist, length caps, payload
+key whitelist and server-stamped `senderUid` are untouched, so this widens who
+can be *told*, not what can be forged. Cross-branch stays denied, and a
+branchless non-admin reaches admins only.
+
+✅ **DEPLOYED AND VERIFIED 2026-08-07 03:12 UTC** — `sendnotification-00013-hum`,
+`ACTIVE`. Confirmed by pulling the deployed `function-source.zip` out of
+`gcf-v2-sources-450092605249-us-central1` and diffing it: `index.js` and
+`notification_reach.js` are **byte-identical** to the repository. (The CLI's own
+"deploy complete" was not treated as evidence — that is what hid the
+`approveSwap` stale deploy on 2026-08-05.) The branch-sales server half from the
+same day's entry shipped in the same run.
+
+### P1 — `markAllRead` and `Clear archived` were both broken past one page
+
+Both replaced by one paged sweep (`_sweep`): 300 docs per page over the
+**existing** `recipientUid + createdAt` index, one `WriteBatch` per page — **no
+new index, no deploy.**
+
+- **`markAllRead`** read the user's entire notification collection unbounded and
+  committed every unread doc in **one** batch. Firestore hard-caps a batch at
+  500, so past 500 unread it failed with `INVALID_ARGUMENT` — and since the cubit
+  swallowed errors into a log, the button silently stopped working *forever*.
+  `runTaskReminders` fires every 30 minutes on a per-task ladder, so 500 is
+  reachable.
+- **`Clear archived`** fanned out client-side deletes over the *loaded page*
+  (30 by default) while its dialog promised *"Permanently delete all archived
+  notifications."* A user with 90 archived confirmed, watched the stream refill
+  the list, and reasonably concluded it was broken.
+
+Both are now `NetworkGuard`-guarded (they read pages to decide what to touch, and
+offline those come from a partial cache), both **report failure** instead of
+swallowing it, and the sweep **throws** when its 15,000-doc ceiling is exhausted
+rather than returning a silent partial.
+
+### P2 — an unknown notification type impersonated a task
+
+`NotificationModel.fromMap` fell back to `taskAssigned` for an unrecognised
+`type`. That is not a neutral default: `type` drives the glyph, the category pill
+*and* the priority. It is exactly how every branch-sales notification arrived
+wearing a clipboard under the **Tasks** pill at `high` priority until
+`salesSubmission` was added — a fix to the symptom, not the mechanism.
+
+New `NotificationType.unknown`: ranks `low` (the floor), shows under **All** and
+**no pill**, renders a neutral bell, keeps its stored title/body readable, and
+**still deep-links** because routing keys off `payload.route`, never `type`. That
+last part is why it is safe: the correct deploy order (functions first, then the
+client) guarantees a window where the server writes types the installed app has
+never heard of. `categoryOf` became nullable to say so honestly — returning `all`
+would have double-counted the All badge.
+
+### P3 — the due label was on a different clock from Task Details
+
+`NotifyTaskEvent` hand-rolled a month table and a 12-hour AM/PM clock, so one
+deadline read `Due today 4:30 PM` in the notification and `16:30` in the Task
+Details schedule band (reworked to 24-hour earlier the same day). It now
+delegates to `AppDateFormatter` — the single `DateTime → String` source — and
+takes an **injected clock**, so "is this today?" is testable across a day
+boundary. Free improvement: `relativeDayShort` earns `Tomorrow`, where the old
+code printed a bare `7 Aug 08:30` for a task assigned late for the morning shift.
+
+### Also
+
+`markRead` (single) deliberately stays **unguarded**, now stated in the code
+rather than looking like the oversight it resembled: it is a set-once idempotent
+receipt whose only consumer is a null check, and guarding it would make opening a
+notification fail offline on a screen the offline policy keeps readable.
+
+**Known gap, deliberately not fixed:** `taskSubmitted` still routes to a single
+uid, so a **deactivated or deleted** creator means nobody is notified. The fix is
+a branch-reviewer fallback, which changes who gets notified and wants an owner
+ruling first — recorded in
+[NOTIFICATIONS §7](docs/design/NOTIFICATIONS.md#7-known-limitations--future).
+
+Gates: `flutter analyze` clean (1 pre-existing info) · `flutter test` **1776
+pass** (+17) · `functions` node --test **136 pass** (+9) · `firestore-tests`
+**74 pass** (unchanged — no rules change). ⚠️ The paged sweep's cursor logic runs
+against Firestore and has no Dart fake to test against; it needs on-device QA on
+an inbox larger than one page.
+
+---
+
+## 2026-08-06 — Single active session: one account, one signed-in device (feature; MED risk)
+
+**One account = one device.** A newer sign-in now evicts every older one: the
+evicted device signs itself out immediately, drops every user-scoped stream and
+cache, and lands on Login saying *"Your account has been signed in on another
+device."*
+
+**Implemented once, at the auth layer.** On successful sign-in `AuthCubit` mints a
+session id ([auth/domain/session_id.dart](lib/features/auth/domain/session_id.dart)
+— 128 bits, 32 hex chars, `Random.secure`), claims it on
+`users/{uid}.activeSessionId` via the new `AuthRepository.claimSession`, and stores
+it on this device through the new
+[core/services/session_store.dart](lib/core/services/session_store.dart)
+(`flutter_secure_storage` — Keychain / `EncryptedSharedPreferences`). Enforcement
+then rides **the stream that already existed**: `AuthCubit.watchCurrentUser`, which
+the app has always run to catch deactivation and hard-deletion. So it costs **no
+extra listener**, and **no feature carries a copy** — Chat, Tasks, Attendance and
+the rest inherit it because they only ever see an authenticated session. Design:
+[AUTH § Single active session](docs/design/AUTH.md#single-active-session).
+
+Three entry points check the claim, because each re-emits `authenticated` without
+passing the watcher: `signInWithEmail`, `restoreSession` (the takeover that
+happened while the app was closed — Firebase restores its own session silently, so
+this is the only place it becomes visible), and `refreshUser`.
+
+**The rules that keep it from misfiring**, each of which is a way this feature
+could have shipped as an outage:
+- **Neither null is an eviction.** A null *remote* id is every legacy document and
+  every account that has not signed in since this shipped — treating it as a
+  mismatch would have signed the whole company out on upgrade day. A null *local*
+  id is an unreadable keystore; a keychain hiccup must not look like a hostile login.
+- **A failed claim fails the sign-in** (new *"Could not start your session"*).
+  Entering the app on a claim the server never recorded means self-evicting on the
+  next snapshot, which reads as *"it signed me out instantly"*.
+- **`activeSessionId` is excluded from `UserModel.toMap()`**, so a routine profile
+  save cannot re-stamp a stale id and let an evicted device steal the session back.
+  One writer: `claimSession`.
+- **A deliberate sign-out clears the LOCAL id only** — clearing the remote one
+  would *release* the account for whichever stale device still matches.
+
+**Sign-out now actually tears the session down.** New
+`AppDependencies.clearUserScopedState()` resets every app-wide cubit that holds a
+user-scoped Firestore stream — `task` · `caseList` · `requestsList` · `attendance`
+· `shiftSwap` · `salesMonth` · `notification` — each gaining a `reset()`. These
+cubits are singletons built once at `init()`, so **before this their listeners and
+`AttendanceCubit`'s live ticker kept running against a signed-out user, and the
+next person to sign in on the same device saw the previous one's tasks, cases,
+requests and attendance until each screen's first refresh landed.** That was a
+pre-existing leak on ordinary sign-out; eviction and sign-out now share one
+teardown path (`AuthCubit._signOutInternal`), so an eviction can never clean up
+less than the Settings button does.
+
+`AuthState.unauthenticated` gained `signedOutReason` — set only when the app ended
+the session on the user's behalf — which Login consumes exactly once
+(`acknowledgeSignOutReason`). It rides the state because the eviction happens on
+whatever screen the user was on and the message must survive the router's redirect;
+`LoginPage` reads it in `initState`, since the state changed before the page existed
+and a `BlocListener` alone can never see it.
+
+**No `firestore.rules` change and no deploy** — and this is **proved, not
+reasoned**: `activeSessionId` is not in the privileged freeze-list of the `users`
+update rule, so the existing owner-update clause already permits the self-write.
+That claim is load-bearing in the worst way (a denied claim = a failed sign-in =
+**nobody can log in**) and the Dart suite runs against fakes and never evaluates a
+rule, so new
+[firestore-tests/user_session.rules.test.mjs](firestore-tests/user_session.rules.test.mjs)
+pins it against the emulator: the owner may claim (with or without a prior claim),
+**nobody may claim someone else's** — the write that would sign a stranger out —
+an admin still may, a claim cannot smuggle `role`/`branchId` through the same
+clause, and an unauthenticated client is refused.
+
+Decision recorded as
+[ADR-023](docs/decisions/ADR-023-single-active-session.md) — *one account, one
+signed-in device, enforced only in the auth layer*.
+
+⚠️ **Session hygiene, not a security boundary** — it is client-enforced; a modified
+client could simply not watch the document. Real revocation is
+`admin.auth().revokeRefreshTokens(uid)` server-side, which is the upgrade path.
+
+⚠️ **NOT device-verified.** One new dependency with native code
+(`flutter_secure_storage ^9.2.2`). `flutter build macos --debug` **succeeds** with
+it (no new warnings), macOS already carries the `keychain-access-groups`
+entitlement, and Android's `minSdk` (24) clears the `encryptedSharedPreferences`
+floor (23) — but the **two-device eviction is the QA that matters and it has not
+been run on hardware**, nor has an iOS/Android build been made with the plugin.
+
+Gates: `flutter analyze` clean (1 pre-existing info) · `flutter test` **1759 pass**
+(+18) · `firestore-tests` **74 pass** (+6) · `flutter build macos --debug` succeeds.
+Pinned by [test/single_active_session_test.dart](test/single_active_session_test.dart)
+and [firestore-tests/user_session.rules.test.mjs](firestore-tests/user_session.rules.test.mjs).
+
+---
+
+## 2026-08-06 — Manager open-shift clock + honest managersCanClock toggle + branch settings redesign (feature/bug/polish; MED risk, NOT device-verified)
+
+Three related asks from the owner about manager attendance and branch settings.
+
+**1. Managers now have a real open shift (bug + feature).** A manager's clock is
+presence tracking (`enforceSchedule: false`) — clock in and out at any time, no
+roster — but the **primary** Clock In fell through silently for a shift-less
+manager: `AttendanceCubit.clockIn` needs a resolved `targetRecordId`/`shift`, and
+`_resolveContext` set neither when nothing was rostered. So a manager's only
+working path was the *buried* "Working anyway? Start an unscheduled shift" button,
+behind a "No shift today" message. `_resolveContext` now synthesizes a
+presence-only target (the time-of-day bucket, no scheduled window) whenever a
+presence role has no rostered slot — and drops the scheduled window even when a
+manager *is* rostered (mirrors the record `clockIn` writes). The screen reframes
+the manager surface: an **OPEN SHIFT / Manager shift** ready state with Clock In
+as the primary action, not a discouraging "No shift today".
+
+**2. "Managers can clock in / out" now actually does something (bug).** The
+branch flag flips `AttendanceConfig.enabled` to false for a manager, but
+[attendance_screen.dart] never read `config.enabled`, so toggling it changed
+nothing on device. New `disabled` phase: a switched-off branch shows an
+explanatory *"Clocking is off for managers here — you still review and approve
+the team's attendance"* card + a **Review branch attendance** door, instead of a
+dead clock. A live session always wins the phase check, so flipping the flag can
+never trap someone mid-shift.
+
+**3. Branch settings sheet redesigned (polish).** [branch_form_sheet.dart] was
+rebuilt into labelled, grouped sections (Details · Attendance · Sales · Shift
+swaps · Media) sharing one `_SectionHeader` / `_SettingCard` rhythm, with a grab
+handle and per-row glyphs. The two rules the owner flagged as unclear now read in
+plain language: **Same role only** ("a barista can swap with a barista, but not a
+cashier") and **Minimum rest** ("reject a swap that would leave less than this
+many hours between someone's two shifts — stops a late close followed by an early
+open"). No behaviour or data change — same `createBranch`/`editBranch` calls.
+
+Also: managers get a **My Clock** desktop sidebar door (the desktop shell has no
+app bar; mobile already had the fingerprint action), and the self-hosted Phosphor
+subset gained the `clock` glyph ([phosphor_icons.dart], codepoint 0xe19a — the
+TTFs are the full fonts, so no re-subsetting).
+
+Pinned by 4 new `attendance_cubit_test` cases (manager open-shift target,
+primary-Clock-In write, rostered-manager-no-window, switched-off block) + new
+`attendance_open_shift_screen_test` (open-shift ready vs. disabled state).
+`flutter analyze` clean · **1754 tests pass**. Branch-attendance oversight for
+managers was **already shipped** (Manager Home → *Branch attendance* → the live
+Late/Early/Absent board, branch-pinned) and is unchanged.
+
+## 2026-08-06 — Opening a chat clears its delivered OS notifications, WhatsApp-style (feature/bug; MED risk, NOT device-verified)
+
+Reported: 5 messages from one conversation arrive while the app is backgrounded/
+closed; opening that conversation leaves all 5 sitting in iOS Notification
+Center. Root cause: **nothing ever cleared delivered notifications** — the app
+has only `firebase_messaging` (no `flutter_local_notifications`, no badge
+plugin), and firebase_messaging exposes no API to enumerate or remove delivered
+notifications. Investigation-first per request; the backend already did its half
+(the chat push stamps `apns.thread-id` and `android.collapseKey` with the
+conversation id), so this is purely the missing client step.
+
+Fix (iOS **and** Android, per owner):
+- New native platform channel `drop/notifications` — the app's **first**:
+  iOS ([AppDelegate.swift], `UNUserNotificationCenter`) removes delivered
+  notifications whose `threadIdentifier` matches the conversation id; Android
+  ([MainActivity.kt], `NotificationManager`) cancels active notifications whose
+  `tag` matches. `clearAll` on both for sign-out.
+- **Backend**: chat push now also sets `android.notification.tag = conversationId`
+  (`push-notification.port` type extended, `chat-push.subscriber` + spec). iOS
+  needed no backend change (`thread-id` was already sent). ⚠️ **Android clearing
+  is inert until drop-api is redeployed** with the tag.
+- **Client wiring** integrates with the existing read-state seam: the
+  `createChatConversationCubit` `onReadSync` closure ([injection.dart]) already
+  fires with the conversation id when the server confirms mark-read — it now also
+  calls `DeliveredNotifications.clearConversation(id)`. Other conversations keep
+  their banners (different thread-id/tag). Sign-out calls `clearAll()`.
+- New `core/services/delivered_notifications.dart`: thin channel wrapper,
+  swallows `MissingPluginException` so desktop/tests are silent no-ops (no
+  `dart:io` gate) and it stays unit-testable.
+
+Note: with a shared Android `tag`, a conversation's messages now collapse to one
+notification per conversation (WhatsApp-like). Pinned by
+`test/delivered_notifications_test.dart` (channel method + args; missing-channel
+no-op) and the updated backend `chat-push.subscriber.spec`. `flutter analyze`
+clean · Flutter **1748 pass** · drop-api **105 pass** + `tsc --noEmit` clean.
+⚠️ **NOT device-verified** — the native handlers need a real
+background→open→read cycle on iOS and Android hardware; requires the drop-api
+redeploy for Android.
+
+---
+
+## 2026-08-06 — Chat reconnects on app resume: inbox no longer goes silent (bug; LOW–MED risk)
+
+Investigation of the reported "messages sometimes don't arrive live / a message
+disappears." Root cause of the **not-live** half: the app had **no global
+app-lifecycle observer** — the only `WidgetsBindingObserver` was the open-thread
+screen. Mobile OSes suspend the socket transport while backgrounded; the shared
+inbox socket is an app-wide singleton whose interest persists, so **when no
+thread is open, nothing reconnected it on resume**. It stayed dead (or sat on a
+long reconnect backoff) until something else happened to reconnect, so messages
+only appeared on a manual pull-to-refresh. An open thread already self-healed
+(its own observer re-joins the room, which reconnects the socket and fires
+`ChatRealtimeConnected(isReconnect)` → reconcile).
+
+Fix — a resume signal now flows to the shared socket:
+- New `ChatRealtime.onAppResumed()` (port + `ChatSocketService`). A genuinely
+  live, authenticated session is left untouched (no reconnect/refresh storm on a
+  quick app switch); otherwise it resets the backoff and **force-reconnects now**
+  (new `_ensureConnected(forceReconnect:)` rebuilds even if a dead socket still
+  reports `connected`). Success re-joins every room and emits
+  `ChatRealtimeConnected(isReconnect)`, which refreshes the inbox and reconciles
+  any open thread over REST.
+- `ChatListCubit.onAppResumed()` forwards to the socket; the app-wide
+  `ChatNotificationListener` (the one global chat host) becomes a
+  `WidgetsBindingObserver` and calls it on `AppLifecycleState.resumed`.
+
+**On the "disappear" half:** text sends are durable (persisted to the Drift
+outbox *before* dispatch, retried with the same idempotency key), so a text
+message reappears on the next reopen/refresh rather than being lost — the visible
+"disappear" is the same not-live staleness (a bubble that never reconciles until
+a refresh), now addressed. One genuinely non-durable case remains, unrelated to
+this fix: **attachment (photo) bytes are never persisted**, so a photo caught
+mid-send by a crash is lost — noted, not changed here.
+
+Pinned by `test/chat_list_realtime_test.dart` (onAppResumed forwards to the
+socket). `flutter analyze` clean · full suite **1745 pass**. NOT
+device-verified — the reconnect path needs a real background/resume cycle on
+hardware.
+
+---
+
+## 2026-08-06 — New/renamed teammates resolve without an app restart (bug; LOW risk)
+
+A newly-provisioned employee rendered as **"Teammate"** in chat and **"Someone"**
+on a task assigned to them until the app was **relaunched** — the owner reported
+creating an account, sending a task, seeing "someone", and it "fixing itself"
+only after closing and reopening. Root cause: two independent in-memory
+people-directory caches lived for the whole session and never refreshed on a
+user-set change.
+
+- **Chat directory** (`AppDependencies._chatDirectory`) was cached until
+  sign-out. Now it carries a **5-minute TTL** (self-heals a change made on
+  another device) and a `forceRefresh`, and `loadChatDirectory` re-reads once
+  stale. Name fallback still comes from `chatCounterpartLabel` → `'Teammate'`.
+- **Task directory** (`TaskCubit._directory`, memoized per branch via
+  `_fetchedBranches`) never re-fetched a branch once loaded. New
+  `TaskCubit.refreshDirectory()` drops the memo and re-enriches from the open
+  task set.
+- **Both are invalidated immediately** on any admin change to the user set
+  (create / rename / deactivate / delete / branch or position change) via the
+  new `AppDependencies.invalidatePeopleDirectories()`, wired through a new
+  optional `AdminUsersCubit(onUsersChanged:)` callback fired after
+  `createAccount` and every `_mutate`. The chat cache is marked stale but kept
+  warm (stale-while-revalidate, no "Teammate" flash) and proactively
+  force-refreshed for the signed-in caller.
+
+Pinned by `test/admin_users_directory_invalidation_test.dart` (callback fires on
+create + mutate, not on a failed create). `flutter analyze` clean · full suite
+**1744 pass**. Presentation/caching only — no schema, rules, or functions change.
+---
+
+## 2026-08-06 — macOS App Store upload fix: LSApplicationCategoryType (release config; LOW risk)
+
+App Store Connect / Transporter rejected the macOS archive with error `90242`:
+*"The Info.plist must contain a LSApplicationCategoryType key, whose value is the
+UTI for a valid category."* The stock Flutter macOS template
+([macos/Runner/Info.plist](macos/Runner/Info.plist)) omits this key, which Apple
+requires for every Mac App Store submission. Added
+`LSApplicationCategoryType` = `public.app-category.productivity` (owner-chosen).
+This must stay consistent with the category selected in App Store Connect. Config
+only — no code, no behavior change; iOS/Android untouched.
+
+---
+## 2026-08-07 — `sendNotification` refused every client notification aimed at an admin (bug; HIGH impact — needs a functions deploy)
+
+Owner: *"the admin isn't receiving notifications — just chat; other things no, and
+it doesn't appear in the inbox."*
+
+**The `sendNotification` callable is the only path a client has for writing a
+`notifications/{id}` doc**, and its reachability rule was
+`callerIsAdmin || (callerBranch !== "" && recipientBranch === callerBranch)`. An
+admin has no `branchId`, so for an admin recipient that compares `"" === "b1"` →
+false → `permission-denied`. A rule written to stop a cross-branch leak was
+catching the one role that belongs to no branch. `NotifyTaskEvent` and
+`NotifySwapEvent` are both best-effort and swallow the error, so it failed
+**silently** — no doc, no push, no inbox row, nothing in the device log.
+
+- **What it removed:** an employee submitting a task for review notifies
+  `task.createdBy`, and an admin creates most tasks — the most common admin
+  notification in the product, refused every time. Likewise every task event with
+  an admin among the assignees (assigned · approved · rejected · rework ·
+  cancelled · reported-incorrect).
+- **It also hurt non-admins.** The check threw *before* the batch committed, so a
+  single unreachable recipient discarded the entire call: a task assigned to three
+  people, one an admin, notified **nobody**. Unreachable recipients are now
+  skipped, logged and returned as a `skipped` count — the doc is withheld exactly
+  as before, it just no longer takes the legitimate recipients with it.
+- Policy is the pure `canNotify`
+  ([functions/notification_reach.js](functions/notification_reach.js)): admin
+  reaches anyone · admin is reachable **by** anyone · everyone else same-branch ·
+  a blank branch never matches a blank branch (only the admin *role* opens the
+  door, never a missing `branchId`). 9 tests.
+- **Found twice, merged once.** `claude/single-active-session-aedee1` reached the
+  same root cause independently and landed `canNotify` first; this branch's
+  duplicate `canReachRecipient` was dropped when both were cherry-picked onto
+  `release/v1-preparation`, keeping the skip-instead-of-throw half. One
+  predicate, one call site.
+- No rules change, no client change.
+
+⚠️ **Inert until `firebase deploy --only functions`.**
+
+**Retraction:** an earlier read of this same report blamed the missing APNs
+credential, on the theory that the chat notifications the owner sees are the in-app
+socket banner. The owner confirmed push works end to end — lock screen, correct
+deep link — so that was wrong. [RELEASE_V1](docs/RELEASE_V1.md) B5 is flagged for
+re-verification instead: FCM cannot reach iOS at all without the credential, so
+working delivery implies it is already uploaded.
+
+## 2026-08-07 — The sales feature was silent for every admin (bug; MED risk — needs a functions deploy)
+
+Owner: *"admin account no receiving notification, just notification from chat —
+other things no, and doesn't appear in the inbox."*
+
+**Root cause: `salesRecipients` made admins a *fallback*, and an admin has no
+`branchId`.** It resolved recipients with
+`where("branchId", "==", branchId)`, then consulted admins **only when that query
+returned nothing**. Since account provisioning deliberately omits the branch for a
+global role ([PROJECT_CONTEXT §8](PROJECT_CONTEXT.md)), a branch query can never
+return an admin — so on any branch with at least one active user (i.e. every real
+branch) an admin received **nothing** from the entire sales feature: not *New sales
+submission*, not *Corrected sales submission*, not *Sales target updated*, not
+*Sales target achieved*. Neither push nor inbox, because no `notifications` doc was
+ever written with their uid.
+
+- Admins are now an **addition**, not a fallback — the same shape
+  `resolveRequestApprovers` and `resolveAttendanceReviewers` have always had. The
+  policy moved into the pure `selectSalesRecipients`
+  ([functions/sales_target.js](functions/sales_target.js)) and is pinned by 7 tests;
+  `salesRecipients` in `index.js` is now just the two reads that feed it.
+- `managersOnly` still narrows the **branch** side to its managers (a review ping vs.
+  a branch-wide announcement) but never narrows the admin side — an admin can decide
+  any submission, so they are a reviewer in both shapes.
+- **New: the actor is excluded.** Adding admins would otherwise page the admin who
+  just edited the target about their own edit. This also fixes the pre-existing case
+  where the manager who changed a target was notified of their own change. Same rule
+  `dispatchBroadcast` already applies to an implicit audience.
+- Gates: `cd functions && node --test` **134 pass** (was 127 — the 112 recorded in
+  CURRENT_STATE was stale). No rules change, no index change, no client change.
+
+⚠️ **Inert until `firebase deploy --only functions`.** Notification *policy* lives
+in Cloud Functions, so nothing about this reaches a device from a client build.
+
+⚠️ **This is one class of event, not the whole complaint.** The audit found the
+admin is also absent from task lifecycle events (assignees + `createdBy` only),
+task reminders, generated shift-task assignment, and a `branch`-audience broadcast
+(same branch-query blind spot). Those were left as-is by owner decision. See
+CURRENT_STATE.
+
+## 2026-08-07 — New Chat is search-first (polish; LOW risk)
+
+Owner: *"msh 3aiez lma a3ml open chat lazem yawreni kol da — ana bs a search by
+name w yazhar"* ("I don't want the whole list when I open a new chat — I just want
+to search by name").
+
+The teammate picker (`/chat/new`) opened onto the **entire** org directory, which
+is org-wide by [ADR-012](docs/decisions/ADR-012-chat-directory-is-flat.md), so the
+first thing on screen was a scroll of everyone. It now opens on a prompt with the
+search field **focused**, and lists people only once something is typed. The
+searchable set, the flat single-read directory, and the start-conversation path are
+all unchanged — this is the view's filter only
+([new_chat_screen.dart](lib/features/chat/presentation/pages/new_chat_screen.dart)).
+
+Three distinct empty states, never one generic blank: *No teammates yet* (nobody to
+message at all) · *Search for a teammate* (nothing typed) · *No matches* (nothing
+found). `flutter test` **1744 pass**. NOT device-verified.
+
 ## 2026-08-06 — Navigation icons moved to Phosphor, self-hosted (polish; LOW risk)
 
 Owner: *"is there anyway to change the icons in better design?"* → *"match the

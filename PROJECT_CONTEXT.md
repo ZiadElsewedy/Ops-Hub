@@ -33,7 +33,14 @@ activity. Three roles — **admin · manager · employee**.
 
 The repository folder is **`Drop-operations`**. The Dart package remains `drop`
 (valid package identifiers cannot contain a hyphen); platform-safe identifiers use
-`dropoperation` where needed.
+`dropoperation` where needed. Two user-facing names, split by surface: the **OS
+label is `Drop Ops`** — the short name the operating system shows (iOS/Android
+launcher label, macOS/Windows/Linux window & app-switcher title, and the
+`MaterialApp` `title`). Everything **inside** the app keeps the full **`Drop
+Operations`** — `AppConstants.appName`, the `DropWordmark` logotype, the splash
+label, and all in-app copy (About, login, onboarding, notifications, schedule PDF
+headers). Only user-invisible identifiers keep the short `drop`/`dropoperation`
+forms; code comments still say "DROP" as shorthand.
 
 It is **not** a social network, an ERP, an analytics engine, or a SaaS product. It
 has no buyers, only users: a small, known set of people across a handful of
@@ -83,12 +90,14 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
 | Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
 | Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Drift caches metadata; `ChatRepositoryImpl` session-caches brokered URLs until their server expiry; **never image bytes** |
-| Server logic | Cloud Functions (Node.js, `functions/`) | 24 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
+| Server logic | Cloud Functions (Node.js, `functions/`) | 31 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS app-side configuration is present; APNs credential remains — see CURRENT_STATE |
+| Device session id | `flutter_secure_storage` | Keychain (iOS/macOS) / `EncryptedSharedPreferences` (Android). Holds **one** value — this device's single-active-session claim. Seam: `core/services/session_store.dart`; never import it elsewhere, and it is still **not** a place for preferences (those stay JSON files) |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
 | Serialization | `json_serializable` | |
 | Media | `image_picker` · `image_cropper` · `video_compress` | Mobile-gated |
 | Open documents | `open_filex` | Chat document attachments → platform default app (desktop via OS `Process`); confined to `features/chat/` |
+| Share exports | `share_plus` | Attendance/schedule export → OS share sheet; confined to `core/services/export_sharing.dart` |
 | Location | `geolocator` | Attendance GPS |
 | Codegen | `build_runner` | |
 
@@ -162,8 +171,8 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 
 | Module | Owns | Design doc |
 | --- | --- | --- |
-| `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles | [AUTH](docs/design/AUTH.md) |
-| `profile` | View/edit profile, image uploads, contact & payment details | [AUTH](docs/design/AUTH.md) |
+| `auth` | Sign-in, forgot/force password change, profile completion, Welcome, roles, **single active session** (one account = one signed-in device) | [AUTH](docs/design/AUTH.md) |
+| `profile` | View/edit profile, image uploads, contact details. A **leaf of the Settings hub** — no navigation rows, no sign-out ([AUTH](docs/design/AUTH.md#the-account-hub-and-profiles-place-in-it)) | [AUTH](docs/design/AUTH.md) |
 | `task` | Operations tasks: create → execute → review, templates and recurring automation | [TASKS](docs/design/TASKS.md) · [AUTOMATION](docs/design/AUTOMATION_ENGINE.md) |
 | `schedule` | Admin Today coverage across branches, weekly roster, attributed swap approval/history, shift templates, leave, Final View | [SCHEDULE](docs/design/SCHEDULE.md) |
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
@@ -180,7 +189,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `audit` | `EventTrackingService` + audit log entities | [AUDIT_LOG](docs/design/AUDIT_LOG.md) |
 | `manager` | ManagerShell + manager home | — |
 | `employee` | EmployeeShell + employee home | — |
-| `settings` | Premium account hub, profile/security/workspace links, sign-out, About + change password, per-device notification switches (presentation-only) | — |
+| `settings` | **The** account hub — the single door in (mobile app-bar avatar · desktop sidebar footer) and the only route to Profile. Security/workspace links, the app's **only** sign-out, About + change password, per-device notification switches (presentation-only) | [AUTH](docs/design/AUTH.md#the-account-hub-and-profiles-place-in-it) |
 
 `manager`, `employee`, and `settings` are **presentation-only** — they reuse other
 features' cubits.
@@ -199,7 +208,7 @@ features' cubits.
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
 | `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (59 routes) · `app_page_route.dart` (the back-navigation contract) · `router_extensions.dart` (navigating safely from outside the tree + reading where the user is) |
-| `services/` | `notification_service.dart` (FCM) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
+| `services/` | `notification_service.dart` (FCM) · `session_store.dart` (the device's single-active-session claim, keystore-backed) · `export_sharing.dart` (write + share an export via `share_plus`) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
@@ -218,17 +227,21 @@ Reuse these. Do not re-implement or duplicate them.
 | --- | --- |
 | Any `DateTime` → string | `core/utils/app_date_formatter.dart` |
 | Any Storage upload | `core/media/media_upload_service.dart` |
+| Writing + sharing an exported file (PDF/CSV/PNG/XLSX) | `core/services/export_sharing.dart` (`writeExportFile` + `shareExportedFile`; never import `share_plus` elsewhere) |
 | Any NestJS API call | `core/network/api_client.dart` (never import `dio` elsewhere) |
 | Chat realtime (socket) | `features/chat/data/realtime/chat_socket_service.dart` (never import `socket_io_client` elsewhere; consume the `ChatRealtime` port) |
 | Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Drift holds metadata only; the repository session-caches brokered attachment URLs through `ChatAttachmentDownload.isExpired`; **never image bytes** |
 | Task status → colour | `core/widgets/status_badge.dart` (`taskStatusColor`) |
 | Structured logging | `core/utils/app_logger.dart` (`AppLog`) |
 | Any per-device, per-user preference or read-state | a small uid-namespaced JSON file in the app-support dir, in `core/services/` (`case_seen_store` · `task_seen_store` · `notification_preferences_store`). **Never add `shared_preferences`** — the app already has one local-preference mechanism |
+| Whether THIS device still owns the session | `core/services/session_store.dart` (`SessionStore`) + `users/{uid}.activeSessionId`. Enforced **only** in `AuthCubit.watchCurrentUser` — never re-check it in a feature ([AUTH](docs/design/AUTH.md#single-active-session)) |
+| Tearing down user-scoped streams/caches on sign-out | `AppDependencies.clearUserScopedState()` (`core/di/injection.dart`), reached through `AuthCubit`'s `onPreSignOut` hook. A new app-wide cubit holding a live stream **must** add a `reset()` and be listed there, or its listener outlives the session |
 | Shift slot timing | `schedule/domain/shift_window.dart` |
 | Shift hours resolution | `WeeklyScheduleEntity.hoursFor` ([ADR-006](docs/decisions/ADR-006-schedule-shift-plan-snapshots.md)) |
 | Worked/late/overtime minutes | `attendance/domain/attendance_calculator.dart` |
 | Task visibility | `task/domain/task_access.dart` (`canUserAccessTask`) |
 | Was a task made by a person or by the server? | `task/domain/task_origin.dart` (`taskOrigin`) — **never read `createdBy` for this**: a generated instance inherits its template's creator |
+| Who reviews a task / who is told it was submitted | `task/domain/task_review_routing.dart` (`taskReviewRecipients` · `canReviewTask`) — **never `createdBy` alone**: that account can be deactivated, deleted, demoted or moved branch, and a generated instance inherits the *template's* creator. `canReviewTask` mirrors the `tasks` update rule; if they disagree, the rule wins |
 | Naming an activity-event actor | `task/presentation/activity_format.dart` (`activityActorName` / `activityActorRole`) — `actorId: "system"` is not a uid and must not fall through to the directory |
 | Notification routing | `notifications/domain/notification_deep_link.dart` |
 | **What screen is the user actually on?** | `core/routes/router_extensions.dart` → `topLocationOrNull`. **Never** the match list's own `uri` (`currentLocationOrNull`): an imperative `push` does not rewrite it, and every chat/notification destination is reached by `push`, so the two disagree exactly when it matters. `currentLocationOrNull` remains the duplicate-push guard it was written for |
@@ -259,9 +272,12 @@ Reuse these. Do not re-implement or duplicate them.
 | Global component styling | `core/theme/app_theme.dart` |
 | Firestore / Storage security | `firestore.rules` · `storage.rules` → add a case in `firestore-tests/` → **deploy** |
 | Server logic | `functions/index.js` → **deploy** |
-| Collection names / app name | `core/constants/app_constants.dart` |
+| Collection names / in-app app name (`Drop Operations`) | `core/constants/app_constants.dart` |
+| The **OS label** (`Drop Ops`) — launcher/window/app-switcher title | iOS `Info.plist` (`CFBundleDisplayName`/`CFBundleName`) + Android `AndroidManifest.xml` (`android:label`) + macOS `project.pbxproj` (`INFOPLIST_KEY_CFBundleDisplayName`) + Windows `Runner.rc` + Linux `my_application.cc` + both `MaterialApp` `title`s in `main.dart` — **all of them, or the name differs per platform** |
 | DI wiring | `core/di/injection.dart` |
 | App bootstrap / providers | `main.dart` |
+| **Anything about who is signed in, or ending a session** | `features/auth/presentation/cubit/auth_cubit.dart` — including single active session ([ADR-023](docs/decisions/ADR-023-single-active-session.md)). **Never re-check the session inside a feature** |
+| **A new app-wide cubit that holds a live stream** | give it a `reset()` **and** list it in `AppDependencies.clearUserScopedState()` — otherwise its listener outlives the session and the next user on the device sees the previous one's data |
 
 ---
 
@@ -345,7 +361,8 @@ only accent. The only chromatic colours are semantic `success` / `error` / `warn
 
 This is the single most re-litigated decision in DROP — read
 [ADR-004](docs/decisions/ADR-004-monochrome-design.md) **before** proposing a brand
-colour.
+colour. (A brand accent on the Branch Sales figures was tried and reverted on
+2026-08-07 — the ADR records it.)
 
 - **Calm through hierarchy, not reduction.** DROP is premium, not minimal. A 4-step
   grey ramp (`FFFFFF` / `A7A7AF` / `6E6E77` / `48484E`) does the work colour would;
@@ -415,6 +432,7 @@ colour.
 | Fact row | `StatStrip` (read-only facts; if a cell should drill, use `MetricTile`) |
 | Feed row | `ActivityCard` |
 | Status pill | `StatusBadge` (`.task` is canonical) |
+| Grouped account rows (Settings, Profile) | `SettingsSectionHeader` + `SettingsGroup` + `SettingsRow` / `SettingsSwitchRow` + `SettingsIconMedallion` (`core/widgets/settings_tiles.dart`) — one card, inset hairlines, 40px medallions. A new account surface must not fork it |
 | Task card edge | `TaskAttentionSurface` + `taskAttentionTone` (Employee Home) |
 | Empty state | `DropEmptyState` |
 | Loading | `Skeleton` / `DropLoadingState` |
@@ -491,12 +509,25 @@ Mirrored in `firestore.rules` — the client is never the enforcement point.
 > that **no `where('branchId', ...)` query can ever return an admin, or return
 > anything at all *for* an admin** — a branch read is not a directory.
 >
+> ⚠️ **This is how a whole feature goes silent for admins.** Any recipient set
+> for a branch event must add admins **explicitly and unconditionally** —
+> `resolveRequestApprovers` · `resolveAttendanceReviewers` ·
+> `selectSalesRecipients` all do. Adding them as a *fallback* ("use admins if the
+> branch query returned nobody") looks correct and is not: on a branch that has
+> anyone at all, the fallback never fires, so the admin is never told. That was
+> the sales bug of 2026-08-07. The one deliberate exception is
+> `selectMissedNotifyTargets`, whose fallback is the documented policy.
+>
 > **Exception — `users` READS are flat** ([ADR-012](docs/decisions/ADR-012-chat-directory-is-flat.md)):
 > any signed-in user may read any user document, because chat's directory is
 > org-wide (anyone may message anyone). The table above still governs every other
 > collection, and still governs all `users` **writes**. Chat's directory is
 > `GetChatDirectory` — one unfiltered read, filtered only by self-exclusion and
-> `isActive`. Do not re-introduce branch or role scoping into it.
+> `isActive`. Do not re-introduce branch or role scoping into it. The same read
+> also yields the set of **deactivated** uids (`GetChatDirectory.resolve` →
+> `ChatDirectorySnapshot`), which the inbox uses to hide an existing conversation
+> with a turned-off teammate and the thread uses to refuse to open — so a
+> deactivated account disappears from chat, not just from the picker.
 
 - Parse roles with `UserRole.fromString`, which **defaults unknown/missing to
   `employee`** so a bad document can never escalate privileges. Use the

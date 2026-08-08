@@ -2,7 +2,7 @@
      Hand-authored intelligence lives BELOW the marker. Do not delete that section. -->
 # 📍 FEATURE CARD — `task`
 
-> `lib/features/task/` · **100 files** · layer-complete clean-architecture slice
+> `lib/features/task/` · **106 files** · layer-complete clean-architecture slice
 
 ## Entry points (route → screen)
 | Route const | Path | Guard/notes |
@@ -52,12 +52,15 @@
 - `lib/features/task/presentation/widgets/task_activity_card.dart`
 - `lib/features/task/presentation/widgets/task_attention_surface.dart`
 - `lib/features/task/presentation/widgets/task_badge.dart`
+- `lib/features/task/presentation/widgets/task_browser.dart`
+- `lib/features/task/presentation/widgets/task_browser_groups.dart`
 - `lib/features/task/presentation/widgets/task_card.dart`
 - `lib/features/task/presentation/widgets/task_empty_state.dart`
 - `lib/features/task/presentation/widgets/task_feed_expansion.dart`
 - `lib/features/task/presentation/widgets/task_feed_row.dart`
 - `lib/features/task/presentation/widgets/task_feed_section.dart`
 - `lib/features/task/presentation/widgets/task_preview_sheet.dart`
+- `lib/features/task/presentation/widgets/task_section_list.dart`
 - `lib/features/task/presentation/widgets/task_surface.dart`
 - `lib/features/task/presentation/widgets/task_template_sheets.dart`
 - `lib/features/task/presentation/widgets/video_thumbnail_image.dart`
@@ -92,6 +95,7 @@
 - `lib/features/task/domain/usecases/assign_task.dart`
 - `lib/features/task/domain/usecases/create_task.dart`
 - `lib/features/task/domain/usecases/delete_task.dart`
+- `lib/features/task/domain/usecases/resolve_task_reviewers.dart`
 - `lib/features/task/domain/usecases/update_task.dart`
 - `lib/features/task/domain/usecases/upload_task_attachment.dart`
 
@@ -106,7 +110,9 @@
 - `lib/features/task/domain/task_feed.dart`
 - `lib/features/task/domain/task_metrics.dart`
 - `lib/features/task/domain/task_ordering.dart`
+- `lib/features/task/domain/task_origin.dart`
 - `lib/features/task/domain/task_outcomes.dart`
+- `lib/features/task/domain/task_review_routing.dart`
 - `lib/features/task/domain/task_schedule.dart`
 - `lib/features/task/domain/work_types/definitions/general_work_type.dart`
 - `lib/features/task/domain/work_types/definitions/inspection_work_type.dart`
@@ -144,6 +150,7 @@
 ## Tests
 - `test/admin_task_overview_screen_test.dart`
 - `test/my_tasks_tabs_test.dart`
+- `test/notification_task_copy_test.dart`
 - `test/recurring_shift_task_test.dart`
 - `test/task_access_test.dart`
 - `test/task_archive_test.dart`
@@ -151,11 +158,14 @@
 - `test/task_attachment_test.dart`
 - `test/task_attention_surface_test.dart`
 - `test/task_badge_test.dart`
+- `test/task_browser_groups_test.dart`
+- `test/task_browser_test.dart`
 - `test/task_cancellation_test.dart`
 - `test/task_card_layout_test.dart`
 - `test/task_card_live_status_test.dart`
 - `test/task_checklist_test.dart`
 - `test/task_cubit_test.dart`
+- `test/task_details_origin_test.dart`
 - `test/task_feed_expansion_test.dart`
 - `test/task_feed_row_test.dart`
 - `test/task_feed_test.dart`
@@ -166,14 +176,18 @@
 - `test/task_model_shift_test.dart`
 - `test/task_model_work_type_test.dart`
 - `test/task_ordering_test.dart`
+- `test/task_origin_test.dart`
 - `test/task_outcomes_test.dart`
 - `test/task_preview_sheet_test.dart`
+- `test/task_review_routing_test.dart`
 - `test/task_schedule_test.dart`
 - `test/task_seen_store_test.dart`
 - `test/task_shift_stream_binding_test.dart`
 - `test/task_start_gate_widget_test.dart`
+- `test/task_start_transition_test.dart`
 - `test/task_status_test.dart`
 - `test/task_submission_gate_test.dart`
+- `test/task_submitted_recipients_test.dart`
 - `test/task_template_sheets_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)

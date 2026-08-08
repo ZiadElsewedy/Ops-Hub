@@ -95,6 +95,37 @@ void main() {
       expect(notificationPriority(NotificationType.salesSubmission),
           NotificationPriority.normal);
     });
+    test('an unknown type shows under All and under NO pill', () {
+      // The generalisation of the sales regression above: a type this build
+      // does not recognise must not be filed anywhere, because every filing is
+      // a claim about what it is. It stays readable in the main list.
+      const unknown = NotificationType.unknown;
+      expect(categoryOf(unknown), isNull);
+      expect(NotificationCategory.all.matches(unknown), isTrue);
+      for (final c in NotificationCategory.values
+          .where((c) => c != NotificationCategory.all)) {
+        expect(c.matches(unknown), isFalse, reason: c.label);
+      }
+    });
+
+    test('an unknown type takes the priority FLOOR, never `high`', () {
+      // The old `taskAssigned` fallback ranked it `high`, which floated
+      // notifications nobody could act on above genuinely overdue work.
+      expect(notificationPriority(NotificationType.unknown),
+          NotificationPriority.low);
+    });
+
+    test('`unknown` is the only type with no category — every other type files',
+        () {
+      // Guards the next enum value: adding a type without giving it a category
+      // must fail here rather than silently landing in `null` and vanishing
+      // from every pill.
+      for (final t in NotificationType.values
+          .where((t) => t != NotificationType.unknown)) {
+        expect(categoryOf(t), isNotNull, reason: t.name);
+      }
+    });
+
     test('swap notifications map to the Schedule category', () {
       for (final t in [
         NotificationType.swapRequested,

@@ -5,7 +5,7 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = DROP
+PRODUCT_NAME = Drop Operations
 
 // The application's bundle identifier.
 // NOTE: kept as com.ziad.drop on purpose — this identifier is registered with

@@ -14,6 +14,7 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/glass_container.dart';
+import 'package:drop/features/attendance/domain/attendance_calculator.dart';
 import 'package:drop/features/attendance/domain/attendance_config.dart';
 import 'package:drop/features/attendance/domain/attendance_gps.dart';
 import 'package:drop/features/attendance/domain/attendance_location_service.dart';
@@ -96,7 +97,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 }
 
-enum _Phase { ready, working, summary, leave, noShift }
+enum _Phase { ready, working, summary, leave, noShift, disabled }
 
 /// A flat view of the loaded state (the freezed `_Loaded` case is private).
 class _VM {
@@ -140,6 +141,16 @@ class _VM {
 
   bool get busyNow => busy || verifying;
 
+  /// Presence-style attendance (managers): an *open shift* — clock in and out at
+  /// any time, no rostered slot, no early/late semantics. Drives the open-shift
+  /// framing instead of the roster-bound one.
+  bool get presenceOnly => !config.enforceSchedule;
+
+  /// Whether clocking is switched on for this user's branch at all. Only a
+  /// manager can be switched off (an admin can turn manager clock-in off per
+  /// branch); employees are always on.
+  bool get clockingEnabled => config.enabled;
+
   /// Whether to offer an unscheduled shift ([ADR-018]).
   ///
   /// Only when the branch allows it, nothing is rostered, the employee is not
@@ -153,11 +164,18 @@ class _VM {
       today == null;
 
   _Phase get phase {
+    // A live session always wins — a flag flipped off mid-shift must never trap
+    // someone clocked in; they can still see the timer and clock out.
     if (session != null) return _Phase.working;
+    // Manager clock-in switched off for this branch (the branch attendance
+    // policy) — the explanatory off state, not a dead clock button.
+    if (!clockingEnabled) return _Phase.disabled;
     final t = today;
     if (t != null && !t.isOpen) return _Phase.summary;
     if (leave != null) return _Phase.leave;
-    if (shift == null) return _Phase.noShift;
+    // A presence-only role has no roster to be "off" from — its ready state is
+    // the open shift, always offered. Only a scheduled role sees "no shift".
+    if (shift == null) return presenceOnly ? _Phase.ready : _Phase.noShift;
     return _Phase.ready;
   }
 }
@@ -212,6 +230,28 @@ class _ClockView extends StatelessWidget {
         break;
       case _Phase.ready:
         content = _ReadyView(vm: vm, cubit: cubit);
+        break;
+      case _Phase.disabled:
+        // A manager whose branch has manager clock-in switched off. They keep
+        // attendance review and approval — they just have no clock of their own.
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _MessageCard(
+              icon: Icons.do_not_disturb_on_outlined,
+              title: 'Clocking is off for managers here',
+              message: 'Your branch has manager clock-in switched off. You still '
+                  'review and approve the team’s attendance — you just '
+                  'don’t clock a shift of your own.',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _SecondaryButton(
+              label: 'Review branch attendance',
+              icon: Icons.groups_outlined,
+              onPressed: () => context.push(RouteNames.attendanceReports),
+            ),
+          ],
+        );
         break;
     }
 
@@ -573,10 +613,25 @@ class _SummaryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final needsReview = record.needsReview;
+    // Worked / overtime are computed live from the record rather than read from
+    // the persisted fields: those are finalized server-side (ADR-024) and land a
+    // beat after clock-out (and only on the next sync when offline), so reading
+    // them raw would flash "0h" on a just-closed shift. A closed record measures
+    // to its own clock-out, so this equals the server snapshot; an open/auto-
+    // closed record (no clock-out) has no live figure to show, so fall back.
+    final totals = record.clockOut != null
+        ? AttendanceCalculator.forEntity(record, record.clockOut!)
+        : null;
+    final workedMinutes = totals?.workedMinutes ?? record.workedMinutes;
+    final overtimeMinutes = totals?.overtimeMinutes ?? record.overtimeMinutes;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ShiftBlock(vm: vm, titleOverride: '${record.shift.label} Shift'),
+        _ShiftBlock(
+          vm: vm,
+          titleOverride:
+              vm.presenceOnly ? 'Manager shift' : '${record.shift.label} Shift',
+        ),
         const SizedBox(height: AppSpacing.lg),
         GlassContainer(
           child: Column(
@@ -594,7 +649,7 @@ class _SummaryView extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                _hmPadded(record.workedMinutes),
+                _hmPadded(workedMinutes),
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 34,
@@ -616,12 +671,12 @@ class _SummaryView extends StatelessWidget {
                 verified: record.isClockOutVerified,
                 hasGps: record.clockOutVerification != null,
               ),
-              if (record.overtimeMinutes > 0) ...[
+              if (overtimeMinutes > 0) ...[
                 const Divider(
                     color: AppColors.darkBorder, height: AppSpacing.lg),
                 _SummaryRow(
                     label: 'Overtime',
-                    value: _hmPadded(record.overtimeMinutes)),
+                    value: _hmPadded(overtimeMinutes)),
               ],
             ],
           ),
@@ -745,6 +800,7 @@ class _StatusBadge extends StatelessWidget {
       _Phase.summary => ('Shift complete', AppColors.success),
       _Phase.leave => ('On leave', AppColors.warning),
       _Phase.noShift => ('No shift today', AppColors.textTertiary),
+      _Phase.disabled => ('Clocking off', AppColors.textTertiary),
       _Phase.ready => ('Not clocked in', AppColors.textTertiary),
     };
     return Align(
@@ -789,18 +845,24 @@ class _ShiftBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A manager's clock is an *open shift* — no roster, no set hours — so its
+    // header says so instead of naming a shift the manager was never assigned.
+    final presence = vm.presenceOnly;
+    final eyebrow = presence ? 'OPEN SHIFT' : 'TODAY\'S SHIFT';
     final title = titleOverride ??
-        (vm.shift != null ? '${vm.shift!.label} Shift' : 'Today');
+        (presence
+            ? 'Manager shift'
+            : (vm.shift != null ? '${vm.shift!.label} Shift' : 'Today'));
     final start = vm.scheduledStart, end = vm.scheduledEnd;
     final range = (start != null && end != null)
         ? '${_hhmm(start)} — ${_hhmm(end)}'
-        : null;
+        : (presence ? 'Clock in and out anytime — no set hours' : null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'TODAY\'S SHIFT',
-          style: TextStyle(
+        Text(
+          eyebrow,
+          style: const TextStyle(
             color: AppColors.textTertiary,
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -821,10 +883,10 @@ class _ShiftBlock extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               range,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 15,
-                fontFeatures: [FontFeature.tabularFigures()],
+                fontSize: presence ? 13 : 15,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),

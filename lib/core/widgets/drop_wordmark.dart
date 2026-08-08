@@ -26,7 +26,7 @@ class DropWordmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      'DROP',
+      'Drop Operations',
       style: TextStyle(
         fontSize: fontSize,
         fontWeight: FontWeight.w800,

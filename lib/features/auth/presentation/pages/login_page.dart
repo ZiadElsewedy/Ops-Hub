@@ -33,6 +33,31 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+    // A session the app ended on the user's behalf — today only
+    // single-active-session eviction — sets `signedOutReason` on
+    // `unauthenticated`, and the router then redirects here. That state change
+    // happened BEFORE this page mounted, so the `BlocListener` below can never
+    // see it; the reason has to be read off the current state on the first
+    // frame. Consumed immediately so it shows exactly once.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showSignOutReason());
+  }
+
+  /// Surfaces `AuthState.unauthenticated.signedOutReason` once, then clears it.
+  void _showSignOutReason() {
+    if (!mounted) return;
+    final cubit = context.read<AuthCubit>();
+    final reason = cubit.state.maybeWhen(
+      unauthenticated: (reason) => reason,
+      orElse: () => null,
+    );
+    if (reason == null) return;
+    AppSnackbar.error(context, reason);
+    cubit.acknowledgeSignOutReason();
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -55,7 +80,17 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: AppColors.darkBg,
       body: BlocListener<AuthCubit, AuthState>(
         listener: (context, state) {
-          state.whenOrNull(error: (msg) => AppSnackbar.error(context, msg));
+          state.whenOrNull(
+            error: (msg) => AppSnackbar.error(context, msg),
+            // The eviction path normally lands before this page mounts (handled
+            // in `initState`), but it can also arrive while Login is already on
+            // screen — a takeover during a cold start that had not yet routed.
+            unauthenticated: (reason) {
+              if (reason == null) return;
+              AppSnackbar.error(context, reason);
+              context.read<AuthCubit>().acknowledgeSignOutReason();
+            },
+          );
         },
         child: context.isDesktop ? _buildDesktop(context) : _buildMobile(context),
       ),
@@ -103,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                 const FadeSlideTransition(
                   delay: Duration(milliseconds: 140),
                   child: Text(
-                    'Sign in to your DROP account',
+                    'Sign in to your Drop Operations account',
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyLarge,
                   ),
@@ -145,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                     const Text('Welcome back', style: AppTypography.h1),
                     const SizedBox(height: AppSpacing.sm),
                     const Text(
-                      'Sign in to your DROP account',
+                      'Sign in to your Drop Operations account',
                       style: AppTypography.body,
                     ),
                     const SizedBox(height: AppSpacing.xxxl),

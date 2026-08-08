@@ -74,6 +74,8 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> setProfileCompleted(String uid, bool value) async {}
   @override
   Future<void> setOnboardingCompleted(String uid, bool value) async {}
+  @override
+  Future<void> claimSession(String uid, String sessionId) async {}
 }
 
 class FakeNotificationRepository implements NotificationRepository {
@@ -88,6 +90,8 @@ class FakeNotificationRepository implements NotificationRepository {
   Future<void> markRead(String id) async => markedRead.add(id);
   @override
   Future<void> markAllRead(String uid) async {}
+  @override
+  Future<void> deleteArchived(String uid) async {}
   @override
   Future<void> create(NotificationEntity notification) async {}
   @override

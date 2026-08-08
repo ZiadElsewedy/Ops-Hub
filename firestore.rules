@@ -22,6 +22,17 @@ service cloud.firestore {
     function isAdmin()   { return isSignedIn() && selfRole() == 'admin'; }
     function isManager() { return isSignedIn() && selfRole() == 'manager'; }
 
+    // The TARGET user's role, by uid. Managers are peers: a manager may correct
+    // an EMPLOYEE's attendance but never another manager's (or an admin's) —
+    // only an admin corrects a manager. The user doc is provisioned before any
+    // attendance exists, so this get() is safe on the correction/record paths
+    // (an absent record still resolves its owner's role). `exists()` guards a
+    // uid with no user doc, which then reads as "not an employee".
+    function isEmployeeUser(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+        && get(/databases/$(database)/documents/users/$(uid)).data.get('role', '') == 'employee';
+    }
+
     // Branch scoping. Admin is global (any branch); a manager reaches only their
     // own branch. Employees never reach a whole branch — only their own data.
     function canReachBranch(branch) {
@@ -295,8 +306,10 @@ service cloud.firestore {
 
       // An APPROVED task is a locked, reviewed record. A manager/admin may not
       // edit / reassign / re-status it in place; the ONLY change permitted on an
-      // already-approved task is an ADMIN REOPEN — moving it OUT of `approved`
-      // (back into the workflow) so a mistaken approval is recoverable. The
+      // already-approved task is a MANAGER/ADMIN REOPEN — moving it OUT of
+      // `approved` (back into the workflow) so a mistaken approval is
+      // recoverable. Branch-scoped by `canReachBranch`, so a manager reopens
+      // only their own branch's tasks and an employee can never take it. The
       // review transition INTO approved is unaffected (the stored status is then
       // `waitingReview`, so this guard passes).
       //
@@ -337,8 +350,7 @@ service cloud.firestore {
           || cancelRecordUnchanged())
         && ((canReachBranch(resource.data.get('branchId', ''))
               && (resource.data.get('status', 'pending') != 'approved'
-                  || (isAdmin()
-                      && request.resource.data.get('status', 'pending') != 'approved')))
+                  || request.resource.data.get('status', 'pending') != 'approved'))
           || ((isTaskAssignee() || isShiftTaskInMyBranch())
             // employees can't reassign the task (assignees frozen)
             && request.resource.data.get('assigneeIds', [])
@@ -874,23 +886,77 @@ service cloud.firestore {
     //            userId immutable.
     //   delete — never (records are history; removal is a soft-delete update).
     match /attendance/{recordId} {
+      // The owner's ONLY legitimate client update is a clock-out: set clockOut +
+      // its verification and move inProgress → completed. Every payroll-relevant
+      // field is frozen — worked/late/early/overtime/break minutes are computed
+      // server-side (onAttendanceWritten, Admin SDK) and clock-in can't be
+      // backdated — so an employee talking to Firestore directly can never
+      // choose their own pay or erase their lateness (ADR-024).
+      function attendanceOwnerClockOutOk() {
+        return
+          // Identity + scope are immutable.
+          request.resource.data.get('userId', '') == resource.data.get('userId', '')
+          && request.resource.data.get('branchId', '') == resource.data.get('branchId', '')
+          && request.resource.data.get('shift', '') == resource.data.get('shift', '')
+          && request.resource.data.get('dayKey', '') == resource.data.get('dayKey', '')
+          // Clock-in and the scheduled window you are measured against are frozen.
+          && request.resource.data.get('clockIn', null) == resource.data.get('clockIn', null)
+          && request.resource.data.get('scheduledStart', null) == resource.data.get('scheduledStart', null)
+          && request.resource.data.get('scheduledEnd', null) == resource.data.get('scheduledEnd', null)
+          && request.resource.data.get('presenceOnly', false) == resource.data.get('presenceOnly', false)
+          // Payroll minutes are server-owned — a client write may never change them.
+          && request.resource.data.get('workedMinutes', 0) == resource.data.get('workedMinutes', 0)
+          && request.resource.data.get('lateMinutes', 0) == resource.data.get('lateMinutes', 0)
+          && request.resource.data.get('earlyLeaveMinutes', 0) == resource.data.get('earlyLeaveMinutes', 0)
+          && request.resource.data.get('overtimeMinutes', 0) == resource.data.get('overtimeMinutes', 0)
+          && request.resource.data.get('breakMinutes', 0) == resource.data.get('breakMinutes', 0)
+          && request.resource.data.get('breaks', []) == resource.data.get('breaks', [])
+          // Provenance stays server/reviewer-owned (can't self-brand a correction).
+          && request.resource.data.get('source', 'clock') == resource.data.get('source', 'clock')
+          && request.resource.data.get('resolvedBy', '') == resource.data.get('resolvedBy', '')
+          // Exactly the clock-out transition: was an open session, now completed
+          // with a clock-out set.
+          && resource.data.get('clockOut', null) == null
+          && resource.data.get('status', '') == 'inProgress'
+          && request.resource.data.get('status', '') == 'completed'
+          && request.resource.data.get('clockOut', null) != null;
+      }
+
       allow read: if isAdmin()
         || (isManager() && resource.data.get('branchId', '') == selfBranch())
         || isOwner(resource.data.get('userId', ''));
 
+      // A clock-in creates an OPEN record with no worked time yet. Minutes and a
+      // clock-out are pinned to zero/absent so a forged "already worked 10h"
+      // record can't be born at create time (ADR-024).
       allow create: if isSignedIn()
         && request.resource.data.get('userId', '') == request.auth.uid
         && request.resource.data.get('status', 'inProgress') == 'inProgress'
+        && request.resource.data.get('clockOut', null) == null
+        && request.resource.data.get('workedMinutes', 0) == 0
+        && request.resource.data.get('lateMinutes', 0) == 0
+        && request.resource.data.get('earlyLeaveMinutes', 0) == 0
+        && request.resource.data.get('overtimeMinutes', 0) == 0
+        && request.resource.data.get('breakMinutes', 0) == 0
         && (isAdmin()
             || request.resource.data.get('branchId', '') == selfBranch());
 
       allow update: if
-        isAdmin()
-        || (isManager()
-            && resource.data.get('branchId', '') == selfBranch())
-        || (isOwner(resource.data.get('userId', ''))
-            && request.resource.data.get('userId', '') ==
-               resource.data.get('userId', ''));
+        // A reviewer acting on someone ELSE's record in their scope (e.g. a
+        // soft-delete). The server-authoritative correction path is preferred for
+        // edits; self is excluded so a reviewer's own clock-out is pinned below.
+        // A manager may act only on an EMPLOYEE's record — never a peer manager's
+        // (an admin alone corrects a manager).
+        (
+          (isAdmin()
+           || (isManager()
+               && resource.data.get('branchId', '') == selfBranch()
+               && isEmployeeUser(resource.data.get('userId', ''))))
+          && request.auth.uid != resource.data.get('userId', '')
+          && request.resource.data.get('userId', '') == resource.data.get('userId', '')
+        )
+        // The owner (any role, on their OWN record) may only clock out.
+        || (isOwner(resource.data.get('userId', '')) && attendanceOwnerClockOutOk());
 
       allow delete: if false;
 
@@ -991,21 +1057,28 @@ service cloud.firestore {
             && (isAdmin()
                 || request.resource.data.get('branchId', '') == selfBranch())
           )
-          // (b) reviewer direct action — approved correction for another user
+          // (b) reviewer direct action — approved correction for another user.
+          // A manager may only correct an EMPLOYEE; an admin alone corrects a
+          // manager (managers are peers — no manager-on-manager review).
           || (
             (isAdmin()
              || (isManager()
-                 && request.resource.data.get('branchId', '') == selfBranch()))
+                 && request.resource.data.get('branchId', '') == selfBranch()
+                 && isEmployeeUser(request.resource.data.get('userId', ''))))
             && request.resource.data.get('status', '') == 'approved'
             && request.resource.data.get('decidedBy', '') == request.auth.uid
             && request.auth.uid != request.resource.data.get('userId', '')
           )
         );
 
+      // A manager decides a correction only on an EMPLOYEE's attendance; an admin
+      // alone decides one on a manager's (no manager-on-manager review, and no
+      // self-approval via the `auth.uid != userId` guard below).
       allow update: if
         (isAdmin()
          || (isManager()
-             && resource.data.get('branchId', '') == selfBranch()))
+             && resource.data.get('branchId', '') == selfBranch()
+             && isEmployeeUser(resource.data.get('userId', ''))))
         && request.auth.uid != resource.data.get('userId', '')
         && request.resource.data.get('userId', '') ==
            resource.data.get('userId', '')

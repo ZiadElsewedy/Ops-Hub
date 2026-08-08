@@ -1,4 +1,8 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:drop/core/theme/app_colors.dart';
+import 'package:drop/core/theme/app_radius.dart';
+import 'package:drop/core/theme/app_spacing.dart';
+import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/features/attendance/domain/attendance_board.dart';
 import 'package:drop/features/attendance/domain/attendance_write_outcome.dart';
@@ -133,6 +137,51 @@ Future<AttendanceWriteOutcome> excuseAttendanceAbsence(
     dismissContext,
     appliedMessage ?? 'Absence excused.',
   );
+}
+
+/// Shown in place of the direct manager write actions on a reviewer's **own**
+/// attendance row. Correcting your own attendance is forbidden server-side — no
+/// self-approval (the `attendance_corrections` rules in `firestore.rules`) — so
+/// rendering those buttons on your own shift would only ever produce a
+/// permission failure. This states the real rule instead: file a correction from
+/// My Attendance like anyone else, and a *different* reviewer approves it.
+///
+/// The server remains the gate; this is presentation only, so the UI stops
+/// offering an action that is guaranteed to fail.
+class OwnAttendanceNotice extends StatelessWidget {
+  const OwnAttendanceNotice({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.darkSurfaceElevated,
+        borderRadius: AppRadius.mdAll,
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              "You can't review your own shift. File a correction from My "
+              'Attendance and another manager or admin will approve it.',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Close the sheet and say what actually happened, in the manager's terms.

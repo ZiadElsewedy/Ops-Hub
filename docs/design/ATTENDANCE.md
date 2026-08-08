@@ -55,9 +55,26 @@ shift's pay. If you need minute math, call the calculator. Do not inline it.
 
 Managers use the same attendance, account, leave, duplicate-punch, and GPS gates
 as employees, but `AttendanceService.configFor` resolves
-`enforceSchedule: false` for them. Their punch is presence tracking: it can happen
-at any time, with or without a rostered shift. Employees retain schedule-required
-and early-window validation. This does not alter worked-minute calculation.
+`enforceSchedule: false` for them. Their punch is presence tracking — an **open
+shift**: clock in and out at any time, with or without a rostered slot, and no
+scheduled window (so nothing to be late for) even on a day they happen to be
+rostered. Employees retain schedule-required and early-window validation. This
+does not alter worked-minute calculation.
+
+- **The clock target always exists for a presence role.** `AttendanceCubit._resolveContext`
+  synthesizes a presence-only target (the time-of-day bucket via
+  `unscheduledShiftFor`, no scheduled window) whenever a manager has no rostered
+  slot — so the **primary** Clock In writes a record directly. Without this the
+  primary path fell through (`clockIn` needs a `targetRecordId`/`shift`) and a
+  manager's only route was the deliberate "unscheduled shift" action. The screen
+  frames this as an **OPEN SHIFT / Manager shift** ready state.
+- **`branches/{id}.managersCanClock`** is the per-branch switch. False ⇒
+  `configFor` resolves `enabled: false` for a manager, and the personal clock
+  screen renders an explanatory *"Clocking is off for managers here"* state (a
+  live session still wins, so the flag can never trap someone mid-shift) — the
+  manager keeps attendance review and approval. Edited in the branch form sheet;
+  employees are always enabled. A manager reaches their own clock from the mobile
+  role app-bar (fingerprint) and the desktop sidebar's **My Clock** door.
 
 ## Verification
 
@@ -97,17 +114,26 @@ server applies + audits → onAttendanceCorrectionWritten
 
 ## Server authority
 
-The client writes **only the record**. The audit trail is derived by diffing, in a
-Function — see [ADR-005](../decisions/ADR-005-server-authoritative-writes.md).
+The client writes a **deliberately narrow slice** of the record: a clock-in creates
+an open, zero-minute record; a clock-out sets `clockOut` + `status` +
+`clockOutVerification`. **It never writes a worked/late/early/overtime/break minute**
+— those feed payroll and are computed by the Admin SDK, so the client cannot choose
+its own pay or backdate its arrival ([ADR-024](../decisions/ADR-024-server-authoritative-attendance-minutes.md)).
+The audit trail is derived by diffing, in a Function — see
+[ADR-005](../decisions/ADR-005-server-authoritative-writes.md).
 
 | Function | Does |
 | --- | --- |
-| `onAttendanceWritten` | Derives audit events by diffing the record |
+| `onAttendanceWritten` | Derives audit events by diffing the record **and finalizes the authoritative minute snapshot** (`attendance_totals.js`, a port of `AttendanceCalculator`, guarded on `source: 'clock'`) |
 | `onAttendanceCorrectionWritten` | Correction lifecycle → apply → audit → notify |
 | `autoCloseAttendance` | Scheduled: never-clocked-out sessions → `pendingReview` |
 
-Clients **cannot write `attendance/{id}/events` at all.** That is what makes
-"nothing silently modifies attendance" an enforceable claim rather than a hope.
+The `attendance` **create** and owner **update** rules pin every payroll-sensitive
+field (minutes, clock-in, the scheduled window, `source`), so a client write can only
+ever be a genuine clock-in or clock-out — pinned by
+`firestore-tests/attendance.rules.test.mjs`. Clients **cannot write
+`attendance/{id}/events` at all.** That is what makes "nothing silently modifies
+attendance" an enforceable claim rather than a hope.
 
 ## Presentation
 
@@ -137,12 +163,23 @@ filterable KPIs · details sheet · corrections approve/reject · GPS-area short
 `presentation/details/`), built **entirely on the existing reads**
 (`watchUserHistory` · `watchBranchRange` · `watchEvents` ·
 `watchRecordCorrections`) plus the pure `AttendanceStats` and the new pure
-`AttendanceHistoryQuery` (date-range preset + status/shift/name facets → resolve +
-`apply`) — no new data path, no parallel repository. One `AttendanceHistoryScreen`
+`AttendanceHistoryQuery` (date-range preset incl. **Today/Yesterday** + a
+**multi-select** status facet set combined with OR + shift + a name search that is
+**Arabic- and diacritic-insensitive** via `attendanceSearchNormalize` → resolve +
+`apply`) — no new data path, no parallel repository. Curated one-tap **quick views**
+(`attendance_history_preset.dart`, a fixed `kAttendanceHistoryPresets` — *Late this
+week*, *Overtime this month*, …) fold a range + status set onto the query; a
+reviewer whose branch has no records for a searched name still sees them via the
+directory-backed match (`attendance_directory_match.dart`). One `AttendanceHistoryScreen`
 serves two entries: `.self()` (`/attendance/history`, any authenticated role — the
 caller's own history) and `.review()` (`/attendance/review`, **admin‖manager** via
 the `_isAttendanceReviewArea` guard — the branch ledger, with an admin branch
-picker + employee-name search). A record card opens the audit-log Details screen
+picker + employee-name search). The reviewer search is **directory-backed**: the
+cubit loads the branch's active employees (`GetUsersByBranch`, cached per branch)
+and `attendanceDirectoryOnlyMatches` surfaces a searched-for teammate who has no
+record *and* no rostered-shift gap this period as a quiet "no attendance" row —
+so a name resolves against the whole directory, not just the days that produced a
+document. A record card opens the audit-log Details screen
 (`/attendance/record/:id`, seeded via go_router `extra` for an instant paint):
 scheduled window · clock in/out + GPS · worked/late/early/overtime · **Timeline**
 (the server `events` through the shared `TimelineTile`, with a record-derived
@@ -155,10 +192,18 @@ the requests-detail pattern). **Entry points:** the employee clock screen's *Vie
 history* → the self ledger; the admin board gains a *History* action + a *View full
 record* sheet button; a **manager** reaches the branch ledger from the desktop
 sidebar (+⌘K) and a home-screen tile — their first attendance-oversight surface.
-Deferred, holding
+**Weekly & monthly reports and their exports have since shipped** (client-side
+CSV timesheet + PDF summary, gated by `attendance_export_gate.dart`; see
+[ADR-019](../decisions/ADR-019-operational-exports-and-week-review.md)) — the
+"Report generation" surfaces under `presentation/reporting/`. The hub also carries a
+**Rankings** board (`attendance_rankings.dart` + `AttendanceRankingsCard`) that ranks
+the streamed ledger by a chosen metric — overtime · lateness · absences · missing
+punches · hours worked — answering "*who* has the most X this period", with no extra
+read. Still deferred, holding
 [ADR-009](../decisions/ADR-009-no-analytics-pipeline.md) +
-[ADR-010](../decisions/ADR-010-lean-over-enterprise.md): performance score,
-analytics/heatmaps, CSV/PDF export, payroll — the ledger data already supports them.
+[ADR-010](../decisions/ADR-010-lean-over-enterprise.md): a performance score,
+analytics/heatmaps/trends, and a machine-readable payroll export — the ledger data
+already supports them.
 
 ## Removed — dormant extension points
 

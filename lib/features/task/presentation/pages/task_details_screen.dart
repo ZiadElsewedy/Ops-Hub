@@ -218,7 +218,7 @@ class _DetailsView extends StatelessWidget {
     // may reopen an APPROVED task, and an admin alone may correct a mistaken
     // missed/cancelled terminal (Automated Tasks spec §6.4).
     final isLocked = task.status.isTerminal;
-    final canReopen = isAdmin && task.status == TaskStatus.approved;
+    final canReopen = isManagerOrAdmin && task.status == TaskStatus.approved;
     final canCorrectTerminal =
         isAdmin &&
         (task.status == TaskStatus.missed ||

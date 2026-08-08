@@ -50,6 +50,7 @@ ChatMessage _live(String conversationId, String id, int seq, String body) =>
 class _FakeRealtime implements ChatRealtime {
   final controller = StreamController<ChatRealtimeEvent>.broadcast(sync: true);
   int inboxAttaches = 0;
+  int appResumes = 0;
 
   @override
   Stream<ChatRealtimeEvent> get events => controller.stream;
@@ -59,6 +60,9 @@ class _FakeRealtime implements ChatRealtime {
 
   @override
   Future<void> detachInbox() async {}
+
+  @override
+  Future<void> onAppResumed() async => appResumes++;
 
   @override
   Future<bool> joinConversation(String conversationId) async => true;
@@ -165,6 +169,20 @@ void main() {
     await cubit.load();
     await cubit.load(forceRefresh: true);
     expect(rt.inboxAttaches, 1);
+    await cubit.close();
+  });
+
+  test('onAppResumed pokes the socket to reconnect', () async {
+    final rt = _FakeRealtime();
+    final cubit = _cubit(
+      _FakeChatRepository(
+          onList: ({String? cursor}) async =>
+              ChatConversationPage(items: [_summary('a')])),
+      rt,
+    );
+    cubit.onAppResumed();
+    await Future<void>.microtask(() {});
+    expect(rt.appResumes, 1);
     await cubit.close();
   });
 

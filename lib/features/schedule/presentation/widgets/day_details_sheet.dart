@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/enums/leave_type.dart';
 import 'package:drop/core/enums/schedule_day.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
+import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
@@ -453,16 +454,31 @@ class _DayDetailsSheetState extends State<DayDetailsSheet> {
   void _showLeavePicker(BuildContext context, WeeklyScheduleEntity schedule,
       List<UserEntity> members) {
     final cubit = context.read<ScheduleCubit>();
+    // A manager works an open (presence) shift and so never fills a Morning or
+    // Night slot — but employees still need to see the manager's day off. So a
+    // manager may mark their **own** day off here (self only; Day off only),
+    // while everyone else is a branch employee choosing any leave type.
+    final me = context.currentUser;
+    final canMarkSelfOff = me != null && me.role.isManager && me.isActive;
     showEmployeePicker(
       context: context,
       title: '${day.label} · Leave',
       subtitle: 'Pick who is away, then the reason',
-      employees:
-          members.where((u) => u.role.isEmployee && u.isActive).toList(),
+      employees: [
+        for (final u in members)
+          if ((u.role.isEmployee && u.isActive) ||
+              (canMarkSelfOff && u.uid == me.uid))
+            u,
+      ],
       isAssigned: (u) => schedule.leaveOn(day).containsKey(u.uid),
       onPick: (u) {
         Navigator.of(context).pop();
-        _showTypePicker(cubit, u);
+        if (canMarkSelfOff && u.uid == me.uid) {
+          // The manager's own entry is always a Day off — no type choice.
+          cubit.setLeave(day, u.uid, LeaveType.dayOff);
+        } else {
+          _showTypePicker(cubit, u);
+        }
       },
     );
   }

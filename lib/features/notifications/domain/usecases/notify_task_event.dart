@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:drop/core/enums/notification_type.dart';
+import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
 import 'package:drop/features/notifications/domain/notification_deep_link.dart';
@@ -15,7 +16,22 @@ import 'package:drop/features/task/domain/entities/task_entity.dart';
 /// write, so [call] never throws: errors are logged and swallowed.
 class NotifyTaskEvent {
   final NotificationRepository _repository;
-  const NotifyTaskEvent(this._repository);
+
+  /// Injectable clock. Nullable rather than defaulted so the constructor stays
+  /// `const`; read through [_clock]. Exists because [_dueLabel] has to decide
+  /// "is this deadline today?", and a use case that reads the wall clock
+  /// directly cannot be tested across a day boundary — the project convention
+  /// for every other pure domain decision (`AppDateFormatter.relativeDay`,
+  /// `startBlockedReason`, `reminderDueKind`) is an injected `now`.
+  final DateTime Function()? _now;
+
+  // The lint wants `{this._now}`, which Dart does not allow: a named parameter
+  // cannot have a private name. The field stays private, so this stays a plain
+  // initializer.
+  const NotifyTaskEvent(this._repository, {DateTime Function()? now})
+      : _now = now; // ignore: prefer_initializing_formals
+
+  DateTime get _clock => (_now ?? DateTime.now)();
 
   /// Emits [type] for [task], triggered by [actor]. For an *assignment* event,
   /// pass [recipientOverride] to target only the newly-added assignees (so a
@@ -34,11 +50,11 @@ class NotifyTaskEvent {
           .toList();
       if (cleaned.isEmpty) return;
 
+      final now = _clock;
       final actorName = _actorName(actor);
       final title = _titleFor(type);
-      final body = _bodyFor(task, type, actorName);
+      final body = _bodyFor(task, type, actorName, now);
       final payload = _payloadFor(task, type);
-      final now = DateTime.now();
 
       final notifications = [
         for (final uid in cleaned)
@@ -99,10 +115,15 @@ class NotifyTaskEvent {
   /// name the task**. A body that only restates the event ("Task approved")
   /// leaves a row that is indistinguishable from every other row of its type,
   /// which is exactly the complaint this copy was rewritten for.
-  String _bodyFor(TaskEntity task, NotificationType type, String actorName) {
+  String _bodyFor(
+    TaskEntity task,
+    NotificationType type,
+    String actorName,
+    DateTime now,
+  ) {
     switch (type) {
       case NotificationType.taskAssigned:
-        final due = _dueLabel(task.deadline);
+        final due = _dueLabel(task.deadline, now);
         return due == null ? task.title : '${task.title} • Due $due';
       case NotificationType.taskRework:
         final reason = (task.rejectionReason ?? '').trim();
@@ -156,26 +177,22 @@ class NotifyTaskEvent {
     return email.isNotEmpty ? email : 'Someone';
   }
 
-  /// "today 4:30 PM" / "21 Jun 4:30 PM" — a short, human due label.
-  String? _dueLabel(DateTime? deadline) {
+  /// `Today 16:30` / `Tomorrow 08:30` / `21 Jun 16:30` — a short due label.
+  ///
+  /// Delegates entirely to [AppDateFormatter], the single source for
+  /// `DateTime → String` (PROJECT_CONTEXT §4). It used to hand-roll its own
+  /// month table and a 12-hour AM/PM clock, which put this notification
+  /// (`Due today 4:30 PM`) and the Task Details schedule band (`16:30`, since
+  /// the 2026-08-06 rework) on **two different clocks for the same deadline**.
+  /// 24-hour is the one the shift windows use (`ShiftHours.format` →
+  /// `08:30 – 16:30`), so it is the one a deadline sits beside.
+  ///
+  /// [relativeDayShort] also earns `Tomorrow` for free — the old code called
+  /// anything that was not today by its bare date, so a task assigned late at
+  /// night for the morning shift read `7 Aug 08:30` instead of `Tomorrow 08:30`.
+  String? _dueLabel(DateTime? deadline, DateTime now) {
     if (deadline == null) return null;
-    final now = DateTime.now();
-    final isToday = deadline.year == now.year &&
-        deadline.month == now.month &&
-        deadline.day == now.day;
-    final time = _timeLabel(deadline);
-    if (isToday) return 'today $time';
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${deadline.day} ${months[deadline.month - 1]} $time';
-  }
-
-  String _timeLabel(DateTime d) {
-    final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
-    final minute = d.minute.toString().padLeft(2, '0');
-    final period = d.hour < 12 ? 'AM' : 'PM';
-    return '$hour12:$minute $period';
+    final day = AppDateFormatter.relativeDayShort(deadline, now: now);
+    return '$day ${AppDateFormatter.time24(deadline)}';
   }
 }

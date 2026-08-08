@@ -115,14 +115,20 @@ const {
 const { isRetryableBroadcastPushError, resolveSendsPush } = require("./broadcast_delivery");
 const { canClaimScheduledBroadcast } = require("./broadcast_schedule");
 const {
-  BUSINESS_TIME_ZONE: SALES_TIME_ZONE, businessMonthKey, isMonthKey, isValidMoney,
-  nextStatus, targetAchievedCrossing, canDecideSubmission,
+  BUSINESS_TIME_ZONE: SALES_TIME_ZONE, businessMonthKey, businessDateKey: salesBusinessDateKey,
+  isMonthKey, isValidMoney, isRecordableSalesDate, salesSubmissionId, salesMonthId,
+  nextStatus, targetAchievedCrossing, canDecideSubmission, selectSalesRecipients,
 } = require("./sales_target");
 const {
   correctionTargetsOwnRecord,
   correctionMatchesExistingRecordOwner,
 } = require("./attendance_correction_target");
+const {
+  computeAttendanceTotals,
+  attendanceTotalsDiffer,
+} = require("./attendance_totals");
 const { attendanceNotificationSubject } = require("./attendance_notification_subject");
+const { canNotify } = require("./notification_reach");
 const {
   canDeleteAdmin,
   weekIsCurrentOrFuture,
@@ -1330,14 +1336,22 @@ async function writeSalesAudit({ eventType, entityType, entityId, actor, branchI
     actorName: actor.name, actorRole: actor.role, branchId, metadata, schemaVersion: 1,
     isDeleted: false, timestamp: admin.firestore.FieldValue.serverTimestamp() });
 }
-async function salesRecipients(branchId, { managersOnly = false, adminsFallback = false } = {}) {
-  const snap = await db.collection(USERS).where("branchId", "==", branchId).where("isActive", "==", true).get();
-  let ids = snap.docs.filter((d) => !managersOnly || d.data().role === "manager").map((d) => d.id);
-  if (!ids.length && adminsFallback) {
-    const admins = await db.collection(USERS).where("role", "==", "admin").where("isActive", "==", true).get();
-    ids = admins.docs.map((d) => d.id);
-  }
-  return ids;
+// Reads both halves of the recipient set — the branch's active users and every
+// active admin — and hands them to the pure `selectSalesRecipients` policy.
+// Admins are an ADDITION, not a fallback: they have no `branchId`, so the
+// branch query alone could never reach them and the whole sales feature was
+// silent for them. See `selectSalesRecipients` for the full rationale.
+async function salesRecipients(branchId, { managersOnly = false, excludeUid = "" } = {}) {
+  const [branchSnap, adminSnap] = await Promise.all([
+    db.collection(USERS).where("branchId", "==", branchId).where("isActive", "==", true).get(),
+    db.collection(USERS).where("role", "==", "admin").where("isActive", "==", true).get(),
+  ]);
+  return selectSalesRecipients({
+    branchUsers: branchSnap.docs.map((d) => ({ id: d.id, role: String((d.data() || {}).role || "employee") })),
+    admins: adminSnap.docs.map((d) => ({ id: d.id })),
+    managersOnly,
+    excludeUid,
+  });
 }
 async function writeSalesNotifications(recipientUids, { title, body, submissionId = null, monthKey = null }) {
   const ids = [...new Set(recipientUids.filter(Boolean))];
@@ -1389,7 +1403,7 @@ exports.setBranchSalesTarget = onCall(async (request) => {
     }
   });
   try { await writeSalesAudit({ eventType: "sales.target_changed", entityType: "sales_month", entityId: ref.id, actor, branchId, metadata: { branchId, monthKey, targetId: ref.id, oldTargetPiastres: result.oldTarget, newTargetPiastres: data.targetPiastres, targetRevision: result.targetRevision, reason, schemaVersion: 1 } });
-    await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target updated", body: "Your branch monthly sales target was updated.", monthKey });
+    await writeSalesNotifications(await salesRecipients(branchId, { excludeUid: actor.id }), { title: "Sales target updated", body: "Your branch monthly sales target was updated.", monthKey });
   } catch (err) { logger.warn("failed to write sales target side effects", { error: String(err), branchId, monthKey }); }
   return { success: true, targetRevision: result.targetRevision };
 });
@@ -1417,7 +1431,7 @@ exports.decideDailySalesSubmission = onCall(async (request) => {
   const event = { approve: "sales.approved", reject: "sales.rejected", requestCorrection: "sales.correction_requested", reopen: "sales.reopened" }[action];
   try { await writeSalesAudit({ eventType: event, entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldStatus: result.sub.status, newStatus: result.nextStatus, revision: result.revision, reason: reason || null, schemaVersion: 1 } });
     await writeSalesNotifications([result.sub.submittedById], { title: "Sales submission updated", body: `Your sales submission was ${result.nextStatus}.`, submissionId });
-    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
+    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId, { excludeUid: actor.id }), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
   } catch (err) { logger.warn("failed to write sales decision side effects", { error: String(err), submissionId }); }
   return { success: true, status: result.nextStatus };
 });
@@ -1427,7 +1441,7 @@ exports.editApprovedDailySalesSubmission = onCall(async (request) => {
   if (!submissionId || !isValidMoney(data.amountPiastres) || !Number.isInteger(data.expectedRevision)) throw new HttpsError("invalid-argument", "Invalid sales edit.");
   const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
   if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
-  const branchId = String((initial.data() || {}).branchId || ""); const actor = await requireSalesManager(request, branchId); const reason = salesReason(data.reason); let result;
+  const branchId = String((initial.data() || {}).branchId || ""); const actor = await requireSalesManager(request, branchId); const reason = salesReason(data.reason, false); let result;
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists."); const sub = snap.data() || {};
     const revision = Number(sub.revision) || 1; if (sub.status !== "approved" || revision !== data.expectedRevision) throw new HttpsError("failed-precondition", "Sales submission revision is stale or not approved.");
@@ -1436,8 +1450,18 @@ exports.editApprovedDailySalesSubmission = onCall(async (request) => {
     tx.update(ref, { amountPiastres: data.amountPiastres, revision: revision + 1, lastEditedById: actor.id, lastEditedByName: actor.name, lastEditedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     result = { sub, oldAmount: sub.amountPiastres, revision: revision + 1, crossing };
   });
-  try { await writeSalesAudit({ eventType: "sales.approved_amount_edited", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.oldAmount, newAmountPiastres: data.amountPiastres, revision: result.revision, reason, schemaVersion: 1 } });
-    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
+  try { await writeSalesAudit({ eventType: "sales.approved_amount_edited", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId, metadata: { branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.oldAmount, newAmountPiastres: data.amountPiastres, revision: result.revision, reason: reason || null, schemaVersion: 1 } });
+    // Tell the person who submitted the day that their approved figure changed —
+    // the same courtesy approve/reject already extends. Targeted, NOT branch-wide:
+    // an edit is a correction, and blasting the whole branch on every fix is noise.
+    // Skipped when the editor IS the submitter (a manager editing their own direct
+    // record needs no self-notice) or the amount is unchanged.
+    const submitterUid = String(result.sub.submittedById || "");
+    if (submitterUid && submitterUid !== actor.id && Number(result.oldAmount || 0) !== data.amountPiastres) {
+      const pounds = Math.round(data.amountPiastres / 100).toLocaleString("en-US");
+      await writeSalesNotifications([submitterUid], { title: "Sales record updated", body: `${actor.name} changed your approved sales to ${pounds} EGP.`, submissionId, monthKey: result.sub.monthKey });
+    }
+    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId, { excludeUid: actor.id }), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId, monthKey: result.sub.monthKey });
   } catch (err) { logger.warn("failed to write sales edit side effects", { error: String(err), submissionId }); }
   return { success: true, revision: result.revision };
 });
@@ -1467,14 +1491,69 @@ exports.resubmitCorrectedSales = onCall(async (request) => {
     result = { sub, revision: revision + 1 };
   });
   try { await writeSalesAudit({ eventType: "sales.resubmitted", entityType: "daily_sales_submission", entityId: submissionId, actor, branchId: result.sub.branchId, metadata: { branchId: result.sub.branchId, monthKey: result.sub.monthKey, businessDateKey: result.sub.businessDateKey, submissionId, oldAmountPiastres: result.sub.amountPiastres, newAmountPiastres: data.amountPiastres, oldStatus: result.sub.status, newStatus: "pending", revision: result.revision, schemaVersion: 1 } });
-    await writeSalesNotifications(await salesRecipients(String(result.sub.branchId || ""), { managersOnly: true, adminsFallback: true }), { title: "Corrected sales submission", body: "A corrected daily sales submission is ready for review.", submissionId, monthKey: result.sub.monthKey });
+    await writeSalesNotifications(await salesRecipients(String(result.sub.branchId || ""), { managersOnly: true, excludeUid: actor.id }), { title: "Corrected sales submission", body: "A corrected daily sales submission is ready for review.", submissionId, monthKey: result.sub.monthKey });
   } catch (err) { logger.warn("failed to write sales resubmit side effects", { error: String(err), submissionId }); }
   return { success: true, status: "pending", revision: result.revision };
 });
 
+// A branch manager or admin records a day's sales directly. Unlike an employee
+// submission this lands **already approved** — the actor is the branch's
+// approver, so there is no separate review step and it counts toward the target
+// the instant it is written (which is why the client can celebrate "added to
+// target"). Server-authoritative because an `approved` record is exactly the
+// kind of write a client must not be able to forge: the create rule permits
+// only an employee's own `pending` doc, so this goes through the Admin SDK.
+exports.recordApprovedDailySales = onCall(async (request) => {
+  const data = request.data || {};
+  const branchId = String(data.branchId || "").trim();
+  const dateKey = data.businessDateKey == null || data.businessDateKey === ""
+    ? salesBusinessDateKey(new Date()) : String(data.businessDateKey).trim();
+  if (!branchId || !isValidMoney(data.amountPiastres) || !isRecordableSalesDate(dateKey)) {
+    throw new HttpsError("invalid-argument", "Invalid branch, amount, or business day (a future day cannot be recorded).");
+  }
+  const monthKey = businessMonthKey(`${dateKey.slice(0, 4)}-${dateKey.slice(4, 6)}-${dateKey.slice(6, 8)}T12:00:00Z`);
+  const reason = salesReason(data.reason, false); // a direct record's note is optional, like an approved-amount edit
+  const actor = await requireSalesManager(request, branchId);
+  await requireSalesEnabledBranch(branchId);
+  const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(salesSubmissionId(branchId, dateKey));
+  let result;
+  await db.runTransaction(async (tx) => {
+    const [existing, month] = await Promise.all([
+      tx.get(ref),
+      tx.get(db.collection(BRANCH_SALES_MONTHS).doc(salesMonthId(branchId, monthKey))),
+    ]);
+    if (existing.exists) throw new HttpsError("already-exists", "A sales record already exists for that day. Open it to edit instead.");
+    if (!month.exists) throw new HttpsError("failed-precondition", "Set a monthly sales target for that month first.");
+    const before = await approvedTotal(tx, branchId, monthKey);
+    const after = before + data.amountPiastres;
+    const target = Number((month.data() || {}).targetPiastres);
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    // The actor is deliberately BOTH submitter and decider: a direct record is
+    // not a self-approval of a pending doc (which `canDecideSubmission` forbids)
+    // — it is a new, already-decided fact entered by the branch's approver.
+    tx.create(ref, {
+      id: ref.id, branchId, monthKey, businessDateKey: dateKey, businessTimeZone: SALES_TIME_ZONE,
+      amountPiastres: data.amountPiastres, status: "approved", revision: 1, approvedRevision: 1,
+      submittedById: actor.id, submittedByName: actor.name, submittedAt: now,
+      decisionById: actor.id, decisionByName: actor.name, decisionByRole: actor.role,
+      decisionAt: now, decisionReason: reason || null, recordedDirectly: true,
+      createdAt: now, updatedAt: now, schemaVersion: 1,
+    });
+    result = { crossing: targetAchievedCrossing(before, after, target), achievedAfter: after, target };
+  });
+  try {
+    await writeSalesAudit({ eventType: "sales.recorded", entityType: "daily_sales_submission", entityId: ref.id, actor, branchId,
+      metadata: { branchId, monthKey, businessDateKey: dateKey, submissionId: ref.id, newAmountPiastres: data.amountPiastres, newStatus: "approved", reason: reason || null, recordedDirectly: true, schemaVersion: 1 } });
+    const pounds = Math.round(data.amountPiastres / 100).toLocaleString("en-US");
+    await writeSalesNotifications(await salesRecipients(branchId, { excludeUid: actor.id }), { title: "Sales recorded", body: `${actor.name} added ${pounds} EGP to the branch total.`, submissionId: ref.id, monthKey });
+    if (result.crossing) await writeSalesNotifications(await salesRecipients(branchId, { excludeUid: actor.id }), { title: "Sales target achieved", body: "Your branch has reached its monthly sales target.", submissionId: ref.id, monthKey });
+  } catch (err) { logger.warn("failed to write sales record side effects", { error: String(err), branchId, dateKey }); }
+  return { success: true, submissionId: ref.id, crossing: result.crossing, achievedPiastres: result.achievedAfter, targetPiastres: result.target };
+});
+
 exports.onDailySalesSubmissionCreated = onDocumentCreated(`${BRANCH_SALES_SUBMISSIONS}/{submissionId}`, async (event) => {
   const sub = event.data && event.data.data(); if (!sub || sub.status !== "pending") return;
-  try { await writeSalesNotifications(await salesRecipients(String(sub.branchId || ""), { managersOnly: true, adminsFallback: true }), { title: "New sales submission", body: "A daily sales submission is ready for review.", submissionId: event.params.submissionId, monthKey: sub.monthKey }); }
+  try { await writeSalesNotifications(await salesRecipients(String(sub.branchId || ""), { managersOnly: true, excludeUid: String(sub.submittedById || "") }), { title: "New sales submission", body: "A daily sales submission is ready for review.", submissionId: event.params.submissionId, monthKey: sub.monthKey }); }
   catch (err) { logger.warn("failed to write new sales submission notification", { error: String(err), submissionId: event.params.submissionId }); }
 });
 
@@ -1562,10 +1641,12 @@ exports.claimFcmToken = onDocumentUpdated(`${USERS}/{uid}`, async (event) => {
  *   - the caller must be signed in, exist, and be active;
  *   - `type` must be one of the CLIENT-legit types (task lifecycle + swap
  *     workflow — reminder/broadcast types are produced server-side only);
- *   - every recipient must exist and be REACHABLE by the caller: an admin
- *     reaches anyone; everyone else only their own branch (covers all real
- *     flows: coworker swaps, employee→manager review pings, manager→staff
- *     assignments);
+ *   - every recipient must exist and be REACHABLE by the caller
+ *     (`canNotify`): an admin reaches anyone, an admin is reachable BY
+ *     anyone, everyone else only their own branch. This covers all real flows:
+ *     coworker swaps, employee→manager review pings, manager→staff assignments,
+ *     and employee/manager→admin review pings. An unreachable recipient is
+ *     SKIPPED (and counted in the response), never fatal to the batch;
  *   - title/body are length-capped; the payload is reduced to known keys;
  *   - `senderUid` is SERVER-STAMPED from auth — never forgeable.
  */
@@ -1592,8 +1673,8 @@ exports.sendNotification = onCall(async (request) => {
   if (caller.isActive === false) {
     throw new HttpsError("permission-denied", "This account is disabled.");
   }
-  const callerIsAdmin = (caller.role || "employee") === "admin";
-  const callerBranch = String(caller.branchId || "");
+  // Role/branch are read out of `caller` by `canNotify` — deliberately not
+  // re-derived here, so there is exactly one place the reachability rule lives.
 
   const items = Array.isArray(request.data && request.data.notifications)
     ? request.data.notifications
@@ -1604,6 +1685,7 @@ exports.sendNotification = onCall(async (request) => {
 
   const batch = db.batch();
   let queued = 0;
+  let skipped = 0;
   for (const raw of items) {
     const recipientUid = String((raw && raw.recipientUid) || "").trim();
     const type = String((raw && raw.type) || "").trim();
@@ -1616,17 +1698,26 @@ exports.sendNotification = onCall(async (request) => {
       throw new HttpsError("invalid-argument", `"${type}" is not a client notification type.`);
     }
 
-    // Reachability: admin → anyone; others → own branch only.
+    // Reachability: admin → anyone · anyone → an admin · otherwise same branch.
+    // The middle clause is load-bearing and was missing: admins are branchless
+    // by design, so a pure branch comparison could never reach one — which
+    // silently dropped every "Task Submitted" notice for an admin-created task.
+    // The rule is pure and tested in `notification_reach.js`.
     const recipientSnap = await db.collection(USERS).doc(recipientUid).get();
     if (!recipientSnap.exists) continue; // stale recipient — skip, not fatal
-    const recipientBranch = String((recipientSnap.data() || {}).branchId || "");
-    const reachable = callerIsAdmin
-      || (callerBranch !== "" && recipientBranch === callerBranch);
-    if (!reachable) {
-      throw new HttpsError(
-        "permission-denied",
-        "You can only notify people in your own branch.",
-      );
+    if (!canNotify(caller, recipientSnap.data())) {
+      // SKIPPED, not fatal. This used to throw, which discarded the whole
+      // batch: one unreachable recipient meant every legitimate recipient in
+      // the same call got nothing either, and both callers (`NotifyTaskEvent`,
+      // `NotifySwapEvent`) are best-effort and swallow the error — so the
+      // failure was completely silent. Refusing this one recipient writes
+      // exactly as little as throwing did; it just stops taking the others
+      // down with it. The count comes back to the caller and is logged.
+      skipped++;
+      logger.warn("sendNotification: recipient not reachable by caller", {
+        callerUid: auth.uid, recipientUid, type,
+      });
+      continue;
     }
 
     // Sanitized payload — only the keys the tap handler understands.
@@ -1656,7 +1747,7 @@ exports.sendNotification = onCall(async (request) => {
   }
 
   if (queued > 0) await batch.commit();
-  return { created: queued };
+  return { created: queued, skipped };
 });
 
 exports.onNotificationCreated = onDocumentCreated(
@@ -4203,7 +4294,67 @@ exports.onAttendanceWritten = onDocumentWritten(`${ATTENDANCE}/{recordId}`, asyn
   for (const ev of events) {
     await appendAttendanceEvent(recordId, ev);
   }
+
+  // ── Server-authoritative worked-minute finalization ──────────────────────
+  // Payroll minutes are computed ONLY here, with the Admin SDK. The client
+  // clock-out writes `clockOut` + `status` and NOTHING else that costs money;
+  // firestore.rules forbid it from writing any minute field or backdating a
+  // clock time. So the numbers that feed the ledger and payroll can never be a
+  // value the employee chose — they are always this recomputation over the
+  // server-stamped clock times. Guarded on `source: 'clock'` so the
+  // correction-apply and auto-close paths (which own their own minutes) are
+  // never overwritten. See ADR-024.
+  if (source === "clock" && after.clockIn && after.clockOut) {
+    const totals = computeAttendanceTotals({
+      scheduledStartMs: tsMillis(after.scheduledStart),
+      scheduledEndMs: tsMillis(after.scheduledEnd),
+      clockInMs: tsMillis(after.clockIn),
+      clockOutMs: tsMillis(after.clockOut),
+      breaks: attendanceBreaksToMs(after.breaks),
+      // Measure the final snapshot against the authoritative clock-out instant.
+      nowMs: tsMillis(after.clockOut),
+    });
+    const persisted = {
+      workedMinutes: Number(after.workedMinutes || 0),
+      lateMinutes: Number(after.lateMinutes || 0),
+      earlyLeaveMinutes: Number(after.earlyLeaveMinutes || 0),
+      overtimeMinutes: Number(after.overtimeMinutes || 0),
+      breakMinutes: Number(after.breakMinutes || 0),
+    };
+    // Only write when the snapshot actually changed — the finalize itself
+    // re-triggers this function, and on that pass the values already match, so
+    // there is no write loop.
+    if (attendanceTotalsDiffer(totals, persisted)) {
+      try {
+        await db.collection(ATTENDANCE).doc(recordId).update({
+          workedMinutes: totals.workedMinutes,
+          lateMinutes: totals.lateMinutes,
+          earlyLeaveMinutes: totals.earlyLeaveMinutes,
+          overtimeMinutes: totals.overtimeMinutes,
+          breakMinutes: totals.breakMinutes,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        logger.warn("attendance minute finalize failed", { recordId, error: String(e) });
+      }
+    }
+  }
 });
+
+// Convert a record's embedded `breaks` array ({start, end} Timestamps) to the
+// `{ startMs, endMs }` shape `computeAttendanceTotals` reads. Breaks are a
+// dormant extension point (empty in the MVP), so this is almost always [].
+function attendanceBreaksToMs(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const b of raw) {
+    if (!b || typeof b !== "object") continue;
+    const startMs = tsMillis(b.start);
+    if (startMs == null) continue;
+    out.push({ startMs, endMs: tsMillis(b.end) });
+  }
+  return out;
+}
 
 // Apply an approved correction's resolution onto its parent attendance record —
 // the ONE server-authoritative apply path, shared by a reviewer's approval and a

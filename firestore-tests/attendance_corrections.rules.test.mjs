@@ -26,6 +26,8 @@ const reseedUsers = () => env.withSecurityRulesDisabled(async (ctx) => {
   await Promise.all([
     setDoc(doc(db, "users/mgr1"), { role: "manager", branchId: "branch1", isActive: true }),
     setDoc(doc(db, "users/mgr2"), { role: "manager", branchId: "branch2", isActive: true }),
+    // A SECOND manager in branch1 — the peer whose attendance mgr1 must not touch.
+    setDoc(doc(db, "users/mgr3"), { role: "manager", branchId: "branch1", isActive: true }),
     setDoc(doc(db, "users/admin1"), { role: "admin", isActive: true }),
     setDoc(doc(db, "users/emp1"), { role: "employee", branchId: "branch1", isActive: true }),
     setDoc(doc(db, "users/emp2"), { role: "employee", branchId: "branch1", isActive: true }),
@@ -71,6 +73,56 @@ test("DENY: a manager cannot direct-action their own attendance through another 
   ));
 });
 
+test("DENY: a manager cannot direct-action a PEER MANAGER's attendance (create)", async () => {
+  // Managers are peers — only an admin corrects a manager. mgr1 and mgr3 are both
+  // managers in branch1; mgr1 may not create an approved correction for mgr3.
+  await assertFails(setDoc(
+    doc(as("mgr1"), "attendance_corrections/peer-manager"),
+    correction({
+      userId: "mgr3",
+      userName: "Manager Three",
+      attendanceId: "mgr3_20260802_morning",
+      status: "approved",
+      requestedBy: "mgr1",
+      decidedBy: "mgr1",
+    }),
+  ));
+});
+
+test("ALLOW: an admin corrects a manager's attendance (create)", async () => {
+  await assertSucceeds(setDoc(
+    doc(as("admin1"), "attendance_corrections/admin-fixes-manager"),
+    correction({
+      userId: "mgr3",
+      userName: "Manager Three",
+      attendanceId: "mgr3_20260802_morning",
+      status: "approved",
+      requestedBy: "admin1",
+      decidedBy: "admin1",
+    }),
+  ));
+});
+
+test("manager cannot DECIDE a peer manager's correction, but an admin can", async () => {
+  await seedCorrection("mgr3-pending", correction({
+    userId: "mgr3",
+    userName: "Manager Three",
+    attendanceId: "mgr3_20260802_morning",
+    requestedBy: "mgr3",
+    requestedByName: "Manager Three",
+    status: "pending",
+  }));
+
+  await assertFails(updateDoc(
+    doc(as("mgr1"), "attendance_corrections/mgr3-pending"),
+    { status: "approved", decidedBy: "mgr1" },
+  ));
+  await assertSucceeds(updateDoc(
+    doc(as("admin1"), "attendance_corrections/mgr3-pending"),
+    { status: "approved", decidedBy: "admin1" },
+  ));
+});
+
 test("DENY: a correction attendanceId without an owner segment is malformed", async () => {
   await assertFails(setDoc(
     doc(as("emp1"), "attendance_corrections/malformed"),
@@ -108,6 +160,32 @@ test("DENY: a manager cannot direct-action a correction outside their branch", a
       requestedBy: "mgr1",
       decidedBy: "mgr1",
     }),
+  ));
+});
+
+test("DENY: a manager cannot decide a correction filed on their OWN attendance", async () => {
+  // The invariant the UI now mirrors (managers no longer see review buttons on
+  // their own row). A manager may FILE a pending correction for themselves, but
+  // approving/rejecting it is self-approval — forbidden by the update rule
+  // (`request.auth.uid != resource.data.userId`). Another reviewer must decide.
+  await seedCorrection("own-pending", correction({
+    userId: "mgr1",
+    userName: "Manager One",
+    attendanceId: "mgr1_20260802_morning",
+    requestedBy: "mgr1",
+    requestedByName: "Manager One",
+    status: "pending",
+  }));
+
+  await assertFails(updateDoc(
+    doc(as("mgr1"), "attendance_corrections/own-pending"),
+    { status: "approved", decidedBy: "mgr1", decidedByName: "Manager One" },
+  ));
+
+  // A DIFFERENT reviewer (admin here) may decide it — the path stays open.
+  await assertSucceeds(updateDoc(
+    doc(as("admin1"), "attendance_corrections/own-pending"),
+    { status: "approved", decidedBy: "admin1", decidedByName: "Admin One" },
   ));
 });
 

@@ -117,6 +117,25 @@ class ChatSocketService implements ChatRealtime {
     if (!_hasInterest) _teardownSocket();
   }
 
+  @override
+  Future<void> onAppResumed() async {
+    if (_disposed || !_hasInterest) return;
+    // A genuinely-live, authenticated session survived the app switch — leave it
+    // alone so frequent foregrounding doesn't churn the connection or re-pull
+    // the inbox needlessly.
+    final socket = _socket;
+    if (socket != null && socket.connected && _sessionConfirmed) return;
+    // Otherwise the transport was torn down while backgrounded (or a retry is
+    // waiting out a long backoff). Reconnect right now, ignoring that backoff,
+    // and force a rebuild even if the dead socket still *reports* connected —
+    // on success [_confirmConnection] re-joins every room and emits
+    // ChatRealtimeConnected(isReconnect), which reconciles the inbox + thread.
+    _attempt = 0;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    await _ensureConnected(forceReconnect: true);
+  }
+
   /// Releases the socket and closes the event stream. Terminal.
   void dispose() {
     _disposed = true;
@@ -131,9 +150,11 @@ class ChatSocketService implements ChatRealtime {
   /// Returns the connected socket, connecting first when needed. Null when
   /// the attempt failed — the backoff loop is then scheduled (while any
   /// conversation is joined) and will re-join rooms itself on success.
-  Future<io.Socket?> _ensureConnected() async {
+  Future<io.Socket?> _ensureConnected({bool forceReconnect = false}) async {
     final existing = _socket;
-    if (existing != null && existing.connected) return existing;
+    if (!forceReconnect && existing != null && existing.connected) {
+      return existing;
+    }
     if (_connecting) {
       // A connect is already in flight; don't stack attempts. The caller's
       // room is in [_joined], so the in-flight success will join it.

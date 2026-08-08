@@ -43,8 +43,8 @@
 - `lib/features/branch/data/models/branch_model.dart`
 
 ## Backend surface
-- **Firestore collections:** `branches`
-- **Cloud Functions:** —
+- **Firestore collections:** `branches`, `branch_sales_months`, `branch_sales_submissions`
+- **Cloud Functions:** `setBranchSalesTarget`
 - **Security rules:** `firestore.rules` (search the collection names above) · `storage.rules` if it uploads media
 - **Design spec(s):** —
 
@@ -52,6 +52,8 @@
 - `test/branch_geofence_test.dart`
 - `test/branch_media_test.dart`
 - `test/branch_workload_test.dart`
+- `test/features/sales/data/branch_sales_month_model_test.dart`
+- `test/features/sales/domain/sales_branch_scope_test.dart`
 
 ## Standard data flow (this feature follows the universal pattern)
 ```

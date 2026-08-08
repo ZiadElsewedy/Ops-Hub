@@ -129,7 +129,7 @@ class _LaunchAppState extends State<LaunchApp> {
     if (_canEnterApp) return App(router: _readyRouter!);
 
     return MaterialApp(
-      title: 'DROP',
+      title: 'Drop Ops',
       theme: AppTheme.dark,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.dark,
@@ -381,7 +381,7 @@ void _handleAuthState(AuthState state) {
         AppDependencies.branchCubit.loadIfNeeded();
       }
     },
-    unauthenticated: () {
+    unauthenticated: (_) {
       CrashContext.userId = null;
       CrashContext.userRole = null;
       unawaited(AppDependencies.notificationService.forgetUser());
@@ -412,7 +412,7 @@ Future<void> _surfacePendingCrashReport() async {
       backgroundColor: AppColors.darkSurfaceElevated,
       leading: const Icon(Icons.bug_report_outlined, color: AppColors.error),
       content: const Text(
-        'DROP quit unexpectedly last time. You can export the crash report '
+        'Drop Operations quit unexpectedly last time. You can export the crash report '
         'for debugging.',
         style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
       ),
@@ -479,7 +479,7 @@ class App extends StatelessWidget {
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, state) => _handleAuthState(state),
         child: MaterialApp.router(
-          title: 'DROP',
+          title: 'Drop Ops',
           theme: AppTheme.dark,
           darkTheme: AppTheme.dark,
           themeMode: ThemeMode.dark,

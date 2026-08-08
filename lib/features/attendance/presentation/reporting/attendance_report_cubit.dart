@@ -7,6 +7,7 @@ import 'package:drop/features/attendance/domain/attendance_id.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
 import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
 import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
 import 'attendance_report_state.dart';
@@ -30,13 +31,33 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
   /// which is the behaviour every existing caller and test already expects.
   final GetUsersByBranch? _getUsersByBranch;
   Map<String, String> _namesByUid = const {};
+
+  /// uid → role for the branch, resolved alongside the names. Drives the
+  /// manager-viewer visibility filter: a manager's branch report shows their
+  /// employees plus their own row, never a peer manager/admin. Client-side only
+  /// — the ledger read rules stay branch-scoped.
+  Map<String, UserRole> _roleByUid = const {};
+
+  /// The last raw ledger rows, kept so the filter can be re-applied once the
+  /// role directory finishes loading (it may arrive after the first rows).
+  List<AttendanceLedgerRow> _lastRows = const [];
+  bool _employeesOnly = false;
+  String? _viewerUid;
+
   StreamSubscription<List<AttendanceLedgerRow>>? _sub;
   _ReportRequest? _activeRequest;
 
+  /// [employeesOnly] + [viewerUid] scope a MANAGER's branch report to their
+  /// employees (plus their own row). Both default off, so admin callers and
+  /// every existing test keep the full-branch view unchanged.
   void watchBranchWindow({
     required String? branchId,
     required AttendancePeriodWindow window,
+    String? viewerUid,
+    bool employeesOnly = false,
   }) {
+    _viewerUid = viewerUid;
+    _employeesOnly = employeesOnly;
     final id = branchId?.trim();
     if (id == null || id.isEmpty) {
       _clearWithEmpty();
@@ -120,15 +141,11 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
         if (name.isNotEmpty) names[user.uid] = name;
       }
       _namesByUid = Map.unmodifiable(names);
+      _roleByUid = {for (final user in users) user.uid: user.role};
       if (state.status == AttendanceReportStatus.loaded) {
-        emit(
-          AttendanceReportState.loaded(
-            rows: state.rows,
-            summary: state.summary,
-            coverage: state.coverage,
-            namesByUid: _namesByUid,
-          ),
-        );
+        // Re-emit from the raw rows so the freshly-loaded roles are applied (the
+        // first rows may have arrived before this directory fetch finished).
+        _emitVisible();
       }
     } catch (e, st) {
       AppLog.error('attendance', 'report name directory failed', e, st);
@@ -137,6 +154,16 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
 
   void _emitRows(List<AttendanceLedgerRow> rows) {
     if (isClosed) return;
+    _lastRows = rows;
+    _emitVisible();
+  }
+
+  /// Emit the loaded state from the last raw rows, applying the manager-viewer
+  /// visibility filter and recomputing the summary/coverage from the filtered
+  /// rows (so a manager's totals reflect their employees only).
+  void _emitVisible() {
+    if (isClosed) return;
+    final rows = _visibleRows(_lastRows);
     emit(
       AttendanceReportState.loaded(
         rows: rows,
@@ -147,8 +174,23 @@ class AttendanceReportCubit extends Cubit<AttendanceReportState> {
     );
   }
 
+  /// A MANAGER viewer (opted in via [watchBranchWindow]) sees only their
+  /// employees plus their own row — never a peer manager/admin. Unknown uids
+  /// default to visible so a real employee is never hidden by a missing
+  /// directory entry. A no-op for admin callers (feature off).
+  List<AttendanceLedgerRow> _visibleRows(List<AttendanceLedgerRow> rows) {
+    if (!_employeesOnly) return rows;
+    final self = _viewerUid;
+    return rows.where((row) {
+      if (row.userId == self) return true;
+      final role = _roleByUid[row.userId];
+      return role != UserRole.manager && role != UserRole.admin;
+    }).toList();
+  }
+
   void _clearWithEmpty() {
     _activeRequest = null;
+    _lastRows = const [];
     _sub?.cancel();
     emit(
       const AttendanceReportState.loaded(

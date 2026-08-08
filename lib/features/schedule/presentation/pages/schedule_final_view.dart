@@ -6,8 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:drop/core/services/export_sharing.dart';
 import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
@@ -161,61 +160,6 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
         ),
       );
 
-  /// Writes [write] to a file the user can find: the Downloads folder on
-  /// desktop, the app documents sandbox on mobile (where [_open] then hands it
-  /// to the system share/preview sheet — the same delivery the attendance PDF
-  /// uses).
-  ///
-  /// **Mobile never touches `getDownloadsDirectory()`.** On iOS it does not
-  /// throw and does not cleanly return null — it can hand back a `.../Downloads`
-  /// path inside the sandbox that has never been created, so the `?? documents`
-  /// fallback never fires and the subsequent write throws "cannot open file".
-  /// That was the "Could not save" failure, and it hit **both** exports because
-  /// they share this step. On a phone we go straight to the documents directory
-  /// (always present); `create(recursive: true)` is a belt-and-braces guard for
-  /// the desktop Downloads path too.
-  Future<File> _writeExport(
-    String filename,
-    Future<void> Function(File) write,
-  ) async {
-    final isMobile = Platform.isAndroid || Platform.isIOS;
-    final directory = isMobile
-        ? await getApplicationDocumentsDirectory()
-        : (await getDownloadsDirectory() ??
-            await getApplicationDocumentsDirectory());
-    await directory.create(recursive: true);
-    final file = File('${directory.path}${Platform.pathSeparator}$filename');
-    await write(file);
-    return file;
-  }
-
-  /// Hands the freshly-saved file to the OS so the export visibly *lands*
-  /// somewhere the manager can use it.
-  ///
-  /// - **Phone:** the file is in the app sandbox where nobody could reach it, so
-  ///   `open_filex` raises the share/preview sheet (Save to Photos / Files / send).
-  /// - **Desktop:** it is already saved to the visible Downloads folder; we open
-  ///   it in its default app (Excel/Numbers for `.xlsx`, Preview for PDF/PNG) so
-  ///   the export doesn't look like it did nothing — the same `open` / `start` /
-  ///   `xdg-open` path chat uses for a downloaded document. Best-effort: the file
-  ///   is already saved, so a failure to launch a viewer is not a save failure.
-  Future<void> _open(File file) async {
-    if (Platform.isAndroid || Platform.isIOS) {
-      await OpenFilex.open(file.path);
-      return;
-    }
-    try {
-      final (cmd, args) = Platform.isMacOS
-          ? ('open', [file.path])
-          : Platform.isWindows
-              ? ('cmd', ['/c', 'start', '', file.path])
-              : ('xdg-open', [file.path]);
-      await Process.run(cmd, args);
-    } catch (_) {
-      // The file is saved; opening a viewer is a convenience, not the contract.
-    }
-  }
-
   Future<void> _exportPng() async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -233,7 +177,7 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
       image.dispose();
       if (data == null) throw StateError('PNG encoding failed.');
 
-      final file = await _writeExport(
+      final file = await writeExportFile(
         scheduleExportFilename(
           widget.branch?.name ?? 'branch',
           widget.schedule.weekStart,
@@ -241,7 +185,13 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
         (f) => f.writeAsBytes(data.buffer.asUint8List(), flush: true),
       );
       if (mounted) _exportDone(file, 'image');
-      await _open(file);
+      if (mounted) {
+        await shareExportedFile(
+          context,
+          file,
+          subject: 'Schedule · ${widget.branch?.name ?? 'Branch'}',
+        );
+      }
     } catch (_) {
       if (mounted) {
         AppSnackbar.error(context, 'Could not save the schedule image.');
@@ -261,7 +211,7 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
         branchName: widget.branch?.name ?? 'Branch',
         managerName: _managerName(),
       );
-      final file = await _writeExport(
+      final file = await writeExportFile(
         scheduleFinalPdfFilename(
           widget.branch?.name ?? 'branch',
           widget.schedule.weekStart,
@@ -269,7 +219,13 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
         (f) => f.writeAsBytes(bytes, flush: true),
       );
       if (mounted) _exportDone(file, 'PDF');
-      await _open(file);
+      if (mounted) {
+        await shareExportedFile(
+          context,
+          file,
+          subject: 'Schedule · ${widget.branch?.name ?? 'Branch'}',
+        );
+      }
     } catch (_) {
       if (mounted) {
         AppSnackbar.error(context, 'Could not create the schedule PDF.');
@@ -289,7 +245,7 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
         branchName: widget.branch?.name ?? 'Branch',
         managerName: _managerName(),
       );
-      final file = await _writeExport(
+      final file = await writeExportFile(
         scheduleFinalXlsxFilename(
           widget.branch?.name ?? 'branch',
           widget.schedule.weekStart,
@@ -297,7 +253,13 @@ class _ScheduleFinalViewState extends State<ScheduleFinalView> {
         (f) => f.writeAsBytes(bytes, flush: true),
       );
       if (mounted) _exportDone(file, 'Excel');
-      await _open(file);
+      if (mounted) {
+        await shareExportedFile(
+          context,
+          file,
+          subject: 'Schedule · ${widget.branch?.name ?? 'Branch'}',
+        );
+      }
     } catch (_) {
       if (mounted) {
         AppSnackbar.error(context, 'Could not create the schedule Excel file.');
