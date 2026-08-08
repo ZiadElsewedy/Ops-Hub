@@ -14,6 +14,41 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Managers can reopen approved tasks (permission; MEDIUM risk)
+
+Reopening an `approved` task is now available to **managers (own branch)**, not
+just admins — realigning the code with the Product Spec §6 permission table
+("Reopen Approved | Manager: Own branch | Admin: All branches"), which the
+implementation had silently narrowed to admin-only. Three layers changed in
+lockstep: the UI gate (`canReopen` in `task_details_screen.dart` now keys off
+`isManagerOrAdmin`; `manager_task_card.dart` drops the `isAdmin` check — that card
+is never shown to employees), and the **server enforcement** in `firestore.rules`
+(the move OUT of `approved` no longer requires `isAdmin()`, but is still fenced by
+`canReachBranch`, so a manager reopens only their own branch and an employee never
+can). In-place edits of an approved task stay blocked; the admin-only §6.4 terminal
+correction (Missed/Cancelled → Pending) is unchanged. Docs synced (TASKS.md,
+DATA_MODEL.md) and the stale "admin-only reopen" code comments corrected. The
+`firestore-tests/tasks.rules.test.mjs` "approved reopen" case was rewritten to
+assert the full contract and **passes against the emulator** (own-branch manager
+✓, other-branch manager ✗, admin ✓, employee ✗, in-place edit/delete still frozen);
+the Dart suite passes unchanged (it exercises `reopenTask`, which was never
+role-gated in the cubit).
+
+## 2026-08-08 — OS label split to "Drop Ops"; in-app name stays "Drop Operations" (polish; LOW risk)
+
+The short name the operating system shows was changed **Drop Operations → Drop
+Ops** on OS-level surfaces only: iOS `CFBundleDisplayName`/`CFBundleName`, Android
+`android:label`, macOS `INFOPLIST_KEY_CFBundleDisplayName` (stray trailing space
+also removed), Windows `FileDescription`/`ProductName`, Linux window/header-bar
+titles, and both `MaterialApp` `title`s. Everything inside the app is unchanged and
+still reads *Drop Operations* — `AppConstants.appName`, the `DropWordmark`
+logotype, the splash label, and all copy (About, login, onboarding, notifications,
+schedule Final-view + PDF headers). Supersedes the earlier same-day DROP → Drop
+Operations rename, which had set the OS labels to "Drop Operations" as well. Only
+`main.dart` is a Dart edit; the rest are platform config. `flutter analyze` clean,
+no tests changed. NOT device-verified — the launcher label and window title need a
+real per-platform build.
+
 ## 2026-08-08 — Home Branch-sales card redesigned with a mini ring (polish; LOW risk, client-only)
 
 The employee Home `SalesTargetCard` module dropped the flat `SalesMoneyRow` for

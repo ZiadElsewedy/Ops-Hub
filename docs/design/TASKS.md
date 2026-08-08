@@ -26,7 +26,7 @@ Three terminal outcomes, and they mean different things:
 
 | Terminal | Set by | Reporting | Escape hatch |
 | --- | --- | --- | --- |
-| `approved` | manager/admin on review | success | admin **reopen** |
+| `approved` | manager/admin on review | success | manager/admin **reopen** |
 | `missed` | server sweep only, at shift end **+ 30 min grace** | failure | **admin terminal correction** |
 | `cancelled` | manager/admin, from `pending`/`started` only | **neither — excluded entirely** | **admin terminal correction** |
 

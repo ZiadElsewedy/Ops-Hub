@@ -85,19 +85,22 @@
 > (`schedule_manager_day_off_test.dart`). Design doc
 > [SCHEDULE](docs/design/SCHEDULE.md) amended.
 
-> **App display name is now "Drop Operations" (2026-08-08, polish, NOT
-> device-verified):** The user-facing name was renamed DROP → **Drop Operations**
-> across every surface that shows it — `AppConstants.appName`, the window titles,
-> the `DropWordmark` logotype, the schedule Final-view + PDF header/footer
-> wordmarks, login/onboarding/splash copy, and the platform display names (iOS
-> `CFBundleDisplayName`/`CFBundleName`, Android `android:label`, macOS
-> `PRODUCT_NAME`, Windows/Linux window titles). **Unchanged:** the `DropLogo` PNG
-> artwork, the "DROP OPERATIONS SYSTEM" auth tagline, the **DROP THE SHOP**
-> company name, and all bundle/package identifiers (`drop`,
-> `com.example.dropoperation` — not user-visible, can't hold a space). No logic,
-> schema, rules, or functions changed. `flutter analyze` clean, 1893 Dart tests
-> green (3 brand/copy tests updated). ⚠️ **NOT device-verified** — the icon label
-> and window-title rendering need a real build per platform.
+> **OS label split to "Drop Ops"; in-app name stays "Drop Operations"
+> (2026-08-08, polish, NOT device-verified):** The short name the operating
+> system shows was changed **Drop Operations → Drop Ops** on the OS-level surfaces
+> only — iOS `CFBundleDisplayName`/`CFBundleName`, Android `android:label`, macOS
+> `INFOPLIST_KEY_CFBundleDisplayName` (the stray trailing space was also dropped),
+> Windows `FileDescription`/`ProductName`, Linux window/header-bar titles, and both
+> `MaterialApp` `title`s (the desktop/web window & app-switcher title). Everything
+> **inside** the app is deliberately **unchanged** and still reads *Drop
+> Operations*: `AppConstants.appName`, the `DropWordmark` logotype, the splash
+> label, and all copy (About, login, onboarding, notifications, schedule
+> Final-view + PDF headers). No logic, schema, rules, or functions changed;
+> `flutter analyze` clean (only `main.dart` is a Dart edit — the rest are platform
+> config). No tests changed (the 3 name tests assert the wordmark/copy, all kept).
+> ⚠️ **NOT device-verified** — the launcher label and window-title rendering need a
+> real build per platform. *(Supersedes the earlier same-day DROP → Drop
+> Operations rename, which had made the OS labels "Drop Operations" too.)*
 
 > **Reviewer attendance search is now directory-backed (2026-08-07, feature,
 > presentation + pure domain + one bounded read, client-only, NO deploy, NOT

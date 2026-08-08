@@ -599,28 +599,48 @@ test("an employee cannot forge review attribution or shrink history", async () =
   );
 });
 
-test("an approved task is locked, and only an admin reopens it", async () => {
+test("an approved task is frozen in place; a same-branch manager or admin may reopen it (spec §6), other branches and employees may not", async () => {
   const approved = currentTask({
     status: "approved",
     approvedBy: "mgr1",
     approvedAt: new Date(),
   });
+
+  // In place, an approved task is a locked record: even its own-branch manager
+  // may not edit its fields or delete it. The ONLY change permitted is moving it
+  // OUT of `approved` (a reopen).
   await seed(env, "a1", approved);
   await assertFails(updateDoc(doc(as("mgr1"), "tasks/a1"), { title: "nope" }));
   await assertFails(deleteDoc(doc(as("mgr1"), "tasks/a1")));
 
+  // The reopen payload the app writes: back to `started`, approval audit cleared.
+  const reopen = (actorId) => ({
+    status: "started",
+    approvedBy: null,
+    approvedAt: null,
+    archivedAt: null,
+    requiresRework: false,
+    version: 1,
+    activityLog: [{ status: "started", actorId, at: new Date() }],
+  });
+
+  // Own-branch manager reopens — spec §6 "Reopen Approved | Manager: Own branch".
+  // (Realigned 2026-08-08 from an earlier admin-only narrowing of the rule.)
   await seed(env, "a2", approved);
-  await assertSucceeds(
-    updateDoc(doc(as("admin1"), "tasks/a2"), {
-      status: "started",
-      approvedBy: null,
-      approvedAt: null,
-      archivedAt: null,
-      requiresRework: false,
-      version: 1,
-      activityLog: [{ status: "started", actorId: "admin1", at: new Date() }],
-    }),
-  );
+  await assertSucceeds(updateDoc(doc(as("mgr1"), "tasks/a2"), reopen("mgr1")));
+
+  // A manager from ANOTHER branch cannot — branch scope holds (canReachBranch).
+  await seed(env, "a3", approved);
+  await assertFails(updateDoc(doc(as("mgr2"), "tasks/a3"), reopen("mgr2")));
+
+  // An admin reopens any branch.
+  await seed(env, "a4", approved);
+  await assertSucceeds(updateDoc(doc(as("admin1"), "tasks/a4"), reopen("admin1")));
+
+  // An assigned employee cannot reopen — clearing the approval attribution is
+  // manager/admin territory (the review-record freeze, P1-5).
+  await seed(env, "a5", approved);
+  await assertFails(updateDoc(doc(as("emp1"), "tasks/a5"), reopen("emp1")));
 });
 
 test("sanity: the rules file under test is the repository's own", async () => {

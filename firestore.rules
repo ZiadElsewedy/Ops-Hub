@@ -295,8 +295,10 @@ service cloud.firestore {
 
       // An APPROVED task is a locked, reviewed record. A manager/admin may not
       // edit / reassign / re-status it in place; the ONLY change permitted on an
-      // already-approved task is an ADMIN REOPEN — moving it OUT of `approved`
-      // (back into the workflow) so a mistaken approval is recoverable. The
+      // already-approved task is a MANAGER/ADMIN REOPEN — moving it OUT of
+      // `approved` (back into the workflow) so a mistaken approval is
+      // recoverable. Branch-scoped by `canReachBranch`, so a manager reopens
+      // only their own branch's tasks and an employee can never take it. The
       // review transition INTO approved is unaffected (the stored status is then
       // `waitingReview`, so this guard passes).
       //
@@ -337,8 +339,7 @@ service cloud.firestore {
           || cancelRecordUnchanged())
         && ((canReachBranch(resource.data.get('branchId', ''))
               && (resource.data.get('status', 'pending') != 'approved'
-                  || (isAdmin()
-                      && request.resource.data.get('status', 'pending') != 'approved')))
+                  || request.resource.data.get('status', 'pending') != 'approved'))
           || ((isTaskAssignee() || isShiftTaskInMyBranch())
             // employees can't reassign the task (assignees frozen)
             && request.resource.data.get('assigneeIds', [])

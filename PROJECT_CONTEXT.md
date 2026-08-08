@@ -33,10 +33,14 @@ activity. Three roles — **admin · manager · employee**.
 
 The repository folder is **`Drop-operations`**. The Dart package remains `drop`
 (valid package identifiers cannot contain a hyphen); platform-safe identifiers use
-`dropoperation` where needed. The **user-facing app name is `Drop Operations`** —
-`AppConstants.appName` and every platform display name (iOS/Android/macOS/Windows/
-Linux) plus the `DropWordmark` logotype. Only user-invisible identifiers keep the
-short `drop`/`dropoperation` forms; code comments still say "DROP" as shorthand.
+`dropoperation` where needed. Two user-facing names, split by surface: the **OS
+label is `Drop Ops`** — the short name the operating system shows (iOS/Android
+launcher label, macOS/Windows/Linux window & app-switcher title, and the
+`MaterialApp` `title`). Everything **inside** the app keeps the full **`Drop
+Operations`** — `AppConstants.appName`, the `DropWordmark` logotype, the splash
+label, and all in-app copy (About, login, onboarding, notifications, schedule PDF
+headers). Only user-invisible identifiers keep the short `drop`/`dropoperation`
+forms; code comments still say "DROP" as shorthand.
 
 It is **not** a social network, an ERP, an analytics engine, or a SaaS product. It
 has no buyers, only users: a small, known set of people across a handful of
@@ -268,7 +272,8 @@ Reuse these. Do not re-implement or duplicate them.
 | Global component styling | `core/theme/app_theme.dart` |
 | Firestore / Storage security | `firestore.rules` · `storage.rules` → add a case in `firestore-tests/` → **deploy** |
 | Server logic | `functions/index.js` → **deploy** |
-| Collection names / app name | `core/constants/app_constants.dart` |
+| Collection names / in-app app name (`Drop Operations`) | `core/constants/app_constants.dart` |
+| The **OS label** (`Drop Ops`) — launcher/window/app-switcher title | iOS `Info.plist` (`CFBundleDisplayName`/`CFBundleName`) + Android `AndroidManifest.xml` (`android:label`) + macOS `project.pbxproj` (`INFOPLIST_KEY_CFBundleDisplayName`) + Windows `Runner.rc` + Linux `my_application.cc` + both `MaterialApp` `title`s in `main.dart` — **all of them, or the name differs per platform** |
 | DI wiring | `core/di/injection.dart` |
 | App bootstrap / providers | `main.dart` |
 | **Anything about who is signed in, or ending a session** | `features/auth/presentation/cubit/auth_cubit.dart` — including single active session ([ADR-023](docs/decisions/ADR-023-single-active-session.md)). **Never re-check the session inside a feature** |

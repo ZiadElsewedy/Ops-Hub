@@ -129,7 +129,7 @@ class _LaunchAppState extends State<LaunchApp> {
     if (_canEnterApp) return App(router: _readyRouter!);
 
     return MaterialApp(
-      title: 'Drop Operations',
+      title: 'Drop Ops',
       theme: AppTheme.dark,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.dark,
@@ -479,7 +479,7 @@ class App extends StatelessWidget {
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, state) => _handleAuthState(state),
         child: MaterialApp.router(
-          title: 'Drop Operations',
+          title: 'Drop Ops',
           theme: AppTheme.dark,
           darkTheme: AppTheme.dark,
           themeMode: ThemeMode.dark,

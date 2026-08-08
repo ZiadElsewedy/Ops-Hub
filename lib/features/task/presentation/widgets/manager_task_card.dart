@@ -68,10 +68,11 @@ class ManagerTaskCard extends StatelessWidget {
       child: Builder(
         builder: (context) {
           // A terminal task is a locked record: no Assign / Edit / Delete. Only
-          // an approved task has the admin-only Reopen transition; a missed task
+          // an approved task has the Reopen transition, available to any
+          // manager/admin (this card is never shown to employees); a missed task
           // stays closed.
           final locked = task.status.isTerminal;
-          final canReopen = isAdmin && task.status == TaskStatus.approved;
+          final canReopen = task.status == TaskStatus.approved;
           return TaskCard(
             task: task,
             directory: directory,

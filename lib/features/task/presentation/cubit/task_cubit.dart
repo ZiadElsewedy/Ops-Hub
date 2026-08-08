@@ -711,11 +711,11 @@ class TaskCubit extends Cubit<TaskState> {
     }
   }
 
-  /// Admin escape hatch — reopens an approved task for correction. Moves it back
-  /// to `started` (clearing the approval audit) and logs the reopen on the
-  /// timeline, so a mistaken approval is recoverable. Wired only behind an
-  /// admin-gated affordance; `firestore.rules` permits only an admin to move a
-  /// task out of `approved`.
+  /// Manager/admin escape hatch — reopens an approved task for correction. Moves
+  /// it back to `started` (clearing the approval audit) and logs the reopen on
+  /// the timeline, so a mistaken approval is recoverable. Wired behind a
+  /// manager/admin affordance; `firestore.rules` permits any manager (own
+  /// branch) or admin to move a task out of `approved`.
   Future<void> reopenTask(TaskEntity task) async {
     if (task.status != TaskStatus.approved) return;
     final now = DateTime.now();
