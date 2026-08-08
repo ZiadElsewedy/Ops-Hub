@@ -265,7 +265,10 @@ class _Actions extends StatelessWidget {
         ),
       ] else if (sale.needsCorrection)
         Text(
-          'Waiting for the employee to resubmit this day.',
+          // Whoever submitted this day resubmits it — an employee, or a manager
+          // for their own close — so name them rather than assuming "employee".
+          'Waiting for ${sale.submittedByName ?? 'the submitter'} to resubmit '
+          'this day.',
           style: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondary,
           ),

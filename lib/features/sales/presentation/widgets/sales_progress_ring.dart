@@ -5,14 +5,16 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/rolling_number.dart' show kReelSettle;
 
-/// The month's progress toward target as a monochrome ring — a white arc over a
-/// hairline track, the percentage read in the middle.
+/// The month's progress toward target as a ring — a [tint]ed arc (a soft sweep
+/// toward white with a restrained halo) over a hairline track, the percentage
+/// read in the middle.
 ///
 /// The one figure that answers "how far are we?" at a glance. It sits beside the
 /// pace card's "how fast are we?" verdict, which are deliberately different
 /// questions: a month can be 40% of the way there and still projected to beat
-/// target. Strictly monochrome (ADR-004) — the fill is the white accent, never
-/// a coloured gauge.
+/// target. Colour is *status* (ADR-004, softened on sales surfaces by owner
+/// ruling): the manager passes the outlook tint (emerald ahead / gold behind /
+/// white early); the default white keeps it neutral elsewhere.
 class SalesProgressRing extends StatelessWidget {
   const SalesProgressRing({
     super.key,
@@ -28,7 +30,7 @@ class SalesProgressRing extends StatelessWidget {
   final double stroke;
 
   /// The arc + centre-percent colour. Defaults to white; the manager dashboard
-  /// passes the outlook status tint (green ahead / amber behind / white early).
+  /// passes the outlook status tint (emerald ahead / gold behind / white early).
   final Color tint;
 
   @override
@@ -58,7 +60,11 @@ class SalesProgressRing extends StatelessWidget {
                 painter: SalesRingPainter(
                   ratio: value,
                   stroke: stroke,
+                  // The same premium arc as the employee hero — a soft sweep
+                  // toward white with a restrained halo, in the status tint.
                   arcColor: tint,
+                  arcColorEnd: Color.lerp(tint, AppColors.white, 0.45),
+                  glow: true,
                 ),
                 child: Center(
                   child: Column(

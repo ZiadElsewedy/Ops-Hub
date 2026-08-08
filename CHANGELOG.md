@@ -26,6 +26,40 @@ corner mark was dropped from this card to match the mockup — a chevron is the
 only trailing glyph. `SalesMoneyRow` is retained (still used by the admin
 overview). `flutter analyze` clean, NOT device-verified.
 
+## 2026-08-08 — Record-added overlay + submissions door go premium; overlay Material fix (polish/fix; LOW risk, client-only)
+
+The manager/admin "record added" celebration (`sales_record_added_overlay`) was
+redesigned: the amount now **rolls in** as an emerald `RollingNumber` (short
+~0.85 s so it settles before the 2.6 s auto-dismiss), the achieved-of-target line
+rolls emerald over an emerald progress bar, and the whole thing is emerald
+(glowing when the record crosses the monthly target) instead of raw `success`.
+**Bug fix:** the dialog content is now wrapped in a `Material` — without it, text
+in the raw `showGeneralDialog` route rendered with the framework's yellow
+"no-Material" debug underlines (visible under "+ … EGP" / "added to the branch
+total"). The `SalesSubmissionsDoor` was reorganised from a cramped inline
+breakdown (which truncated to "0 Reje…") into a header (icon · title · total ·
+chevron) over three evenly-split, hairline-divided status segments — each a count
+over an uppercase label, tinted by status (Pending gold / Approved emerald /
+Rejected coral; zero stays faint grey). Home
+`SalesTargetCard` mini-ring got the hero's gradient+halo arc. Submission-detail
+correction copy no longer hard-codes "employee" — it names the actual submitter.
+`flutter analyze` clean; NOT device-verified.
+
+## 2026-08-08 — Odometer + premium palette extended to manager & admin sales (polish; LOW risk, client-only)
+
+Carried the same treatment to the manager dashboard and admin overview.
+`salesOutlookTint` now returns the muted **sales accents** (emerald ahead / gold
+behind / white early) instead of raw `success`/`warning`, so the manager month
+ring, Achieved figure and Pace card go premium while keeping the ahead/behind
+*status* meaning. `SalesProgressRing` (manager ring) gained the hero's premium
+arc — a soft sweep toward white + restrained halo, in the tint. The admin
+per-branch `SalesMoneyRow` was switched from static text to `RollingNumber`
+odometers (Achieved emerald, Remaining gold, Target grey), deliberately snappier
+(~0.7–1.0 s) since it renders in a scrolling list. The admin **Home** module
+(`AdminBranchSalesSummary`) per-branch line also rolls its Achieved figure in
+emerald, keeping `of {target} EGP` as the grey caption. `flutter analyze` clean;
+NOT device-verified.
+
 ## 2026-08-08 — Sales figures roll on a slot-machine odometer + premium palette (polish; LOW risk, client-only)
 
 Replaced the sales count-up with a **per-digit odometer**. New reusable

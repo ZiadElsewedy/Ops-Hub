@@ -39,58 +39,86 @@ class SalesSubmissionsDoor extends StatelessWidget {
     child: ExcludeSemantics(
       child: GlassContainer(
         onTap: onTap,
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppColors.darkSurfaceElevated,
-                borderRadius: AppRadius.mdAll,
-                border: Border.all(color: AppColors.darkBorder),
-              ),
-              child: const Icon(
-                Icons.history_rounded,
-                size: 20,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('All submissions', style: AppTypography.labelLarge),
-                  const SizedBox(height: 5),
-                  _Breakdown(
-                    pending: pending,
-                    approved: approved,
-                    rejected: rejected,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
+            // Header: icon · title · the total · chevron.
+            Row(
               children: [
-                Text(
-                  '$total',
-                  style: AppTypography.h2.copyWith(height: 1),
-                ),
-                Text(
-                  'total',
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.textTertiary,
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppColors.darkSurfaceElevated,
+                    borderRadius: AppRadius.mdAll,
+                    border: Border.all(color: AppColors.darkBorder),
                   ),
+                  child: const Icon(
+                    Icons.history_rounded,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    'All submissions',
+                    style: AppTypography.labelLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text('$total', style: AppTypography.h3.copyWith(height: 1)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'total',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textQuaternary,
                 ),
               ],
             ),
-            const SizedBox(width: AppSpacing.xs),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textQuaternary,
+            const SizedBox(height: AppSpacing.lg),
+            // A clean, evenly-split status breakdown that never truncates.
+            Row(
+              children: [
+                Expanded(
+                  child: _Stat(
+                    value: pending,
+                    label: 'Pending',
+                    tone: AppColors.salesAmber,
+                  ),
+                ),
+                const _StatDivider(),
+                Expanded(
+                  child: _Stat(
+                    value: approved,
+                    label: 'Approved',
+                    tone: AppColors.salesEmerald,
+                  ),
+                ),
+                const _StatDivider(),
+                Expanded(
+                  child: _Stat(
+                    value: rejected,
+                    label: 'Rejected',
+                    tone: AppColors.salesCoral,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -99,47 +127,51 @@ class SalesSubmissionsDoor extends StatelessWidget {
   );
 }
 
-class _Breakdown extends StatelessWidget {
-  const _Breakdown({
-    required this.pending,
-    required this.approved,
-    required this.rejected,
-  });
+/// One status segment: the count (in its status tint when there's something to
+/// show, faint grey at zero) over a small grey label.
+class _Stat extends StatelessWidget {
+  const _Stat({required this.value, required this.label, required this.tone});
 
-  final int pending;
-  final int approved;
-  final int rejected;
+  final int value;
+  final String label;
+  final Color tone;
 
   @override
-  Widget build(BuildContext context) {
-    TextSpan cell(String label, int value) => TextSpan(
-      children: [
-        TextSpan(
-          text: '$value ',
-          style: AppTypography.caption.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        '$value',
+        style: AppTypography.h3.copyWith(
+          height: 1,
+          color: value > 0 ? tone : AppColors.textQuaternary,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
-        TextSpan(text: label, style: AppTypography.caption),
-      ],
-    );
-    const dot = TextSpan(
-      text: '  ·  ',
-      style: TextStyle(color: AppColors.textQuaternary),
-    );
-    return Text.rich(
-      TextSpan(
-        children: [
-          cell('Pending', pending),
-          dot,
-          cell('Approved', approved),
-          dot,
-          cell('Rejected', rejected),
-        ],
       ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
+      const SizedBox(height: 3),
+      Text(
+        label.toUpperCase(),
+        style: AppTypography.caption.copyWith(
+          color: AppColors.textTertiary,
+          letterSpacing: 0.6,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ],
+  );
+}
+
+/// A hairline between two [_Stat] segments.
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 1,
+    height: 30,
+    margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+    color: AppColors.darkBorder,
+  );
 }

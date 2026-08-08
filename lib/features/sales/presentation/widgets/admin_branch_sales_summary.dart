@@ -7,6 +7,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/glass_container.dart';
+import 'package:drop/core/widgets/rolling_number.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
 import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
@@ -18,7 +19,8 @@ import 'package:drop/features/sales/presentation/sales_format.dart';
 
 /// Admin Home: how much each opted-in branch has achieved this month.
 ///
-/// One line per branch — name, achieved, and the target it is measured against.
+/// One line per branch — name, achieved (an emerald [RollingNumber] odometer),
+/// and the target it is measured against.
 /// Branches with `salesTargetEnabled == false` never appear, and when **no**
 /// branch runs a target the whole module (its heading included) renders nothing
 /// rather than an empty box.
@@ -160,26 +162,33 @@ class _BranchLine extends StatelessWidget {
                     ),
                   )
                 else
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: formatEgp(month!.approvedTotalPiastres),
-                          style: AppTypography.label.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // The number that moves — emerald, rolling; kept snappy
+                      // for this dense per-branch line.
+                      RollingNumber(
+                        value: month!.approvedTotalPiastres,
+                        formatter: (v) => formatEgp(v.round()),
+                        animateOnMount: true,
+                        duration: const Duration(milliseconds: 700),
+                        perPlaceStep: const Duration(milliseconds: 40),
+                        maxExtra: const Duration(milliseconds: 320),
+                        style: AppTypography.label.copyWith(
+                          color: AppColors.salesEmerald,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
-                        TextSpan(
-                          text:
-                              ' of ${formatEgp(target.targetPiastres)} EGP',
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textQuaternary,
-                          ),
+                      ),
+                      Text(
+                        ' of ${formatEgp(target.targetPiastres)} EGP',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textQuaternary,
                         ),
-                      ],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
               ],
             ),

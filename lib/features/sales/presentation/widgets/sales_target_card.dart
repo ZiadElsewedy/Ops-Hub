@@ -215,7 +215,10 @@ class _MiniRing extends StatelessWidget {
           painter: SalesRingPainter(
             ratio: value,
             stroke: 7,
+            // The same premium emerald arc as the hero — soft sweep + halo.
             arcColor: AppColors.salesEmerald,
+            arcColorEnd: AppColors.salesEmeraldGlow,
+            glow: true,
           ),
         ),
       ),

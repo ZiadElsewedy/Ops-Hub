@@ -7,17 +7,17 @@ import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/glass_container.dart';
+import 'package:drop/core/widgets/rolling_number.dart';
 import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
 import 'package:drop/features/sales/presentation/sales_format.dart';
 
 /// The celebratory "+59,000 EGP added to the branch total" confirmation shown
 /// once, after a manager/admin records a day directly.
 ///
-/// It counts the figure up from zero, then rests. Strictly monochrome
-/// (ADR-004): the amount is white, and the only chromatic pixel is the
-/// **success** tint that appears **exclusively** when this record is the one
-/// that reached the monthly target — colour as status, never decoration.
-/// Reduced motion collapses every transition to a still frame.
+/// The amount **rolls in** on the slot-machine odometer, in the muted sales
+/// [AppColors.salesEmerald] (money landing is positive); when this record is the
+/// one that reaches the monthly target it warms to a glowing celebration. Reduced
+/// motion collapses every transition to a still frame.
 Future<void> showSalesRecordAddedOverlay(
   BuildContext context,
   SalesRecordResult result,
@@ -33,12 +33,17 @@ Future<void> showSalesRecordAddedOverlay(
       final reduceMotion = MediaQuery.maybeOf(dialogContext)?.disableAnimations ?? false;
       final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutBack);
       final scale = reduceMotion ? 1.0 : (0.9 + 0.1 * curved.value);
-      return Opacity(
-        opacity: animation.value.clamp(0.0, 1.0),
-        child: Transform.scale(
-          scale: scale,
-          child: Center(
-            child: _SalesRecordAddedCard(result: result),
+      // A transparent Material ancestor: without it, Text in a raw dialog route
+      // renders with the framework's yellow "no Material" debug underline.
+      return Material(
+        type: MaterialType.transparency,
+        child: Opacity(
+          opacity: animation.value.clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: scale,
+            child: Center(
+              child: _SalesRecordAddedCard(result: result),
+            ),
           ),
         ),
       );
@@ -54,19 +59,12 @@ class _SalesRecordAddedCard extends StatefulWidget {
   State<_SalesRecordAddedCard> createState() => _SalesRecordAddedCardState();
 }
 
-class _SalesRecordAddedCardState extends State<_SalesRecordAddedCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+class _SalesRecordAddedCardState extends State<_SalesRecordAddedCard> {
   Timer? _autoDismiss;
-  var _started = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
     // A gentle tick to acknowledge the money landing.
     HapticFeedback.mediumImpact();
     // Auto-dismiss so the celebration never traps the screen; a tap still closes.
@@ -76,24 +74,8 @@ class _SalesRecordAddedCardState extends State<_SalesRecordAddedCard>
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started) return;
-    _started = true;
-    // Only animate the count-up when motion is allowed; under reduced motion the
-    // figure rests at its final value from the first frame (never a frozen 0).
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (reduceMotion) {
-      _controller.value = 1;
-    } else {
-      _controller.forward();
-    }
-  }
-
-  @override
   void dispose() {
     _autoDismiss?.cancel();
-    _controller.dispose();
     super.dispose();
   }
 
@@ -101,7 +83,9 @@ class _SalesRecordAddedCardState extends State<_SalesRecordAddedCard>
   Widget build(BuildContext context) {
     final result = widget.result;
     final crossed = result.crossedTarget;
-    final accent = crossed ? AppColors.success : AppColors.primary;
+    // Money added is positive → emerald throughout; crossing the target warms it
+    // to a glowing celebration rather than a second colour.
+    const accent = AppColors.salesEmerald;
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.pagePadding),
@@ -112,7 +96,7 @@ class _SalesRecordAddedCardState extends State<_SalesRecordAddedCard>
             if (Navigator.of(context).canPop()) Navigator.of(context).pop();
           },
           child: GlassContainer(
-            glow: crossed ? AppColors.success : null,
+            glow: crossed ? accent : null,
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.xl,
               vertical: AppSpacing.xxl,
@@ -122,17 +106,15 @@ class _SalesRecordAddedCardState extends State<_SalesRecordAddedCard>
               children: [
                 _Medallion(crossed: crossed, accent: accent),
                 const SizedBox(height: AppSpacing.lg),
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, _) {
-                    final shown =
-                        (result.amountPiastres * _controller.value).round();
-                    return Text(
-                      '+ ${formatEgp(shown, withSuffix: true)}',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.displayMedium.copyWith(color: accent),
-                    );
-                  },
+                // Rolls in briefly (settles well before the 2.6 s auto-dismiss).
+                RollingNumber(
+                  value: result.amountPiastres,
+                  formatter: (v) => '+ ${formatEgp(v.round(), withSuffix: true)}',
+                  animateOnMount: true,
+                  duration: const Duration(milliseconds: 850),
+                  perPlaceStep: const Duration(milliseconds: 55),
+                  maxExtra: const Duration(milliseconds: 380),
+                  style: AppTypography.displayMedium.copyWith(color: accent),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
@@ -141,7 +123,7 @@ class _SalesRecordAddedCardState extends State<_SalesRecordAddedCard>
                       : 'added to the branch total',
                   textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(
-                    color: crossed ? AppColors.success : AppColors.textSecondary,
+                    color: crossed ? accent : AppColors.textSecondary,
                   ),
                 ),
                 if (result.targetPiastres > 0) ...[
@@ -213,10 +195,30 @@ class _AchievedLine extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          '${formatEgp(achievedPiastres, withSuffix: true)} of ${formatEgp(targetPiastres, withSuffix: true)}',
-          textAlign: TextAlign.center,
-          style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            RollingNumber(
+              value: achievedPiastres,
+              formatter: (v) => formatEgp(v.round(), withSuffix: true),
+              animateOnMount: true,
+              duration: const Duration(milliseconds: 850),
+              perPlaceStep: const Duration(milliseconds: 45),
+              maxExtra: const Duration(milliseconds: 340),
+              style: AppTypography.caption.copyWith(
+                color: accent,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            Text(
+              ' of ${formatEgp(targetPiastres, withSuffix: true)}',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
         ),
       ],
     );

@@ -31,7 +31,12 @@
 > leading digits roll in from 0 as the number grows. No opacity/scale/whole-string
 > rebuilds; reels settle left→right in ~0.5–0.9 s; honours reduce-motion. It now
 > drives **every** sales figure (hero, Home `SalesTargetCard`, `SalesNeededPerDay`,
-> manager `SalesMonthOverview`) and the ring percentages. `AnimatedCountText` is
+> manager `SalesMonthOverview`, admin `SalesMoneyRow` + `AdminBranchSalesSummary`)
+> and the ring percentages; the admin per-branch rows roll snappier (~0.7–1.0 s).
+> `salesOutlookTint` returns the muted sales accents (emerald ahead / gold behind
+> / white early), so the manager ring + Achieved + Pace card go premium while
+> keeping the ahead/behind *status* meaning; `SalesProgressRing` now draws the
+> hero's gradient+halo arc in that tint. `AnimatedCountText` is
 > retired from the sales feature (still defines `kPremiumSettle`, used by nothing
 > sales-side now). Palette moved off the raw `success`/`warning`/`error` to muted
 > **sales accents** (`AppColors.salesEmerald`/`salesEmeraldGlow`/`salesAmber`/
