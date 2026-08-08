@@ -749,14 +749,27 @@ void _showDetails(
 ) {
   final r = row.record;
   final cubit = context.read<AttendanceAdminCubit>();
+  // A reviewer may never settle their OWN shift (no self-approval — enforced in
+  // `firestore.rules`). Keyed on uid so it holds even for an absent row with no
+  // record yet; on the own row the write actions are replaced by a notice.
+  final isOwnRow = context.currentUser?.uid == row.uid;
   // Which manager actions apply (all reuse the existing cubit + validation).
-  final canResolve = r != null && r.needsReview;
+  final canResolve = !isOwnRow && r != null && r.needsReview;
   final isUnscheduled =
-      r != null && row.status == AttendanceBoardStatus.unscheduled;
+      !isOwnRow && r != null && row.status == AttendanceBoardStatus.unscheduled;
   final canAddOrExcuse =
+      !isOwnRow &&
       r == null &&
       (row.status == AttendanceBoardStatus.absent ||
           row.status == AttendanceBoardStatus.late);
+  // Whether this own row would otherwise have offered a write action.
+  final ownRowHadActions =
+      isOwnRow &&
+      (r != null && r.needsReview ||
+          r != null && row.status == AttendanceBoardStatus.unscheduled ||
+          r == null &&
+              (row.status == AttendanceBoardStatus.absent ||
+                  row.status == AttendanceBoardStatus.late));
 
   showModalBottomSheet<void>(
     context: context,
@@ -889,6 +902,11 @@ void _showDetails(
                   dismissContext: sheetContext,
                 ),
               ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+
+            if (ownRowHadActions) ...[
+              const OwnAttendanceNotice(),
               const SizedBox(height: AppSpacing.sm),
             ],
 

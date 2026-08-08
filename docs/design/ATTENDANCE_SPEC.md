@@ -162,7 +162,7 @@ overtime remain **derived facts, not states** (Technical Constraint T2).
 | R9 | Does an incomplete session block new attendance? | **Never.** |
 | R10 | Auto-close open sessions? | **Yes** (R6 + R7). |
 | R11 | Managers create attendance directly? | **Yes — manager manual entry and direct resolve apply immediately with audit.** Managers are the branch authority. |
-| R12 | Do employees still file requests? | **Yes.** Employee-filed corrections/missed-punch requests **require reviewer approval**. Self-approval is forbidden server-side, and every correction's deterministic `attendanceId` must name the same `userId` as the correction owner; a correction can never target another employee's record. |
+| R12 | Do employees still file requests? | **Yes.** Employee-filed corrections/missed-punch requests **require reviewer approval**. Self-approval is forbidden server-side, and every correction's deterministic `attendanceId` must name the same `userId` as the correction owner; a correction can never target another employee's record. The branch attendance UI mirrors this: on a reviewer's **own** shift row the direct-action buttons are hidden (they'd only fail server-side) and replaced by a notice pointing to the correction path — a manager files for their own record like anyone else, and a *different* reviewer approves it. |
 | R13 | Do absent shifts create records? | **No — lazily.** Absent stays virtual until a manager excuses/creates or an employee files a missed-punch. No phantom documents. |
 | R14 | Excused absence? | **Yes, a real outcome** (`status=excused`, zero minutes, reason). Materialized only when acted on. |
 | R15 | Duplicate corrections? | **No.** At most **one open correction per record**. A new one is blocked while one is pending. |

@@ -111,6 +111,32 @@ test("DENY: a manager cannot direct-action a correction outside their branch", a
   ));
 });
 
+test("DENY: a manager cannot decide a correction filed on their OWN attendance", async () => {
+  // The invariant the UI now mirrors (managers no longer see review buttons on
+  // their own row). A manager may FILE a pending correction for themselves, but
+  // approving/rejecting it is self-approval — forbidden by the update rule
+  // (`request.auth.uid != resource.data.userId`). Another reviewer must decide.
+  await seedCorrection("own-pending", correction({
+    userId: "mgr1",
+    userName: "Manager One",
+    attendanceId: "mgr1_20260802_morning",
+    requestedBy: "mgr1",
+    requestedByName: "Manager One",
+    status: "pending",
+  }));
+
+  await assertFails(updateDoc(
+    doc(as("mgr1"), "attendance_corrections/own-pending"),
+    { status: "approved", decidedBy: "mgr1", decidedByName: "Manager One" },
+  ));
+
+  // A DIFFERENT reviewer (admin here) may decide it — the path stays open.
+  await assertSucceeds(updateDoc(
+    doc(as("admin1"), "attendance_corrections/own-pending"),
+    { status: "approved", decidedBy: "admin1", decidedByName: "Admin One" },
+  ));
+});
+
 test("DENY: reviewers cannot change correction identity fields", async () => {
   await seedCorrection("frozen");
   for (const patch of [

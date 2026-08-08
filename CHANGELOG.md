@@ -14,6 +14,28 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Attendance UI no longer offers self-review it can't perform (UX; LOW risk)
+
+Closed a UX gap where the branch attendance surfaces showed a manager the direct
+review actions (*Set the time / Approve / Excuse / They worked / Resolve / Add
+record*) on **their own** shift row — actions the server always rejects, because
+correcting your own attendance is self-approval and is forbidden in
+`firestore.rules` (`request.auth.uid != userId` on both the correction create and
+update paths). The UI now detects the own row by **uid** (`row.uid`, so it holds
+even for an absent row with no record yet) and replaces those buttons with a short
+notice: *"You can't review your own shift. File a correction from My Attendance
+and another manager or admin will approve it."* The correction path (self-file a
+*pending* correction that a different reviewer approves) is unchanged and remains
+the manager's route for their own record. **Presentation only** — no change to
+`firestore.rules`, the correction flow, cubits, use-cases, or the permission
+model; the server stays the sole gate. Touched the two action sites
+(`attendance_daily_review_screen.dart`, `admin_attendance_screen.dart`) plus a
+shared `OwnAttendanceNotice` in `attendance_manager_actions.dart`. Tests: new
+`attendance_daily_review_own_row_test.dart` (own row → notice + no buttons; other
+rows unchanged); a `firestore-tests` pin-test asserting a manager can't decide a
+correction on their own attendance while another reviewer still can (90/90 rules
+tests green; full attendance suite green).
+
 ## 2026-08-08 — Managers can reopen approved tasks (permission; MEDIUM risk)
 
 Reopening an `approved` task is now available to **managers (own branch)**, not
