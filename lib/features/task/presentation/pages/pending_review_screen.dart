@@ -35,6 +35,13 @@ import 'package:drop/features/task/presentation/widgets/manager_task_card.dart';
 /// admin), filters to `waitingReview`, and groups by branch then assignee. The
 /// leaf reuses [ManagerTaskCard] (its "Review" action opens the existing review
 /// surface). Strictly monochrome — no new cubit, schema, or data layer.
+///
+/// **Single-choice levels collapse.** The drill-down earns its keep only when a
+/// level offers a real choice. A level with exactly one option — one branch with
+/// pending work, or one employee inside it — is skipped automatically, on the
+/// way in *and* on the way back, so the common "one task, one branch, one
+/// person" case lands straight on the task instead of costing three empty taps.
+/// The full drill-down is unchanged the moment a level offers more than one row.
 class PendingReviewScreen extends StatefulWidget {
   const PendingReviewScreen({super.key});
 
@@ -45,6 +52,12 @@ class PendingReviewScreen extends StatefulWidget {
 class _PendingReviewScreenState extends State<PendingReviewScreen> {
   String? _branchId; // selected branch (level 1+)
   String? _employeeId; // selected employee (level 2)
+
+  // Whether the currently-shown level had only one option and was therefore
+  // auto-descended past. Recomputed every build (below) and read by [_back] /
+  // `canPop`, so an auto-skipped level is never a stop on the way back either.
+  bool _singleBranch = false;
+  bool _singleEmpInBranch = false;
 
   /// Review-task ids already seen this session — so a fresh arrival (an id not
   /// seen before, after the first load) can be highlighted, while existing rows
@@ -62,16 +75,23 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
     });
   }
 
-  /// Drill up one level; pop the route only at the summary root.
+  /// Drill up one **navigable** level; pop the route otherwise. A level that was
+  /// auto-descended (its only option) is not a stop — clearing an explicit
+  /// selection above an auto level, or having none, pops the route.
   void _back() {
-    if (_employeeId != null) {
+    if (_employeeId != null && !_singleEmpInBranch) {
       setState(() => _employeeId = null);
-    } else if (_branchId != null) {
+    } else if (_branchId != null && !_singleBranch) {
       setState(() => _branchId = null);
     } else {
       Navigator.of(context).maybePop();
     }
   }
+
+  /// True only while an explicit, non-auto selection can be stepped back to.
+  bool get _canGoBackInternally =>
+      (_employeeId != null && !_singleEmpInBranch) ||
+      (_branchId != null && !_singleBranch);
 
   @override
   Widget build(BuildContext context) {
@@ -103,13 +123,36 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
         };
         _knownTaskIds.addAll(reviewTasks.map((t) => t.id));
 
+        // ── Collapse single-choice levels ────────────────────────────
+        // A branch level with one branch, or an employee level with one
+        // employee, is not a choice — descend past it automatically. The
+        // effective ids drive the view; the explicit `_branchId`/`_employeeId`
+        // are honoured first so a real selection in a multi-row estate wins.
+        _singleBranch = byBranch.length == 1;
+        final effBranchId =
+            _branchId ?? (_singleBranch ? byBranch.keys.first : null);
+
+        final branchTasks =
+            effBranchId == null ? const <TaskEntity>[] : byBranch[effBranchId]!;
+        // Employees within the effective branch — only to detect a lone one.
+        final empIds = <String>{
+          for (final t in branchTasks)
+            ...(t.assigneeIds.isEmpty ? const [''] : t.assigneeIds),
+        };
+        _singleEmpInBranch = effBranchId != null && empIds.length == 1;
+        final effEmployeeId =
+            _employeeId ?? (_singleEmpInBranch ? empIds.first : null);
+
+        final atLeaf = effBranchId != null && effEmployeeId != null;
+        final atEmployeePicker = effBranchId != null && effEmployeeId == null;
+
         final String levelTitle;
         final String levelSubtitle;
-        if (_employeeId != null) {
-          levelTitle = cubit.directory[_employeeId]?.displayName ?? 'Employee';
+        if (atLeaf) {
+          levelTitle = _empName(cubit, effEmployeeId);
           levelSubtitle = 'Tasks awaiting your review';
-        } else if (_branchId != null) {
-          levelTitle = cubit.branchNames[_branchId] ?? 'Branch';
+        } else if (atEmployeePicker) {
+          levelTitle = cubit.branchNames[effBranchId] ?? 'Branch';
           levelSubtitle = 'Choose an employee to review';
         } else {
           levelTitle = 'Pending review';
@@ -122,17 +165,16 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
             padding: EdgeInsets.all(AppSpacing.pagePadding),
             child: ListSkeleton(),
           );
-        } else if (_branchId != null && _employeeId != null) {
-          body = _employeeLevel(
-              cubit, byBranch[_branchId] ?? const [], freshIds);
-        } else if (_branchId != null) {
-          body = _branchLevel(cubit, byBranch[_branchId] ?? const []);
+        } else if (atLeaf) {
+          body = _employeeLevel(cubit, branchTasks, effEmployeeId, freshIds);
+        } else if (atEmployeePicker) {
+          body = _branchLevel(cubit, branchTasks);
         } else {
           body = _summaryLevel(cubit, reviewTasks, byBranch);
         }
 
         return PopScope(
-          canPop: _branchId == null && _employeeId == null,
+          canPop: !_canGoBackInternally,
           onPopInvokedWithResult: (didPop, _) {
             if (!didPop) _back();
           },
@@ -265,13 +307,14 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
   Widget _employeeLevel(
     TaskCubit cubit,
     List<TaskEntity> branchTasks,
+    String employeeId,
     Set<String> freshIds,
   ) {
     final mine = [
       for (final t in branchTasks)
-        if (_employeeId!.isEmpty
+        if (employeeId.isEmpty
             ? t.assigneeIds.isEmpty
-            : t.assigneeIds.contains(_employeeId)) t,
+            : t.assigneeIds.contains(employeeId)) t,
     ];
     if (mine.isEmpty) {
       return const Center(

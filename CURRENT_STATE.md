@@ -5,6 +5,20 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Pending Review drill-down collapses single-choice levels (2026-08-08,
+> polish, client-only, NOT device-verified):** The admin Pending Review flow
+> (`PendingReviewScreen`) is Summary → Branch → Employee → task, and it never
+> collapsed — reviewing one task cost 4 taps even when there was one branch and
+> one employee. It now **auto-descends any level with a single option** (one
+> branch with pending work, or one employee in it), on entry *and* on back
+> (`_back` + `PopScope.canPop` skip auto levels via the recomputed
+> `_singleBranch` / `_singleEmpInBranch` flags), so the common case opens the
+> task directly. The full drill-down returns unchanged the moment a level has
+> more than one row. Effective branch/employee ids are derived from the same
+> `waitingReview` grouping already built — no new cubit/reads/schema/rules/
+> functions. Pinned by `test/pending_review_collapse_test.dart` (3).
+> `flutter analyze` clean.
+
 > **Admin Home Branch-sales rows now match the manager card (2026-08-08, polish,
 > client-only, NOT device-verified):** The Admin Home `AdminBranchSalesSummary`
 > per-branch line dropped its flat text row (*name … 111,700 of 1,000,000 EGP*)

@@ -14,6 +14,21 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-08 — Pending Review drill-down collapses single-choice levels (polish; LOW risk)
+
+The admin Pending Review flow (`PendingReviewScreen`) is a guided drill-down —
+Summary → Branch → Employee → task. It never collapsed, so "one task, one branch,
+one person" still cost **4 taps** to reach the single task (Home → branch →
+employee → card). Now any level with exactly one option is **auto-descended** —
+one branch with pending work, or one employee inside it — on the way in *and* on
+the way back (`_back` / `PopScope.canPop` skip auto levels too), so the common
+case lands straight on the task. The full drill-down is unchanged the moment a
+level offers more than one row (multi-branch estate keeps the by-branch summary).
+Presentation only — the effective branch/employee ids are derived from the same
+`waitingReview` grouping already computed; no new cubit/reads/schema/rules/
+functions. Pinned by `test/pending_review_collapse_test.dart` (3).
+`flutter analyze` clean. NOT device-verified.
+
 ## 2026-08-08 — Admin Home Branch-sales rows adopt the manager card's mini ring (polish; LOW risk)
 
 The Admin Home `AdminBranchSalesSummary` per-branch line was a flat text row
