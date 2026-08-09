@@ -1,14 +1,23 @@
 <div align="center">
 
-<img src="assets/drop_logo.png" alt="DROP" width="120" />
+<img src="assets/drop_wordmark.png" alt="DROP" width="160" />
 
-# DROP — Operations Management System
+# Drop Operations
 
-**Role-based branch & shift operations for DROP THE SHOP.**
-Task assignment with proof · GPS attendance · weekly scheduling & shift swaps · approvals · branch administration · live operations dashboards.
+**Role-based branch &amp; shift operations for _DROP THE SHOP_.**
 
-<!-- Badges reflect the repo, not pub.dev — this is a private package. -->
-`iOS · Android · macOS`&nbsp;&nbsp;`Flutter · Dart ^3.12`&nbsp;&nbsp;`flutter_bloc (Cubits)`&nbsp;&nbsp;`Firebase`&nbsp;&nbsp;`Clean · feature-sliced`&nbsp;&nbsp;`Monochrome · dark`&nbsp;&nbsp;`1665 tests · ~40s`
+Task assignment with proof · GPS attendance · weekly scheduling &amp; shift swaps · approvals · branch administration · live operations dashboards.
+
+<br/>
+
+![Platforms](https://img.shields.io/badge/Platforms-iOS%20%C2%B7%20Android%20%C2%B7%20macOS-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Flutter](https://img.shields.io/badge/Flutter-Dart%20%5E3.12-1E1E24?style=flat-square&labelColor=0A0A0B)
+![State](https://img.shields.io/badge/State-flutter__bloc%20%28Cubits%29-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Backend](https://img.shields.io/badge/Backend-Firebase-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Architecture](https://img.shields.io/badge/Architecture-Clean%20%C2%B7%20feature--sliced-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Design](https://img.shields.io/badge/Design-Monochrome%20%C2%B7%20dark-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Tests](https://img.shields.io/badge/Tests-1665%20%C2%B7%20~40s-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Access](https://img.shields.io/badge/Access-Private%20%C2%B7%20internal-1E1E24?style=flat-square&labelColor=0A0A0B)
 
 </div>
 
@@ -16,26 +25,67 @@ Task assignment with proof · GPS attendance · weekly scheduling & shift swaps 
 
 ## Overview
 
-DROP is an **internal, role-based operations tool** — not a SaaS product. It has no
-public sign-up and no buyers, only a small, known set of staff across a handful of
+**Drop Operations** is an internal, **role-based operations tool** — not a SaaS product. It has
+no public sign-up and no buyers, only a small, known set of staff across a handful of
 branches. Three roles run the whole system:
 
 | Role | Scope |
 | --- | --- |
-| **Admin** | Global. Provisions accounts, works across every branch, does everything a manager can. |
-| **Manager** | Exactly one branch. Assigns and reviews work, approves swaps and requests, watches coverage. |
-| **Employee** | Own work only. Executes tasks with proof, clocks in/out by GPS, requests swaps and approvals. |
+| 🛡️ **Admin** | Global. Provisions accounts, works across every branch, does everything a manager can. |
+| 🧭 **Manager** | Exactly one branch. Assigns and reviews work, approves swaps and requests, watches coverage. |
+| 👤 **Employee** | Own work only. Executes tasks with proof, clocks in/out by GPS, requests swaps and approvals. |
 
 Authentication is **admin-provisioned** — an admin creates each account via a Cloud
 Function; there is no public registration, OTP, or social sign-in. First login walks a
-deterministic gate: force password change → profile completion → one-time welcome →
-role home.
+deterministic gate: **force password change → profile completion → one-time welcome →
+role home**.
 
-### Design philosophy
+---
 
-- **Workflow over architecture. UX over feature count.** Default to deletion — the burden of proof is on *keeping* a feature.
-- **Premium, not minimal.** Strictly monochrome, dark-mode-only. White is the only accent; colour is reserved for `success` / `error` / `warning` / `info` status.
-- **Simple > clever. Stability > perfection.** No abstraction without a second caller; 90% done with zero regressions beats 100% with risk.
+## Screenshots
+
+<sub>Captured on iOS · dark, monochrome by design.</sub>
+
+<table>
+  <tr>
+    <td width="33%" align="center"><img src="docs/screenshots/splash.png" alt="Splash" /><br/><sub><b>Launch</b> · branded intro</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/login.png" alt="Login" /><br/><sub><b>Login</b> · admin-provisioned sign-in</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/employee-home.png" alt="Employee Home" /><br/><sub><b>Employee Home</b> · shift, tasks & clock-in</sub></td>
+  </tr>
+  <tr>
+    <td width="33%" align="center"><img src="docs/screenshots/my-tasks.png" alt="My Tasks" /><br/><sub><b>My Tasks</b> · active · late · missed · done</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/task-detail.png" alt="Task detail" /><br/><sub><b>Task Detail</b> · status timeline & activity</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/attendance.png" alt="Attendance" /><br/><sub><b>Attendance</b> · GPS-gated clock in/out</sub></td>
+  </tr>
+  <tr>
+    <td width="33%" align="center"><img src="docs/screenshots/new-request.png" alt="New Request" /><br/><sub><b>New Request</b> · pick an approval type</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/requests.png" alt="Requests" /><br/><sub><b>Requests</b> · pending / approved / rejected</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/branch-sales.png" alt="Branch sales" /><br/><sub><b>Branch Sales</b> · monthly target & pace</sub></td>
+  </tr>
+  <tr>
+    <td width="33%" align="center"><img src="docs/screenshots/admin-home.png" alt="Admin Home" /><br/><sub><b>Admin Command Center</b> · cross-branch</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/attendance-board.png" alt="Attendance board" /><br/><sub><b>Attendance Board</b> · present · late · absent</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/activity-feed.png" alt="Activity feed" /><br/><sub><b>Recent Activity</b> · live operations feed</sub></td>
+  </tr>
+</table>
+
+---
+
+## Design philosophy
+
+DROP is deliberately **lean but premium**. The rules below are load-bearing — most are
+backed by an [Architecture Decision Record](docs/decisions/).
+
+- **Workflow over architecture. UX over feature count.** Default to *deletion* — the burden
+  of proof is on *keeping* a feature, not cutting it. Whole subsystems (Schedule Health, an
+  analytics pipeline) were shipped and then removed.
+- **Premium, not minimal.** Strictly **monochrome, dark-mode-only**. White is the only
+  accent; colour is reserved for `success` / `error` / `warning` / `info` **status**. Calm
+  comes from a 4-step grey ramp and hierarchy, not from stripping things out.
+- **Simple &gt; clever. Stability &gt; perfection.** No abstraction without a second caller; 90%
+  done with **zero regressions** beats 100% done with risk.
+- **Every state is a finished state.** Empty, loading, error, and offline each have a
+  first-class, reusable surface — never a bare spinner or a broken box.
 
 ---
 
@@ -43,18 +93,21 @@ role home.
 
 | Module | What it does |
 | --- | --- |
-| **Tasks** | Operations tasks: create → execute (with proof) → review. Templates and recurring shift-task automation. |
-| **Schedule** | Admin cross-branch *Today* coverage, weekly roster, shift templates, leave, and attributed swap approval/history. |
-| **Attendance** | GPS-verified clock in/out with geofences, corrections, and an admin board. |
-| **Requests** | Lightweight employee → manager yes/no approvals. |
-| **Cases** | Private employee ↔ manager/admin conversations. |
-| **Chat** | Direct 1:1 staff chat over a NestJS API with Socket.IO realtime and an offline SQLite cache *(in progress)*. |
-| **Communications** | Broadcasts, templates, schedules, and reminders. |
-| **Sales** | Per-branch monthly sales targets, daily employee closes, manager approval, and derived pace KPIs *(opt-in per branch)*. |
-| **Operations** | Branch operations cockpit — workload and KPI drill-downs. |
-| **Notifications** | Notification inbox with deep-link resolution. |
-| **Admin & Branch** | User administration, branch CRUD, geofences, and policy configuration. |
-| **Statistics** | Role-scoped counts powering all three dashboards. |
+| ✅ **Tasks** | Operations tasks: create → execute (with proof) → review. Templates and recurring shift-task automation. |
+| 🗓️ **Schedule** | Admin cross-branch *Today* coverage, weekly roster, shift templates, leave, and attributed swap approval/history. |
+| 📍 **Attendance** | GPS-verified clock in/out with geofences, corrections, and an admin board. |
+| 🙋 **Requests** | Lightweight employee → manager yes/no approvals. |
+| 💬 **Cases** | Private employee ↔ manager/admin conversations. |
+| ✉️ **Chat** | Direct 1:1 staff chat over a NestJS API with Socket.IO realtime and an offline SQLite cache *(in progress)*. |
+| 📢 **Communications** | Broadcasts, templates, schedules, and reminders. |
+| 💰 **Sales** | Per-branch monthly sales targets, daily employee closes, manager approval, and derived pace KPIs *(opt-in per branch)*. |
+| 🏬 **Operations** | Branch operations cockpit — workload and KPI drill-downs. |
+| 🔔 **Notifications** | Notification inbox with deep-link resolution. |
+| ⚙️ **Admin &amp; Branch** | User administration, branch CRUD, geofences, and policy configuration. |
+| 📊 **Statistics** | Role-scoped counts powering all three dashboards. |
+
+19 feature modules in [`lib/features/`](lib/features/); one design spec each in
+[`docs/design/`](docs/design/).
 
 ---
 
@@ -65,35 +118,44 @@ role home.
 | Language / UI | Dart `^3.12.1` · Flutter |
 | State | `flutter_bloc` — **Cubits only** |
 | Navigation | `go_router` — auth-aware redirects + role guards |
-| Backend | Firebase: Auth · Firestore · Storage · Cloud Messaging · Cloud Functions |
+| Backend | Firebase: Auth · Firestore · Storage · Cloud Messaging · **31 Cloud Functions** |
 | Chat API *(in progress)* | NestJS over `dio` + Socket.IO; offline cache via `drift` (SQLite) |
 | Models | `freezed` + `json_serializable`, generated with `build_runner` |
 | Location | `geolocator` (attendance GPS) |
 | Media | `image_picker` · `image_cropper` · `video_compress` |
 
-**Platforms:** iOS · Android · macOS. Desktop is a first-class target, not an afterthought.
+**Platforms:** iOS · Android · macOS. Desktop is a **first-class target**, not an afterthought.
 
 ---
 
 ## Architecture
 
-**Clean Architecture, sliced by feature.** The dependency rule points inward:
-`presentation → domain ← data`.
+**Clean Architecture, sliced by feature.** The dependency rule always points **inward** —
+`presentation → domain ← data`. `domain/` is pure Dart and imports neither Flutter nor
+Firebase, which is why the full **1665-test** suite runs in **~40s** with no Firebase and no
+live backend: the business rules are pure functions.
+
+```mermaid
+flowchart LR
+  P["presentation<br/><sub>cubits · pages · widgets</sub>"] --> D["domain<br/><sub>entities · usecases · contracts</sub>"]
+  DA["data<br/><sub>datasources · models · repos</sub>"] --> D
+  DA -. "Firebase lives here only" .-> FB[("Firebase")]
+  classDef c fill:#111114,stroke:#2A2A30,color:#fff;
+  class P,D,DA,FB c;
+```
 
 ```
 lib/
-├── core/                 # Feature-neutral: theme, routing, DI, network, widgets
+├── core/                 # Feature-neutral: theme · routing · DI · network · widgets
 └── features/<feature>/
     ├── data/             # The ONLY place Firebase exists (datasources · models · repositories)
     ├── domain/           # Pure Dart — never imports Flutter or Firebase (entities · repositories · usecases)
     └── presentation/     # Cubits · pages · widgets (sees entities only)
 ```
 
-`domain/` depends on nothing, which is why the full 1665-test suite runs in ~40s
-with no Firebase and no live backend. Dependencies are wired **by hand** in
-[`lib/core/di/injection.dart`](lib/core/di/injection.dart) — no DI package.
-
-Full rationale lives in the [Architecture Decision Records](docs/decisions/).
+Dependencies are wired **by hand** in
+[`lib/core/di/injection.dart`](lib/core/di/injection.dart) — no DI package. Full rationale
+lives in the [Architecture Decision Records](docs/decisions/).
 
 ---
 
@@ -115,46 +177,45 @@ dart run build_runner build --delete-conflicting-outputs
 ### Verify
 
 ```bash
-flutter analyze     # expect: 1 pre-existing info
+flutter analyze     # expect: clean (1 pre-existing info)
 flutter test        # expect: 1665 pass, 0 fail — any red is a real regression
 ```
 
-If you touch `firestore.rules`, also run the rules suite (the Dart tests never
-evaluate a rule):
+If you touch `firestore.rules`, also run the rules suite (the Dart tests never evaluate a
+rule):
 
 ```bash
-cd firestore-tests && npm test   # expect: 68 pass — needs the Firebase CLI + a JDK
+cd firestore-tests && npm test   # needs the Firebase CLI + a JDK
 ```
 
 And after any change under `functions/`:
 
 ```bash
-cd functions && node --test      # expect: 112 pass
+cd functions && node --test
 ```
 
 ---
 
 ## Firebase
 
-Auth · Firestore · Storage · Cloud Messaging · Cloud Functions back the app; the
-backend contract is [`docs/design/DATA_MODEL.md`](docs/design/DATA_MODEL.md). Server
-logic lives in [`functions/`](functions/).
+Auth · Firestore · Storage · Cloud Messaging · Cloud Functions back the app; the backend
+contract is [`docs/design/DATA_MODEL.md`](docs/design/DATA_MODEL.md). Server logic lives in
+[`functions/`](functions/).
 
 ```bash
 firebase deploy --only functions,firestore:rules,firestore:indexes,storage
 ```
 
-> ⚠️ Deploy status is tracked in [CURRENT_STATE.md](CURRENT_STATE.md). Some rules,
-> indexes, and functions may be undeployed at any given time — an undeployed change is
-> inert in production and fails at *runtime*, not compile time. **Read CURRENT_STATE
-> before shipping.**
+> ⚠️ **Read [CURRENT_STATE.md](CURRENT_STATE.md) before shipping.** Some rules, indexes, and
+> functions may be undeployed at any given time — an undeployed change is inert in production
+> and fails at *runtime*, not compile time.
 
 ---
 
 ## Documentation
 
-Each document has **one** responsibility. Start at **PROJECT_CONTEXT**; follow a link
-only when the task needs it.
+Each document has **one** responsibility. Start at **PROJECT_CONTEXT**; follow a link only
+when the task needs it.
 
 | Document | Answers |
 | --- | --- |
@@ -166,16 +227,27 @@ only when the task needs it.
 | [docs/decisions/](docs/decisions/) | **Why, and don't re-litigate.** Architecture Decision Records |
 | [docs/QA.md](docs/QA.md) | **How do we verify a release?** |
 
-**If the code and a doc disagree, the code wins** — verify against the code, then fix
-the doc in the same task.
+**If the code and a doc disagree, the code wins** — verify against the code, then fix the doc
+in the same task.
 
 ---
 
 ## Project identity
 
-The repository folder is **`Drop-operations`**; the Dart package is **`drop`** (every
-import is `package:drop/…`), and all platform display names read **Drop Operation**.
-Platform identifiers are `com.ziad.drop` on iOS/macOS and `com.example.dropoperation`
-on Android/Linux.
+The repository folder is **`Drop-operations`**; the Dart package is **`drop`** (every import
+is `package:drop/…`). Two user-facing names, split by surface:
 
-> This is a private package (`publish_to: none`) and is not distributed on pub.dev.
+- **`Drop Ops`** — the short **OS label** the operating system shows (launcher, window title,
+  app-switcher).
+- **`Drop Operations`** — the full name used **everywhere inside** the app (wordmark, splash,
+  About, notifications, in-app copy).
+
+Platform bundle identifier is **`com.ziad.drop`** (iOS/macOS); Android/Linux use the
+`dropoperation` form.
+
+> This is a private package (`publish_to: none`) and is **not** distributed on pub.dev.
+
+<div align="center">
+<br/>
+<sub>Built with Flutter · Firebase · Clean Architecture — for DROP THE SHOP.</sub>
+</div>

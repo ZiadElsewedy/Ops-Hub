@@ -22,8 +22,10 @@ bool suppressForegroundFcmNotification(Map<String, dynamic> data) =>
 
 /// Firebase Cloud Messaging engine (Phase 6 foundation + Phase 2 receive
 /// handling). Requests notification permission, keeps the device's FCM token in
-/// the user's `fcmTokens` **array** (multi-device, refresh-aware, cleaned up on
-/// sign-out), and routes incoming messages:
+/// the user's `fcmTokens` array — under single-active-session ([ADR-023]) that
+/// array holds exactly **one** token, this device's: registering overwrites it,
+/// so a newer sign-in on another device stops push to the old one immediately
+/// (refresh-aware, cleaned up on sign-out) — and routes incoming messages:
 /// - **foreground** → [onForeground] (e.g. an in-app snackbar);
 /// - **tap** (background-opened or cold-start) → [onMessageTap] with the push
 ///   `data` payload (category · target ids · route), for navigation.
@@ -292,31 +294,41 @@ class NotificationService {
     if (uid != null) registerToken(uid);
   }
 
-  /// Adds [token] to the user's `fcmTokens` array and drops the previously
-  /// tracked token for this device (token refresh), in a single merge write.
+  /// Makes [token] the **sole** entry in the user's `fcmTokens` array — the
+  /// single active session invariant applied to push.
+  ///
+  /// Under single-active-session ([ADR-023]) one account = one signed-in
+  /// device, so this device's token is the *whole* array. We therefore
+  /// **overwrite** it rather than `arrayUnion`-ing: the token of a device this
+  /// account was previously signed in on is a different, per-device string, and
+  /// nothing else removes it. That old device only drops its own token
+  /// (`forgetUser`) when it *processes* its eviction — which never happens while
+  /// it is backgrounded or force-killed — so with `arrayUnion` its token lingers
+  /// and the sender keeps pushing to it (the "notifications still arrive on the
+  /// old phone" bug). Replacing the array here stops push to every other device
+  /// the instant this one registers, independent of whether the old device ever
+  /// comes back online.
+  ///
+  /// (Cross-*user* ownership — the same physical device switching accounts —
+  /// is still reconciled server-side by `claimFcmToken`, which fires on the
+  /// token being added and reclaims it from any other user.)
   Future<void> _rotateToken(String uid, String token) async {
     if (_currentToken == token && _uid == uid) {
       // Not an error, but it IS a way the token can appear "not uploaded":
-      // this device already wrote this exact token for this uid in-process.
-      // Not an error: this device already wrote this exact token for this uid
-      // in-process, so there is nothing to re-persist.
+      // this device already wrote this exact token for this uid in-process, so
+      // there is nothing to re-persist.
       return;
     }
     try {
       final doc =
           _firestore.collection(AppConstants.usersCollection).doc(uid);
-      final previous = _currentToken;
       await doc.set({
-        'fcmTokens': FieldValue.arrayUnion([token]),
+        // A plain array, not arrayUnion — this device is the only one that may
+        // own the session, so it owns the whole token list. This evicts any
+        // stale token left by a device that hasn't handled its own sign-out.
+        'fcmTokens': [token],
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      // Drop the stale token from this device (best-effort, separate op so a
-      // failure never blocks adding the fresh one).
-      if (previous != null && previous != token) {
-        await doc.set({
-          'fcmTokens': FieldValue.arrayRemove([previous]),
-        }, SetOptions(merge: true));
-      }
       _currentToken = token;
       AppLog.success('fcm',
           'token written to users/$uid.fcmTokens — device registered for push');
