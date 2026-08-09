@@ -178,7 +178,7 @@ attendance audit, swap approval, account provisioning, broadcast sends. See
 | `attendance` | GPS clock in/out, corrections, admin board, geofences | [ATTENDANCE](docs/design/ATTENDANCE.md) |
 | `requests` | Employee → manager yes/no approvals | [REQUESTS](docs/design/REQUESTS.md) |
 | `cases` | Private employee ↔ manager/admin conversations | [CASES](docs/design/CASES.md) |
-| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox; room membership follows app lifecycle so push suppression is honest) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync) + a once-per-launch unread hint banner (no nav badge, by decision); REST is the source of truth) | — |
+| `chat` | Direct 1:1 staff chat over the NestJS API (**in progress** — inbox + thread UI + Socket.IO realtime (thread & inbox; room membership follows app lifecycle so push suppression is honest) + deletion + teammate picker + real profiles (avatar/name/role via Firebase directory) + **Drift/SQLite offline cache** (instant open, offline reads, background sync) + a once-per-launch unread hint banner + a Home Recent-Messages unread pill (no nav badge, by decision) + **durable per-viewer clear/delete** (a `chat_cleared_store` watermark hides a cleared conversation across refresh/restart until a newer message arrives — the list endpoint keeps reporting the old last message); REST is the source of truth) | — |
 | `communications` | Broadcasts, templates, schedules, reminders | [COMMUNICATIONS](docs/design/COMMUNICATIONS.md) |
 | `notifications` | Notification inbox + deep-link resolver | [NOTIFICATIONS](docs/design/NOTIFICATIONS.md) |
 | `operations` | Branch Operations cockpit: workload, KPI drills | [TASKS](docs/design/TASKS.md) |
@@ -208,7 +208,7 @@ features' cubits.
 | `observability/` | `CrashReporter` (4 funnels → persisted report) + `CrashContext` |
 | `responsive/` | `breakpoints.dart` |
 | `routes/` | `app_router.dart` (role dispatch + guards) · `route_names.dart` (59 routes) · `app_page_route.dart` (the back-navigation contract) · `router_extensions.dart` (navigating safely from outside the tree + reading where the user is) |
-| `services/` | `notification_service.dart` (FCM) · `session_store.dart` (the device's single-active-session claim, keystore-backed) · `export_sharing.dart` (write + share an export via `share_plus`) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` |
+| `services/` | `notification_service.dart` (FCM) · `session_store.dart` (the device's single-active-session claim, keystore-backed) · `export_sharing.dart` (write + share an export via `share_plus`) · the local JSON stores: `case_seen_store.dart` · `task_seen_store.dart` · `notification_preferences_store.dart` · `chat_cleared_store.dart` |
 | `theme/` | `app_colors` · `app_typography` · `app_spacing` · `app_radius` · `app_theme` |
 | `utils/` | `validators` · `platform_capabilities` · `app_logger` · `app_date_formatter` · `concurrent` · `dashboard_mood` (the pure one-sentence dashboard state) |
 | `widgets/` | Every cross-feature widget — see [§7](#7-ui-philosophy) |
@@ -233,7 +233,7 @@ Reuse these. Do not re-implement or duplicate them.
 | Chat offline cache (SQLite) | `features/chat/data/local/` — `ChatDatabase` (Drift) + `ChatLocalDataSource` (never import `drift` elsewhere). Wired into `ChatRepositoryImpl` (optional; null ⇒ REST-only) + `ChatThreadCache`'s durable tier. Drift holds metadata only; the repository session-caches brokered attachment URLs through `ChatAttachmentDownload.isExpired`; **never image bytes** |
 | Task status → colour | `core/widgets/status_badge.dart` (`taskStatusColor`) |
 | Structured logging | `core/utils/app_logger.dart` (`AppLog`) |
-| Any per-device, per-user preference or read-state | a small uid-namespaced JSON file in the app-support dir, in `core/services/` (`case_seen_store` · `task_seen_store` · `notification_preferences_store`). **Never add `shared_preferences`** — the app already has one local-preference mechanism |
+| Any per-device, per-user preference or read-state | a small uid-namespaced JSON file in the app-support dir, in `core/services/` (`case_seen_store` · `task_seen_store` · `notification_preferences_store` · `chat_cleared_store`). **Never add `shared_preferences`** — the app already has one local-preference mechanism |
 | Whether THIS device still owns the session | `core/services/session_store.dart` (`SessionStore`) + `users/{uid}.activeSessionId`. Enforced **only** in `AuthCubit.watchCurrentUser` — never re-check it in a feature ([AUTH](docs/design/AUTH.md#single-active-session)) |
 | Tearing down user-scoped streams/caches on sign-out | `AppDependencies.clearUserScopedState()` (`core/di/injection.dart`), reached through `AuthCubit`'s `onPreSignOut` hook. A new app-wide cubit holding a live stream **must** add a `reset()` and be listed there, or its listener outlives the session |
 | Shift slot timing | `schedule/domain/shift_window.dart` |

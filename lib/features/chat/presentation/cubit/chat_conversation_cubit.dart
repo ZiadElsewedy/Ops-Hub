@@ -661,6 +661,20 @@ class ChatConversationCubit extends Cubit<ChatConversationState> {
   /// clean failure is retryable. (Once deleting starts, a mid-way network
   /// failure can still leave a partial delete; those messages are genuinely gone
   /// server-side, and a second Clear picks up the remainder.)
+  /// The conversation's newest activity right now — the max of its server
+  /// `lastMessageAt` and the newest confirmed message on screen. Captured by the
+  /// inbox as the clear watermark: anything at or before it is cleared, a
+  /// strictly-newer message later brings the conversation back. Null for a
+  /// never-messaged thread.
+  DateTime? get latestActivityAt {
+    DateTime? latest = _conversation?.lastMessageAt;
+    for (final m in _messages) {
+      if (_isLocal(m)) continue;
+      if (latest == null || m.createdAt.isAfter(latest)) latest = m.createdAt;
+    }
+    return latest;
+  }
+
   Future<bool> clearChatForMe() async {
     if (_conversation == null || _clearing) return false;
     _clearing = true;

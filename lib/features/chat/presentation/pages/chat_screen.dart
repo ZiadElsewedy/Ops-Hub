@@ -129,6 +129,9 @@ class _ChatScreenState extends State<ChatScreen> {
     // let it break the inbox — without it, rows fall back to a neutral label.
     try {
       final user = context.currentUser;
+      // Ensure cleared conversations stay hidden even if the inbox is opened
+      // before the app-wide warm-up ran (deep link, cold start onto /chat).
+      unawaited(AppDependencies.loadChatClearedStore(user?.uid));
       final dir = await AppDependencies.loadChatDirectory(user);
       if (mounted && dir.isNotEmpty) setState(() => _directory = dir);
     } catch (e) {

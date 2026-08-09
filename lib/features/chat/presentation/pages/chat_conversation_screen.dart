@@ -260,8 +260,15 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
       confirmLabel: 'Clear',
     );
     if (!ok || !mounted) return;
+    // Capture the watermark BEFORE the clear empties the thread, so the inbox
+    // hides this conversation until a genuinely newer message arrives.
+    final clearedThrough = _cubit.latestActivityAt;
+    final listCubit = context.read<ChatListCubit>();
     final cleared = await _cubit.clearChatForMe();
-    if (cleared && mounted) context.showSuccess('Chat cleared');
+    if (cleared && mounted) {
+      listCubit.markConversationCleared(_cubit.conversationId, clearedThrough);
+      context.showSuccess('Chat cleared');
+    }
   }
 
   Future<void> _confirmDelete() async {
@@ -273,8 +280,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen>
       confirmLabel: 'Delete',
     );
     if (!ok || !mounted) return;
+    // Capture the watermark BEFORE the clear empties the thread, so the inbox
+    // drops this conversation until a genuinely newer message arrives.
+    final clearedThrough = _cubit.latestActivityAt;
+    final listCubit = context.read<ChatListCubit>();
+    final navigator = Navigator.of(context);
     final cleared = await _cubit.clearChatForMe();
-    if (cleared && mounted) Navigator.of(context).pop();
+    if (cleared && mounted) {
+      listCubit.markConversationCleared(_cubit.conversationId, clearedThrough);
+      navigator.pop();
+    }
   }
 
   Future<bool> _confirmDestructive({

@@ -18,7 +18,6 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/services/usage_tracker.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/connectivity_scope.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
@@ -258,43 +257,14 @@ String _initialLocationFor(AuthState state) => state.maybeWhen(
 );
 
 void _configureNotificationService() {
-  AppDependencies.notificationService
-    ..onForeground = (title, body, data) {
-      // iOS presents its own foreground banner
-      // (`setForegroundNotificationPresentationOptions`, set in
-      // NotificationService.init). Showing the in-app snackbar as well would
-      // double-notify for the same message, so Apple platforms rely on the OS
-      // banner — which is tappable and routes through the same
-      // `onMessageOpenedApp` → resolver path, so nothing is lost.
-      // ANDROID IS UNCHANGED: it keeps the snackbar, because a foreground push
-      // on Android is delivered to `onMessage` only and the OS shows nothing.
-      if (requiresApnsToken) return;
-      final text = [
-        title,
-        body,
-      ].where((s) => s != null && s.isNotEmpty).join(' — ');
-      if (text.isEmpty) return;
-      // The foreground push is actionable: "View" deep-links to the same
-      // destination a background tap would, so a foreground notification is
-      // never a dead end.
-      final destination = _resolveTapLocation(data);
-      _messengerKey.currentState?.showSnackBar(
-        SnackBar(
-          content: Text(text),
-          action: destination == null
-              ? null
-              : SnackBarAction(
-                  label: 'View',
-                  onPressed: () {
-                    final router = _router;
-                    if (router == null) return;
-                    _openTapDestination(router, destination);
-                  },
-                ),
-        ),
-      );
-    }
-    ..onMessageTap = (data) {
+  // No in-app foreground banner: while the user is already inside the app, a
+  // triggered notification (task approval, swap request, …) must NOT raise a
+  // bottom snackbar/banner — that surface was removed by owner request. The
+  // notification still lands in the in-app notification inbox (the bell), and a
+  // background/cold-start tap still deep-links via `onMessageTap` below. On iOS
+  // the OS draws its own foreground banner regardless; `onForeground` is left
+  // unset so neither platform shows the in-app one.
+  AppDependencies.notificationService.onMessageTap = (data) {
       developer.log(
         'Notification tapped — type=${data['type']} task=${data['taskId']} '
         'route=${data['route']}',

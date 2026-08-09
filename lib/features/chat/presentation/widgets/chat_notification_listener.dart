@@ -103,7 +103,11 @@ class _ChatNotificationListenerState extends State<ChatNotificationListener>
 
   Future<void> _loadDirectory() async {
     try {
-      final dir = await AppDependencies.loadChatDirectory(context.currentUser);
+      final user = context.currentUser;
+      // Warm the cleared-conversation store app-wide so previously-cleared rows
+      // stay hidden the moment the inbox first renders (it refilters on load).
+      unawaited(AppDependencies.loadChatClearedStore(user?.uid));
+      final dir = await AppDependencies.loadChatDirectory(user);
       if (mounted && dir.isNotEmpty) setState(() => _directory = dir);
     } catch (e) {
       AppLog.warning('chat', 'notification directory skipped: $e');

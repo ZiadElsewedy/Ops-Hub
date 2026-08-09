@@ -14,6 +14,41 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-09 — Chat clear/delete now sticks + Home unread signal + no in-app FCM banner (bug/feature/polish; MED risk)
+
+Four reported chat/notification issues, mostly one root cause.
+
+- **Clear History / Delete conversation now persist.** Clearing or deleting a
+  conversation for me left the inbox row in place, still showing the last
+  message, and it came straight back on refresh/restart. Root cause: the
+  conversation-list endpoint keeps reporting the old `lastMessageAt`/last-message
+  even after a per-viewer delete-for-me, and the client had no durable record of
+  the clear. New **client-only** `core/services/chat_cleared_store.dart`
+  (`ChatClearedStore` + pure `chatConversationCleared`) — a uid-namespaced JSON
+  file, same mechanism as `case_seen_store`/`task_seen_store` — records the
+  newest-activity **watermark** at clear time. `ChatListCubit` hides any
+  conversation whose latest activity is at or before its watermark (and drops its
+  unread from the badge), and `markConversationCleared` also forgets every live
+  preview/unread trace so nothing stale repaints it. A genuinely **newer** message
+  bumps activity past the watermark and the row returns on its own. Survives a
+  refresh *and* a full app restart; cleared on sign-out. Wired via two nullable
+  accessors on `ChatListCubit` (tests drive them directly), warmed by
+  `AppDependencies.loadChatClearedStore` on the app-wide chat surfaces.
+- **Home now flags new chat messages.** The employee/manager Home "Recent
+  Messages" card header carries a small unread-count pill (reactive, monochrome
+  white accent) — a contextual signal that respects the standing *no bottom-nav
+  badge* decision. The launch-time hint banner is unchanged.
+- **The ugly in-app FCM banner is gone.** A foreground push (task approval, swap
+  request, …) while inside the app raised a bottom snackbar/banner on Android;
+  removed by owner request (`main.dart` `onForeground` left unset). The
+  notification still lands in the in-app inbox (the bell) and a background/
+  cold-start tap still deep-links.
+
+No schema/rules/functions change; the backend is unchanged. `flutter analyze`
+clean; +10 tests (`chat_cleared_conversation_test.dart`), full chat suite green.
+⚠️ **NOT device-verified** — needs a real clear→refresh→restart cycle and an
+Android foreground-push check on hardware.
+
 ## 2026-08-09 — README rebuilt as a visual project front page (docs; LOW risk)
 
 The root `README.md` was reworked into a professional, balanced (showcase +

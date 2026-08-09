@@ -5,6 +5,28 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Chat clear/delete now sticks, Home flags unread, no in-app FCM banner
+> (2026-08-09, bug/feature/polish, client-only, NOT device-verified):** Four
+> reported chat/notification issues. (1) **Clear History / Delete conversation**
+> left the inbox row in place showing the old last message, back again on refresh
+> — because the list endpoint keeps reporting the old `lastMessageAt`/last-message
+> after a per-viewer delete-for-me and the client kept no durable record. New
+> client-only `ChatClearedStore` (`core/services/chat_cleared_store.dart`, pure
+> `chatConversationCleared`) — a uid-namespaced JSON file like
+> `case_seen_store` — records the newest-activity **watermark** at clear time;
+> `ChatListCubit` hides any conversation at or before its watermark (and drops its
+> unread), `markConversationCleared` forgets stale preview/unread traces, and a
+> genuinely newer message brings the row back on its own. Survives refresh +
+> restart; cleared on sign-out. (2) The Home **Recent Messages** card header now
+> carries a small reactive unread-count pill (monochrome; respects the standing
+> no-nav-badge decision). (3) The foreground **in-app FCM banner** (task/swap
+> snackbar on Android) was removed by owner request — `main.dart` `onForeground`
+> left unset; notifications still reach the in-app inbox + deep-link on tap. No
+> schema/rules/functions/backend change. `flutter analyze` clean; +10 tests
+> (`chat_cleared_conversation_test.dart`), chat suite green. ⚠️ **NOT
+> device-verified** — needs a clear→refresh→restart cycle and an Android
+> foreground-push check on hardware.
+
 > **Pending Review drill-down collapses single-choice levels (2026-08-08,
 > polish, client-only, NOT device-verified):** The admin Pending Review flow
 > (`PendingReviewScreen`) is Summary → Branch → Employee → task, and it never
