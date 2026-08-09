@@ -44,26 +44,28 @@ role home**.
 
 ## Screenshots
 
-> The tiles below are branded placeholders. Drop real PNG captures into
-> [`docs/screenshots/`](docs/screenshots/) with the same base name (e.g. `admin-home.png`)
-> and update the links here — the layout is ready for them.
+<sub>Captured on iOS · dark, monochrome by design.</sub>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/login.svg" alt="Login" /></td>
-    <td width="50%"><img src="docs/screenshots/admin-home.svg" alt="Admin — Command Center" /></td>
+    <td width="33%" align="center"><img src="docs/screenshots/splash.png" alt="Splash" /><br/><sub><b>Launch</b> · branded intro</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/login.png" alt="Login" /><br/><sub><b>Login</b> · admin-provisioned sign-in</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/employee-home.png" alt="Employee Home" /><br/><sub><b>Employee Home</b> · shift, tasks & clock-in</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/manager-home.svg" alt="Manager Home" /></td>
-    <td width="50%"><img src="docs/screenshots/employee-home.svg" alt="Employee Home" /></td>
+    <td width="33%" align="center"><img src="docs/screenshots/my-tasks.png" alt="My Tasks" /><br/><sub><b>My Tasks</b> · active · late · missed · done</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/task-detail.png" alt="Task detail" /><br/><sub><b>Task Detail</b> · status timeline & activity</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/attendance.png" alt="Attendance" /><br/><sub><b>Attendance</b> · GPS-gated clock in/out</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/tasks.svg" alt="Operations Tasks" /></td>
-    <td width="50%"><img src="docs/screenshots/schedule.svg" alt="Schedule & Coverage" /></td>
+    <td width="33%" align="center"><img src="docs/screenshots/new-request.png" alt="New Request" /><br/><sub><b>New Request</b> · pick an approval type</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/requests.png" alt="Requests" /><br/><sub><b>Requests</b> · pending / approved / rejected</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/branch-sales.png" alt="Branch sales" /><br/><sub><b>Branch Sales</b> · monthly target & pace</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/attendance.svg" alt="GPS Attendance" /></td>
-    <td width="50%"><img src="docs/screenshots/chat.svg" alt="Staff Chat" /></td>
+    <td width="33%" align="center"><img src="docs/screenshots/admin-home.png" alt="Admin Home" /><br/><sub><b>Admin Command Center</b> · cross-branch</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/attendance-board.png" alt="Attendance board" /><br/><sub><b>Attendance Board</b> · present · late · absent</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/activity-feed.png" alt="Activity feed" /><br/><sub><b>Recent Activity</b> · live operations feed</sub></td>
   </tr>
 </table>
 
