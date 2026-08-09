@@ -14,6 +14,23 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-09 — README rebuilt as a visual project front page (docs; LOW risk)
+
+The root `README.md` was reworked into a professional, balanced (showcase +
+onboarding) front page: brand hero (`assets/drop_wordmark.png`, the white DROP
+wordmark on black — a clean-named copy of the existing square logo, theme-proof
+on GitHub's light/dark), shields.io status badges, roles table, design
+philosophy, feature grid, a Mermaid `presentation → domain ← data` diagram, and
+a **screenshot gallery**. Real app captures could not be taken this session
+(macOS screen-control access was declined, and auth is admin-provisioned so no
+in-app screens are reachable without credentials), so the gallery ships eight
+on-brand **SVG placeholder tiles** in `docs/screenshots/` (`login`,
+`admin-home`, `manager-home`, `employee-home`, `tasks`, `schedule`,
+`attendance`, `chat`) — GitHub renders referenced `.svg` as images, so the page
+looks finished now and each tile is swapped for a real PNG later by matching the
+base name. Docs only — no code, no schema/rules/functions change. Facts verified
+against the code (19 feature modules, 31 Cloud Functions, `com.ziad.drop`).
+
 ## 2026-08-08 — Pending Review drill-down collapses single-choice levels (polish; LOW risk)
 
 The admin Pending Review flow (`PendingReviewScreen`) is a guided drill-down —

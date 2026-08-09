@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" width="1280" height="800" role="img" aria-label="Manager Home — placeholder screenshot">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#111114"/>
+      <stop offset="1" stop-color="#0A0A0B"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="800" rx="28" fill="url(#bg)"/>
+  <rect x="1" y="1" width="1278" height="798" rx="27" fill="none" stroke="#2A2A30" stroke-width="1.5"/>
+  <rect width="1280" height="800" rx="28" fill="url(#sheen)"/>
+  <!-- top chrome dots -->
+  <circle cx="44" cy="42" r="7" fill="#2E2E35"/>
+  <circle cx="70" cy="42" r="7" fill="#2E2E35"/>
+  <circle cx="96" cy="42" r="7" fill="#2E2E35"/>
+  <!-- DROP mark -->
+  <text x="640" y="330" text-anchor="middle" font-family="Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" font-size="150" letter-spacing="8" fill="#FFFFFF">DROP</text>
+  <text x="828" y="352" text-anchor="middle" font-family="Arial, sans-serif" font-size="120" fill="#FFFFFF">↓</text>
+  <!-- eyebrow -->
+  <text x="640" y="430" text-anchor="middle" font-family="'SF Mono', ui-monospace, Menlo, monospace" font-size="26" letter-spacing="10" fill="#6E6E77">MANAGER</text>
+  <!-- title -->
+  <text x="640" y="510" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="60" fill="#FFFFFF">Manager Home</text>
+  <!-- subtitle -->
+  <text x="640" y="560" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" fill="#A7A7AF">Today's coverage, tasks & approvals</text>
+  <!-- hint -->
+  <rect x="470" y="628" width="340" height="52" rx="26" fill="none" stroke="#3A3A42" stroke-width="1.5"/>
+  <text x="640" y="661" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="22" fill="#6E6E77">Replace with real screenshot</text>
+</svg>
