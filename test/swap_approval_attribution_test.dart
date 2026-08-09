@@ -89,6 +89,38 @@ void main() {
     expect(find.text('6m ago'), findsOneWidget);
   });
 
+  testWidgets('the swap progress rail is centred on its three stages', (
+    tester,
+  ) async {
+    await _pump(tester, _approvedSwap());
+
+    final requested = tester.getCenter(
+      find.byKey(const ValueKey<String>('swap-timeline-node-Requested')),
+    );
+    final accepted = tester.getCenter(
+      find.byKey(const ValueKey<String>('swap-timeline-node-Accepted')),
+    );
+    final approved = tester.getCenter(
+      find.byKey(const ValueKey<String>('swap-timeline-node-Approved')),
+    );
+    final firstRail = tester.getRect(
+      find.byKey(const ValueKey<String>('swap-timeline-track-0')),
+    );
+    final secondRail = tester.getRect(
+      find.byKey(const ValueKey<String>('swap-timeline-track-1')),
+    );
+
+    // Equal-width stages make the middle step the actual visual midpoint.
+    expect(accepted.dx, closeTo((requested.dx + approved.dx) / 2, 0.5));
+    // Each rail runs from one node centre to the next, through the dot centre.
+    expect(firstRail.left, closeTo(requested.dx, 0.5));
+    expect(firstRail.right, closeTo(accepted.dx, 0.5));
+    expect(secondRail.left, closeTo(accepted.dx, 0.5));
+    expect(secondRail.right, closeTo(approved.dx, 0.5));
+    expect(firstRail.center.dy, closeTo(requested.dy, 0.5));
+    expect(secondRail.center.dy, closeTo(accepted.dy, 0.5));
+  });
+
   testWidgets('an approved swap with no stored approver invents nobody', (
     tester,
   ) async {

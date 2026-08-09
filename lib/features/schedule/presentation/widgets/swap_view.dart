@@ -247,21 +247,11 @@ class _SwapCard extends StatelessWidget {
 
             const SizedBox(height: AppSpacing.md),
             const Divider(height: 1, color: AppColors.darkBorder),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
 
-            // Progress timeline + when.
-            Row(
-              children: [
-                Expanded(child: _SwapStatusTimeline(status: swap.status)),
-                if (swap.createdAt != null) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    _relativeTime(swap.createdAt!),
-                    style: AppTypography.caption,
-                  ),
-                ],
-              ],
-            ),
+            // The timestamp lives above the rail so all three steps retain
+            // equal width and the progress line stays visually centred.
+            _SwapProgressPanel(status: swap.status, createdAt: swap.createdAt),
 
             ..._actions(context, cubit),
           ],
@@ -580,6 +570,71 @@ class _ShiftPill extends StatelessWidget {
   }
 }
 
+/// A restrained inset surface for the request's status and its centred progress
+/// rail. Keeping its timestamp outside the rail prevents it from shifting the
+/// three stages to the left on wide cards.
+class _SwapProgressPanel extends StatelessWidget {
+  const _SwapProgressPanel({required this.status, this.createdAt});
+
+  final SwapStatus status;
+  final DateTime? createdAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _swapAccent(status);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.darkSurfaceElevated.withAlpha(190),
+            AppColors.darkSurface.withAlpha(150),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: AppRadius.mdAll,
+        border: Border.all(color: accent.withAlpha(52)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.black.withAlpha(28),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'SWAP PROGRESS',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textTertiary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                ),
+              ),
+              const Spacer(),
+              if (createdAt != null)
+                Text(
+                  _relativeTime(createdAt!),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _SwapStatusTimeline(status: status),
+        ],
+      ),
+    );
+  }
+}
+
 /// Compact 3-step progress for an in-flight swap (Requested → Accepted →
 /// Approved); a terminal banner for rejected / cancelled.
 class _SwapStatusTimeline extends StatelessWidget {
@@ -587,6 +642,8 @@ class _SwapStatusTimeline extends StatelessWidget {
   final SwapStatus status;
 
   static const _labels = ['Requested', 'Accepted', 'Approved'];
+  static const _nodeSize = 28.0;
+  static const _trackHeight = 3.0;
 
   @override
   Widget build(BuildContext context) {
@@ -617,32 +674,52 @@ class _SwapStatusTimeline extends StatelessWidget {
     final done = status == SwapStatus.managerApproved
         ? AppColors.success
         : AppColors.textPrimary;
-    final children = <Widget>[];
-    for (var i = 0; i < 3; i++) {
-      if (i > 0) {
-        children.add(
-          Expanded(
-            child: Container(
-              height: 2,
-              margin: const EdgeInsets.only(bottom: 14),
-              color: reached > i ? done : AppColors.darkBorder,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stepWidth = constraints.maxWidth / _labels.length;
+        return Stack(
+          children: [
+            // Draw the two rails behind the nodes. Each starts and ends at a
+            // node centre, rather than at its top edge, so the line is truly
+            // centred regardless of the label height below it.
+            for (var i = 0; i < _labels.length - 1; i++)
+              Positioned(
+                left: stepWidth * (i + .5),
+                top: (_nodeSize - _trackHeight) / 2,
+                width: stepWidth,
+                height: _trackHeight,
+                child: DecoratedBox(
+                  key: ValueKey('swap-timeline-track-$i'),
+                  decoration: BoxDecoration(
+                    color: reached > i + 1 ? done : AppColors.darkBorder,
+                    borderRadius: BorderRadius.circular(_trackHeight),
+                  ),
+                ),
+              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < _labels.length; i++)
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: _TimelineNode(
+                        label: _labels[i],
+                        nodeKey: ValueKey('swap-timeline-node-${_labels[i]}'),
+                        state: i < reached
+                            ? _NodeState.done
+                            : (i == reached
+                                  ? _NodeState.active
+                                  : _NodeState.upcoming),
+                        doneColor: done,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ),
+          ],
         );
-      }
-      children.add(
-        _TimelineNode(
-          label: _labels[i],
-          state: i < reached
-              ? _NodeState.done
-              : (i == reached ? _NodeState.active : _NodeState.upcoming),
-          doneColor: done,
-        ),
-      );
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
+      },
     );
   }
 }
@@ -654,11 +731,13 @@ class _TimelineNode extends StatelessWidget {
     required this.label,
     required this.state,
     required this.doneColor,
+    this.nodeKey,
   });
 
   final String label;
   final _NodeState state;
   final Color doneColor;
+  final Key? nodeKey;
 
   @override
   Widget build(BuildContext context) {
@@ -667,31 +746,63 @@ class _TimelineNode extends StatelessWidget {
     switch (state) {
       case _NodeState.done:
         dot = Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(color: doneColor, shape: BoxShape.circle),
+          key: nodeKey,
+          width: _SwapStatusTimeline._nodeSize,
+          height: _SwapStatusTimeline._nodeSize,
+          decoration: BoxDecoration(
+            color: doneColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: doneColor.withAlpha(58),
+                blurRadius: 12,
+                spreadRadius: -2,
+              ),
+            ],
+          ),
           child: const Icon(
             Icons.check_rounded,
-            size: 11,
+            size: 16,
             color: AppColors.onPrimary,
           ),
         );
         labelColor = AppColors.textSecondary;
       case _NodeState.active:
         dot = Container(
-          width: 16,
-          height: 16,
+          key: nodeKey,
+          width: _SwapStatusTimeline._nodeSize,
+          height: _SwapStatusTimeline._nodeSize,
           decoration: BoxDecoration(
+            color: AppColors.darkSurfaceElevated,
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.warning, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.warning.withAlpha(44),
+                blurRadius: 12,
+                spreadRadius: -2,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: AppColors.warning,
+                shape: BoxShape.circle,
+              ),
+            ),
           ),
         );
         labelColor = AppColors.warning;
       case _NodeState.upcoming:
         dot = Container(
-          width: 16,
-          height: 16,
+          key: nodeKey,
+          width: _SwapStatusTimeline._nodeSize,
+          height: _SwapStatusTimeline._nodeSize,
           decoration: BoxDecoration(
+            color: AppColors.darkSurface,
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.darkBorder, width: 2),
           ),
@@ -702,13 +813,16 @@ class _TimelineNode extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         dot,
-        const SizedBox(height: 4),
+        const SizedBox(height: 7),
         Text(
           label,
           style: AppTypography.caption.copyWith(
             color: labelColor,
-            fontSize: 10,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
