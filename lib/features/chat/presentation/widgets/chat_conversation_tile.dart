@@ -23,6 +23,7 @@ class ChatConversationTile extends StatefulWidget {
     super.key,
     required this.conversation,
     required this.onTap,
+    this.onContextMenu,
     this.counterpart,
     this.title,
     this.preview,
@@ -32,6 +33,11 @@ class ChatConversationTile extends StatefulWidget {
 
   final ChatConversationSummary conversation;
   final VoidCallback onTap;
+
+  /// Opens the row's options — a **long-press** (mobile) or **right-click**
+  /// (desktop). Receives the global position so the desktop menu can anchor to
+  /// the pointer. Null → no context menu.
+  final void Function(Offset globalPosition)? onContextMenu;
 
   /// The resolved teammate — drives avatar, name, and role. Null → a neutral
   /// avatar + the deterministic fallback label.
@@ -102,7 +108,16 @@ class _ChatConversationTileState extends State<ChatConversationTile> {
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
-        child: Material(
+        child: GestureDetector(
+          // Long-press (mobile) and right-click (desktop) open the row options.
+          // The InkWell below keeps the tap + press highlight.
+          onLongPressStart: widget.onContextMenu == null
+              ? null
+              : (d) => widget.onContextMenu!(d.globalPosition),
+          onSecondaryTapDown: widget.onContextMenu == null
+              ? null
+              : (d) => widget.onContextMenu!(d.globalPosition),
+          child: Material(
           color: AppColors.transparent,
           child: InkWell(
             onTap: widget.onTap,
@@ -233,6 +248,7 @@ class _ChatConversationTileState extends State<ChatConversationTile> {
                 ],
               ),
             ),
+          ),
           ),
         ),
       ),

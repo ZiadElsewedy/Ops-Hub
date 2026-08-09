@@ -15,6 +15,7 @@ import 'package:drop/core/widgets/app_empty_state.dart';
 import 'package:drop/core/widgets/app_search_field.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/skeleton.dart';
+import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
 import 'package:drop/features/chat/presentation/chat_format.dart';
@@ -284,6 +285,137 @@ class _ChatScreenState extends State<ChatScreen> {
         });
   }
 
+  /// Opens the row's options — long-press (mobile) or right-click (desktop).
+  /// Desktop anchors a popup menu to the pointer; mobile uses a bottom sheet.
+  Future<void> _openConversationMenu(
+    ChatConversationSummary c,
+    UserEntity? counterpart,
+    Offset globalPosition,
+  ) async {
+    final name = counterpart == null
+        ? chatCounterpartLabel(c.counterpartUserId)
+        : chatDisplayName(counterpart, fallbackId: c.counterpartUserId);
+
+    if (context.isDesktop) {
+      final selected = await showMenu<String>(
+        context: context,
+        color: AppColors.darkSurfaceElevated,
+        position: RelativeRect.fromLTRB(
+          globalPosition.dx,
+          globalPosition.dy,
+          globalPosition.dx,
+          globalPosition.dy,
+        ),
+        items: const [
+          PopupMenuItem(
+            value: 'delete',
+            child: Text(
+              'Delete conversation',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      );
+      if (selected == 'delete') await _confirmDeleteConversation(c, name);
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.darkSurfaceElevated,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  UserAvatar(
+                    imageUrl: counterpart?.photoUrl,
+                    name: name,
+                    size: 40,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.error,
+              ),
+              title: const Text(
+                'Delete conversation',
+                style: TextStyle(color: AppColors.error),
+              ),
+              onTap: () => Navigator.of(sheetContext).pop('delete'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (selected == 'delete') await _confirmDeleteConversation(c, name);
+  }
+
+  Future<void> _confirmDeleteConversation(
+    ChatConversationSummary c,
+    String name,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.darkSurfaceElevated,
+        title: const Text('Delete conversation?'),
+        content: Text(
+          'This deletes the conversation with $name for you and removes it from '
+          'your chats. $name keeps their copy. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final listCubit = context.read<ChatListCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    final deleted = await listCubit.deleteConversation(c.id);
+    if (!mounted) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(deleted
+            ? 'Conversation deleted'
+            : 'Couldn’t delete the conversation. Please try again.'),
+      ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final desktop = context.isDesktop;
@@ -409,6 +541,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             counterpartOf: _counterpartFor,
                             previewOf: (c) => _previewLine(c, previews),
                             onOpen: _openConversation,
+                            onContextMenu: _openConversationMenu,
                           ),
                   );
                 },
@@ -428,6 +561,7 @@ class _ConversationList extends StatelessWidget {
     required this.counterpartOf,
     required this.previewOf,
     required this.onOpen,
+    required this.onContextMenu,
   });
 
   final List<ChatConversationSummary> conversations;
@@ -443,6 +577,10 @@ class _ConversationList extends StatelessWidget {
 
   /// Opens a conversation (handles unread-clear + refresh-on-return).
   final void Function(ChatConversationSummary, UserEntity?) onOpen;
+
+  /// Opens the row options (long-press / right-click), anchored to the pointer.
+  final void Function(ChatConversationSummary, UserEntity?, Offset)
+      onContextMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -488,6 +626,8 @@ class _ConversationList extends StatelessWidget {
             preview: previewOf(conversation),
             unreadCount: unreadCounts[conversation.id],
             onTap: () => onOpen(conversation, counterpart),
+            onContextMenu: (pos) =>
+                onContextMenu(conversation, counterpart, pos),
           );
         },
       ),

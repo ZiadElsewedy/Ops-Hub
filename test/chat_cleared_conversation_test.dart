@@ -60,12 +60,17 @@ class _MemoryCleared {
   }
 }
 
-ChatListCubit _cubit(_FakeChatRepository repo, _MemoryCleared cleared) =>
+ChatListCubit _cubit(
+  _FakeChatRepository repo,
+  _MemoryCleared cleared, {
+  Future<void> Function(String)? clearConversation,
+}) =>
     ChatListCubit(
       getConversations: GetConversations(repo),
       startConversation: StartConversation(_FakeChatRepository(const [])),
       clearedThroughMillis: cleared.through,
       onConversationCleared: cleared.mark,
+      clearConversation: clearConversation,
     );
 
 void main() {
@@ -135,6 +140,41 @@ void main() {
       // persistent watermark keeps it hidden.
       await cubit.refresh();
       expect(_visible(cubit).map((c) => c.id), ['a']);
+      await cubit.close();
+    });
+
+    test('deleteConversation bulk-deletes for me, then hides the row', () async {
+      final cleared = _MemoryCleared();
+      final deletedIds = <String>[];
+      final repo = _FakeChatRepository([
+        _summary('a'),
+        _summary('b', lastMessageAt: DateTime(2026, 8, 2, 9)),
+      ]);
+      final cubit = _cubit(repo, cleared,
+          clearConversation: (id) async => deletedIds.add(id));
+      await cubit.load();
+
+      final ok = await cubit.deleteConversation('b');
+      expect(ok, isTrue);
+      // The server delete-for-me ran, and the row is hidden + watermarked.
+      expect(deletedIds, ['b']);
+      expect(_visible(cubit).map((c) => c.id), ['a']);
+      expect(cleared.through('b'), isNotNull);
+      await cubit.close();
+    });
+
+    test('deleteConversation reports failure and keeps the row when the bulk '
+        'delete throws', () async {
+      final cleared = _MemoryCleared();
+      final repo = _FakeChatRepository([_summary('a'), _summary('b')]);
+      final cubit = _cubit(repo, cleared,
+          clearConversation: (id) async => throw Exception('network'));
+      await cubit.load();
+
+      final ok = await cubit.deleteConversation('b');
+      expect(ok, isFalse);
+      // Not hidden, no watermark — a clean, retryable failure.
+      expect(cleared.through('b'), isNull);
       await cubit.close();
     });
 

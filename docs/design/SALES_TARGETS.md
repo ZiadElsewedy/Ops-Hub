@@ -1,7 +1,8 @@
 # Branch Monthly Sales Target — design spec
 
 Each branch has a **monthly sales target** in EGP. An employee submits the branch's
-sales at the end of a working day; a manager approves or rejects it; **only approved
+sales at the end of a working day; a manager approves or rejects it; a rejected or
+sent-back day can be **corrected and resubmitted** by its submitter; **only approved
 sales count** toward the branch's monthly progress. Remaining, progress %, and
 forecast are **derived on read — never stored**.
 
@@ -25,7 +26,7 @@ forecast are **derived on read — never stored**.
 | **Money** | Signed integer **piastres** (`amountPiastres`). Never `double`/decimal. `>= 0`; **zero is a valid, explicitly-submitted "no sales" day**; negative forbidden |
 | **Opt-in** | Per branch: `branches/{id}.salesTargetEnabled`, **admin-only, default `false`**. Off ⇒ the feature does not exist for that branch — no Home card, no sales pages, no target management, no submissions (client + rules + callable) |
 | **Target owner** | The **branch**, per accounting **month** — not an employee, not the mutable branch doc |
-| **Submission statuses** | `pending → approved \| rejected \| correctionRequested`. A `correctionRequested` doc, once resubmitted, returns to `pending`. A manager/admin edit of an already-`approved` amount stays `approved` and bumps `revision`. Admin reopen returns any terminal record to `pending` |
+| **Submission statuses** | `pending → approved \| rejected \| correctionRequested`. **A `rejected` OR `correctionRequested` doc is recoverable** — its submitter can *fix and resubmit* it (`resubmitCorrectedSales`), returning it to `pending` for normal approval (a rejection is a wrong amount, not a dead end; 2026-08-09). A manager/admin edit of an already-`approved` amount stays `approved` and bumps `revision`. Admin reopen still returns any terminal record to `pending`. **A rejected day is excluded from "today's" figure** (manager `todayPiastres` / employee `todayCountedPiastres`) — only `approved` days count toward the target, always re-summed |
 | **Submit** | Any **active branch employee**. **One document per branch business day** — first valid submission wins (deterministic id); a second attempt opens the existing record, never overwrites it |
 | **Record (direct)** | Own-branch **manager** or **admin** may record a day **directly** via the `recordApprovedDailySales` callable. It lands **already `approved`** (the actor is the branch's approver — there is no self-review), for today or **any past** Cairo day (never the future), and counts toward the target immediately. Same deterministic id, so a day that already has any record is refused (`already-exists`) — edit it instead. Requires the month's target to exist. Optional note. This is why a client cannot write it: an `approved` doc is exactly the create the rules forbid, so it goes through the Admin SDK |
 | **Decide** | Own-branch **manager**, or **admin** (global). Approve / reject / request correction |
@@ -104,6 +105,7 @@ known branch. **No global materialized rollup** — DROP's branch set is small.
 | `recordApprovedDailySales` | **Callable** — manager/admin records a day **directly** as `approved`. Rejects a future day, a day that already has a record, or a month with no target. Actor is both `submittedBy` and `decisionBy` (a deliberate direct entry, **not** the self-approval `canDecideSubmission` forbids). Stamps `recordedDirectly: true`. Fires the target-achieved crossing like any approval |
 | `setBranchSalesTarget` | **Callable** — creates month record if absent, else bumps `targetRevision` (expects prior revision) |
 | `decideDailySalesSubmission` (`approve\|reject\|requestCorrection\|reopen`) | **Callable** — transaction on the submission |
+| `resubmitCorrectedSales` | **Callable** — the submitter fixes and resends a **`correctionRequested` OR `rejected`** day with a new amount; transitions it back to `pending`, bumps `revision`, clears the decision fields, re-notifies reviewers. Ownership enforced (`submittedById == caller`) |
 | `editApprovedDailySalesSubmission` | **Callable** — edits approved amount, bumps `revision` |
 
 Each callable: authenticate → read caller's `users/{uid}` → apply admin-global /

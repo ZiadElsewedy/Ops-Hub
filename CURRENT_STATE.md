@@ -5,6 +5,52 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Chat inbox row options + in-app notification top banner (2026-08-10,
+> feature/polish, client-only, NOT device-verified):** (1) A **long-press**
+> (mobile) or **right-click** (desktop) on a chat inbox row now opens its options
+> — **Delete conversation** (mobile bottom sheet / desktop pointer-anchored
+> popup). Delete runs the same bulk **delete-for-me** as the thread screen (new
+> `ClearChatForMe` use case: pages the whole history, deletes each server message
+> for me) plus the persistent `ChatClearedStore` hide, so the row goes and stays
+> gone across refresh/restart until newer activity. `ChatConversationTile` gained
+> `onContextMenu`; `ChatListCubit.deleteConversation` orchestrates it with a
+> clean retryable failure. (2) The in-app foreground notification (task approval,
+> swap, …) — earlier **removed** as an "ugly bottom banner" — is **restored as a
+> polished top banner** (`InAppNotificationHost`, `core/widgets/`): slides from
+> the top, self-dismisses, tappable to deep-link via the shared resolver, wired
+> to FCM `onForeground`. **Apple platforms skip it** (iOS shows its own OS
+> foreground banner — both would double-notify); Android/others get the in-app
+> banner. Chat keeps its own richer avatar banner (`ChatNotificationListener`).
+> `flutter analyze` clean; +2 chat-delete tests; chat suite green. ⚠️ **NOT
+> device-verified** — the context menu + the Android foreground banner need a real
+> device run.
+
+> **Sales reject is recoverable + rejected excluded from today + clock-in closes
+> at shift end (2026-08-09, bug/feature, ⚠️ SALES HALF NEEDS A FUNCTIONS DEPLOY,
+> NOT device-verified):** Three reviewed business-logic issues. (1) **A rejected
+> daily-sales close is now recoverable** by its submitter — it was terminal
+> (admin-reopen only), now the employee can *fix and resubmit* it and it
+> re-enters approval at `pending`, like a correction. Server: `nextStatus` allows
+> `resubmit` from `rejected` (employee, owner-enforced by the callable) and
+> `resubmitCorrectedSales` accepts a rejected doc; client: `isResubmittable`,
+> `resubmittable` list, and the submission/detail/employee screens cover rejected.
+> **No rules change** (resubmit is an Admin-SDK callable). ⚠️ **Inert until
+> `firebase deploy --only functions:resubmitCorrectedSales`** — production still
+> refuses a rejected-day resubmit until then. (2) **A rejected close no longer
+> counts as "today"** — manager `todayPiastres` and the new
+> `SalesMonthLoaded.todayCountedPiastres` exclude a rejected day (it still showed
+> as today's sales + fed needed-per-day tone). Approved totals unchanged
+> (approved-only always). (3) **Approve/Reject buttons realigned** — two
+> equal-height buttons (outline Reject · filled Approve) with a gap + top
+> separation, replacing a 48px text link flush against the card. (4) **Clock-in
+> closes at the shift's scheduled end** — `checkClockIn` had only a lower bound,
+> so a Morning shift (08:30–16:30) could be clocked into at night. It now refuses
+> once `scheduledEnd` passed (`AttendanceBlock.tooLate`); late-but-within-shift
+> still allowed, a missed shift uses the existing missed-punch correction,
+> overnight shifts honour the real end instant. Client-domain only (UX guard, like
+> the too-early bound); no rules/server change. `flutter analyze` clean; +18
+> tests; functions node tests green. ⚠️ **NOT device-verified.**
+
 > **Chat clear/delete now sticks, Home flags unread, no in-app FCM banner
 > (2026-08-09, bug/feature/polish, client-only, NOT device-verified):** Four
 > reported chat/notification issues. (1) **Clear History / Delete conversation**

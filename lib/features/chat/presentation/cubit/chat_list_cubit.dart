@@ -62,6 +62,11 @@ class ChatListCubit extends Cubit<ChatListState> {
   /// wired into every cubit; null in tests, which drive the accessor directly.
   final void Function(String conversationId, DateTime? clearedThrough)?
       _onConversationCleared;
+
+  /// Bulk delete-for-me of a whole conversation, for the inbox "Delete
+  /// conversation" action (see [ClearChatForMe]). Null in tests, which then
+  /// only exercise the persistent hide.
+  final Future<void> Function(String conversationId)? _clearConversation;
   StreamSubscription<ChatRealtimeEvent>? _realtimeSub;
   bool _inboxAttached = false;
 
@@ -107,6 +112,7 @@ class ChatListCubit extends Cubit<ChatListState> {
     this._deactivatedCounterpartUids,
     this._clearedThroughMillis,
     this._onConversationCleared,
+    this._clearConversation,
   }) : super(const ChatListState.initial()) {
     _realtimeSub = _realtime?.events.listen(_onRealtimeEvent);
   }
@@ -143,6 +149,39 @@ class ChatListCubit extends Cubit<ChatListState> {
   /// mid-session hides or restores its conversation without a server round trip.
   void refilter() {
     if (_hasLoaded && !isClosed) _emitLoaded();
+  }
+
+  /// Deletes [conversationId] for the viewer straight from the inbox (the
+  /// long-press / right-click "Delete conversation" action) — the same
+  /// delete-for-me the open-thread screen performs, plus the persistent hide.
+  /// Bulk-deletes every message for me (the counterpart keeps their copy) via
+  /// the injected clear, then records the watermark so the row stays gone until
+  /// a genuinely newer message arrives. Returns whether it succeeded. When no
+  /// clear is wired (tests) it just hides the row.
+  Future<bool> deleteConversation(String conversationId) async {
+    final summary = conversationById(conversationId);
+    final clearedThrough = summary?.lastMessageAt;
+    final clear = _clearConversation;
+    if (clear != null) {
+      try {
+        await clear(conversationId);
+      } on Failure catch (e) {
+        if (!isClosed) {
+          emit(ChatListState.error(e.message));
+          if (_hasLoaded) _emitLoaded();
+        }
+        return false;
+      } catch (e) {
+        AppLog.warning('chat', 'delete conversation failed: $e');
+        if (!isClosed) {
+          emit(const ChatListState.error('Failed to delete the conversation.'));
+          if (_hasLoaded) _emitLoaded();
+        }
+        return false;
+      }
+    }
+    markConversationCleared(conversationId, clearedThrough);
+    return true;
   }
 
   /// Records that the viewer cleared or deleted [conversationId] and drops every

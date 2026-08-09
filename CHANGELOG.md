@@ -14,6 +14,73 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-10 — Chat inbox row options (long-press / right-click) + in-app notification banner restored as a top banner (feature/polish; MED risk)
+
+- **Delete a conversation straight from the inbox.** A **long-press** (mobile)
+  or **right-click** (desktop) on a chat row opens its options — currently
+  **Delete conversation** (bottom sheet on mobile, pointer-anchored popup on
+  desktop). Delete performs the same bulk **delete-for-me** the open-thread
+  screen does (new `ClearChatForMe` use case pages the whole history and deletes
+  each server message for me) and then the persistent hide (the
+  `ChatClearedStore` watermark from 2026-08-09), so the row disappears and stays
+  gone across refresh/restart until a genuinely newer message arrives. The
+  counterpart keeps their copy. `ChatConversationTile` gained an `onContextMenu`
+  gesture; `ChatListCubit.deleteConversation` orchestrates delete + hide with a
+  clean, retryable failure.
+- **In-app foreground notifications are back — as a polished top banner.** The
+  earlier task removed the "ugly bottom banner" outright, which left foreground
+  pushes (task approval, swap request, …) with no in-app surface at all. New
+  `InAppNotificationHost` (`core/widgets/`) slides a self-dismissing banner down
+  from the **top** (matching the launch-hint language), tappable to deep-link via
+  the shared resolver, newest-replaces-current. Wired to FCM `onForeground`.
+  **Apple platforms are skipped** (iOS draws its own OS foreground banner —
+  showing both would double-notify); Android/others get the in-app banner. Chat
+  messages keep their own richer avatar banner (`ChatNotificationListener`) and
+  never reach this one.
+
+`flutter analyze` clean; +2 chat-delete tests; full chat suite green. ⚠️ **NOT
+device-verified** — the long-press/right-click menu and the Android foreground
+banner need a real run on device.
+
+## 2026-08-09 — Sales reject is recoverable + rejected excluded from today + clock-in closes at shift end (bug/feature; MED risk)
+
+Three reviewed business-logic issues across Branch Sales and Attendance.
+
+- **A rejected daily-sales close is now recoverable by its submitter.** Reject
+  was terminal (only an admin could reopen), so a wrong amount was a dead end.
+  Now a rejected day can be **fixed and resubmitted** by the employee who filed
+  it — it re-enters approval at `pending`, exactly like a correction request. The
+  pure transition (`functions/sales_target.js` `nextStatus`) allows
+  `resubmit` from `rejected` (employee only, owner enforced by the callable), and
+  `resubmitCorrectedSales` (`functions/index.js`) accepts a rejected doc. Client:
+  new `DailySalesSubmissionEntity.isResubmittable`, a `resubmittable` list on the
+  employee state, and the "Fix and resubmit" flow + submission screen now cover
+  rejected. No rules change (the resubmit is an Admin-SDK callable). ⚠️ **Needs a
+  Cloud Functions deploy** — until then production still rejects a rejected-day
+  resubmit.
+- **A rejected close no longer counts as "today".** The manager dashboard's
+  `todayPiastres` and the employee's today figure derived off *any* record for
+  the day, so a rejected submission still showed as today's sales and fed the
+  needed-per-day tone. Both now exclude a rejected day (manager `todayPiastres`,
+  new `SalesMonthLoaded.todayCountedPiastres`). Approved totals were always
+  approved-only and are unchanged.
+- **Approve/Reject buttons realigned.** The queue tile mixed a 48px text
+  "Reject" with a 56px filled "Approve" and sat flush against the card. Now two
+  equal-height buttons (outline Reject · filled Approve) with a gap and a top
+  separation — balanced and aligned.
+- **Clock-in now closes at the shift's scheduled end.** `checkClockIn` enforced
+  only a lower bound, so a Morning shift (08:30–16:30) could be clocked into at
+  night (a real report: clock-in 22:58, 6h29m "overtime"). It now also refuses
+  once `scheduledEnd` has passed (`AttendanceBlock.tooLate`) — late-but-within-
+  shift still allowed and recorded as lateness; a missed shift is fixed with the
+  existing missed-punch correction. Overnight shifts honour the real end instant.
+  Client-domain only (the window is a UX guard, like the existing too-early
+  bound); no rules/server change.
+
+`flutter analyze` clean; +18 tests (sales recovery/today 9, clock-in window 6,
+functions matrix +1, plus updated cases); functions node tests green. ⚠️ **NOT
+device-verified**, and the sales half **needs a functions deploy**.
+
 ## 2026-08-09 — Chat clear/delete now sticks + Home unread signal + no in-app FCM banner (bug/feature/polish; MED risk)
 
 Four reported chat/notification issues, mostly one root cause.

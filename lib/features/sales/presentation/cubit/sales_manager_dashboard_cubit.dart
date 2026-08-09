@@ -53,9 +53,15 @@ class SalesManagerDashboardLoaded extends SalesManagerDashboardState {
   /// the device's local date is a different day near midnight and across DST.
   final String todayDateKey;
 
-  /// The branch's close for today, whatever its status — the figure the
-  /// needed-per-day tone is judged against. Null until the day is submitted.
-  int? get todayPiastres => snapshot.submissionFor(todayDateKey)?.amountPiastres;
+  /// The branch's close for today — the figure the needed-per-day tone is judged
+  /// against. Null until the day is submitted, and null when the only record for
+  /// today was **rejected**: a rejected day is not a valid close, so it must not
+  /// show as "today's sales" or count toward what today contributed.
+  int? get todayPiastres {
+    final today = snapshot.submissionFor(todayDateKey);
+    if (today == null || today.isRejected) return null;
+    return today.amountPiastres;
+  }
   final String? branchName;
   final String? busyId;
   final String? message;

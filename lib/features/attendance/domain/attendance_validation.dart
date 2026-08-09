@@ -19,6 +19,7 @@ enum AttendanceBlock {
   alreadyClockedOut,
   notClockedIn,
   tooEarly,
+  tooLate,
   // ── GPS verification (clock-in gate) ──
   serviceDisabled,
   permissionDenied,
@@ -70,10 +71,15 @@ class AttendanceValidation {
   /// not roster adherence.
   ///
   /// The window (spec R1): a rostered clock-in is refused before
-  /// `scheduledStart − config.clockInLeadMinutes` — [now] and [scheduledStart]
-  /// drive it. When either is null (unscheduled shift, or the caller doesn't pass
-  /// a clock), no window is enforced. Early presence still never counts as worked
-  /// time — that clamp lives in `AttendanceCalculator` (spec R2).
+  /// `scheduledStart − config.clockInLeadMinutes` (**too early**) and once the
+  /// shift's [scheduledEnd] has passed (**too late**) — [now], [scheduledStart]
+  /// and [scheduledEnd] drive it. A shift that is already over cannot be started:
+  /// clocking into the morning shift at night is refused, and the employee files
+  /// a missed-punch correction instead. Being late but still within the shift is
+  /// allowed (and recorded as lateness). When a bound's instant is null
+  /// (unscheduled shift, or the caller doesn't pass a clock), that side of the
+  /// window is not enforced. Early presence still never counts as worked time —
+  /// that clamp lives in `AttendanceCalculator` (spec R2).
   static AttendanceCheck checkClockIn({
     required bool userActive,
     required ScheduleShift? todaysShift,
@@ -81,6 +87,7 @@ class AttendanceValidation {
     required AttendanceEntity? existing,
     DateTime? now,
     DateTime? scheduledStart,
+    DateTime? scheduledEnd,
     AttendanceConfig config = AttendanceConfig.defaults,
   }) {
     if (!config.enabled) {
@@ -115,6 +122,16 @@ class AttendanceValidation {
       if (now.isBefore(opens)) {
         return AttendanceCheck(AttendanceBlock.tooEarly,
             'Clock-in opens at ${_hhmm(opens)}.');
+      }
+    }
+    // Upper bound: once the shift has ended it can't be started. Without this a
+    // Morning shift (08:30–16:30) could be clocked into at night, which is not a
+    // real clock-in — a missed shift is fixed with a correction request instead.
+    if (config.enforceSchedule && now != null && scheduledEnd != null) {
+      if (now.isAfter(scheduledEnd)) {
+        return AttendanceCheck(AttendanceBlock.tooLate,
+            'This shift ended at ${_hhmm(scheduledEnd)} — request a correction '
+            'to record a missed clock-in.');
       }
     }
     return AttendanceCheck.ok;

@@ -18,8 +18,10 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/services/usage_tracker.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/utils/app_logger.dart';
+import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/connectivity_scope.dart';
+import 'package:drop/core/widgets/in_app_notification_host.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
 import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
@@ -257,14 +259,31 @@ String _initialLocationFor(AuthState state) => state.maybeWhen(
 );
 
 void _configureNotificationService() {
-  // No in-app foreground banner: while the user is already inside the app, a
-  // triggered notification (task approval, swap request, …) must NOT raise a
-  // bottom snackbar/banner — that surface was removed by owner request. The
-  // notification still lands in the in-app notification inbox (the bell), and a
-  // background/cold-start tap still deep-links via `onMessageTap` below. On iOS
-  // the OS draws its own foreground banner regardless; `onForeground` is left
-  // unset so neither platform shows the in-app one.
-  AppDependencies.notificationService.onMessageTap = (data) {
+  // In-app foreground notification: while the user is inside the app, a
+  // triggered notification (task approval, swap request, …) raises a polished
+  // **top banner** (`InAppNotificationHost`), NOT the old ugly bottom snackbar.
+  // A tap deep-links to the same destination a background tap would.
+  //
+  // Apple platforms are skipped: iOS draws its OWN foreground banner
+  // (`setForegroundNotificationPresentationOptions`, set in
+  // NotificationService.init), so showing this one as well would double-notify.
+  // Android delivers a foreground push to `onMessage` only and the OS shows
+  // nothing, so the in-app banner is the whole of the signal there. Chat
+  // messages never reach here — they are suppressed in NotificationService and
+  // handled by ChatNotificationListener's own banner.
+  AppDependencies.notificationService
+    ..onForeground = (title, body, data) {
+      if (requiresApnsToken) return; // iOS OS banner covers it
+      final resolvedTitle = (title == null || title.trim().isEmpty)
+          ? 'Notification'
+          : title.trim();
+      InAppNotificationHost.show(InAppNotification(
+        title: resolvedTitle,
+        body: body,
+        data: data,
+      ));
+    }
+    ..onMessageTap = (data) {
       developer.log(
         'Notification tapped — type=${data['type']} task=${data['taskId']} '
         'route=${data['route']}',
@@ -474,7 +493,14 @@ class App extends StatelessWidget {
                 // than overlapping.
                 child: ChatUnreadLaunchHint(
                   router: router,
-                  child: child ?? const SizedBox.shrink(),
+                  // The generic in-app notification banner (task approval, swap,
+                  // …) — a polished top banner, replacing the removed bottom
+                  // snackbar. A tap deep-links through the shared resolver.
+                  child: InAppNotificationHost(
+                    onOpen: (data) =>
+                        _openTapDestination(router, _resolveTapLocation(data)),
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ),

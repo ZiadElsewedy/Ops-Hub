@@ -42,6 +42,14 @@ class DailySalesSubmissionEntity with _$DailySalesSubmissionEntity {
   bool get needsCorrection =>
       status == SalesSubmissionStatus.correctionRequested;
 
+  /// The submitter can fix and resend this day — a manager sent it back for
+  /// correction, **or** it was rejected (a rejection is recoverable: the
+  /// amount/details were wrong, so a corrected resubmission re-enters approval).
+  /// Both transition back to `pending` via `resubmitCorrectedSales`.
+  bool get isResubmittable =>
+      status == SalesSubmissionStatus.correctionRequested ||
+      status == SalesSubmissionStatus.rejected;
+
   /// A decided record admin reopen can move back to `pending`. Correction
   /// requests are NOT terminal — they return to `pending` on resubmission.
   bool get isTerminal =>

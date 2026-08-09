@@ -157,6 +157,7 @@ import 'package:drop/features/chat/data/realtime/chat_socket_service.dart';
 import 'package:drop/features/chat/data/repositories/chat_repository_impl.dart';
 import 'package:drop/features/chat/domain/chat_realtime.dart';
 import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:drop/features/chat/domain/usecases/clear_chat_for_me.dart';
 import 'package:drop/features/chat/domain/usecases/delete_chat_message_for_everyone.dart';
 import 'package:drop/features/chat/domain/usecases/delete_chat_message_for_me.dart';
 import 'package:drop/features/chat/domain/entities/chat_message.dart';
@@ -789,6 +790,8 @@ class AppDependencies {
       clearedThroughMillis: chatClearedStore.clearedThroughMillis,
       onConversationCleared: (id, through) =>
           chatClearedStore.markCleared(id, through),
+      // Bulk delete-for-me behind the inbox "Delete conversation" action.
+      clearConversation: ClearChatForMe(chatRepository).call,
     );
 
     final authRemoteDataSource = AuthRemoteDataSourceImpl(FirebaseAuth.instance);

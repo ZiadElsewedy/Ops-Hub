@@ -65,6 +65,18 @@ class SalesMonthLoaded extends SalesMonthState {
     return null;
   }
 
+  /// Today's amount that counts as a real close for the pace line — the branch's
+  /// approved record if one exists, otherwise this employee's own record UNLESS
+  /// it was rejected. A rejected day is not a valid close, so it must not show as
+  /// "today's sales" or count toward what today contributed.
+  int? get todayCountedPiastres {
+    final approved = snapshot.submissionFor(todayDateKey);
+    if (approved != null) return approved.amountPiastres;
+    final own = todaySubmission;
+    if (own == null || own.isRejected) return null;
+    return own.amountPiastres;
+  }
+
   /// Today's close belongs to a teammate. Their pending record is invisible to
   /// this employee, but an approved one is not — so this only ever reads true
   /// once the day has been approved.
@@ -78,6 +90,13 @@ class SalesMonthLoaded extends SalesMonthState {
   /// Own records sent back for correction — the only ones the employee can act on.
   List<DailySalesSubmissionEntity> get needsCorrection =>
       ownSubmissions.where((submission) => submission.needsCorrection).toList();
+
+  /// Own records the employee can fix and resend — a correction request **or** a
+  /// rejection. Newest business day first, so the most recent is surfaced first.
+  List<DailySalesSubmissionEntity> get resubmittable => (ownSubmissions
+          .where((submission) => submission.isResubmittable)
+          .toList())
+      ..sort((a, b) => b.businessDateKey.compareTo(a.businessDateKey));
 }
 
 class SalesMonthError extends SalesMonthState {

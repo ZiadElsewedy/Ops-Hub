@@ -75,8 +75,14 @@ case / request /             onCase* / onRequest*        pushedByFunction:true) 
 ```
 
 - **Foreground** (`FirebaseMessaging.onMessage`) → `onForeground(title, body, data)`
-  → an in-app snackbar with a **"View"** action that deep-links via the shared
-  resolver (§4). A foreground push is never a dead end.
+  → a polished **top banner** (`InAppNotificationHost`, `core/widgets/`) that
+  slides down, self-dismisses, and deep-links via the shared resolver (§4) on
+  tap. A foreground push is never a dead end. **Apple platforms skip the in-app
+  banner** — iOS draws its own OS foreground banner
+  (`setForegroundNotificationPresentationOptions`), so showing both would
+  double-notify; Android/others get the in-app banner (a foreground push reaches
+  `onMessage` only and the OS shows nothing). *(Was a bottom snackbar until
+  2026-08-09, then briefly removed, then restored as this top banner 2026-08-10.)*
 - **Background tap** (`onMessageOpenedApp`) → `onMessageTap(data)` → resolver → push route.
 - **Terminated / cold-start** (`getInitialMessage`) → same `onMessageTap`.
 - **In-app tile tap** → `NotificationsScreen._deepLink` → **the same resolver**.
