@@ -1473,14 +1473,17 @@ exports.resubmitCorrectedSales = onCall(async (request) => {
   const ref = db.collection(BRANCH_SALES_SUBMISSIONS).doc(submissionId); const initial = await ref.get();
   if (!initial.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
   const initialSub = initial.data() || {};
-  if (initialSub.status !== "correctionRequested") throw new HttpsError("failed-precondition", "This sales submission is not awaiting correction.");
+  // A correction-requested OR a rejected day can be fixed and resubmitted by its
+  // own submitter; both re-enter approval at `pending` (see nextStatus).
+  const resumableStatus = (s) => s === "correctionRequested" || s === "rejected";
+  if (!resumableStatus(initialSub.status)) throw new HttpsError("failed-precondition", "This sales submission can’t be resubmitted.");
   if (initialSub.submittedById !== request.auth.uid) throw new HttpsError("permission-denied", "You can only correct your own sales submission.");
   const userSnap = await db.collection(USERS).doc(request.auth.uid).get();
   const actor = salesActor(userSnap.exists ? (userSnap.data() || {}) : {}, request.auth.uid); let result;
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref); if (!snap.exists) throw new HttpsError("not-found", "Sales submission no longer exists.");
     const sub = snap.data() || {};
-    if (sub.status !== "correctionRequested") throw new HttpsError("failed-precondition", "This sales submission is no longer awaiting correction.");
+    if (!resumableStatus(sub.status)) throw new HttpsError("failed-precondition", "This sales submission can no longer be resubmitted.");
     if (sub.submittedById !== request.auth.uid) throw new HttpsError("permission-denied", "You can only correct your own sales submission.");
     const transition = nextStatus(String(sub.status || ""), "resubmit", "employee");
     if (transition.error) throw new HttpsError("failed-precondition", "This sales submission cannot be resubmitted now.");

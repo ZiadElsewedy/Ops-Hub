@@ -138,11 +138,11 @@ class _SalesSubmissionScreenState extends State<SalesSubmissionScreen> {
                 ),
               );
             }
-            if (!correcting.needsCorrection) {
+            if (!correcting.isResubmittable) {
               return Padding(
                 padding: const EdgeInsets.all(AppSpacing.pagePadding),
                 child: AppProblemPanel(
-                  title: 'Nothing to correct',
+                  title: 'Nothing to resubmit',
                   message:
                       'Your manager already '
                       '${correcting.isApproved ? 'approved' : 'closed'} this '
@@ -168,8 +168,10 @@ class _SalesSubmissionScreenState extends State<SalesSubmissionScreen> {
               const SizedBox(height: AppSpacing.xl),
               if (correcting?.decisionReason != null) ...[
                 AppProblemPanel(
-                  title: 'Correction requested',
-                  message: correcting!.decisionReason!,
+                  title: correcting!.isRejected
+                      ? 'Rejected — fix and resubmit'
+                      : 'Correction requested',
+                  message: correcting.decisionReason!,
                 ),
                 const SizedBox(height: AppSpacing.xl),
               ],

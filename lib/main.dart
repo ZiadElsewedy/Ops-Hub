@@ -21,6 +21,7 @@ import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/connectivity_scope.dart';
+import 'package:drop/core/widgets/in_app_notification_host.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
 import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
@@ -258,41 +259,29 @@ String _initialLocationFor(AuthState state) => state.maybeWhen(
 );
 
 void _configureNotificationService() {
+  // In-app foreground notification: while the user is inside the app, a
+  // triggered notification (task approval, swap request, …) raises a polished
+  // **top banner** (`InAppNotificationHost`), NOT the old ugly bottom snackbar.
+  // A tap deep-links to the same destination a background tap would.
+  //
+  // Apple platforms are skipped: iOS draws its OWN foreground banner
+  // (`setForegroundNotificationPresentationOptions`, set in
+  // NotificationService.init), so showing this one as well would double-notify.
+  // Android delivers a foreground push to `onMessage` only and the OS shows
+  // nothing, so the in-app banner is the whole of the signal there. Chat
+  // messages never reach here — they are suppressed in NotificationService and
+  // handled by ChatNotificationListener's own banner.
   AppDependencies.notificationService
     ..onForeground = (title, body, data) {
-      // iOS presents its own foreground banner
-      // (`setForegroundNotificationPresentationOptions`, set in
-      // NotificationService.init). Showing the in-app snackbar as well would
-      // double-notify for the same message, so Apple platforms rely on the OS
-      // banner — which is tappable and routes through the same
-      // `onMessageOpenedApp` → resolver path, so nothing is lost.
-      // ANDROID IS UNCHANGED: it keeps the snackbar, because a foreground push
-      // on Android is delivered to `onMessage` only and the OS shows nothing.
-      if (requiresApnsToken) return;
-      final text = [
-        title,
-        body,
-      ].where((s) => s != null && s.isNotEmpty).join(' — ');
-      if (text.isEmpty) return;
-      // The foreground push is actionable: "View" deep-links to the same
-      // destination a background tap would, so a foreground notification is
-      // never a dead end.
-      final destination = _resolveTapLocation(data);
-      _messengerKey.currentState?.showSnackBar(
-        SnackBar(
-          content: Text(text),
-          action: destination == null
-              ? null
-              : SnackBarAction(
-                  label: 'View',
-                  onPressed: () {
-                    final router = _router;
-                    if (router == null) return;
-                    _openTapDestination(router, destination);
-                  },
-                ),
-        ),
-      );
+      if (requiresApnsToken) return; // iOS OS banner covers it
+      final resolvedTitle = (title == null || title.trim().isEmpty)
+          ? 'Notification'
+          : title.trim();
+      InAppNotificationHost.show(InAppNotification(
+        title: resolvedTitle,
+        body: body,
+        data: data,
+      ));
     }
     ..onMessageTap = (data) {
       developer.log(
@@ -504,7 +493,14 @@ class App extends StatelessWidget {
                 // than overlapping.
                 child: ChatUnreadLaunchHint(
                   router: router,
-                  child: child ?? const SizedBox.shrink(),
+                  // The generic in-app notification banner (task approval, swap,
+                  // …) — a polished top banner, replacing the removed bottom
+                  // snackbar. A tap deep-links through the shared resolver.
+                  child: InAppNotificationHost(
+                    onOpen: (data) =>
+                        _openTapDestination(router, _resolveTapLocation(data)),
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ),

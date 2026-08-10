@@ -118,10 +118,16 @@ class _RecentMessagesCardState extends State<RecentMessagesCard> {
                     (previews[c.id]?.isNotEmpty ?? false))
                 .take(widget.limit)
                 .toList(growable: false);
+            // Total across every visible conversation (the emitted list is
+            // already filtered of cleared/deactivated rows), so Home carries a
+            // clear "new messages" signal without a bottom-nav badge.
+            final unreadTotal = conversations.fold<int>(
+                0, (sum, c) => sum + (unreadCounts[c.id] ?? 0));
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) _resolvePreviews(shown, previews);
             });
             return _Card(
+              unreadTotal: unreadTotal,
               child: shown.isEmpty
                   ? const _Empty()
                   : Column(
@@ -138,7 +144,7 @@ class _RecentMessagesCardState extends State<RecentMessagesCard> {
                     ),
             );
           },
-          orElse: () => const _Card(child: _Empty()),
+          orElse: () => const _Card(unreadTotal: 0, child: _Empty()),
         );
       },
     );
@@ -146,9 +152,12 @@ class _RecentMessagesCardState extends State<RecentMessagesCard> {
 }
 
 /// The titled card shell — "Recent Messages" header + a "View all" affordance.
+/// [unreadTotal] draws a small count pill beside the title so Home flags new
+/// messages contextually (the bottom nav carries no badge, by decision).
 class _Card extends StatelessWidget {
-  const _Card({required this.child});
+  const _Card({required this.child, this.unreadTotal = 0});
   final Widget child;
+  final int unreadTotal;
 
   @override
   Widget build(BuildContext context) {
@@ -162,6 +171,10 @@ class _Card extends StatelessWidget {
                   size: 16, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.sm),
               const Text('Recent Messages', style: AppTypography.h3),
+              if (unreadTotal > 0) ...[
+                const SizedBox(width: AppSpacing.sm),
+                _UnreadCountPill(count: unreadTotal),
+              ],
               const Spacer(),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -181,6 +194,38 @@ class _Card extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           child,
         ],
+      ),
+    );
+  }
+}
+
+/// A compact unread-count pill for the card header — the single, uncluttered
+/// "you have new messages" signal on Home. Uses the white primary accent (the
+/// same badge language as the per-row count), never a chromatic fill.
+class _UnreadCountPill extends StatelessWidget {
+  const _UnreadCountPill({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: count == 1 ? '1 unread message' : '$count unread messages',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+        constraints: const BoxConstraints(minWidth: 18),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Text(
+          count > 99 ? '99+' : '$count',
+          style: AppTypography.caption.copyWith(
+            color: AppColors.onPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 10,
+          ),
+        ),
       ),
     );
   }

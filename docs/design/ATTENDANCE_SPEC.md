@@ -85,7 +85,10 @@ overtime remain **derived facts, not states** (Technical Constraint T2).
    (`start − clockInLeadMinutes`). Before the window: Clock-In disabled with "Opens
    at HH:MM". Inside the window: Clock In → Working. **Worked minutes are counted
    from `max(clockIn, scheduledStart)`** — arriving early never inflates worked time
-   or creates overtime. → **Completed**.
+   or creates overtime. → **Completed**. **The window also *closes* at
+   `scheduledEnd`** — once the shift is over Clock-In is disabled ("This shift
+   ended at HH:MM"); a shift worked but never clocked into is recovered through
+   the Missed-Punch path (#4), not by clocking in hours late.
 4. **Forgot clock-in (worked anyway).** Shift becomes Absent (virtual). Recovery,
    two doors, both end valid:
    - Employee files a **Missed-Punch request** (a correction of kind *create*),
@@ -151,7 +154,7 @@ overtime remain **derived facts, not states** (Technical Constraint T2).
 
 | # | Question | **Decision** |
 |---|---|---|
-| R1 | Early clock-in? | **Accepted within the lead window, refused before it.** Clock-in allowed from `scheduledStart − clockInLeadMinutes` (default **15 min**). Earlier → refused with "Opens at HH:MM". |
+| R1 | Clock-in window? | **A bounded window, refused outside it.** Clock-in allowed from `scheduledStart − clockInLeadMinutes` (default **15 min**) until `scheduledEnd`. Earlier → refused "Opens at HH:MM"; after the shift has ended → refused "This shift ended at HH:MM" (a shift that is over can't be started — a Morning shift can't be clocked into at night; file a missed-punch correction instead). Late-but-within-shift is accepted and recorded as lateness. Overnight shifts use the real (post-midnight) end instant. *(Upper bound added 2026-08-09; owner-approved.)* |
 | R2 | Do early minutes count? | **No.** Worked time counts from `max(clockIn, scheduledStart)`. Early presence is never worked time or overtime. |
 | R3 | Late grace? | **5 minutes** (unchanged). Beyond it, lateness is recorded, honestly, and the employee is told. |
 | R4 | Clock in / out twice? | **Blocked** (already the case; structurally impossible via deterministic id). |

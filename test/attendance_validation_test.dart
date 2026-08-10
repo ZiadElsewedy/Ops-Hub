@@ -51,6 +51,7 @@ void main() {
       AttendanceEntity? existing,
       DateTime? now,
       DateTime? scheduledStart,
+      DateTime? scheduledEnd,
       AttendanceConfig config = enabled,
     }) =>
         AttendanceValidation.checkClockIn(
@@ -60,6 +61,7 @@ void main() {
           existing: existing,
           now: now,
           scheduledStart: scheduledStart,
+          scheduledEnd: scheduledEnd,
           config: config,
         );
 
@@ -128,6 +130,56 @@ void main() {
 
     test('no window enforced when now/scheduledStart are absent', () {
       expect(check(now: null, scheduledStart: null).allowed, isTrue);
+    });
+
+    test('blocked after the shift has ended — cannot clock into a shift at '
+        'night (upper bound)', () {
+      // Morning shift 08:30–16:30, clock-in attempted at 22:58.
+      final c = check(
+        now: DateTime(2026, 7, 13, 22, 58),
+        scheduledStart: DateTime(2026, 7, 13, 8, 30),
+        scheduledEnd: DateTime(2026, 7, 13, 16, 30),
+      );
+      expect(c.reason, AttendanceBlock.tooLate);
+      expect(c.message, contains('16:30'));
+    });
+
+    test('late but still within the shift is allowed (recorded as lateness)', () {
+      final c = check(
+        now: DateTime(2026, 7, 13, 10, 0), // 1.5h late, before 16:30 end
+        scheduledStart: DateTime(2026, 7, 13, 8, 30),
+        scheduledEnd: DateTime(2026, 7, 13, 16, 30),
+      );
+      expect(c.allowed, isTrue);
+    });
+
+    test('allowed right up to the scheduled end', () {
+      final c = check(
+        now: DateTime(2026, 7, 13, 16, 30),
+        scheduledStart: DateTime(2026, 7, 13, 8, 30),
+        scheduledEnd: DateTime(2026, 7, 13, 16, 30),
+      );
+      expect(c.allowed, isTrue);
+    });
+
+    test('overnight shift stays open past midnight (upper bound honours the '
+        'real end instant)', () {
+      // Night 20:00 → 02:00 (next day). At 01:00 the window is still open.
+      final c = check(
+        now: DateTime(2026, 7, 14, 1, 0),
+        scheduledStart: DateTime(2026, 7, 13, 20, 0),
+        scheduledEnd: DateTime(2026, 7, 14, 2, 0),
+      );
+      expect(c.allowed, isTrue);
+    });
+
+    test('no upper bound enforced when scheduledEnd is absent (unscheduled)', () {
+      final c = check(
+        now: DateTime(2026, 7, 13, 23, 0),
+        scheduledStart: null,
+        scheduledEnd: null,
+      );
+      expect(c.allowed, isTrue);
     });
 
     // No manager-specific GPS test lives here on purpose: `checkGpsFix` takes no

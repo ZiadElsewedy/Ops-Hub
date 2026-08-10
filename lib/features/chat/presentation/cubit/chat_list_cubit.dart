@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:drop/core/errors/failures.dart';
+import 'package:drop/core/services/chat_cleared_store.dart';
 import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/features/chat/domain/chat_realtime.dart';
 import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
@@ -45,6 +46,27 @@ class ChatListCubit extends Cubit<ChatListState> {
   /// directory has loaded) means "hide nothing", so a not-yet-loaded directory
   /// never blanks the inbox.
   final Set<String> Function()? _deactivatedCounterpartUids;
+
+  /// Supplies the cleared-through watermark (epoch millis) for a conversation
+  /// the viewer has cleared/deleted for themselves, or null when they haven't —
+  /// the live-session view of [ChatClearedStore] in `AppDependencies`. A
+  /// conversation whose newest activity is at or before its watermark is hidden
+  /// from the inbox until a genuinely newer message arrives. Null (tests, or
+  /// before the store has loaded) means "hide nothing", so a not-yet-loaded
+  /// store never blanks the inbox. Persistent, so a clear survives a refresh and
+  /// a full app restart.
+  final int? Function(String conversationId)? _clearedThroughMillis;
+
+  /// Records a viewer clear/delete durably (via the store the accessor reads).
+  /// Injected so the store stays in one place (`AppDependencies`) rather than
+  /// wired into every cubit; null in tests, which drive the accessor directly.
+  final void Function(String conversationId, DateTime? clearedThrough)?
+      _onConversationCleared;
+
+  /// Bulk delete-for-me of a whole conversation, for the inbox "Delete
+  /// conversation" action (see [ClearChatForMe]). Null in tests, which then
+  /// only exercise the persistent hide.
+  final Future<void> Function(String conversationId)? _clearConversation;
   StreamSubscription<ChatRealtimeEvent>? _realtimeSub;
   bool _inboxAttached = false;
 
@@ -88,6 +110,9 @@ class ChatListCubit extends Cubit<ChatListState> {
     this._getCachedConversations,
     this._realtime,
     this._deactivatedCounterpartUids,
+    this._clearedThroughMillis,
+    this._onConversationCleared,
+    this._clearConversation,
   }) : super(const ChatListState.initial()) {
     _realtimeSub = _realtime?.events.listen(_onRealtimeEvent);
   }
@@ -103,17 +128,80 @@ class ChatListCubit extends Cubit<ChatListState> {
     return uid != null && deactivated.contains(uid);
   }
 
+  /// Whether [c] is still fully cleared/deleted for the viewer (so the row is
+  /// hidden). A message newer than the recorded watermark brings it back.
+  bool _isCleared(ChatConversationSummary c) {
+    final through = _clearedThroughMillis?.call(c.id);
+    return chatConversationCleared(c.lastMessageAt, through);
+  }
+
   /// The conversations the inbox may show — [_conversations] minus any whose
-  /// counterpart is deactivated. The raw list is kept intact (a reactivation
-  /// brings a row straight back with no re-fetch); filtering happens only on the
-  /// way out to the UI and the unread total.
-  List<ChatConversationSummary> _visibleConversations() =>
-      _conversations.where((c) => !_isDeactivated(c)).toList(growable: false);
+  /// counterpart is deactivated or that the viewer has cleared/deleted (with no
+  /// newer activity since). The raw list is kept intact (a reactivation or a new
+  /// message brings a row straight back with no re-fetch); filtering happens
+  /// only on the way out to the UI and the unread total.
+  List<ChatConversationSummary> _visibleConversations() => _conversations
+      .where((c) => !_isDeactivated(c) && !_isCleared(c))
+      .toList(growable: false);
 
   /// Re-emits the current inbox against the latest deactivated set — called
   /// after the chat directory (re)loads, so turning an account off (or back on)
   /// mid-session hides or restores its conversation without a server round trip.
   void refilter() {
+    if (_hasLoaded && !isClosed) _emitLoaded();
+  }
+
+  /// Deletes [conversationId] for the viewer straight from the inbox (the
+  /// long-press / right-click "Delete conversation" action) — the same
+  /// delete-for-me the open-thread screen performs, plus the persistent hide.
+  /// Bulk-deletes every message for me (the counterpart keeps their copy) via
+  /// the injected clear, then records the watermark so the row stays gone until
+  /// a genuinely newer message arrives. Returns whether it succeeded. When no
+  /// clear is wired (tests) it just hides the row.
+  Future<bool> deleteConversation(String conversationId) async {
+    final summary = conversationById(conversationId);
+    final clearedThrough = summary?.lastMessageAt;
+    final clear = _clearConversation;
+    if (clear != null) {
+      try {
+        await clear(conversationId);
+      } on Failure catch (e) {
+        if (!isClosed) {
+          emit(ChatListState.error(e.message));
+          if (_hasLoaded) _emitLoaded();
+        }
+        return false;
+      } catch (e) {
+        AppLog.warning('chat', 'delete conversation failed: $e');
+        if (!isClosed) {
+          emit(const ChatListState.error('Failed to delete the conversation.'));
+          if (_hasLoaded) _emitLoaded();
+        }
+        return false;
+      }
+    }
+    markConversationCleared(conversationId, clearedThrough);
+    return true;
+  }
+
+  /// Records that the viewer cleared or deleted [conversationId] and drops every
+  /// in-memory trace of it so the row disappears immediately and stays gone
+  /// across a refresh/restart (the watermark is persisted by the store the
+  /// injected callback writes to). [clearedThrough] is the conversation's newest
+  /// activity at clear time — a strictly-newer message later brings the row
+  /// back on its own. Called by the thread screen after a successful clear.
+  void markConversationCleared(
+      String conversationId, DateTime? clearedThrough) {
+    _onConversationCleared?.call(conversationId, clearedThrough);
+    // Forget the cleared conversation's live-derived state so nothing stale can
+    // repaint it (a lingering socket preview, a resolved last message, or an
+    // unread count that would keep counting toward the badge).
+    _previews.remove(conversationId);
+    _previewMessageIds.remove(conversationId);
+    _unread.remove(conversationId);
+    _optimisticallyCleared.remove(conversationId);
+    _resolvedPreviews.remove(conversationId);
+    _resolvedEmpty.remove(conversationId);
     if (_hasLoaded && !isClosed) _emitLoaded();
   }
 

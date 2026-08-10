@@ -53,7 +53,22 @@ class SecureSessionStore implements SessionStore {
       // device — a restored id would let a phone impersonate the session that
       // was claimed on the phone it was restored from.
       iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
-      aOptions: AndroidOptions(encryptedSharedPreferences: true),
+      // `resetOnError` is the Samsung/Android hardening: EncryptedSharedPreferences
+      // keeps its AES master key in the hardware AndroidKeyStore, and on Samsung
+      // that key is regularly invalidated out from under the app (a keystore
+      // hiccup, an OS/security-patch update, a Smart Switch/Samsung Cloud
+      // restore). A decrypt against a mismatched key throws
+      // `AEADBadTagException`/`InvalidKeyException` — or, worse for us, could
+      // surface a *stale* claim. With this on, the plugin wipes the corrupt store
+      // and returns cleanly, so [read] degrades to `null` — which the auth layer
+      // treats as "this device claims nothing" and therefore NEVER evicts (see
+      // `AuthCubit._isSessionTakenOver`). Without it a corrupt read could return
+      // a leftover id that mismatches the remote claim and sign a legitimate
+      // device out as a false "signed in on another device".
+      aOptions: AndroidOptions(
+        encryptedSharedPreferences: true,
+        resetOnError: true,
+      ),
       mOptions: MacOsOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
     ),
   ]);

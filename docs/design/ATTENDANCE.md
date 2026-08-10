@@ -3,12 +3,16 @@
 > **This file describes the shipped *engine*.** For locked **product behavior**
 > (state machine, business rules, edge-case rulings, decision log) the source of
 > truth is **[ATTENDANCE_SPEC.md](ATTENDANCE_SPEC.md)** (locked 2026-07-18). Where
-> the two disagree on behavior, the spec wins. The early-clock-in window
-> (`clockInLeadMinutes`, spec R1/R2) **is now enforced in code** — see the
-> `AttendanceBlock.tooEarly` gate in
-> [attendance_validation.dart:108](../../lib/features/attendance/domain/attendance_validation.dart).
-> (This note previously said it was unenforced; that was stale, corrected
-> 2026-07-30.)
+> the two disagree on behavior, the spec wins. The clock-in window
+> (`clockInLeadMinutes`, spec R1/R2) **is now enforced in code** — both bounds:
+> the `AttendanceBlock.tooEarly` gate (before `scheduledStart − lead`) **and**
+> the `AttendanceBlock.tooLate` gate (after `scheduledEnd` — a shift that is
+> already over cannot be started; a Morning shift can't be clocked into at night;
+> use a missed-punch correction instead). Late-but-within-shift stays allowed and
+> is recorded as lateness; overnight shifts honour the real end instant. See
+> [attendance_validation.dart](../../lib/features/attendance/domain/attendance_validation.dart)
+> `checkClockIn`. (This note previously said the window was unenforced, then only
+> too-early; both stale, corrected 2026-07-30 and 2026-08-09.)
 >
 > **Status:** code complete (P1–P3), **not deployed, not QA'd on device**. See
 > [CURRENT_STATE](../../CURRENT_STATE.md).

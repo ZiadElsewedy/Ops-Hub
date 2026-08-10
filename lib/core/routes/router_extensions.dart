@@ -57,15 +57,29 @@ extension GoRouterSafeNavigation on GoRouter {
   /// [maxFrames], because a tap is not worth leaking a permanent callback if
   /// the app never finishes mounting.
   void whenReady(VoidCallback action, {int maxFrames = 120}) {
+    // Already attached (the ordinary foreground/background tap): navigate now.
     if (currentLocationOrNull != null) {
       action();
       return;
     }
     if (maxFrames <= 0) return;
     WidgetsBinding.instance
-      ..addPostFrameCallback(
-        (_) => whenReady(action, maxFrames: maxFrames - 1),
-      )
+      ..addPostFrameCallback((_) {
+        if (currentLocationOrNull != null) {
+          // The router attached THIS frame. Do NOT navigate synchronously here:
+          // the `Router` widget is parsing `initialLocation` in the same frame,
+          // so the Navigator + RouteConfiguration an imperative `go`/`push`
+          // needs are not wired yet — pushing now is what surfaced as go_router
+          // "no routes for location" on a cold-start notification tap (every
+          // notification type, since every deep link funnels through here). Let
+          // the mount frame finish, then navigate on the next one.
+          WidgetsBinding.instance
+            ..addPostFrameCallback((_) => action())
+            ..scheduleFrame();
+          return;
+        }
+        whenReady(action, maxFrames: maxFrames - 1);
+      })
       // A post-frame callback only runs if a frame is actually produced. The
       // splash is animating so one normally is, but asking for it explicitly
       // means the retry cannot stall on an idle frame scheduler.

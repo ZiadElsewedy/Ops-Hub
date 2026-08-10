@@ -5,6 +5,118 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Cold-start notification tap "no route for this chat/page" — recovery +
+> diagnostics (2026-08-10, bug, ⚠️ NOT device-verified):** Tapping a chat (or any)
+> notification while the app was **terminated** could land on go_router's raw
+> "no routes for location" page. Cause surface: `createRouter` had **no
+> `onException`/`errorBuilder`**, so a cold-start deep link that failed to settle
+> (the tap resolves via `getInitialMessage()` long before the routed app mounts;
+> the `whenReady` defer covers most of it, but a match failure had no net) left
+> the user stranded. Added `GoRouter.onException` in
+> `core/routes/app_router.dart` — logs the failing `uri` and **recovers** to the
+> signed-in user's role home (or Login when unauthenticated) so the shell/back
+> stack is always reachable. Added breadcrumbs (`AppLog.warning('route', …)`) in
+> `chat_deep_link_navigation.dart` around resolve + router-ready so a device
+> logcat shows the exact destination and timing. **Recovery is in place; the
+> underlying settle-failure still needs a device capture to fully pin** (the new
+> logs are for that). `flutter analyze` clean on the changed files.
+
+> **Android/Samsung cold-start sign-out — UNDER INVESTIGATION (2026-08-10, bug,
+> ⚠️ root cause NOT yet confirmed on device):** iOS keeps the session across a
+> full close/reopen; on a Samsung device the **original** app instance returns to
+> Login while a **cloned** instance keeps the session. Confirmed via the user:
+> the original shows a **plain Login with no message**, which means
+> `AuthCubit.restoreSession` took the `firebaseUser == null` branch — i.e.
+> **Firebase Auth's own persisted session is gone on the original**, NOT an
+> app-side single-active-session eviction (that shows "signed in on another
+> device"; also the two instances use different accounts, so they never
+> competed). Firebase Auth persists in app-private SharedPreferences on Android
+> (Keychain on iOS). A Samsung clone runs in a **separate Android user profile**
+> (isolated storage + its own keystore, and it is **exempt from primary-profile
+> Auto Backup and Samsung storage cleanup**), which is why it survives. Leading
+> suspects for the original: Android **Auto Backup** (primary-profile only) and/or
+> **Samsung battery "sleeping apps" / "auto-disable unused apps" / a cleaner**
+> clearing app-private storage. **Not conclusive** — one-time Auto Backup restore
+> doesn't cleanly explain logout on *every* reopen. Applied so far: (1)
+> `android:allowBackup="false"` + `fullBackupContent="false"` + `tools:replace`
+> in `AndroidManifest.xml` (removes the backup/restore failure mode; sensitive
+> session data shouldn't be cloud-backed regardless); (2) `resetOnError: true` on
+> the Android `flutter_secure_storage` options (a corrupt keystore read
+> wipes-and-returns `null` → `AuthCubit`'s "local null ⇒ never evict" safe path);
+> (3) a cold-start diagnostic — `AuthCubit.restoreSession` now logs
+> `firebase user=null|<uid>` (breadcrumb, retained in release) so a logcat capture
+> from the original confirms whether Firebase lost the session. **Next: capture
+> that log on the original + check the battery/cleanup settings above.**
+> `flutter analyze` clean on the changed files.
+
+> **Chat inbox row options + in-app notification top banner (2026-08-10,
+> feature/polish, client-only, NOT device-verified):** (1) A **long-press**
+> (mobile) or **right-click** (desktop) on a chat inbox row now opens its options
+> — **Delete conversation** (mobile bottom sheet / desktop pointer-anchored
+> popup). Delete runs the same bulk **delete-for-me** as the thread screen (new
+> `ClearChatForMe` use case: pages the whole history, deletes each server message
+> for me) plus the persistent `ChatClearedStore` hide, so the row goes and stays
+> gone across refresh/restart until newer activity. `ChatConversationTile` gained
+> `onContextMenu`; `ChatListCubit.deleteConversation` orchestrates it with a
+> clean retryable failure. (2) The in-app foreground notification (task approval,
+> swap, …) — earlier **removed** as an "ugly bottom banner" — is **restored as a
+> polished top banner** (`InAppNotificationHost`, `core/widgets/`): slides from
+> the top, self-dismisses, tappable to deep-link via the shared resolver, wired
+> to FCM `onForeground`. **Apple platforms skip it** (iOS shows its own OS
+> foreground banner — both would double-notify); Android/others get the in-app
+> banner. Chat keeps its own richer avatar banner (`ChatNotificationListener`).
+> `flutter analyze` clean; +2 chat-delete tests; chat suite green. ⚠️ **NOT
+> device-verified** — the context menu + the Android foreground banner need a real
+> device run.
+
+> **Sales reject is recoverable + rejected excluded from today + clock-in closes
+> at shift end (2026-08-09, bug/feature, ⚠️ SALES HALF NEEDS A FUNCTIONS DEPLOY,
+> NOT device-verified):** Three reviewed business-logic issues. (1) **A rejected
+> daily-sales close is now recoverable** by its submitter — it was terminal
+> (admin-reopen only), now the employee can *fix and resubmit* it and it
+> re-enters approval at `pending`, like a correction. Server: `nextStatus` allows
+> `resubmit` from `rejected` (employee, owner-enforced by the callable) and
+> `resubmitCorrectedSales` accepts a rejected doc; client: `isResubmittable`,
+> `resubmittable` list, and the submission/detail/employee screens cover rejected.
+> **No rules change** (resubmit is an Admin-SDK callable). ⚠️ **Inert until
+> `firebase deploy --only functions:resubmitCorrectedSales`** — production still
+> refuses a rejected-day resubmit until then. (2) **A rejected close no longer
+> counts as "today"** — manager `todayPiastres` and the new
+> `SalesMonthLoaded.todayCountedPiastres` exclude a rejected day (it still showed
+> as today's sales + fed needed-per-day tone). Approved totals unchanged
+> (approved-only always). (3) **Approve/Reject buttons realigned** — two
+> equal-height buttons (outline Reject · filled Approve) with a gap + top
+> separation, replacing a 48px text link flush against the card. (4) **Clock-in
+> closes at the shift's scheduled end** — `checkClockIn` had only a lower bound,
+> so a Morning shift (08:30–16:30) could be clocked into at night. It now refuses
+> once `scheduledEnd` passed (`AttendanceBlock.tooLate`); late-but-within-shift
+> still allowed, a missed shift uses the existing missed-punch correction,
+> overnight shifts honour the real end instant. Client-domain only (UX guard, like
+> the too-early bound); no rules/server change. `flutter analyze` clean; +18
+> tests; functions node tests green. ⚠️ **NOT device-verified.**
+
+> **Chat clear/delete now sticks, Home flags unread, no in-app FCM banner
+> (2026-08-09, bug/feature/polish, client-only, NOT device-verified):** Four
+> reported chat/notification issues. (1) **Clear History / Delete conversation**
+> left the inbox row in place showing the old last message, back again on refresh
+> — because the list endpoint keeps reporting the old `lastMessageAt`/last-message
+> after a per-viewer delete-for-me and the client kept no durable record. New
+> client-only `ChatClearedStore` (`core/services/chat_cleared_store.dart`, pure
+> `chatConversationCleared`) — a uid-namespaced JSON file like
+> `case_seen_store` — records the newest-activity **watermark** at clear time;
+> `ChatListCubit` hides any conversation at or before its watermark (and drops its
+> unread), `markConversationCleared` forgets stale preview/unread traces, and a
+> genuinely newer message brings the row back on its own. Survives refresh +
+> restart; cleared on sign-out. (2) The Home **Recent Messages** card header now
+> carries a small reactive unread-count pill (monochrome; respects the standing
+> no-nav-badge decision). (3) The foreground **in-app FCM banner** (task/swap
+> snackbar on Android) was removed by owner request — `main.dart` `onForeground`
+> left unset; notifications still reach the in-app inbox + deep-link on tap. No
+> schema/rules/functions/backend change. `flutter analyze` clean; +10 tests
+> (`chat_cleared_conversation_test.dart`), chat suite green. ⚠️ **NOT
+> device-verified** — needs a clear→refresh→restart cycle and an Android
+> foreground-push check on hardware.
+
 > **Pending Review drill-down collapses single-choice levels (2026-08-08,
 > polish, client-only, NOT device-verified):** The admin Pending Review flow
 > (`PendingReviewScreen`) is Summary → Branch → Employee → task, and it never

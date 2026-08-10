@@ -63,8 +63,14 @@ function nextStatus(current, action, actorRole) {
   // Resubmission is intentionally employee-facing. Ownership is enforced by
   // the callable; this pure transition policy only answers role + state.
   if (action === "resubmit") {
-    return current === "correctionRequested" && actorRole === "employee"
-      ? { status: "pending" } : { error: current === "correctionRequested" ? "unauthorized_role" : "illegal_transition" };
+    // A day the manager sent back (correctionRequested) OR outright rejected can
+    // be fixed and resent by its submitter — a rejection is not a dead end; the
+    // amount/details were wrong, so the employee corrects and it re-enters the
+    // normal approval flow at `pending`. Ownership is enforced by the callable.
+    const resumable = current === "correctionRequested" || current === "rejected";
+    if (!resumable) return { error: "illegal_transition" };
+    if (actorRole !== "employee") return { error: "unauthorized_role" };
+    return { status: "pending" };
   }
   if (!["manager", "admin"].includes(actorRole)) return { error: "unauthorized_role" };
   if (action === "reopen" && actorRole !== "admin") return { error: "unauthorized_role" };

@@ -45,28 +45,38 @@ class SalesSubmissionTile extends StatelessWidget {
           onTap: onTap,
         ),
         if (onApprove != null || onReject != null)
-          Row(
-            children: [
-              if (onReject != null)
-                Expanded(
-                  child: TextButton(
-                    onPressed: busy ? null : onReject,
-                    child: const Text('Reject'),
+          Padding(
+            // Separate the actions from the card above; without it the buttons
+            // read as if they belong to the row and sit cramped against it.
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Row(
+              children: [
+                // Reject and Approve are the same button height (56) so they
+                // align — an outline Reject balances the filled Approve rather
+                // than a bare text link floating beside a solid pill.
+                if (onReject != null)
+                  Expanded(
+                    child: AppButton.secondary(
+                      label: 'Reject',
+                      onPressed: busy ? null : onReject,
+                    ),
                   ),
-                ),
-              if (onApprove != null)
-                Expanded(
-                  child: AppButton(
-                    label: 'Approve',
-                    isLoading: busy,
-                    onPressed: busy ? null : onApprove!,
+                if (onReject != null && onApprove != null)
+                  const SizedBox(width: AppSpacing.sm),
+                if (onApprove != null)
+                  Expanded(
+                    child: AppButton(
+                      label: 'Approve',
+                      isLoading: busy,
+                      onPressed: busy ? null : onApprove!,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         if (onCorrect != null)
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: SizedBox(
               width: double.infinity,
               child: AppButton(

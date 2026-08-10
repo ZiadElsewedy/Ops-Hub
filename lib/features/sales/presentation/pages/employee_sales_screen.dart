@@ -96,7 +96,9 @@ class EmployeeSalesScreen extends StatelessWidget {
         final snapshot = state.snapshot;
         final today = state.todaySubmission;
         final kpis = computeSalesKpis(snapshot, now: DateTime.now());
-        final correction = state.needsCorrection.firstOrNull;
+        // A day the manager sent back for correction OR rejected — the employee
+        // can fix and resend either.
+        final resubmittable = state.resubmittable.firstOrNull;
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(
@@ -157,9 +159,8 @@ class EmployeeSalesScreen extends StatelessWidget {
                 // close counts here just as it does in the card below; only a
                 // genuinely un-closed day reads as "not submitted yet".
                 neededPerDayPiastres: kpis.neededPerDayPiastres,
-                todayPiastres:
-                    (today ?? snapshot.submissionFor(state.todayDateKey))
-                        ?.amountPiastres,
+                // A rejected close is excluded — it's not a valid contribution.
+                todayPiastres: state.todayCountedPiastres,
                 daysRemaining: kpis.daysRemaining,
               ),
             ],
@@ -181,19 +182,25 @@ class EmployeeSalesScreen extends StatelessWidget {
               ),
             ],
 
-            // A day sent back for correction keeps its way home.
-            if (correction != null) ...[
+            // A day sent back for correction OR rejected keeps its way home —
+            // the employee fixes the amount and resubmits it for approval.
+            if (resubmittable != null) ...[
               const SizedBox(height: AppSpacing.xl),
-              Text('Needs your correction', style: AppTypography.labelLarge),
+              Text(
+                resubmittable.isRejected
+                    ? 'Rejected — fix and resubmit'
+                    : 'Needs your correction',
+                style: AppTypography.labelLarge,
+              ),
               const SizedBox(height: AppSpacing.md),
               SalesSubmissionTile(
-                submission: correction,
+                submission: resubmittable,
                 showSubmitter: false,
                 onTap: () => context.push(
-                  RouteNames.salesSubmissionDetail(correction.id),
+                  RouteNames.salesSubmissionDetail(resubmittable.id),
                 ),
                 onCorrect: () => context.push(
-                  '${RouteNames.salesSubmit}?correct=${Uri.encodeQueryComponent(correction.id)}',
+                  '${RouteNames.salesSubmit}?correct=${Uri.encodeQueryComponent(resubmittable.id)}',
                 ),
               ),
             ],

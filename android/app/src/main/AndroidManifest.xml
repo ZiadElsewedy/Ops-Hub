@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- GPS-verified attendance clock in/out. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
@@ -14,10 +15,31 @@
          manifest and the merger would supply it either way; it is declared here
          because this app's permissions are documented in one place. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- Auto Backup is OFF — Firebase Auth session persistence on Android.
+         Firebase Auth persists the signed-in session in this app's private
+         SharedPreferences (unlike iOS, which keeps it in the Keychain). With
+         Android Auto Backup left at its default (`allowBackup=true`, which is
+         what the merged manifest resolves to when unset), that auth store — plus
+         the `flutter_secure_storage` EncryptedSharedPreferences that holds the
+         single-active-session claim, whose AES master key lives in the hardware
+         AndroidKeyStore and CANNOT be backed up — becomes part of the
+         backup/restore/device-transfer set. On Samsung especially (Samsung Cloud
+         auto-backup, Smart Switch, D2D transfer all fire invisibly), a restore
+         lays the encrypted prefs back down without a matching keystore key and
+         re-seeds a stale Auth store: reads fail, Firebase drops the session, and
+         the user lands back on Login after a cold start — the exact iOS-fine /
+         Android-signs-out symptom. Turning Auth persistence's storage over to
+         the backup transport is the documented cause; disabling backup for this
+         internal, sensitive ops app is the fix (session data does not belong in
+         cloud backups regardless). `tools:replace` forces this to win over any
+         library that merges in `allowBackup=true`. -->
     <application
         android:label="Drop Ops"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        tools:replace="android:allowBackup">
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="@string/default_notification_channel_id" />

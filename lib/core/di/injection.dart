@@ -10,6 +10,7 @@ import 'package:drop/core/media/media_upload_service.dart';
 import 'package:drop/core/network/api_client.dart';
 import 'package:drop/core/network/network_config.dart';
 import 'package:drop/core/services/case_seen_store.dart';
+import 'package:drop/core/services/chat_cleared_store.dart';
 import 'package:drop/core/services/notification_preferences_store.dart';
 import 'package:drop/core/services/delivered_notifications.dart';
 import 'package:drop/core/services/notification_service.dart';
@@ -156,6 +157,7 @@ import 'package:drop/features/chat/data/realtime/chat_socket_service.dart';
 import 'package:drop/features/chat/data/repositories/chat_repository_impl.dart';
 import 'package:drop/features/chat/domain/chat_realtime.dart';
 import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:drop/features/chat/domain/usecases/clear_chat_for_me.dart';
 import 'package:drop/features/chat/domain/usecases/delete_chat_message_for_everyone.dart';
 import 'package:drop/features/chat/domain/usecases/delete_chat_message_for_me.dart';
 import 'package:drop/features/chat/domain/entities/chat_message.dart';
@@ -357,6 +359,28 @@ class AppDependencies {
   /// on a cold start, before [loadChatDirectory] has run once (so nothing is
   /// hidden until we positively know an account is off).
   static Set<String> get deactivatedChatUidsSnapshot => _deactivatedChatUids;
+
+  /// Durable record of which conversations the signed-in user has cleared or
+  /// deleted for themselves, so the inbox honours a clear across a refresh AND a
+  /// full app restart (the list endpoint keeps reporting the old last message).
+  /// Constructed eagerly — the inbox cubit reads it synchronously while
+  /// rendering, before [init] resolves in tests.
+  static final ChatClearedStore chatClearedStore = ChatClearedStore();
+
+  /// Loads (once) the cleared-conversation store for [uid] and re-emits the
+  /// inbox against it, so previously-cleared rows stay hidden the moment the
+  /// store is warm. Idempotent — safe to call from every chat surface's mount,
+  /// mirroring [loadChatDirectory]. Best-effort; a load failure just leaves the
+  /// store empty (nothing hidden).
+  static Future<void> loadChatClearedStore(String? uid) async {
+    if (uid == null || uid.isEmpty) return;
+    try {
+      await chatClearedStore.load(uid);
+      chatListCubit.refilter();
+    } catch (_) {
+      // Best-effort: a load failure just leaves the store empty (nothing hidden).
+    }
+  }
 
   /// The [user]'s chat directory keyed by **Firebase uid**, so the chat UI can
   /// resolve a conversation's `counterpartExternalId` to a real name/avatar/
@@ -761,6 +785,13 @@ class AppDependencies {
       // the live session cache filled by [loadChatDirectory], so a mid-session
       // deactivation takes effect on the next directory (re)load.
       deactivatedCounterpartUids: () => _deactivatedChatUids,
+      // Hide conversations the viewer has cleared/deleted for themselves until a
+      // newer message arrives — persisted, so it survives a refresh/restart.
+      clearedThroughMillis: chatClearedStore.clearedThroughMillis,
+      onConversationCleared: (id, through) =>
+          chatClearedStore.markCleared(id, through),
+      // Bulk delete-for-me behind the inbox "Delete conversation" action.
+      clearConversation: ClearChatForMe(chatRepository).call,
     );
 
     final authRemoteDataSource = AuthRemoteDataSourceImpl(FirebaseAuth.instance);
@@ -859,6 +890,9 @@ class AppDependencies {
         // the previous user's conversations before the network refresh lands.
         chatListCubit.reset();
         clearChatDirectory();
+        // Drop this account's cleared-conversation watermarks so the next user
+        // on a shared device never inherits them.
+        chatClearedStore.clear();
         // Every remaining user-scoped live stream. Runs for a deliberate
         // sign-out AND for a single-active-session eviction, because both go
         // through `AuthCubit._signOutInternal`.
