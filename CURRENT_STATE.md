@@ -5,6 +5,50 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Cold-start notification tap "no route for this chat/page" — recovery +
+> diagnostics (2026-08-10, bug, ⚠️ NOT device-verified):** Tapping a chat (or any)
+> notification while the app was **terminated** could land on go_router's raw
+> "no routes for location" page. Cause surface: `createRouter` had **no
+> `onException`/`errorBuilder`**, so a cold-start deep link that failed to settle
+> (the tap resolves via `getInitialMessage()` long before the routed app mounts;
+> the `whenReady` defer covers most of it, but a match failure had no net) left
+> the user stranded. Added `GoRouter.onException` in
+> `core/routes/app_router.dart` — logs the failing `uri` and **recovers** to the
+> signed-in user's role home (or Login when unauthenticated) so the shell/back
+> stack is always reachable. Added breadcrumbs (`AppLog.warning('route', …)`) in
+> `chat_deep_link_navigation.dart` around resolve + router-ready so a device
+> logcat shows the exact destination and timing. **Recovery is in place; the
+> underlying settle-failure still needs a device capture to fully pin** (the new
+> logs are for that). `flutter analyze` clean on the changed files.
+
+> **Android/Samsung cold-start sign-out — UNDER INVESTIGATION (2026-08-10, bug,
+> ⚠️ root cause NOT yet confirmed on device):** iOS keeps the session across a
+> full close/reopen; on a Samsung device the **original** app instance returns to
+> Login while a **cloned** instance keeps the session. Confirmed via the user:
+> the original shows a **plain Login with no message**, which means
+> `AuthCubit.restoreSession` took the `firebaseUser == null` branch — i.e.
+> **Firebase Auth's own persisted session is gone on the original**, NOT an
+> app-side single-active-session eviction (that shows "signed in on another
+> device"; also the two instances use different accounts, so they never
+> competed). Firebase Auth persists in app-private SharedPreferences on Android
+> (Keychain on iOS). A Samsung clone runs in a **separate Android user profile**
+> (isolated storage + its own keystore, and it is **exempt from primary-profile
+> Auto Backup and Samsung storage cleanup**), which is why it survives. Leading
+> suspects for the original: Android **Auto Backup** (primary-profile only) and/or
+> **Samsung battery "sleeping apps" / "auto-disable unused apps" / a cleaner**
+> clearing app-private storage. **Not conclusive** — one-time Auto Backup restore
+> doesn't cleanly explain logout on *every* reopen. Applied so far: (1)
+> `android:allowBackup="false"` + `fullBackupContent="false"` + `tools:replace`
+> in `AndroidManifest.xml` (removes the backup/restore failure mode; sensitive
+> session data shouldn't be cloud-backed regardless); (2) `resetOnError: true` on
+> the Android `flutter_secure_storage` options (a corrupt keystore read
+> wipes-and-returns `null` → `AuthCubit`'s "local null ⇒ never evict" safe path);
+> (3) a cold-start diagnostic — `AuthCubit.restoreSession` now logs
+> `firebase user=null|<uid>` (breadcrumb, retained in release) so a logcat capture
+> from the original confirms whether Firebase lost the session. **Next: capture
+> that log on the original + check the battery/cleanup settings above.**
+> `flutter analyze` clean on the changed files.
+
 > **Chat inbox row options + in-app notification top banner (2026-08-10,
 > feature/polish, client-only, NOT device-verified):** (1) A **long-press**
 > (mobile) or **right-click** (desktop) on a chat inbox row now opens its options

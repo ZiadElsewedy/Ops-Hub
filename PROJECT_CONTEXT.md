@@ -92,7 +92,8 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Drift caches metadata; `ChatRepositoryImpl` session-caches brokered URLs until their server expiry; **never image bytes** |
 | Server logic | Cloud Functions (Node.js, `functions/`) | 31 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
 | Push | `firebase_messaging` | iOS app-side configuration is present; APNs credential remains — see CURRENT_STATE |
-| Device session id | `flutter_secure_storage` | Keychain (iOS/macOS) / `EncryptedSharedPreferences` (Android). Holds **one** value — this device's single-active-session claim. Seam: `core/services/session_store.dart`; never import it elsewhere, and it is still **not** a place for preferences (those stay JSON files) |
+| Device session id | `flutter_secure_storage` | Keychain (iOS/macOS) / `EncryptedSharedPreferences` (Android, `resetOnError: true`). Holds **one** value — this device's single-active-session claim. Seam: `core/services/session_store.dart`; never import it elsewhere, and it is still **not** a place for preferences (those stay JSON files) |
+| Android backup | disabled (`allowBackup=false`) | Firebase Auth persists its session in app SharedPreferences on Android (Keychain on iOS). Auto Backup would ship that store + the secure-storage claim — whose keystore master key can't be backed up — through backup/restore/Smart Switch, dropping the session on cold start (Samsung especially). See `android/app/src/main/AndroidManifest.xml` |
 | Immutable models | `freezed` + `freezed_annotation` | Entities & states |
 | Serialization | `json_serializable` | |
 | Media | `image_picker` · `image_cropper` · `video_compress` | Mobile-gated |

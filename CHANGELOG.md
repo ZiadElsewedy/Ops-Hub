@@ -14,6 +14,50 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-10 — Cold-start notification tap "no route" — graceful recovery + diagnostics (bug; MED risk)
+
+- **Symptom.** With the app **fully closed**, tapping a chat notification could
+  show "no route for this chat/page".
+- **Cause surface.** `createRouter` had no `onException`/`errorBuilder`, so a
+  cold-start deep link (resolved via `getInitialMessage()` before the routed app
+  mounts) that failed to settle stranded the user on go_router's raw error page
+  with no way back.
+- **Fix.** Added `GoRouter.onException` in `core/routes/app_router.dart` that
+  logs the failing `uri` and recovers to the signed-in user's role home (or Login
+  when unauthenticated). Added `AppLog.warning('route', …)` breadcrumbs in
+  `chat_deep_link_navigation.dart` (resolve + router-ready) so a device logcat
+  pins the exact destination/timing of the underlying settle-failure.
+
+## 2026-08-10 — Android/Samsung cold-start sign-out — investigation + hardening (bug, root cause not yet device-confirmed; MED risk)
+
+- **Symptom.** iOS keeps the session across a full close/reopen. On a Samsung
+  device the **original** app instance returns to Login after a cold start,
+  while a **cloned** instance keeps the session.
+- **Established so far.** The original shows a **plain Login with no message**,
+  so `AuthCubit.restoreSession` took the `firebaseUser == null` branch —
+  **Firebase Auth's own persisted session is gone on the original**, not an
+  app-side single-active-session eviction (that shows "signed in on another
+  device"; and the two instances use different accounts, so no competition).
+  Firebase Auth persists in app-private SharedPreferences on Android (Keychain on
+  iOS). A Samsung clone runs in a **separate Android user profile** — isolated
+  storage, own keystore, and exempt from primary-profile Auto Backup and Samsung
+  storage cleanup — which is why it survives.
+- **Not yet conclusive.** Leading suspects for the original are Android **Auto
+  Backup** (primary-profile only) and/or **Samsung battery "sleeping apps" /
+  "auto-disable unused apps" / a cleaner** wiping app-private storage. One-time
+  Auto Backup restore doesn't fully explain logout on *every* reopen, so the
+  exact mechanism still needs a device-side capture.
+- **Applied.** (1) `android:allowBackup="false"` + `fullBackupContent="false"` +
+  `tools:replace` in `AndroidManifest.xml` — removes the backup/restore failure
+  mode (sensitive session data shouldn't be cloud-backed regardless). (2)
+  `resetOnError: true` on the Android `flutter_secure_storage` options — a corrupt
+  keystore read wipes-and-returns `null`, routing into `AuthCubit`'s "local null
+  ⇒ never evict" safe path instead of a stale claim that could cause a false
+  "signed in on another device" sign-out. (3) A cold-start diagnostic —
+  `restoreSession` logs `firebase user=null|<uid>` (release-retained breadcrumb)
+  so a logcat capture from the original confirms whether Firebase lost the
+  session.
+
 ## 2026-08-10 — Chat inbox row options (long-press / right-click) + in-app notification banner restored as a top banner (feature/polish; MED risk)
 
 - **Delete a conversation straight from the inbox.** A **long-press** (mobile)

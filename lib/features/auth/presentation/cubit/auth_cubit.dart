@@ -108,6 +108,14 @@ class AuthCubit extends Cubit<AuthState> {
   /// Called once from SplashPage on cold start.
   Future<void> restoreSession() async {
     final firebaseUser = _repository.currentUser;
+    // Cold-start persistence probe. If this logs `firebase user=null` right after
+    // a sign-in + full close (e.g. the Samsung "original instance" report), the
+    // session was lost by Firebase Auth's OWN storage, NOT by any app-side
+    // eviction — the login screen then shows no reason because we take the branch
+    // below. Compare a working sandbox (a Samsung clone runs in a separate user
+    // profile, so its storage — and its Auto Backup / cleanup exposure — differ).
+    AppLog.warning('auth',
+        'restoreSession: firebase user=${firebaseUser == null ? 'null' : firebaseUser.uid}');
     if (firebaseUser == null) {
       emit(const AuthState.unauthenticated());
     } else {

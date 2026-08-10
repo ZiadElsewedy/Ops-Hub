@@ -88,6 +88,22 @@ GoRouter createRouter(
       }
       return target;
     },
+    // A location that matches no route must NEVER strand the user on go_router's
+    // raw "no routes for location" page — which is exactly what a notification
+    // deep link that fails to settle at cold start produced ("no route for this
+    // chat/page"). Recover to a real, role-appropriate stack instead: the
+    // signed-in user's home (so the shell stays reachable), or Login when
+    // there is no session. The failing location is logged so the true cause is
+    // still traceable from a device capture.
+    onException: (BuildContext context, GoRouterState state, GoRouter router) {
+      AppLog.warning('route',
+          'no route for "${state.uri}" — recovering to a safe destination');
+      final user = authCubit.state
+          .maybeWhen(authenticated: (u) => u, orElse: () => null);
+      router.go(user == null
+          ? RouteNames.login
+          : RouteNames.homeForRole(user.role));
+    },
     routes: [
       // ─── Outside the app shell: splash + auth + first-login onboarding ──
       // These must NOT show the persistent sidebar.

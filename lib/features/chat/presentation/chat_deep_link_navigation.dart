@@ -3,6 +3,7 @@ import 'package:drop/core/di/injection.dart';
 import 'package:drop/core/enums/user_role.dart';
 import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/core/routes/router_extensions.dart';
+import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/chat/presentation/chat_thread_args.dart';
 
@@ -37,11 +38,15 @@ void openChatDeepLink(
   ChatThreadArgs? args,
 }) {
   final destination = RouteNames.chatConversation(conversationId);
+  AppLog.warning('route',
+      'openChatDeepLink → $destination (role=${role.value}); deferring until router ready');
   // Deferred until the router has a stack: a chat push tapped from a TERMINATED
   // app resolves before the routed app mounts, where `push` is dropped and
   // `router.state` throws `Bad state: No element` on the empty match list —
   // inside the tap handler, so the thread never opened at all.
   router.whenReady(() {
+    AppLog.warning('route',
+        'openChatDeepLink: router ready — building home←inbox←$destination');
     // Compare against the DELEGATE's location, not
     // `routeInformationProvider.value`: an imperative `push` is delegate-level
     // and never writes back to the provider, so that value still reports
