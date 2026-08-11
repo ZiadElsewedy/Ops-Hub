@@ -8,7 +8,6 @@ import 'package:drop/core/routes/route_names.dart';
 import 'package:drop/features/sales/presentation/widgets/admin_branch_sales_summary.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/admin_section_header.dart';
 import 'package:drop/core/widgets/attention_panel.dart';
 import 'package:drop/core/widgets/command_hint.dart';
@@ -28,7 +27,6 @@ import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart'
 import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
 import 'package:drop/features/schedule/presentation/widgets/swap_alert_card.dart'
     show showSwapQueueSheet;
-import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
 import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
@@ -45,11 +43,12 @@ import 'package:drop/features/task/presentation/widgets/task_template_sheets.dar
 /// attention right now*, then today's health, then recent activity — never "here
 /// is every row in the database".
 ///
-/// Hierarchy: **Hero** (date · company scope · greeting · one live state
-/// sentence · one Create Task CTA) → **Needs attention** (the dominant layer: ONE grouped box — a calm
-/// "all clear" summary when every queue is empty, otherwise the triage rows
-/// overdue · pending review · sent back · unassigned · swaps, most-urgent-first,
-/// each a filtered drill, wrapped in a single living border) → **Today** (light
+/// Hierarchy: **Hero** (greeting · one live state sentence · one Create Task
+/// CTA) → **Needs attention** (the dominant layer:
+/// self-gating — hidden entirely when every queue is empty, otherwise the triage
+/// rows overdue · pending review · sent back · unassigned · swaps,
+/// most-urgent-first, each a filtered drill, wrapped in a single living border)
+/// → **Today** (light
 /// four `MetricTile` doors) → **Recent activity** (clean vertical feed, no
 /// filters) → **Operations**. On a phone, a final compact **Manage** directory
 /// keeps the destinations absent from bottom navigation reachable; desktop has
@@ -163,15 +162,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return 'Good evening';
   }
 
-  String _scope(StatisticsEntity? s) {
-    if (s == null) return '';
-    final b =
-        '${s.totalBranches} ${s.totalBranches == 1 ? 'branch' : 'branches'}';
-    final e =
-        '${s.totalEmployees} ${s.totalEmployees == 1 ? 'employee' : 'employees'}';
-    return '$b · $e';
-  }
-
   void _createTask() => startNewTaskFlow(
     context: context,
     cubit: context.read<TaskCubit>(),
@@ -179,71 +169,57 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     defaultBranchId: '',
   );
 
-  /// The eyebrow carries company scope, removing the hero's former second
-  /// supporting line. Freshness belongs to the adjacent Sync control.
-  String _eyebrow(StatisticsEntity? statistics) {
-    final date = AppDateFormatter.weekdayDayMonth(DateTime.now());
-    final scope = _scope(statistics);
-    return scope.isEmpty ? date : '$date · $scope';
-  }
-
   Widget _hero() {
     final name = context.currentUser?.displayName;
     final first = (name != null && name.trim().isNotEmpty)
         ? name.trim().split(' ').first
         : 'Admin';
-    return BlocBuilder<StatisticsCubit, StatisticsState>(
-      builder: (context, statsState) {
-        final s = statsState.maybeWhen(loaded: (s) => s, orElse: () => null);
-        // The subtitle is ONE live state sentence with a breathing pulse dot —
-        // the dashboard reads its own operational state ("all caught up" vs
-        // "3 tasks need your attention") off the same needs-attention total the
-        // section below uses, so the two can never disagree.
-        return BlocSelector<ShiftSwapCubit, ShiftSwapState, int>(
-          selector: (state) => state.maybeWhen(
-            loaded: (swaps, _) =>
-                swaps.where((s) => !s.status.isResolved).length,
-            orElse: () => 0,
-          ),
-          builder: (context, swaps) {
-            return BlocSelector<
-              TaskCubit,
-              TaskState,
-              (int, int, int, int, int)
-            >(
-              selector: (state) {
-                final tasks = state.maybeWhen(
-                  loaded: (t, _, _, _, _) => t,
-                  orElse: () => const <TaskEntity>[],
-                );
-                final now = DateTime.now();
-                return (
-                  runningNowCount(tasks),
-                  reviewCount(tasks),
-                  overdueCount(tasks, now),
-                  unassignedCount(tasks, now),
-                  rejectedCount(tasks),
-                );
-              },
-              builder: (context, c) {
-                final (_, reviews, overdue, unassigned, rejected) = c;
-                final needsAttention =
-                    reviews + overdue + unassigned + rejected + swaps;
-                final mood = dashboardMood(needsAttention: needsAttention);
-                return PageHero(
-                  eyebrow: _eyebrow(s),
-                  title: '$_salutation, $first',
-                  subtitleWidget: HeroMood(mood: mood, scope: ''),
-                  primaryAction: PrimaryCta(
-                    icon: Icons.add_rounded,
-                    label: 'Create Task',
-                    onTap: _createTask,
-                  ),
-                  trailing: context.isDesktop
-                      ? [_syncButton(compact: true), const CommandHint()]
-                      : [_syncButton(compact: true)],
-                );
-              },
+    // The subtitle is ONE live state sentence with a breathing pulse dot — the
+    // dashboard reads its own operational state ("all caught up" vs "3 tasks
+    // need your attention") off the same needs-attention total the section
+    // below uses, so the two can never disagree.
+    return BlocSelector<ShiftSwapCubit, ShiftSwapState, int>(
+      selector: (state) => state.maybeWhen(
+        loaded: (swaps, _) =>
+            swaps.where((s) => !s.status.isResolved).length,
+        orElse: () => 0,
+      ),
+      builder: (context, swaps) {
+        return BlocSelector<
+          TaskCubit,
+          TaskState,
+          (int, int, int, int, int)
+        >(
+          selector: (state) {
+            final tasks = state.maybeWhen(
+              loaded: (t, _, _, _, _) => t,
+              orElse: () => const <TaskEntity>[],
+            );
+            final now = DateTime.now();
+            return (
+              runningNowCount(tasks),
+              reviewCount(tasks),
+              overdueCount(tasks, now),
+              unassignedCount(tasks, now),
+              rejectedCount(tasks),
+            );
+          },
+          builder: (context, c) {
+            final (_, reviews, overdue, unassigned, rejected) = c;
+            final needsAttention =
+                reviews + overdue + unassigned + rejected + swaps;
+            final mood = dashboardMood(needsAttention: needsAttention);
+            return PageHero(
+              title: '$_salutation, $first',
+              subtitleWidget: HeroMood(mood: mood, scope: ''),
+              primaryAction: PrimaryCta(
+                icon: Icons.add_rounded,
+                label: 'Create Task',
+                onTap: _createTask,
+              ),
+              trailing: context.isDesktop
+                  ? [_syncButton(compact: true), const CommandHint()]
+                  : [_syncButton(compact: true)],
             );
           },
         );
@@ -252,11 +228,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // ── Needs attention (the dominant layer) ─────────────────────────
-  /// Driven entirely by live counts, rendered as ONE grouped box that stays in
-  /// place. Every queue empty → a calm "all clear" summary; anything outstanding →
-  /// the box of triage rows (most-urgent-first), a fresh signal sliding in as a
-  /// row rather than the whole surface re-appearing.
-  Widget _needsAttention() {
+  /// Driven entirely by live counts. **Self-gating** (like the sales summary):
+  /// when every queue is empty the whole section — heading, box, and its
+  /// trailing gap — disappears, so a clear board spends no vertical space on an
+  /// "all clear" card. Anything outstanding → the heading returns above a box of
+  /// triage rows (most-urgent-first).
+  Widget _needsAttentionSection() {
     return BlocSelector<ShiftSwapCubit, ShiftSwapState, int>(
       selector: (state) => state.maybeWhen(
         loaded: (swaps, _) => swaps.where((s) => !s.status.isResolved).length,
@@ -279,14 +256,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           },
           builder: (context, c) {
             final (overdue, reviews, unassigned, rejected) = c;
-            return AttentionPanel(
-              signals: _signals(
-                reviews: reviews,
-                overdue: overdue,
-                unassigned: unassigned,
-                rejected: rejected,
-                swaps: swaps,
-              ),
+            // Nothing outstanding → render nothing at all (no "All clear" card,
+            // no heading, no gap). The dashboard leads straight into Today.
+            if (overdue + reviews + unassigned + rejected + swaps == 0) {
+              return const SizedBox.shrink();
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const AdminSectionHeader(title: 'Needs attention'),
+                AttentionPanel(
+                  signals: _signals(
+                    reviews: reviews,
+                    overdue: overdue,
+                    unassigned: unassigned,
+                    rejected: rejected,
+                    swaps: swaps,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+              ],
             );
           },
         );
@@ -611,9 +600,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       children: [
         sec('hero', _hero()),
         const SizedBox(height: AppSpacing.xl),
-        sec('attn-h', const AdminSectionHeader(title: 'Needs attention')),
-        sec('attn', _needsAttention()),
-        const SizedBox(height: AppSpacing.xl),
+        // Self-gating: heading + box + trailing gap, or nothing when all clear.
+        sec('attn', _needsAttentionSection()),
         sec('today-h', const AdminSectionHeader(title: 'Today')),
         sec('today', _today()),
         // Gates itself entirely: no opted-in branch ⇒ no heading, no box, no gap.
@@ -660,12 +648,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          sec(
-                            'attn-h',
-                            const AdminSectionHeader(title: 'Needs attention'),
-                          ),
-                          sec('attn', _needsAttention()),
-                          const SizedBox(height: AppSpacing.xl),
+                          // Self-gating: heading + box + trailing gap, or
+                          // nothing when all clear.
+                          sec('attn', _needsAttentionSection()),
                           sec(
                             'today-h',
                             const AdminSectionHeader(title: 'Today'),

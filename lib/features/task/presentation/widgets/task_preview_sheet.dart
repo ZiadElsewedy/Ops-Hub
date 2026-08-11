@@ -156,7 +156,25 @@ class _PreviewBody extends StatelessWidget {
         _SituationHeader(task: task, directory: directory),
         if (description.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(description, style: AppTypography.body.copyWith(height: 1.5)),
+          // A left-accent quote block so the brief reads as intentional copy
+          // rather than raw text floating under the header.
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, AppSpacing.sm + 2, AppSpacing.md, AppSpacing.sm + 2),
+            decoration: const BoxDecoration(
+              border: Border(
+                left: BorderSide(color: AppColors.accent, width: 2.5),
+              ),
+            ),
+            child: Text(
+              description,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+          ),
         ],
         const SizedBox(height: AppSpacing.lg),
         _FactsCard(task: task, directory: directory, branchName: branchName),
@@ -543,42 +561,89 @@ class _AttachmentStrip extends StatelessWidget {
   const _AttachmentStrip({required this.attachments});
   final List<TaskAttachment> attachments;
 
+  static const double _tile = 76;
+  static const int _max = 6;
+
   @override
   Widget build(BuildContext context) {
-    final shown = attachments.take(8).toList();
+    final shown = attachments.take(_max).toList();
+    final overflow = attachments.length - shown.length;
     return SizedBox(
-      height: 52,
+      height: _tile,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: shown.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemCount: shown.length + (overflow > 0 ? 1 : 0),
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, i) {
-          final a = shown[i];
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 52,
-              height: 52,
-              color: AppColors.darkSurfaceElevated,
-              child: a.type == AttachmentType.video
-                  ? const Icon(
-                      Icons.play_circle_outline_rounded,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    )
-                  : Image.network(
-                      a.url,
-                      fit: BoxFit.cover,
-                      cacheWidth: 110,
-                      errorBuilder: (_, _, _) => const Icon(
-                        Icons.broken_image_outlined,
-                        size: 16,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-            ),
-          );
+          if (i >= shown.length) return _OverflowTile(count: overflow);
+          return _Thumb(attachment: shown[i]);
         },
+      ),
+    );
+  }
+}
+
+/// One rounded, bordered attachment thumbnail — larger than the old 52px chips
+/// so the proof actually reads, with a proper play affordance for video.
+class _Thumb extends StatelessWidget {
+  const _Thumb({required this.attachment});
+  final TaskAttachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final isVideo = attachment.type == AttachmentType.video;
+    return Container(
+      width: _AttachmentStrip._tile,
+      height: _AttachmentStrip._tile,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.darkSurfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: isVideo
+          ? const Center(
+              child: Icon(
+                Icons.play_circle_fill_rounded,
+                size: 26,
+                color: AppColors.textSecondary,
+              ),
+            )
+          : Image.network(
+              attachment.url,
+              fit: BoxFit.cover,
+              cacheWidth: 160,
+              errorBuilder: (_, _, _) => const Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+/// The trailing "+N" tile when there are more attachments than fit the strip.
+class _OverflowTile extends StatelessWidget {
+  const _OverflowTile({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: _AttachmentStrip._tile,
+      height: _AttachmentStrip._tile,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.darkSurfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.darkBorder),
+      ),
+      child: Text(
+        '+$count',
+        style: AppTypography.label.copyWith(color: AppColors.textSecondary),
       ),
     );
   }
@@ -597,6 +662,8 @@ class _TimelineSection extends StatelessWidget {
 
   static const _maxMinorRows = 4;
 
+  static const double _railWidth = 26;
+
   @override
   Widget build(BuildContext context) {
     final entries = [...task.activityLog]
@@ -604,16 +671,34 @@ class _TimelineSection extends StatelessWidget {
     final head = entries.first;
     final minor = entries.skip(1).take(_maxMinorRows).toList();
     final hidden = entries.length - 1 - minor.length;
+    final lastIndex = minor.length; // head is 0; minor rows follow
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _TimelineHeadRow(entry: head, actorName: _actor(head)),
-        for (final e in minor)
-          _TimelineMinorRow(entry: e, actorName: _actor(e)),
+        _TimelineRailRow(
+          entry: head,
+          actorName: _actor(head),
+          isFirst: true,
+          // Keep the rail running if anything (minor rows or the "+N" note)
+          // follows, so the connector never dead-ends into empty space.
+          isLast: minor.isEmpty && hidden <= 0,
+          head: true,
+          railWidth: _railWidth,
+        ),
+        for (var i = 0; i < minor.length; i++)
+          _TimelineRailRow(
+            entry: minor[i],
+            actorName: _actor(minor[i]),
+            isFirst: false,
+            isLast: i == lastIndex - 1 && hidden <= 0,
+            head: false,
+            railWidth: _railWidth,
+          ),
         if (hidden > 0)
           Padding(
-            padding: const EdgeInsets.only(top: 4, left: 24),
+            padding: const EdgeInsets.only(
+                left: _railWidth + AppSpacing.sm, top: 2),
             child: Text(
               '+$hidden earlier · see Full Details',
               style: AppTypography.caption.copyWith(
@@ -629,20 +714,32 @@ class _TimelineSection extends StatelessWidget {
       e.actorName ?? directory[e.actorId]?.displayName;
 }
 
-class _TimelineHeadRow extends StatelessWidget {
-  const _TimelineHeadRow({required this.entry, required this.actorName});
+/// One event on the connected timeline: a left rail (node + the vertical line
+/// that stitches consecutive events together) beside the event's content. The
+/// **head** (newest) reads as a full node with the exact clock time; older
+/// events are compact rows on the same rail.
+class _TimelineRailRow extends StatelessWidget {
+  const _TimelineRailRow({
+    required this.entry,
+    required this.actorName,
+    required this.isFirst,
+    required this.isLast,
+    required this.head,
+    required this.railWidth,
+  });
+
   final ActivityEntry entry;
   final String? actorName;
+  final bool isFirst;
+  final bool isLast;
+  final bool head;
+  final double railWidth;
 
   @override
   Widget build(BuildContext context) {
     final color = activityColor(entry.status);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
+    final node = head
+        ? Container(
             width: 22,
             height: 22,
             decoration: BoxDecoration(
@@ -651,55 +748,87 @@ class _TimelineHeadRow extends StatelessWidget {
               border: Border.all(color: color.withAlpha(120)),
             ),
             child: Icon(activityIcon(entry.status), size: 12, color: color),
+          )
+        : Container(
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              border: Border.all(color: AppColors.darkSurface, width: 2),
+            ),
+          );
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: railWidth,
+            child: Column(
+              children: [
+                // Top connector — absent on the first (newest) node.
+                Container(
+                  width: 2,
+                  height: head ? 4 : 6,
+                  color: isFirst ? Colors.transparent : AppColors.darkBorder,
+                ),
+                node,
+                // Bottom connector fills the rest of the row height, so the line
+                // is continuous down to the next node regardless of content
+                // height. Absent on the last node.
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    color: isLast ? Colors.transparent : AppColors.darkBorder,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
+              child: head ? _headContent(color) : _minorContent(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _headContent(Color color) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
                   activityTitle(entry.status),
                   style: AppTypography.label.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if ((actorName ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(actorName!, style: AppTypography.bodySmall),
-                ],
-              ],
-            ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                '${relativeTime(entry.at)} · ${clockTime(entry.at)}',
+                style: AppTypography.caption
+                    .copyWith(color: AppColors.textSecondary),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            '${relativeTime(entry.at)} · ${clockTime(entry.at)}',
-            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
-          ),
+          if ((actorName ?? '').isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(actorName!, style: AppTypography.bodySmall),
+          ],
         ],
-      ),
-    );
-  }
-}
+      );
 
-class _TimelineMinorRow extends StatelessWidget {
-  const _TimelineMinorRow({required this.entry, required this.actorName});
-  final ActivityEntry entry;
-  final String? actorName;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = activityColor(entry.status);
-    return Padding(
-      padding: const EdgeInsets.only(left: 3, bottom: 6),
-      child: Row(
+  Widget _minorContent() => Row(
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: AppSpacing.sm + 4),
           Expanded(
             child: Text(
               (actorName ?? '').isEmpty
@@ -707,7 +836,8 @@ class _TimelineMinorRow extends StatelessWidget {
                   : '${actorName!} · ${activityTitle(entry.status)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+              style:
+                  AppTypography.caption.copyWith(color: AppColors.textSecondary),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -716,7 +846,5 @@ class _TimelineMinorRow extends StatelessWidget {
             style: AppTypography.caption.copyWith(color: AppColors.textTertiary),
           ),
         ],
-      ),
-    );
-  }
+      );
 }

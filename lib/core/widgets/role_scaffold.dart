@@ -134,10 +134,11 @@ class RoleScaffold extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 16, left: 4),
             child: GestureDetector(
-              // The account hub (More/Settings) — Profile now lives here
-              // alongside Change Password and Sign Out, since the bottom nav's
-              // fourth slot became Chat.
-              onTap: () => context.push(RouteNames.settings),
+              // Tapping your picture opens your Profile directly. Settings
+              // (Change Password / Sign Out) stays one tap away via the gear in
+              // the Profile app bar — so nothing is stranded on mobile, where
+              // this avatar is the only entry into the account area.
+              onTap: () => context.push(RouteNames.profile),
               child: user != null
                   ? UserAvatar.fromUser(user,
                       size: 36,

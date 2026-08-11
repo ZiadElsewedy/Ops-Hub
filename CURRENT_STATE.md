@@ -83,6 +83,53 @@
 > keeps firing the eager 24h rung until then. The timezone hardening ships with
 > the client build. **NOT device-verified.**
 
+> **Admin Home "Needs attention" hides itself when all clear (2026-08-11,
+> presentation only, client-only, NOT device-verified):** The section used to
+> render a full "All clear" card (with the "late · pending review · sent back ·
+> unassigned · swap requests" subtitle) even when nothing was outstanding —
+> dead vertical space on a healthy board. It now **self-gates like the sales
+> summary**: `_needsAttentionSection` folds the heading + box + trailing gap into
+> one widget that returns `SizedBox.shrink()` when every queue is empty (total ==
+> 0), so a clear dashboard leads straight from the hero into Today. When anything
+> is outstanding the heading returns above the triage rows (unchanged
+> `AttentionPanel`, which already filters to non-zero signals). The standalone
+> `attn-h` header + trailing gap were removed from both the mobile and desktop
+> layouts. `flutter analyze` clean; attention-surface test green. ⚠️ **NOT
+> device-verified.**
+
+> **Home avatar opens Profile; home eyebrow line removed (2026-08-11,
+> presentation/nav, client-only, NOT device-verified):** Two owner requests on
+> the home header. (1) Tapping the **account picture** (the role-chrome avatar,
+> `role_scaffold.dart`) now opens **Profile** directly instead of the Settings
+> hub. Because Profile is deliberately a *leaf* of Settings and Settings is the
+> only place with **Sign Out / Change Password** — and on mobile the avatar is
+> the *only* door into the account area — a **Settings gear** was added to the
+> Profile app bar so nothing is stranded (avatar → Profile → gear → Settings).
+> `profile_page.dart`'s "no inline Settings/Sign-out" doc updated to reflect the
+> gear. (2) The Admin Home hero **eyebrow** ("TUESDAY, 11 AUG · 3 BRANCHES · 4
+> EMPLOYEES") was **removed** — the dead `_eyebrow`/`_scope` helpers, the
+> eyebrow-only `StatisticsCubit` `BlocBuilder` wrapper, and the now-unused
+> `AppDateFormatter` / `StatisticsEntity` imports were dropped with it; the live
+> `HeroMood` subtitle and everything else is unchanged. Admin Home only (the
+> screen shown); manager/employee heroes untouched. `flutter analyze` clean. ⚠️
+> **NOT device-verified.**
+
+> **Task quick-review sheet polished (2026-08-11, presentation only, NOT
+> device-verified):** The tap-to-preview sheet (`task_preview_sheet.dart`
+> `_PreviewBody`) read rough in three spots, all refreshed without touching the
+> information architecture, the situation sentence, or the shared action footer
+> (`TaskFeedActions`): (1) the **description** floated as raw body text directly
+> under the header — now a **left-accent quote block** so it reads as intentional
+> copy; (2) **attachments** were lonely 52px chips — now **76px rounded, bordered
+> thumbnails** with a proper play glyph for video and a trailing **"+N" overflow
+> tile**; (3) the **timeline** was a head row plus disconnected dots — now a
+> **connected rail** (a continuous 2px line stitching the nodes, newest as a full
+> node with the exact clock time, older events compact on the same rail). Pure
+> render layer, monochrome-per-status held (ADR-004). `flutter analyze` clean;
+> `task_preview_sheet_test.dart` green (the situation-sentence + "Open full
+> details" assertions unchanged). ⚠️ **NOT device-verified** — needs an on-device
+> look at the sheet.
+
 > **Soft keyboard now lowers on a tap outside any field, app-wide (2026-08-11,
 > bug, client-only, NOT device-verified):** The keyboard stayed up after a text
 > field lost interest across most of the app (typing a task title, a chat
