@@ -21,11 +21,12 @@ import 'package:drop/features/notifications/presentation/notification_format.dar
 import 'package:drop/features/notifications/presentation/widgets/notification_tile.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
 
-/// The in-app Notification Center — an **operations workflow inbox** (§5). Not a
+/// The in-app Notification Center — an **operations inbox** (§5). Not a
 /// flat feed: notifications are **grouped by time** (Today / Yesterday / Earlier),
 /// **filtered by category** (All / Tasks / Reviews / Requests / Cases / Schedule
-/// / Sales / Broadcast), and **ordered by priority** within each section so what
-/// needs acting on floats up. Swipe right
+/// / Sales / Broadcast), and **ordered newest-first** within each section so it
+/// reads as a timeline (owner ruling 2026-08-11; priority still drives a tile's
+/// unread emphasis, not the feed order). Swipe right
 /// to mark read, swipe left to archive (delete in the Archived view); bulk
 /// Mark-all-read / Clear-archived; every tile deep-links to its destination.
 class NotificationsScreen extends StatefulWidget {

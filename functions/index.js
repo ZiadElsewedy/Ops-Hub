@@ -1770,6 +1770,30 @@ exports.onNotificationCreated = onDocumentCreated(
     const body = String(n.body || "").trim();
     if (!title && !body) return;
 
+    // Idempotency guard — this is a v2 (Eventarc) trigger, and 2nd-gen
+    // event-driven functions are delivered AT-LEAST-ONCE: the same
+    // `notifications/{id}` create event can fire this handler more than once,
+    // and every redelivery would re-push → the recipient gets the SAME
+    // notification twice ("sometimes duplicated"). Claim the push atomically:
+    // the first delivery to win the transaction sets `pushedAt` and proceeds;
+    // any later delivery of the same event sees it set and returns without
+    // pushing. The transaction closes the check-then-set race between two
+    // concurrent deliveries of one event (a plain get+set could let both read
+    // "unset" and both push). This trades at-least-once for at-most-once on the
+    // push, which is the right call: one lost push in a rare crash-after-claim
+    // beats a duplicate on every redelivery, and the in-app inbox row (the
+    // durable record) is unaffected either way.
+    const claimedPush = await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(snap.ref);
+      if (!fresh.exists) return false; // deleted between fire and claim
+      if (fresh.get("pushedAt")) return false; // already pushed by a prior delivery
+      tx.update(snap.ref, {
+        pushedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return true;
+    });
+    if (!claimedPush) return;
+
     // Gather the recipient's device tokens (array + legacy single field).
     const userSnap = await db.collection(USERS).doc(recipientUid).get();
     if (!userSnap.exists) return;

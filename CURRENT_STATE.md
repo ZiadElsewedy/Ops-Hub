@@ -5,6 +5,64 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Duplicate push notifications — two root causes closed (2026-08-11, bug,
+> ⚠️ THE FUNCTIONS HALF NEEDS A DEPLOY, NOT device-verified):** Reported: "the
+> same notification is sometimes received more than once." Two independent
+> causes. (1) **`onNotificationCreated` had no idempotency guard and is a v2
+> (Eventarc) trigger — those are delivered AT-LEAST-ONCE**, so the same
+> `notifications/{id}` create event could fire the handler twice and re-push,
+> delivering the same push to the device twice (the non-deterministic "sometimes").
+> It now **claims the push in a Firestore transaction** — the first delivery sets
+> `pushedAt` and proceeds; any redelivery of the same event sees it set and
+> returns without pushing (at-least-once → at-most-once on the push; the durable
+> inbox row is unaffected). This is the same idempotency discipline the
+> deterministic-id functions (`taskmissed_*`, reminders, generation) already use,
+> now applied to the push side. (2) **Legacy `fcmToken` dual-read**: both server
+> push paths (`onNotificationCreated`, `dispatchBroadcast`) read `fcmTokens[]`
+> **and** the pre-array single `fcmToken` field, but `_rotateToken` only ever
+> wrote the array and never cleared the legacy field (and `claimFcmToken` clears
+> it on *other* users, not the claimant's own doc) — so a stale-but-still-live
+> legacy value on an old account got pushed alongside the array token = a second
+> copy. `_rotateToken` now `FieldValue.delete()`s the legacy `fcmToken` when it
+> writes the array, removing the class at the source on the next launch. Client
+> double-invocation was ruled out (task notifies fire only on a successful status
+> `_transition`, so a double-tap sends nothing). `flutter analyze` clean; `node
+> --check` clean; 155 functions tests green. ⚠️ **The push-guard is inert until
+> `firebase deploy --only functions:onNotificationCreated`** — production keeps
+> re-pushing on redelivery until then. **NOT device-verified.**
+
+> **Notification timeline is now purely chronological (2026-08-11, bug/UX,
+> client-only, owner-ruled, NOT device-verified):** The second half of the same
+> report — "the timeline doesn't feel reliable/clean, ordering is off." The
+> within-day sort was **priority-first, then newest** (`groupByTime` in
+> `notification_format.dart`), a "workflow inbox" model where a critical/high row
+> floated above a newer normal one — so the most recent notification was often
+> *not* at the top and the feed read as unpredictable. By owner ruling it is now
+> **strictly newest-first** within each Today/Yesterday/Earlier section, so it
+> reads as a timeline. `notificationPriority` is untouched and still drives each
+> tile's unread emphasis — it just no longer reorders the feed. Stale "ordered by
+> priority" doc comments on the screen + format header corrected. Pinned by the
+> rewritten `notification_grouping_test.dart` (the old priority-float case now
+> asserts newest-first). No schema/rules/functions change. `flutter analyze`
+> clean; grouping suite green. ⚠️ **NOT device-verified.**
+
+> **Soft keyboard now lowers on a tap outside any field, app-wide (2026-08-11,
+> bug, client-only, NOT device-verified):** The keyboard stayed up after a text
+> field lost interest across most of the app (typing a task title, a chat
+> message, a sales note/amount, a case/request, …) — only a few auth pages
+> (`login`, `profile_completion`, `force_password_change`) ever called
+> `unfocus()`, so everywhere else there was **no** tap-outside dismissal. New
+> `core/widgets/dismiss_keyboard.dart` (`DismissKeyboard`) wraps the router's
+> Navigator once in `MaterialApp.router`'s `builder`, so every screen **and**
+> every modal sheet/dialog pushed onto that Navigator inherits it. Uses a
+> `HitTestBehavior.translucent` `GestureDetector` with a bare `onTap` →
+> `FocusManager.instance.primaryFocus?.unfocus()`: it claims only the tap
+> gesture (scroll/drag untouched) and, because the deepest widget wins a tap in
+> the gesture arena, buttons/rows/inner detectors keep working — the ancestor
+> fires only on otherwise-dead space, which is exactly when the keyboard should
+> drop. `flutter analyze` clean on the changed files. ⚠️ **NOT device-verified**
+> — needs a real on-device tap-away check across a few forms.
+
 > **Cold-start notification tap "no route for this chat/page" — recovery +
 > diagnostics (2026-08-10, bug, ⚠️ NOT device-verified):** Tapping a chat (or any)
 > notification while the app was **terminated** could land on go_router's raw

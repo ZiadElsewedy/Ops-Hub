@@ -5,10 +5,11 @@ import 'package:drop/features/notifications/domain/entities/notification_entity.
 /// operational inbox's information architecture (§5a). Kept out of the widget
 /// tree so they're unit-tested (the project convention, like `activity_format`).
 ///
-/// The inbox is an **operations workflow inbox**: notifications are **grouped by
+/// The inbox is an **operations inbox**: notifications are **grouped by
 /// time** (Today / Yesterday / Earlier), **filtered by category** (All / Tasks /
-/// Reviews / Requests / Cases / Schedule / Sales / Broadcast), and **ordered by
-/// priority** within each section so the things that need acting on float up.
+/// Reviews / Requests / Cases / Schedule / Sales / Broadcast), and **ordered
+/// newest-first** within each section so it reads as a timeline (owner ruling
+/// 2026-08-11; priority is still modelled and drives a tile's unread emphasis).
 ///
 /// > **Scope note:** the **Schedule** category is live — the shift-swap workflow
 /// > (`NotifySwapEvent`) is its producer (swap requested / accepted / approved /
@@ -255,9 +256,16 @@ class NotificationSection {
 }
 
 /// Groups [items] into **Today / Yesterday / Earlier** by `createdAt` (relative
-/// to [now]); within each section, **higher priority first**, then newest-first,
-/// so critical items pin to the top of their day. Empty sections are omitted.
-/// Pure / deterministic.
+/// to [now]); within each section, **strictly newest-first**, so the timeline
+/// reads as a timeline — the most recent notification is always at the top of
+/// its day. Empty sections are omitted. Pure / deterministic.
+///
+/// > **Ordering history:** this used to sort priority-first (critical/high
+/// > floated above newer-but-lower rows), a "workflow inbox" model. That made
+/// > the newest row not sit at the top and read as unreliable, so by owner
+/// > ruling (2026-08-11) the timeline is now purely chronological. Priority is
+/// > still modelled ([notificationPriority]) and still drives the tile's unread
+/// > emphasis — it just no longer reorders the feed.
 List<NotificationSection> groupByTime(
   List<NotificationEntity> items,
   DateTime now,
@@ -279,16 +287,11 @@ List<NotificationSection> groupByTime(
     }
   }
 
-  int byPriorityThenRecency(NotificationEntity a, NotificationEntity b) {
-    final p = notificationPriority(a.type)
-        .index
-        .compareTo(notificationPriority(b.type).index);
-    if (p != 0) return p;
-    return b.createdAt.compareTo(a.createdAt);
-  }
+  int byRecency(NotificationEntity a, NotificationEntity b) =>
+      b.createdAt.compareTo(a.createdAt);
 
   for (final list in [today, yesterday, earlier]) {
-    list.sort(byPriorityThenRecency);
+    list.sort(byRecency);
   }
 
   return [

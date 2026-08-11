@@ -21,6 +21,7 @@ import 'package:drop/core/utils/app_logger.dart';
 import 'package:drop/core/utils/platform_capabilities.dart';
 import 'package:drop/core/theme/app_theme.dart';
 import 'package:drop/core/widgets/connectivity_scope.dart';
+import 'package:drop/core/widgets/dismiss_keyboard.dart';
 import 'package:drop/core/widgets/in_app_notification_host.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
 import 'package:drop/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
@@ -499,7 +500,13 @@ class App extends StatelessWidget {
                   child: InAppNotificationHost(
                     onOpen: (data) =>
                         _openTapDestination(router, _resolveTapLocation(data)),
-                    child: child ?? const SizedBox.shrink(),
+                    // App-wide tap-outside-to-dismiss for the soft keyboard.
+                    // Wraps the router's Navigator, so every screen, modal sheet
+                    // and dialog inherits it (typing a task title, a chat
+                    // message, a sales note, … now lowers on a tap away).
+                    child: DismissKeyboard(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               ),

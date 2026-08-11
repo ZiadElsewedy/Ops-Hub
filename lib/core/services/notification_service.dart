@@ -327,6 +327,14 @@ class NotificationService {
         // own the session, so it owns the whole token list. This evicts any
         // stale token left by a device that hasn't handled its own sign-out.
         'fcmTokens': [token],
+        // Drop the pre-array legacy single field. The server push paths
+        // (`onNotificationCreated`, `dispatchBroadcast`) read BOTH `fcmTokens`
+        // and this legacy `fcmToken`; if a stale-but-still-live legacy value
+        // lingered here it would be pushed to alongside the array token — the
+        // same notification delivered twice. Nothing writes it any more, and
+        // the array now carries this device's token, so clearing it removes an
+        // entire duplicate-delivery class at the source on the next launch.
+        'fcmToken': FieldValue.delete(),
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       _currentToken = token;
