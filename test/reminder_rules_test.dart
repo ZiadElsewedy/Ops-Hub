@@ -29,6 +29,36 @@ void main() {
               deadline: now.add(const Duration(days: 3)), now: now),
           isNull);
     });
+
+    test('a shift-bounded window (≤24h) suppresses the eager 24h rung', () {
+      final shiftEnd = now.add(const Duration(hours: 6)); // still today
+      // Without a window → the old eager due24h.
+      expect(
+          ReminderRules.dueKind(deadline: shiftEnd, now: now), 'due24h');
+      // Knowing the ~8h shift window → the 24h rung is withheld.
+      expect(
+          ReminderRules.dueKind(
+              deadline: shiftEnd,
+              now: now,
+              scheduledWindow: const Duration(hours: 8)),
+          isNull);
+      // The 1h rung still fires near the deadline.
+      expect(
+          ReminderRules.dueKind(
+              deadline: now.add(const Duration(minutes: 40)),
+              now: now,
+              scheduledWindow: const Duration(hours: 8)),
+          'due1h');
+    });
+
+    test('a multi-day window (>24h) keeps the 24h rung', () {
+      expect(
+          ReminderRules.dueKind(
+              deadline: now.add(const Duration(hours: 20)),
+              now: now,
+              scheduledWindow: const Duration(days: 3)),
+          'due24h');
+    });
   });
 
   group('ReminderRules.dueKind — anti-spam', () {

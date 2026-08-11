@@ -32,6 +32,7 @@ function kindAt(deadline, now, businessHour, overrides = {}) {
     overrides.count ?? 0,
     { ...CFG, ...(overrides.cfg || {}) },
     businessHour,
+    overrides.windowMinutes ?? null,
   );
 }
 
@@ -154,6 +155,35 @@ test("the ladder climbs due24h → due1h → overdue and never descends", () => 
 test("a deadline further out than 24h is not yet reminded", () => {
   const now = new Date("2026-08-05T09:00:00Z");
   assert.equal(kindAt(new Date(now.getTime() + 30 * HOUR_MS), now, 12), null);
+});
+
+// The reported bug: a task created during its own shift (deadline = shift end,
+// a few hours out) got a "due within 24 hours" reminder on the next tick,
+// because the 24h rung ignored the task's actual window. A shift-bounded task
+// (window ≤ 24h) now suppresses the 24h rung; its first reminder is the 1h one.
+test("a shift-bounded task (window ≤ 24h) suppresses the eager 24h rung", () => {
+  const now = new Date("2026-08-11T07:30:00Z"); // 10:30 Africa/Cairo
+  const shiftEnd = new Date(now.getTime() + 6 * HOUR_MS); // 16:30 Cairo, ~6h out
+  const shiftWindow = 8 * 60; // 08:30–16:30 = an 8-hour window
+
+  // Without a window it would fire due24h at creation (the old, wrong behavior)…
+  assert.equal(kindAt(shiftEnd, now, 12), "due24h");
+  // …but knowing the 8h window, the 24h rung is withheld.
+  assert.equal(kindAt(shiftEnd, now, 12, { windowMinutes: shiftWindow }), null);
+
+  // The 1h rung still fires near the shift end.
+  const in30m = new Date(now.getTime() + 30 * 60 * 1000);
+  assert.equal(kindAt(in30m, now, 12, { windowMinutes: shiftWindow }), "due1h");
+  // And overdue still fires after it.
+  const past = new Date(now.getTime() - 5 * 60 * 1000);
+  assert.equal(kindAt(past, now, 12, { windowMinutes: shiftWindow }), "overdue");
+});
+
+test("a multi-day task (window > 24h) keeps the 24h rung", () => {
+  const now = new Date("2026-08-11T07:30:00Z");
+  const in20h = new Date(now.getTime() + 20 * HOUR_MS);
+  const threeDayWindow = 3 * 24 * 60;
+  assert.equal(kindAt(in20h, now, 12, { windowMinutes: threeDayWindow }), "due24h");
 });
 
 test("the max-reminders cap and the global disable both stop the sweep", () => {

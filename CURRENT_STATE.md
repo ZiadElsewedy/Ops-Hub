@@ -26,10 +26,16 @@
 > copy. `_rotateToken` now `FieldValue.delete()`s the legacy `fcmToken` when it
 > writes the array, removing the class at the source on the next launch. Client
 > double-invocation was ruled out (task notifies fire only on a successful status
-> `_transition`, so a double-tap sends nothing). `flutter analyze` clean; `node
-> --check` clean; 155 functions tests green. ⚠️ **The push-guard is inert until
-> `firebase deploy --only functions:onNotificationCreated`** — production keeps
-> re-pushing on redelivery until then. **NOT device-verified.**
+> `_transition`, so a double-tap sends nothing). (3) **`onDailySalesSubmissionCreated`
+> ** carried the same at-least-once class — it writes "New sales submission" inbox
+> rows with random ids, so a redelivered create event added a **duplicate row**.
+> Given the same transaction claim on the submission doc (`createNotifiedAt`);
+> the shared `writeSalesNotifications` (also used by exactly-once callables) is
+> untouched. `flutter analyze` clean; `node --check` clean; 155 functions tests
+> green. ⚠️ **The two function guards are inert until `firebase deploy --only
+> functions:onNotificationCreated,functions:onDailySalesSubmissionCreated`** —
+> production keeps re-pushing / re-writing on redelivery until then. **NOT
+> device-verified.**
 
 > **Notification timeline is now purely chronological (2026-08-11, bug/UX,
 > client-only, owner-ruled, NOT device-verified):** The second half of the same
@@ -45,6 +51,37 @@
 > rewritten `notification_grouping_test.dart` (the old priority-float case now
 > asserts newest-first). No schema/rules/functions change. `flutter analyze`
 > clean; grouping suite green. ⚠️ **NOT device-verified.**
+
+> **Same-shift tasks no longer get a "due within 24 hours" reminder at creation
+> + shift-window deadline is Cairo-anchored (2026-08-11, bug, ⚠️ THE LADDER HALF
+> NEEDS A FUNCTIONS DEPLOY, NOT device-verified):** Reported: a task created
+> during its current shift behaved "as if it had a 24-hour duration" — a reminder
+> fired right after creation. **Trace:** the deadline is *correct* (the shift
+> end, via `shiftDefaultSchedule` / generated `civil(endMinutes)`); nothing
+> computes `createdAt + 24h`. The fault was the reminder **ladder**: `due24h`
+> fired for any task with `deadline − now ≤ 24h`, ignoring the task's real
+> window, so a task due at 16:30 today (created at, say, 10:00) was already inside
+> the 24h bucket and got "is due within 24 hours" on the next 30-minute tick.
+> **Fix (option 1 — window-aware first rung):** `reminderDueKind` now takes the
+> scheduled window (`dueAt − startsAt`) and **suppresses the 24h rung when the
+> window ≤ 24h** (a shift-bounded / same-day task) — its first reminder becomes
+> the 1h one near the deadline, with `overdue` after; a task with no `startsAt`
+> (open horizon) keeps the 24h rung. Applied in both the enforcing
+> `functions/task_reminders.js` (`runTaskReminders` passes `windowMinutes` from
+> `t.startsAt`) and the client mirror `reminder_rules.dart` (`scheduledWindow`).
+> **Timezone hardening:** `shiftDefaultSchedule` built the window at the DEVICE's
+> local midnight, so a phone outside Africa/Cairo stored 08:30 *device-local*
+> instead of 08:30 Cairo (a wrong deadline feeding the ladder). It now anchors to
+> Cairo wall-clock, deriving the UTC+2/+3 DST offset from the shared
+> `cairoCivilTime` (no duplicated DST rule); **byte-for-byte identical on a Cairo
+> device**. Concrete example (today, Cairo = UTC+3 in August): Morning 08:30–16:30
+> → deadline 16:30 today (not `createdAt+24h` = tomorrow 10:00); the old ladder
+> pinged "due within 24 hours" at ~10:30, the new one waits until ~15:30 ("due
+> within the hour"). `flutter analyze` clean; 157 functions tests (+ window
+> cases) + the Dart reminder/schedule suites green. ⚠️ **The ladder change is
+> inert until `firebase deploy --only functions:runTaskReminders`** — production
+> keeps firing the eager 24h rung until then. The timezone hardening ships with
+> the client build. **NOT device-verified.**
 
 > **Soft keyboard now lowers on a tap outside any field, app-wide (2026-08-11,
 > bug, client-only, NOT device-verified):** The keyboard stayed up after a text

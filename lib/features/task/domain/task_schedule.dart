@@ -14,6 +14,10 @@ import 'package:drop/core/enums/schedule_shift.dart';
 import 'package:drop/core/enums/task_status.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/features/schedule/domain/shift_hours.dart';
+// `cairoCivilTime` is a general Africa/Cairo business-time helper (it happens to
+// live under the sales feature); reused here so the shift-window DST rule is not
+// duplicated. See `shiftDefaultSchedule`.
+import 'package:drop/features/sales/domain/sales_business_time.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_feed.dart' show isTaskOverdue;
 
@@ -130,10 +134,20 @@ TaskSchedulePhase schedulePhase(
   ShiftHours? hours,
 }) {
   final h = hours ?? ShiftHours.standard(ScheduleDay.fromDate(date), shift);
-  final base = DateTime(date.year, date.month, date.day);
+  // Anchor the window to Africa/Cairo wall-clock, not the DEVICE timezone. The
+  // old `DateTime(y,m,d).add(minutes)` built the shift at the device's local
+  // midnight, so a phone in another timezone stored 08:30 *device-local*
+  // instead of 08:30 Cairo — a wrong deadline that then drives the reminder
+  // ladder. The Cairo UTC offset (2 or 3, with DST) is derived from the shared
+  // `cairoCivilTime` rule via a noon probe, so the DST logic lives in exactly
+  // one place. On a Cairo device the result is byte-for-byte the old value.
+  final probe = DateTime.utc(date.year, date.month, date.day, 12);
+  final cairoOffset = cairoCivilTime(probe).difference(probe);
+  final cairoMidnightUtc =
+      DateTime.utc(date.year, date.month, date.day).subtract(cairoOffset);
   return (
-    start: base.add(Duration(minutes: h.startMinutes)),
-    due: base.add(Duration(minutes: h.endMinutes)),
+    start: cairoMidnightUtc.add(Duration(minutes: h.startMinutes)).toLocal(),
+    due: cairoMidnightUtc.add(Duration(minutes: h.endMinutes)).toLocal(),
   );
 }
 

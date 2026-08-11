@@ -1555,7 +1555,25 @@ exports.recordApprovedDailySales = onCall(async (request) => {
 });
 
 exports.onDailySalesSubmissionCreated = onDocumentCreated(`${BRANCH_SALES_SUBMISSIONS}/{submissionId}`, async (event) => {
-  const sub = event.data && event.data.data(); if (!sub || sub.status !== "pending") return;
+  const snap = event.data;
+  const sub = snap && snap.data(); if (!sub || sub.status !== "pending") return;
+  // Idempotency guard — like onNotificationCreated, this is a v2 (Eventarc)
+  // trigger delivered AT-LEAST-ONCE, so the same submission-created event can
+  // fire twice and write DUPLICATE "New sales submission" inbox rows
+  // (writeSalesNotifications mints random notification ids, so a redelivery
+  // adds a second row rather than overwriting). Claim the notify on the
+  // submission doc in a transaction: the first delivery sets `createNotifiedAt`
+  // and proceeds; any redelivery sees it set and returns. Same at-least-once →
+  // at-most-once trade as the push guard, and the notify was already
+  // best-effort (the catch below swallows failures).
+  const claimed = await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(snap.ref);
+    if (!fresh.exists) return false;
+    if (fresh.get("createNotifiedAt")) return false; // already notified by a prior delivery
+    tx.update(snap.ref, { createNotifiedAt: admin.firestore.FieldValue.serverTimestamp() });
+    return true;
+  });
+  if (!claimed) return;
   try { await writeSalesNotifications(await salesRecipients(String(sub.branchId || ""), { managersOnly: true, excludeUid: String(sub.submittedById || "") }), { title: "New sales submission", body: "A daily sales submission is ready for review.", submissionId: event.params.submissionId, monthKey: sub.monthKey }); }
   catch (err) { logger.warn("failed to write new sales submission notification", { error: String(err), submissionId: event.params.submissionId }); }
 });
@@ -2201,7 +2219,15 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
       // best-effort
     }
 
-    const kind = reminderDueKind(deadline, now, lastKind, count, cfg, businessHour);
+    // The scheduled window (dueAt − startsAt). A shift-bounded / same-day task
+    // suppresses the eager 24h rung, so its first reminder is the 1h one near
+    // the deadline instead of a "due within 24 hours" ping fired the instant it
+    // was created (the reported bug). Null when the task has no startsAt.
+    const startsAt = t.startsAt && t.startsAt.toDate ? t.startsAt.toDate() : null;
+    const windowMinutes = startsAt
+      ? Math.round((deadline.getTime() - startsAt.getTime()) / 60000)
+      : null;
+    const kind = reminderDueKind(deadline, now, lastKind, count, cfg, businessHour, windowMinutes);
     if (!kind) continue;
 
     // Resolved only once a reminder is actually owed. A shift task's roster
