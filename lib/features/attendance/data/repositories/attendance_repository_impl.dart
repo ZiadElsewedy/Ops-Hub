@@ -68,6 +68,15 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
   @override
   Future<void> clockIn(AttendanceEntity record) async {
+    // Clock-in is the MOST offline-sensitive write in the app: a Firestore
+    // `set` issued with no connection is cached, reported as success, and
+    // replayed whenever the network returns — at which point the
+    // server-timestamped `clockIn` resolves to the RECONNECT time, not when the
+    // person actually clocked in. That silently corrupts pay data while the UI
+    // says "clocked in". Fail fast instead so the user knows to reconnect.
+    // (The rest of the attendance writes below already guard the same way; these
+    // two were the gap.)
+    NetworkGuard.ensureWritable();
     try {
       await _remote.clockIn(AttendanceModel.fromEntity(record));
     } on ServerException catch (e) {
@@ -83,6 +92,9 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     required AttendanceTotals totals,
     AttendanceVerification? verification,
   }) async {
+    // Same offline hazard as [clockIn] — an offline clock-out would replay with
+    // a reconnect-time server timestamp and mis-state worked minutes.
+    NetworkGuard.ensureWritable();
     try {
       await _remote.clockOut(
         id,

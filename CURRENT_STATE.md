@@ -5,6 +5,25 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Critical-review fixes C1–C6 (2026-08-12, bug/hardening, ⚠️ C4 NEEDS A
+> FUNCTIONS DEPLOY, NOT device-verified):** (C1) Operations-request decisions are
+> now a guarded Firestore **transaction** (`RequestRemoteDataSource.changeStatus`)
+> — concurrent approve/reject can't clobber each other; the loser sees a conflict.
+> (C2) Schedule **move/exchange** are atomic (`moveEmployee` single update /
+> `exchangeEmployees` transaction) — a partial failure can no longer double-book
+> anyone. (C3) `ScheduleCubit` no longer swallows unexpected errors — logs cause +
+> stack. (C4) New Cloud Function **`enforceAccountDeactivation`** disables +
+> revokes the Firebase Auth account when `isActive` flips false (re-enables on
+> reactivation), so deactivation is a real eviction even for an offline device —
+> **needs `firebase deploy --only functions` to take effect**. (C5) `reset()`
+> added to `attendanceAdminCubit` / `branchOperationsCubit` / `broadcastCubit` and
+> wired into `clearUserScopedState()` — their live streams no longer outlive the
+> session. (C6) `clockIn`/`clockOut` now call `NetworkGuard.ensureWritable()` — an
+> offline clock-in fails fast instead of queueing and replaying with a
+> reconnect-time timestamp (pay-data corruption). `flutter analyze` clean on all
+> touched files; schedule exchange/undo tests updated; suite green apart from
+> pre-existing sales-dashboard + chat-nav failures.
+
 > **Duplicate push notifications — two root causes closed (2026-08-11, bug,
 > ⚠️ THE FUNCTIONS HALF NEEDS A DEPLOY, NOT device-verified):** Reported: "the
 > same notification is sometimes received more than once." Two independent

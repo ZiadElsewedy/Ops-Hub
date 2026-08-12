@@ -145,6 +145,56 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
   }
 
   @override
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  }) async {
+    NetworkGuard.ensureWritable();
+    try {
+      await _remote.moveEmployee(
+        scheduleId: scheduleId,
+        fromDay: fromDay,
+        fromShift: fromShift,
+        toDay: toDay,
+        toShift: toShift,
+        employeeId: employeeId,
+      );
+    } on ServerException catch (e) {
+      throw ServerFailure(e.message);
+    }
+  }
+
+  @override
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
+  }) async {
+    NetworkGuard.ensureWritable();
+    try {
+      await _remote.exchangeEmployees(
+        scheduleId: scheduleId,
+        dayA: dayA,
+        shiftA: shiftA,
+        uidA: uidA,
+        dayB: dayB,
+        shiftB: shiftB,
+        uidB: uidB,
+      );
+    } on ServerException catch (e) {
+      throw ServerFailure(e.message);
+    }
+  }
+
+  @override
   Future<void> setDayNote({
     required String scheduleId,
     required ScheduleDay day,

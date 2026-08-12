@@ -1653,6 +1653,50 @@ exports.claimFcmToken = onDocumentUpdated(`${USERS}/{uid}`, async (event) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// enforceAccountDeactivation — makes deactivation a REAL session eviction.
+//
+// Deactivating a user is a plain client Firestore write (`isActive = false`);
+// nothing touched Firebase Auth. So the account's Auth session stayed fully
+// valid: the client's `AuthCubit` watcher signs the device out ONLY if it is
+// online to see the flag flip — a backgrounded / force-killed / offline device
+// kept minting fresh ID tokens from its un-revoked refresh token and retained
+// access. Eviction was effectively a client-side no-op.
+//
+// This trigger closes it server-side. When `isActive` flips truthy→false we
+// DISABLE the Auth account (Firebase then rejects its ID-token refresh and every
+// new sign-in — the client already maps `user-disabled` to "This account has
+// been disabled") and revoke its existing refresh tokens. Flipping back to
+// active re-enables it. Deletion keeps its own path (`auth.deleteUser`).
+exports.enforceAccountDeactivation = onDocumentUpdated(`${USERS}/{uid}`, async (event) => {
+  const before = event.data.before.data() || {};
+  const after = event.data.after.data() || {};
+  // Treat a missing flag as active (legacy docs), so only a genuine transition
+  // acts — and re-running on an unrelated field change is a no-op.
+  const wasActive = before.isActive !== false;
+  const isActive = after.isActive !== false;
+  if (wasActive === isActive) return;
+
+  const uid = event.params.uid;
+  try {
+    if (!isActive) {
+      // Deactivated: reject the session now and stop it refreshing.
+      await auth.updateUser(uid, { disabled: true });
+      await auth.revokeRefreshTokens(uid);
+      logger.info("enforceAccountDeactivation: disabled + revoked", { uid });
+    } else {
+      // Reactivated: let them sign in again.
+      await auth.updateUser(uid, { disabled: false });
+      logger.info("enforceAccountDeactivation: re-enabled", { uid });
+    }
+  } catch (err) {
+    // `auth/user-not-found` is benign (doc without an Auth account, or a
+    // delete racing this) — anything else is worth surfacing.
+    if (err && err.code === "auth/user-not-found") return;
+    logger.error("enforceAccountDeactivation failed", { uid, error: String(err) });
+  }
+});
+
 /**
  * The ONLY path a client has for creating in-app notifications (M2 fix,
  * 2026-07-03). Direct `notifications/{id}` creates are denied by rules —

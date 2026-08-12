@@ -125,6 +125,27 @@ class BranchOperationsCubit extends Cubit<BranchOperationsState> {
       ? e.message
       : 'Could not load branch operations. Pull to retry.';
 
+  /// Drops the live branch task stream and every cached input, returning to
+  /// [BranchOperationsState.initial]. This cubit is an app-wide singleton (it
+  /// outlives the session), so on sign-out / single-active-session eviction its
+  /// `watchTasksByBranch` listener would otherwise keep running against a
+  /// signed-out user — permission-denied noise now, the previous user's branch
+  /// still on screen for the next one. Wired into
+  /// `AppDependencies.clearUserScopedState()`.
+  void reset() {
+    _sub?.cancel();
+    _sub = null;
+    _branchId = '';
+    _branchName = null;
+    _filter = ShiftFilter.all;
+    _employees = const [];
+    _directory = const {};
+    _schedule = null;
+    _tasks = const [];
+    _hasTasks = false;
+    if (!isClosed) emit(const BranchOperationsState.initial());
+  }
+
   @override
   Future<void> close() {
     _sub?.cancel();

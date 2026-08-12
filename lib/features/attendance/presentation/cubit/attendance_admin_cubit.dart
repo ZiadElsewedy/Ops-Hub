@@ -591,6 +591,32 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
     return role == UserRole.manager || role == UserRole.admin;
   }
 
+  /// Drops both live streams + the minute tick and returns to
+  /// [AttendanceAdminState.initial]. This cubit is an app-wide singleton (it
+  /// outlives the session), so on sign-out / single-active-session eviction its
+  /// `watchBranchDay` + `watchBranchPendingCorrections` listeners would keep
+  /// running against a signed-out user — permission-denied noise and the
+  /// previous admin's roster leaking into the next session. Wired into
+  /// `AppDependencies.clearUserScopedState()`.
+  void reset() {
+    _tick?.cancel();
+    _tick = null;
+    _recordsSub?.cancel();
+    _recordsSub = null;
+    _correctionsSub?.cancel();
+    _correctionsSub = null;
+    _admin = null;
+    _branchId = null;
+    _businessDate = null;
+    _branches = const [];
+    _roster = const [];
+    _roleByUid = const {};
+    _records = const [];
+    _corrections = const [];
+    _deciding = false;
+    if (!isClosed) emit(const AttendanceAdminState.initial());
+  }
+
   @override
   Future<void> close() {
     _tick?.cancel();

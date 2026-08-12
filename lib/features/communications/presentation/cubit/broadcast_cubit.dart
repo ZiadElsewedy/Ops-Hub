@@ -315,6 +315,18 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     }
   }
 
+  /// Drops the live broadcast feed and returns to [BroadcastState.initial]. This
+  /// cubit is an app-wide singleton (it outlives the session), so on sign-out /
+  /// single-active-session eviction its `watchBroadcasts` listener would keep
+  /// running against a signed-out user. Wired into
+  /// `AppDependencies.clearUserScopedState()`.
+  void reset() {
+    _sub?.cancel();
+    _sub = null;
+    _hasSnapshot = false;
+    if (!isClosed) emit(const BroadcastState.initial());
+  }
+
   @override
   Future<void> close() {
     _sub?.cancel();

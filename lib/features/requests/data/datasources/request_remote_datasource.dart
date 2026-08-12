@@ -151,29 +151,64 @@ class RequestRemoteDataSourceImpl implements RequestRemoteDataSource {
     String? decidedBy,
     String? decidedByName,
   }) async {
+    // Guarded in a TRANSACTION rather than a blind `update`: the client's
+    // `_busy` flag only stops a double-tap on ONE device, and `approverNext`
+    // only vets the caller's (possibly stale) local snapshot. Two reviewers
+    // deciding the same pending request at once would otherwise both land —
+    // last write wins, so an approve could silently overwrite someone else's
+    // reject. The transaction re-reads the CURRENT status server-side and
+    // applies the move only if it is still legal, so the loser gets a clear
+    // conflict instead of a clobber. (A transaction also cannot be queued
+    // offline, which removes the stale-replay hazard the old update had.)
+    final ref = _requests.doc(requestId);
     try {
-      final data = <String, dynamic>{
-        'status': to.value,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      if (to.isDecision) {
-        data['decidedBy'] = decidedBy;
-        data['decidedByName'] = decidedByName;
-        data['decidedAt'] = FieldValue.serverTimestamp();
-      } else if (to.isPending) {
-        // Admin reopen — the request is pending again: clear the decision and
-        // record who reopened (feeds the server-written `reopened` event).
-        data['decidedBy'] = null;
-        data['decidedByName'] = null;
-        data['decidedAt'] = null;
-        data['reopenedBy'] = decidedBy;
-        data['reopenedByName'] = decidedByName;
-        data['reopenedAt'] = FieldValue.serverTimestamp();
-      }
-      await _requests.doc(requestId).update(data);
+      await _firestore.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        if (!snap.exists || snap.data() == null) {
+          throw const ServerException('This request no longer exists.');
+        }
+        final current = RequestStatus.fromString(snap.data()!['status'] as String?);
+        // A decision (approve/reject) is legal only from pending; a reopen
+        // (→ pending) is legal only from a decided request.
+        final legal = to.isPending ? current.isTerminal : current.isPending;
+        if (!legal) throw ServerException(_transitionConflictMessage(current, to));
+
+        final data = <String, dynamic>{
+          'status': to.value,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (to.isDecision) {
+          data['decidedBy'] = decidedBy;
+          data['decidedByName'] = decidedByName;
+          data['decidedAt'] = FieldValue.serverTimestamp();
+        } else if (to.isPending) {
+          // Admin reopen — the request is pending again: clear the decision and
+          // record who reopened (feeds the server-written `reopened` event).
+          data['decidedBy'] = null;
+          data['decidedByName'] = null;
+          data['decidedAt'] = null;
+          data['reopenedBy'] = decidedBy;
+          data['reopenedByName'] = decidedByName;
+          data['reopenedAt'] = FieldValue.serverTimestamp();
+        }
+        txn.update(ref, data);
+      });
+    } on ServerException {
+      rethrow; // our own conflict/not-found — already user-facing.
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to update the request.');
     }
+  }
+
+  /// The message shown when a decision/reopen lost the race — the request had
+  /// already moved on before this write ran.
+  static String _transitionConflictMessage(RequestStatus current, RequestStatus to) {
+    if (to.isPending) {
+      // A reopen that found the request already pending.
+      return 'This request is already pending.';
+    }
+    // A decision that found the request already decided by someone else.
+    return 'This request was already ${current.label.toLowerCase()} by someone else.';
   }
 
   @override

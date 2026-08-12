@@ -67,6 +67,29 @@ abstract class ScheduleRepository {
     required String employeeId,
   });
 
+  /// Atomically reassigns [employeeId] from one slot to another (never in both,
+  /// never in neither). Caller guarantees the slots differ.
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  });
+
+  /// Atomically swaps [uidA] (slot A) and [uidB] (slot B) — all-or-nothing, so
+  /// neither is ever double-booked. Caller guarantees the slots and uids differ.
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
+  });
+
   /// Sets (or clears, when [note] is empty) the manager note pinned to [day].
   Future<void> setDayNote({
     required String scheduleId,

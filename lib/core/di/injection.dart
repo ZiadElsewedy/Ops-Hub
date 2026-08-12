@@ -475,7 +475,14 @@ class AppDependencies {
     safely(caseListCubit.reset);
     safely(requestsListCubit.reset);
     safely(attendanceCubit.reset);
+    safely(attendanceAdminCubit.reset);
     safely(shiftSwapCubit.reset);
+    // App-wide admin/manager cubits holding live user-scoped Firestore streams.
+    // Without a teardown here their listeners outlive the session — running
+    // against a signed-out user (permission-denied noise) and leaking the
+    // previous user's data into the next session on a shared device.
+    safely(branchOperationsCubit.reset);
+    safely(broadcastCubit.reset);
     try {
       await salesMonthCubit.reset();
     } catch (_) {/* best-effort */}

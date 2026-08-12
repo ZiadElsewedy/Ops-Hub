@@ -36,6 +36,33 @@ class _RecordingRepo implements ScheduleRepository {
   }
 
   @override
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  }) async {
+    calls.add('move:$employeeId:${fromDay.name}:${fromShift.name}'
+        '->${toDay.name}:${toShift.name}');
+  }
+
+  @override
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
+  }) async {
+    calls.add('exchange:$uidA:${dayA.name}:${shiftA.name}'
+        '<->$uidB:${dayB.name}:${shiftB.name}');
+  }
+
+  @override
   Future<WeeklyScheduleEntity?> getSchedule(
           String branchId, DateTime weekStart) async =>
       null;
@@ -79,10 +106,8 @@ void main() {
 
     await cubit.undoLast();
 
-    expect(repo.calls, [
-      'assign:ziad:monday:morning',
-      'remove:ziad:tuesday:night',
-    ]);
+    // The inverse move is one atomic call back to the original slot.
+    expect(repo.calls, ['move:ziad:tuesday:night->monday:morning']);
     expect(cubit.canUndo, isFalse, reason: 'an undo is single-use');
   });
 
@@ -100,12 +125,9 @@ void main() {
 
     await cubit.undoLast();
 
-    expect(repo.calls, [
-      'assign:ziad:monday:morning',
-      'assign:richard:tuesday:night',
-      'remove:ziad:tuesday:night',
-      'remove:richard:monday:morning',
-    ]);
+    // The inverse exchange is one atomic call trading the two back.
+    expect(repo.calls,
+        ['exchange:ziad:tuesday:night<->richard:monday:morning']);
   });
 
   test('undo of a remove re-assigns the person', () async {

@@ -40,6 +40,33 @@ class _RecordingRepo implements ScheduleRepository {
   }
 
   @override
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  }) async {
+    calls.add('move:$employeeId:${fromDay.name}:${fromShift.name}'
+        '->${toDay.name}:${toShift.name}');
+  }
+
+  @override
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
+  }) async {
+    calls.add('exchange:$uidA:${dayA.name}:${shiftA.name}'
+        '<->$uidB:${dayB.name}:${shiftB.name}');
+  }
+
+  @override
   Future<WeeklyScheduleEntity?> getSchedule(
           String branchId, DateTime weekStart) async =>
       null;
@@ -79,8 +106,7 @@ void main() {
 
     tearDown(() => cubit.close());
 
-    test('assigns both to their new slots FIRST, then releases the old ones',
-        () async {
+    test('trades the two slots in ONE atomic repository call', () async {
       await cubit.exchange(
         dayA: ScheduleDay.monday,
         shiftA: ScheduleShift.morning,
@@ -90,11 +116,10 @@ void main() {
         uidB: 'richard',
       );
 
+      // A single atomic exchange, not four separate assign/remove writes whose
+      // partial failure could double-book either person.
       expect(repo.calls, [
-        'assign:ziad:tuesday:night',
-        'assign:richard:monday:morning',
-        'remove:ziad:monday:morning',
-        'remove:richard:tuesday:night',
+        'exchange:ziad:monday:morning<->richard:tuesday:night',
       ]);
     });
 

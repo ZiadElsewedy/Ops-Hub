@@ -14,6 +14,44 @@ released — DROP ships from branches and has no version tags.
 
 ---
 
+## 2026-08-12 — Critical-review fixes C1–C6 (⚠️ NEEDS A FUNCTIONS DEPLOY for C4; MED–HIGH risk)
+
+Six critical findings fixed, each re-derived from the code:
+
+- **C1 · Requests race.** `RequestRemoteDataSource.changeStatus` was a blind
+  `update` — two reviewers deciding the same pending request both landed
+  (last-write-wins; an approve could clobber a reject). Now a guarded
+  **transaction** re-checks status server-side (decision only from pending,
+  reopen only from decided) and the loser gets a conflict message. A transaction
+  also can't queue offline, removing the stale-replay hazard.
+- **C2 · Schedule move/exchange.** `move` and `exchange` chained separate
+  assign/remove writes; a partial failure left a person **double-booked** while
+  the UI reported failure. New atomic `moveEmployee` (one multi-field update) and
+  `exchangeEmployees` (transaction) on the datasource/repository — all-or-nothing.
+- **C3 · Schedule errors swallowed.** `ScheduleCubit._emitLoaded` / `_mutate`
+  generic `catch (_)` discarded the exception + stack. Now logged via
+  `AppLog.error` (same friendly user message).
+- **C4 · Session eviction no-op.** Deactivation was `isActive=false` on the doc
+  only — nothing touched Firebase Auth, so a deactivated user's session stayed
+  valid until the client watcher happened to be online. New Cloud Function
+  `enforceAccountDeactivation` disables + revokes the Auth account on
+  deactivation (re-enables on reactivation). **Requires `firebase deploy --only
+  functions`.**
+- **C5 · Singleton stream leaks.** `attendanceAdminCubit` (2 streams),
+  `branchOperationsCubit`, and `broadcastCubit` are app-wide singletons whose
+  live Firestore listeners were only cancelled in `close()` (never called for
+  `.value` providers). Added `reset()` to each and wired them into
+  `AppDependencies.clearUserScopedState()`.
+- **C6 · Offline clock-in.** `AttendanceRepositoryImpl.clockIn`/`clockOut`
+  skipped `NetworkGuard.ensureWritable()` (every other attendance write has it),
+  so an offline clock-in queued, reported success, and replayed with a
+  reconnect-time server timestamp — corrupting pay. Both now fail fast offline.
+
+Tests: schedule exchange/undo suites updated to the atomic methods; full suite
+green except the 6 pre-existing `sales_dashboard_widgets` layout failures and the
+pre-existing `chat_nav_promotion` failure (all fail on the clean tree too).
+⚠️ Not device-verified.
+
 ## 2026-08-10 — Cold-start notification tap "no route" — graceful recovery + diagnostics (bug; MED risk)
 
 - **Symptom.** With the app **fully closed**, tapping a chat notification could
