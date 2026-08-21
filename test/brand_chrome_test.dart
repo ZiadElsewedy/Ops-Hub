@@ -13,7 +13,7 @@ import 'package:opshub/features/notifications/presentation/cubit/notification_cu
 import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Brand-rollout chrome checks (2026-07-02): the real OpsHub artwork
-/// (`assets/opshub_logo.png`, via [OpsHubLogo]) must lead the role-home app bar,
+/// (`assets/opshub_icon.svg`, via [OpsHubLogo]) must lead the role-home app bar,
 /// the desktop sidebar lockup, and close every mobile [AdaptiveScaffold] app
 /// bar — so the brand is present on the homepage and all migrated screens.
 

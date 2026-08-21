@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:opshub/core/theme/app_colors.dart';
 
-/// The OpsHub brand logo — the wordmark artwork at `assets/opshub_logo.png`.
+/// The OpsHub brand logo — the white vector hub mark at `assets/opshub_icon.svg`.
 ///
-/// The PNG is a transparent-background outline, so it's tinted to [color]
-/// (white on the dark UI by default) via [BlendMode.srcIn] to stay crisp on the
-/// near-black background. Size it with [height]; the width follows the artwork's
-/// aspect ratio. Used app-wide: splash/loading, login, the role-home app bars,
-/// the desktop sidebar lockup, and the quiet mark on every mobile app bar
-/// (`AdaptiveScaffold.showBrandMark`).
+/// It's tinted to [color] (white on the dark UI by default) via
+/// [BlendMode.srcIn] to stay crisp on the near-black background. Size it with
+/// [height]; the width follows the artwork's aspect ratio. Used app-wide:
+/// splash/loading, login, the role-home app bars, the desktop sidebar lockup,
+/// and the quiet mark on every mobile app bar (`AdaptiveScaffold.showBrandMark`).
 class OpsHubLogo extends StatelessWidget {
   final double height;
   final Color? color;
@@ -17,13 +17,11 @@ class OpsHubLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/opshub_logo.png',
+    return SvgPicture.asset(
+      'assets/opshub_icon.svg',
       height: height,
       fit: BoxFit.contain,
-      color: color ?? AppColors.textPrimary,
-      colorBlendMode: BlendMode.srcIn,
-      filterQuality: FilterQuality.medium,
+      colorFilter: ColorFilter.mode(color ?? AppColors.textPrimary, BlendMode.srcIn),
     );
   }
 }

@@ -25,7 +25,7 @@ class BrandWatermark extends StatelessWidget {
   final double opacity;
   final double fontSize;
 
-  /// Uses the real `assets/opshub_logo.png` artwork instead of the typographic
+  /// Uses the real `assets/opshub_icon.svg` artwork instead of the typographic
   /// [OpsHubWordmark]. Opt-in so established hero compositions do not change.
   final bool assetLogo;
   final double assetHeight;

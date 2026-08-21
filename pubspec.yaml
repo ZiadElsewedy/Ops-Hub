@@ -154,11 +154,12 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/E22CA445-D611-4A31-8EE5-BB661032E09C.png"
+  image_path: "assets/icon/opshub_app_icon.png"
+  remove_alpha_ios: true
   min_sdk_android: 21
-  # macOS Dock/Finder icon — Big Sur squircle composed from assets/opshub_logo.png
-  # (dark monochrome gradient + white DROP wordmark). The iconset under
-  # macos/Runner/Assets.xcassets was generated from this master.
+  # macOS Dock/Finder icon — Big Sur squircle composed from a navy master with
+  # the OpsHub hub mark. The iconset under macos/Runner/Assets.xcassets was
+  # generated from this master.
   macos:
     generate: true
     image_path: "assets/icon/app_icon_macos.png"
@@ -175,7 +176,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/opshub_logo.png
+    - assets/opshub_icon.svg
     - assets/gmail.svg
     - assets/whatsapp.svg
     - assets/0704.json

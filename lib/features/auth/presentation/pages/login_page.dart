@@ -213,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // The OpsHub brand logo artwork (assets/opshub_logo.png), tinted
+            // The OpsHub brand logo artwork (assets/opshub_icon.svg), tinted
             // white, with the shimmer sweep — the brand hero of the panel.
             const AnimatedOpsHubLogo(height: 88),
             const SizedBox(height: AppSpacing.lg),
