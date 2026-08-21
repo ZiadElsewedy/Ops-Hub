@@ -1,9 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/attendance_correction_kind.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_resolution.dart';
+import 'package:opshub/core/enums/attendance_correction_kind.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_resolution.dart';
 
 part 'attendance_correction.freezed.dart';
 

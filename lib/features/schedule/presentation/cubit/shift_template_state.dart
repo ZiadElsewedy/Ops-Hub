@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
 
 part 'shift_template_state.freezed.dart';
 

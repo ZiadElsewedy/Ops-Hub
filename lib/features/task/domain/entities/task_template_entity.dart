@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/task_type.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/core/enums/task_type.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
 
 part 'task_template_entity.freezed.dart';
 

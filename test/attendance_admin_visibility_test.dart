@@ -1,25 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_correction_kind.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/attendance/domain/attendance_service.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
-import 'package:drop/features/attendance/domain/usecases/decide_correction.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_state.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/repositories/auth_repository.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/core/enums/attendance_correction_kind.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/attendance/domain/attendance_service.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/features/attendance/domain/usecases/decide_correction.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_state.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/repositories/auth_repository.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
 
 /// The manager-viewer visibility rule on the branch attendance board: a manager
 /// sees only their employees plus their OWN row — never a peer manager (or an

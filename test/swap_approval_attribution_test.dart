@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
-import 'package:drop/features/schedule/presentation/widgets/swap_view.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_state.dart';
+import 'package:opshub/features/schedule/presentation/widgets/swap_view.dart';
 
 /// Pins the reviewer attribution an approved swap carries: a manager/admin who
 /// approved an exchange is **named on the card**, and a record written before

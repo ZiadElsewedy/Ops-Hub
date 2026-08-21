@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/widgets/role_scaffold.dart';
+import 'package:opshub/core/widgets/role_scaffold.dart';
 import 'admin_dashboard_screen.dart';
 
 /// Role shell for the admin role. Hosts the [AdminDashboardScreen]; the admin

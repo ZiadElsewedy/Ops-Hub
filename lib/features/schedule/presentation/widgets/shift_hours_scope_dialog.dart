@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/shift_hours_scope.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/enums/shift_hours_scope.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// Asks the manager how far a shift-hours edit should reach (Schedule V2 ·
 /// Pillar 5) — *"Apply changes to: this week / future / globally"*. Returns the

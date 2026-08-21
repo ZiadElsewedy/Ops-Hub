@@ -1,6 +1,6 @@
-import 'package:drop/features/attendance/domain/reporting/attendance_exception.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_expectation.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_exception.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_expectation.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
 
 /// A rate with its denominator exposed so the UI can disclose exactly what was
 /// counted.

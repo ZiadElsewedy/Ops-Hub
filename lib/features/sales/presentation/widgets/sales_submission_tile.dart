@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/widgets/activity_card.dart';
-import 'package:drop/core/widgets/status_badge.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/widgets/activity_card.dart';
+import 'package:opshub/core/widgets/status_badge.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
 
 /// One daily close in a list. The review actions are optional: a manager's
 /// queue passes approve/reject, an employee's own history passes correct.

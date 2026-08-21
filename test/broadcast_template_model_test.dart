@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/broadcast_category.dart';
-import 'package:drop/features/communications/data/models/broadcast_template_model.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_template_entity.dart';
+import 'package:opshub/core/enums/broadcast_category.dart';
+import 'package:opshub/features/communications/data/models/broadcast_template_model.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_template_entity.dart';
 
 /// Phase 2 Commit 2 — broadcast template model round-trips, including the
 /// global ('' branchId) convention and the derived getters.

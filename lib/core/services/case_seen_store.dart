@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// Pure unread decision — a case is **unread** when its latest activity is newer
 /// than the last time this viewer opened it (or they have never opened it).

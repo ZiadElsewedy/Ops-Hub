@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/widgets/task_browser.dart';
-import 'package:drop/features/task/presentation/widgets/task_template_sheets.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/widgets/task_browser.dart';
+import 'package:opshub/features/task/presentation/widgets/task_template_sheets.dart';
 
 /// The full task list for a single branch, with the manager/admin action set
 /// (create / assign / edit / review / delete via [ManagerTaskCard]). Reads the

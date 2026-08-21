@@ -1,8 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/sales_calculator.dart' as calculator;
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/sales_calculator.dart' as calculator;
 
 part 'sales_month_snapshot.freezed.dart';
 

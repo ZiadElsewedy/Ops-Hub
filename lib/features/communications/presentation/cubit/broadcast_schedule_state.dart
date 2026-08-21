@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_schedule_entity.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_schedule_entity.dart';
 
 part 'broadcast_schedule_state.freezed.dart';
 

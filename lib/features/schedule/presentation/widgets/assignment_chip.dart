@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_context_menu.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_context_menu.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_helpers.dart';
 
 /// Payload carried while dragging an [AssignmentChip] between grid cells:
 /// who is being moved and which slot they came from.

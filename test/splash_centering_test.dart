@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/auth/presentation/pages/splash_page.dart';
+import 'package:opshub/features/auth/presentation/pages/splash_page.dart';
 
 /// Proves the cold-start splash lockup is TRUE-CENTERED — the logo box and the
 /// loading bar share the window's horizontal centre — at a macOS window size.

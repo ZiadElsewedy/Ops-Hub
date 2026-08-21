@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
 
 part 'branch_state.freezed.dart';
 

@@ -1,4 +1,4 @@
-import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
+import 'package:opshub/features/chat/domain/entities/chat_attachment_download.dart';
 
 /// JSON deserialization for the brokered attachment download — the exact wire
 /// shape of the backend's `AttachmentDownloadResponseDto`

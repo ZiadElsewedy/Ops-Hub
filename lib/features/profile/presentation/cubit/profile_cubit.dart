@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/domain/usecases/check_username.dart';
-import 'package:drop/features/profile/domain/usecases/get_profile.dart';
-import 'package:drop/features/profile/domain/usecases/update_profile.dart';
-import 'package:drop/features/profile/domain/usecases/upload_cover_image.dart';
-import 'package:drop/features/profile/domain/usecases/upload_profile_image.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/domain/usecases/check_username.dart';
+import 'package:opshub/features/profile/domain/usecases/get_profile.dart';
+import 'package:opshub/features/profile/domain/usecases/update_profile.dart';
+import 'package:opshub/features/profile/domain/usecases/upload_cover_image.dart';
+import 'package:opshub/features/profile/domain/usecases/upload_profile_image.dart';
 import 'profile_state.dart';
 
 class ProfileCubit extends Cubit<ProfileState> {

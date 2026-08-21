@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/requests/domain/entities/request_event.dart';
-import 'package:drop/features/requests/presentation/request_format.dart';
-import 'package:drop/features/task/presentation/widgets/attachment_gallery.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/requests/domain/entities/request_event.dart';
+import 'package:opshub/features/requests/presentation/request_format.dart';
+import 'package:opshub/features/task/presentation/widgets/attachment_gallery.dart';
 
 /// The request activity timeline — a premium issue-tracker feed. Every event is
 /// one row: the opening submission + comments render as side-aligned bubbles;

@@ -1,4 +1,4 @@
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 /// Pure attendance analytics over a snapshot of records — no Flutter, no
 /// Firestore, so it recomputes instantly with a stream and is fully unit-testable

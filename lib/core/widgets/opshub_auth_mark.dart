@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 
 /// The auth-flow brand lockup: the DROP mark + the "DROP Operations System"
 /// tagline. Used on the Login screen so the auth brand header lives in **one**

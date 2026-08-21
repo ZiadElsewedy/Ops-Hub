@@ -1,4 +1,4 @@
-import 'package:drop/features/task/domain/repositories/task_repository.dart';
+import 'package:opshub/features/task/domain/repositories/task_repository.dart';
 
 /// Deletes a task (manager / admin).
 class DeleteTask {

@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
 
 /// The concrete clock hours of one shift slot, as **minutes past the slot day's
 /// midnight**. [endMinutes] may exceed 1440 for an **overnight** shift — a night

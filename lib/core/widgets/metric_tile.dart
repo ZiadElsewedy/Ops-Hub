@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_count.dart';
-import 'package:drop/core/widgets/glass_container.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/animated_count.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
 
 /// **MetricTile** — a light, **always tappable** figure cell (DROP Design System
 /// V2). A big counting-up number, a glyph + label, and an `arrow_outward`

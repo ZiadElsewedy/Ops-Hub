@@ -1,5 +1,5 @@
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/repositories/task_repository.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/repositories/task_repository.dart';
 
 /// Creates a task (manager / admin) and returns it with its generated id.
 class CreateTask {

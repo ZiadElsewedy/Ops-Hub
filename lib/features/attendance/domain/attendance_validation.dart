@@ -1,11 +1,11 @@
-import 'package:drop/core/enums/attendance_location_policy.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_config.dart';
-import 'package:drop/features/attendance/domain/attendance_gps.dart';
-import 'package:drop/features/attendance/domain/attendance_location_service.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/core/enums/attendance_location_policy.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_config.dart';
+import 'package:opshub/features/attendance/domain/attendance_gps.dart';
+import 'package:opshub/features/attendance/domain/attendance_location_service.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 /// Why a clock action can't proceed. [none] means "allowed". Each carries a
 /// user-facing [message]; the enum value gives the UI a stable code to key on.

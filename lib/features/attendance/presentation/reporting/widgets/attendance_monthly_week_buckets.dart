@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_monthly_report.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_monthly_report.dart';
 
 /// The month-specific section: every Schedule week (Sunday→Saturday) that
 /// overlaps the month, so a change can be located inside the month.

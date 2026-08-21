@@ -3,11 +3,11 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/reporting/final_schedule_grid.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/reporting/final_schedule_grid.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
 
 /// The final weekly schedule as a **vector PDF** a manager can save and send —
 /// the print-native sibling of the on-screen `FinalScheduleSheet` and the Excel

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
 
 /// **The verdict** — the one card that answers both halves of the question the
 /// hub exists for: *can you trust these numbers yet*, and *is anything blocking

@@ -1,20 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/attendance_status_filter.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_analytics.dart';
-import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
-import 'package:drop/features/attendance/domain/attendance_feed.dart';
-import 'package:drop/features/attendance/domain/attendance_history_preset.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
-import 'package:drop/features/attendance/presentation/history/attendance_history_cubit.dart';
-import 'package:drop/features/attendance/presentation/history/attendance_history_state.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/attendance_status_filter.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_analytics.dart';
+import 'package:opshub/features/attendance/domain/attendance_directory_match.dart';
+import 'package:opshub/features/attendance/domain/attendance_feed.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_preset.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/features/attendance/presentation/history/attendance_history_cubit.dart';
+import 'package:opshub/features/attendance/presentation/history/attendance_history_state.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
 
 /// Minimal fake — only the reads the History cubit uses are implemented; the rest
 /// forward to `noSuchMethod` (never called by these tests).

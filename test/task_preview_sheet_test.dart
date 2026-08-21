@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/presentation/widgets/task_preview_sheet.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/presentation/widgets/task_preview_sheet.dart';
 
 /// The 2026-08-01 redesign: "the answer first" — a plain-language situation
 /// sentence stating state + consequence, read before any field grid. These

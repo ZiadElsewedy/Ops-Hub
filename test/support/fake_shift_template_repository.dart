@@ -1,5 +1,5 @@
-import 'package:drop/features/schedule/domain/repositories/shift_template_repository.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
+import 'package:opshub/features/schedule/domain/repositories/shift_template_repository.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
 
 /// A no-op [ShiftTemplateRepository] for schedule-cubit tests — the branch has
 /// no templates, so schedules snapshot nothing (the legacy standard-hours path).

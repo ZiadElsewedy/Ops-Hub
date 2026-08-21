@@ -1,10 +1,10 @@
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/auth/data/datasources/auth_remote_datasource.dart';
-import 'package:drop/features/auth/data/datasources/user_remote_datasource.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/repositories/auth_repository.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:opshub/features/auth/data/datasources/user_remote_datasource.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/repositories/auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _remote;

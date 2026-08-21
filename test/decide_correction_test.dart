@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_correction_kind.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_resolution.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
-import 'package:drop/features/attendance/domain/usecases/decide_correction.dart';
+import 'package:opshub/core/enums/attendance_correction_kind.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_resolution.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/features/attendance/domain/usecases/decide_correction.dart';
 
 /// Captures the decision write; everything else is unimplemented.
 class _CaptureRepo implements AttendanceRepository {

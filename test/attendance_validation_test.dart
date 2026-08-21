@@ -1,19 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_location_policy.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/attendance/domain/attendance_break.dart';
-import 'package:drop/features/attendance/domain/attendance_config.dart';
-import 'package:drop/features/attendance/domain/attendance_gps.dart';
-import 'package:drop/features/attendance/domain/attendance_location.dart';
-import 'package:drop/features/attendance/domain/attendance_location_service.dart';
-import 'package:drop/features/attendance/domain/attendance_service.dart';
-import 'package:drop/features/attendance/domain/attendance_validation.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/core/enums/attendance_location_policy.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/attendance/domain/attendance_break.dart';
+import 'package:opshub/features/attendance/domain/attendance_config.dart';
+import 'package:opshub/features/attendance/domain/attendance_gps.dart';
+import 'package:opshub/features/attendance/domain/attendance_location.dart';
+import 'package:opshub/features/attendance/domain/attendance_location_service.dart';
+import 'package:opshub/features/attendance/domain/attendance_service.dart';
+import 'package:opshub/features/attendance/domain/attendance_validation.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
 
 void main() {
   const enabled = AttendanceConfig(enabled: true);

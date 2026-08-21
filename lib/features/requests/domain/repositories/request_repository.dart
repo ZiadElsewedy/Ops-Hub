@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
-import 'package:drop/features/requests/domain/entities/request_event.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_event.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 /// Contract for Operations Requests data access. The branch/role access model is
 /// enforced server-side by `firestore.rules` (admin: all · manager: own branch ·

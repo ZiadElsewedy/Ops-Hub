@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
 
 /// Firestore (de)serialization for [WeeklyScheduleEntity] — collection
 /// `weekly_schedules/{id}`. The `assignments` map is stored as

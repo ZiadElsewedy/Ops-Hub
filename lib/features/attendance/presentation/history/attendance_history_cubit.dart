@@ -1,16 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/enums/attendance_status_filter.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_analytics.dart';
-import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
-import 'package:drop/features/attendance/domain/attendance_history_preset.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/attendance_status_filter.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_analytics.dart';
+import 'package:opshub/features/attendance/domain/attendance_directory_match.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_preset.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
 import 'attendance_history_state.dart';
 
 /// Which ledger this cubit is driving.

@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/audit_entity_type.dart';
-import 'package:drop/features/audit/domain/entities/audit_log_entry.dart';
+import 'package:opshub/core/enums/audit_entity_type.dart';
+import 'package:opshub/features/audit/domain/entities/audit_log_entry.dart';
 
 /// The persistence contract for the immutable audit trail. Writes are a single
 /// lightweight [record]; reads are **always bounded** (`limit`) and support

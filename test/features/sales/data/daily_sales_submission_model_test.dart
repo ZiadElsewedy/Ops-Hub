@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/features/sales/data/models/daily_sales_submission_model.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/features/sales/data/models/daily_sales_submission_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

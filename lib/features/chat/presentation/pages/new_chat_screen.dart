@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_empty_state.dart';
-import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/opshub_empty_state.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/chat/presentation/chat_thread_args.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
-import 'package:drop/features/chat/presentation/cubit/new_chat_cubit.dart';
-import 'package:drop/features/chat/presentation/cubit/new_chat_state.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_empty_state.dart';
+import 'package:opshub/core/widgets/app_search_field.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/chat/presentation/chat_thread_args.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:opshub/features/chat/presentation/cubit/new_chat_cubit.dart';
+import 'package:opshub/features/chat/presentation/cubit/new_chat_state.dart';
 
 /// The new-conversation teammate picker (`/chat/new`). **Search-first**: the
 /// screen opens on a prompt with the field focused and lists nobody until the

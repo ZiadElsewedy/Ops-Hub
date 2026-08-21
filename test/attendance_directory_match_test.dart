@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/attendance_directory_match.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
 
 const _dir = [
   AttendanceDirectoryEntry(userId: 'u-moh', name: 'Mohamed'),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/glass_container.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
 
 /// Small uppercase-ish section label used to group dashboard content
 /// (Phase 10 — command-center hierarchy, like Linear / Stripe).

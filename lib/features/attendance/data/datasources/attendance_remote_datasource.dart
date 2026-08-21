@@ -3,16 +3,16 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/attendance/data/models/attendance_correction_model.dart';
-import 'package:drop/features/attendance/data/models/attendance_model.dart';
-import 'package:drop/features/attendance/domain/attendance_calculator.dart';
-import 'package:drop/features/attendance/domain/attendance_gps.dart';
-import 'package:drop/features/attendance/domain/attendance_resolution.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/attendance/data/models/attendance_correction_model.dart';
+import 'package:opshub/features/attendance/data/models/attendance_model.dart';
+import 'package:opshub/features/attendance/domain/attendance_calculator.dart';
+import 'package:opshub/features/attendance/domain/attendance_gps.dart';
+import 'package:opshub/features/attendance/domain/attendance_resolution.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
 
 /// A history snapshot as it leaves the datasource — the models plus the raw
 /// Firestore sync metadata (mapped to `AttendanceFeed` by the repository).

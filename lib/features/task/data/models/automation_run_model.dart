@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/task/domain/entities/automation_run_entity.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/task/domain/entities/automation_run_entity.dart';
 
 /// Firestore → [AutomationRunEntity] parsing for `automationRuns/{id}`. Read-only
 /// (the collection is server-authoritative — the client never writes it), so

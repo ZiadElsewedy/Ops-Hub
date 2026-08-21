@@ -1,18 +1,18 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/shift_hours_scope.dart';
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/repositories/shift_template_repository.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/shift_hours_scope.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/repositories/shift_template_repository.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
 import 'schedule_state.dart';
 
 /// Drives the weekly-schedule view for managers (own branch), admins (any

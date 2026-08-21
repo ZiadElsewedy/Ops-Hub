@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/user_role.dart';
+import 'package:opshub/core/enums/user_role.dart';
 
 class RouteNames {
   RouteNames._();

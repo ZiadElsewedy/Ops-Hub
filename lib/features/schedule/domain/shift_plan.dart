@@ -1,7 +1,7 @@
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
 
 /// A week's **frozen snapshot** of the three standing shift hours — morning,
 /// weekday night and weekend night (Schedule V2 · Pillar 5). Captured onto a

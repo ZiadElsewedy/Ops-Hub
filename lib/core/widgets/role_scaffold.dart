@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/theme/phosphor_icons.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_bottom_nav.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/phosphor_icons.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_bottom_nav.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Shared chrome for every role's home dashboard (admin / manager / employee).
 ///

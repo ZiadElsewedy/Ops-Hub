@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/status_badge.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/status_badge.dart';
 
 /// **AppGlassCard** — the canonical premium surface of the DROP component
 /// system. A rounded, gradient, depth-shadowed "glass" card that can carry a

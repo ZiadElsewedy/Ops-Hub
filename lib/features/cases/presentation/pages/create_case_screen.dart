@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/case_category.dart';
-import 'package:drop/core/enums/case_privacy.dart';
-import 'package:drop/core/enums/case_recipient.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/cases/presentation/case_format.dart';
-import 'package:drop/features/cases/presentation/cubit/case_list_cubit.dart';
-import 'package:drop/core/media/picked_attachment.dart';
-import 'package:drop/features/task/presentation/widgets/attachment_picker.dart';
+import 'package:opshub/core/enums/case_category.dart';
+import 'package:opshub/core/enums/case_privacy.dart';
+import 'package:opshub/core/enums/case_recipient.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/cases/presentation/case_format.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_list_cubit.dart';
+import 'package:opshub/core/media/picked_attachment.dart';
+import 'package:opshub/features/task/presentation/widgets/attachment_picker.dart';
 
 /// The ≤30-second case-opening flow: Category → Subject → Description → Urgent? →
 /// Send to (smart-routed default, editable) → Privacy → Attachments → Open.

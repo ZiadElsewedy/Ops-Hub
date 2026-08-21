@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_admin_overview_cubit.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_admin_overview_cubit.dart';
 
 class _FakeSalesRepository implements SalesRepository {
   final summaries = StreamController<List<SalesMonthSnapshot>>.broadcast();

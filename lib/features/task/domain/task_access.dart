@@ -1,7 +1,7 @@
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// Whether [uid] may see/act on [task] — the single rule shared by the
 /// employee task stream (`TaskCubit`) and any surface that needs to know

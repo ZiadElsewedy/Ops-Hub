@@ -3,21 +3,21 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/attendance/domain/attendance_board.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_state.dart';
-import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/branch/domain/branch_geofence.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/attendance/domain/attendance_board.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_state.dart';
+import 'package:opshub/features/attendance/presentation/pages/admin_attendance_screen.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/branch/domain/branch_geofence.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
 
 /// The **Today** board — the manager/admin landing surface for attendance.
 ///

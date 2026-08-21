@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:drop/core/enums/chat_attachment_kind.dart';
-import 'package:drop/core/enums/chat_message_type.dart';
+import 'package:opshub/core/enums/chat_attachment_kind.dart';
+import 'package:opshub/core/enums/chat_message_type.dart';
 
 /// The standard text shown in place of a message deleted for everyone — the
 /// exact mirror of the backend's `DELETED_FOR_EVERYONE_PLACEHOLDER`

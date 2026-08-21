@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/features/cases/domain/case_thread.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/domain/entities/case_message.dart';
-import 'package:drop/features/cases/presentation/case_format.dart';
-import 'package:drop/features/task/presentation/activity_format.dart'
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/features/cases/domain/case_thread.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_message.dart';
+import 'package:opshub/features/cases/presentation/case_format.dart';
+import 'package:opshub/features/task/presentation/activity_format.dart'
     show relativeTime;
-import 'package:drop/features/task/presentation/widgets/attachment_gallery.dart';
+import 'package:opshub/features/task/presentation/widgets/attachment_gallery.dart';
 
 /// The case **conversation** — a premium chat/support thread. Real messages
 /// render as left/right bubbles (mine vs the other party); status changes render

@@ -1,5 +1,5 @@
-import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/features/sales/domain/entities/sales_record_result.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
 
 /// A manager/admin records a day's sales directly — the record lands already
 /// approved and counts toward the target immediately. [businessDateKey] defaults

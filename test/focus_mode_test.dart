@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/widgets/app_shell.dart';
-import 'package:drop/core/widgets/app_sidebar.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/widgets/app_shell.dart';
+import 'package:opshub/core/widgets/app_sidebar.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Schedule V2 · Pillar 1 — Focus Mode. Collapsing the shell sidebar hands the
 /// active screen the full width, and the choice survives while the shell stays

@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
-import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/settings_tiles.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_state.dart';
-import 'package:drop/features/profile/presentation/widgets/profile_detail_row.dart';
-import 'package:drop/features/profile/presentation/widgets/profile_identity_card.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
+import 'package:opshub/core/widgets/branch_avatar.dart';
+import 'package:opshub/core/widgets/settings_tiles.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_state.dart';
+import 'package:opshub/features/profile/presentation/widgets/profile_detail_row.dart';
+import 'package:opshub/features/profile/presentation/widgets/profile_identity_card.dart';
 
 /// The signed-in user's own profile — who they are, where they work, how the
 /// company reaches them, and how their account is set up.

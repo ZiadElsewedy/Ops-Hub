@@ -1,4 +1,4 @@
-import 'package:drop/features/task/domain/work_types/work_type_definition.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_definition.dart';
 
 /// The **general task** — exact parity with today's generic task: a title, an
 /// optional description, an optional checklist, always reviewed, no extra

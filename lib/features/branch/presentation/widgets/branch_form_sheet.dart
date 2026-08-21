@@ -2,17 +2,17 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/schedule/domain/swap_policy.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/branch_avatar.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/schedule/domain/swap_policy.dart';
 
 /// Create or edit a branch (admin). Editing also offers **branch media** (logo +
 /// cover upload) and the **shift-swap rules**, both of which need a saved branch

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// Unified desktop hover response for cards and rows: a 1px rise plus a
 /// whisper of depth, 150 ms. Wrap any card whose child doesn't manage its own

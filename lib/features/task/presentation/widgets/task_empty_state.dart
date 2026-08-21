@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
 
 /// Centered, **brand-led** empty placeholder for a task list (§9b) — delegates
 /// to [OpsHubEmptyState] so a cleared/empty list reads as a quiet DROP touchpoint

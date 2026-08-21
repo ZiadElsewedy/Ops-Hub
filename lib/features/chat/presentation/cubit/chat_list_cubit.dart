@@ -1,16 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/services/chat_cleared_store.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/chat/domain/chat_realtime.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/usecases/get_cached_conversations.dart';
-import 'package:drop/features/chat/domain/usecases/get_conversations.dart';
-import 'package:drop/features/chat/domain/usecases/start_conversation.dart';
-import 'package:drop/features/chat/presentation/chat_format.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/services/chat_cleared_store.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/chat/domain/chat_realtime.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/usecases/get_cached_conversations.dart';
+import 'package:opshub/features/chat/domain/usecases/get_conversations.dart';
+import 'package:opshub/features/chat/domain/usecases/start_conversation.dart';
+import 'package:opshub/features/chat/presentation/chat_format.dart';
 import 'chat_list_state.dart';
 
 /// Drives the chat inbox (conversation list) — REST + cursor pagination,

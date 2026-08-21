@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_state.dart';
 
 /// Keeps the weekly roster on screen in step with **approved swaps**.
 ///

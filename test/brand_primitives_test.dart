@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/brand_watermark.dart';
-import 'package:drop/core/widgets/opshub_auth_mark.dart';
-import 'package:drop/core/widgets/opshub_empty_state.dart';
-import 'package:drop/core/widgets/opshub_loading_state.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
-import 'package:drop/core/widgets/opshub_wordmark.dart';
+import 'package:opshub/core/widgets/brand_watermark.dart';
+import 'package:opshub/core/widgets/opshub_auth_mark.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/opshub_loading_state.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_wordmark.dart';
 
 void main() {
   Widget host(Widget child) =>

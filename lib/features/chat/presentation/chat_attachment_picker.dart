@@ -1,7 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:drop/core/enums/chat_attachment_format.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/core/enums/chat_attachment_format.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
 
 /// Thrown when the user picks a document whose type the backend does not accept
 /// (AR-2). The composer catches it to show "Unsupported file type" instead of

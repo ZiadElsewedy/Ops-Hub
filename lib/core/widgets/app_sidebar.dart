@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 
 /// A single navigable destination in the [AppSidebar].
 class SidebarItem {

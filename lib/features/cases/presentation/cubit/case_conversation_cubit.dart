@@ -1,20 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/cases/domain/case_participation.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/domain/entities/case_identity.dart';
-import 'package:drop/features/cases/domain/entities/case_message.dart';
-import 'package:drop/features/cases/domain/repositories/case_repository.dart';
-import 'package:drop/features/cases/domain/usecases/change_case_status.dart';
-import 'package:drop/features/cases/domain/usecases/send_case_message.dart';
-import 'package:drop/features/cases/domain/usecases/upload_case_attachment.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
-import 'package:drop/core/media/picked_attachment.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/cases/domain/case_participation.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_identity.dart';
+import 'package:opshub/features/cases/domain/entities/case_message.dart';
+import 'package:opshub/features/cases/domain/repositories/case_repository.dart';
+import 'package:opshub/features/cases/domain/usecases/change_case_status.dart';
+import 'package:opshub/features/cases/domain/usecases/send_case_message.dart';
+import 'package:opshub/features/cases/domain/usecases/upload_case_attachment.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/media/picked_attachment.dart';
 import 'case_conversation_state.dart';
 
 /// Drives ONE open case — created per selected case (desktop) or per pushed

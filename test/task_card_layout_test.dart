@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/presentation/widgets/task_card.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/presentation/widgets/task_card.dart';
 
 /// Regression test for the Tasks screen crash: a [TaskCard] inside a scrolling
 /// [ListView] (unbounded vertical constraints, exactly how the task screens use

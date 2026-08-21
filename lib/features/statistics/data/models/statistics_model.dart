@@ -1,4 +1,4 @@
-import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
+import 'package:opshub/features/statistics/domain/entities/statistics_entity.dart';
 
 /// Data-layer holder for computed statistics. Built by the datasource from
 /// Firestore aggregation; mapped to [StatisticsEntity] by the repository.

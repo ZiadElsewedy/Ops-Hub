@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:drop/core/enums/chat_attachment_kind.dart';
-import 'package:drop/core/enums/chat_message_type.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/domain/entities/chat_read_receipt.dart';
+import 'package:opshub/core/enums/chat_attachment_kind.dart';
+import 'package:opshub/core/enums/chat_message_type.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/domain/entities/chat_read_receipt.dart';
 
 /// JSON (de)serialization for messages — the exact wire shapes of the
 /// backend's `MessageResponseDto`, `MessageAttachmentDto`,

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_shell.dart';
-import 'package:drop/core/widgets/command_palette.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_shell.dart';
+import 'package:opshub/core/widgets/command_palette.dart';
 
 /// The desktop "Search or run a command ⌘K" pill — mirrors the shell shortcut so
 /// the palette is discoverable, not just known. Sits in a `PageHero.trailing`

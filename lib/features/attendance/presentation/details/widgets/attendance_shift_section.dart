@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/features/attendance/domain/attendance_gps.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/features/attendance/domain/attendance_gps.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 /// The **Shift** section of the Details screen — the payroll-relevant facts of
 /// one record: the scheduled window (snapshotted at clock-in, so it's stable),

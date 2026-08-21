@@ -1,7 +1,7 @@
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/swap_policy.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/swap_policy.dart';
 
 /// Pure, framework-free validation for the manager/admin **direct roster
 /// edits** (Schedule 4.0): drag-to-move, drag-to-switch, and the mobile

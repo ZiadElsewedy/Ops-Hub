@@ -1,6 +1,6 @@
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
 
 /// Date sectioning for the **record browser** ([TaskBrowser]).
 ///

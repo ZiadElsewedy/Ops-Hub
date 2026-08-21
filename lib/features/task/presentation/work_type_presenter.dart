@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/features/task/domain/work_types/work_field_spec.dart';
+import 'package:opshub/features/task/domain/work_types/work_field_spec.dart';
 
 /// Presentation-side mapping for work types + their fields — the seam that keeps
 /// the domain Flutter-free (mirrors `request_format.dart`). Icons are keyed by

@@ -3,18 +3,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_state.dart';
-import 'package:drop/features/profile/presentation/pages/profile_page.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_state.dart';
+import 'package:opshub/features/profile/presentation/pages/profile_page.dart';
 
 const _branch = BranchEntity(
   id: 'branch-1',

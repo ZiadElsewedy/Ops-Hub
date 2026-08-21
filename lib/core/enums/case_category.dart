@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/case_privacy.dart';
-import 'package:drop/core/enums/case_recipient.dart';
+import 'package:opshub/core/enums/case_privacy.dart';
+import 'package:opshub/core/enums/case_recipient.dart';
 
 /// The kind of issue a case raises, stored as a string in `cases/{id}.category`.
 /// Kept deliberately short so opening a case is fast — cases are conversations,

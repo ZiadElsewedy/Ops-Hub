@@ -1,8 +1,8 @@
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
 
 /// Best display name for a user — their display name, falling back to email.
 String userDisplayName(UserEntity u) =>

@@ -1,4 +1,4 @@
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
 
 /// The branches a sales surface may show: those that have opted in, by name.
 ///

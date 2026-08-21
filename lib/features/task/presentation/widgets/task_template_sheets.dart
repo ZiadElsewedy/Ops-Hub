@@ -1,19 +1,19 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/task_type.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/task_template_entity.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/widgets/task_action_sheets.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/task_type.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/task_template_entity.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/widgets/task_action_sheets.dart';
 
 /// How the manager/admin wants to start a new task.
 enum NewTaskChoice { blank, fromTemplate }

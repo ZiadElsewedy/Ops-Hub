@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/user_role.dart';
+import 'package:opshub/core/enums/user_role.dart';
 
 part 'user_entity.freezed.dart';
 

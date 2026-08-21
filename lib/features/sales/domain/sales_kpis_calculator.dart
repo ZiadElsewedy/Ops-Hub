@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:drop/features/sales/domain/entities/sales_kpis.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/sales_business_time.dart';
-import 'package:drop/features/sales/domain/sales_calculator.dart';
+import 'package:opshub/features/sales/domain/entities/sales_kpis.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/sales_business_time.dart';
+import 'package:opshub/features/sales/domain/sales_calculator.dart';
 
 /// Composes the current month's read-only KPIs from the sales ledger.
 ///

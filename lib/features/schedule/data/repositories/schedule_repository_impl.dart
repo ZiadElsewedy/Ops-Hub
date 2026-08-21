@@ -1,19 +1,19 @@
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/schedule/data/datasources/schedule_remote_datasource.dart';
-import 'package:drop/features/schedule/data/models/shift_swap_model.dart';
-import 'package:drop/features/schedule/data/models/weekly_schedule_model.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/schedule/data/datasources/schedule_remote_datasource.dart';
+import 'package:opshub/features/schedule/data/models/shift_swap_model.dart';
+import 'package:opshub/features/schedule/data/models/weekly_schedule_model.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
 
 class ScheduleRepositoryImpl implements ScheduleRepository {
   final ScheduleRemoteDataSource _remote;

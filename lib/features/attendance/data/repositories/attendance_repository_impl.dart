@@ -1,21 +1,21 @@
 import 'dart:io';
 
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/attendance/data/datasources/attendance_remote_datasource.dart';
-import 'package:drop/features/attendance/data/models/attendance_correction_model.dart';
-import 'package:drop/features/attendance/data/models/attendance_model.dart';
-import 'package:drop/features/attendance/domain/attendance_calculator.dart';
-import 'package:drop/features/attendance/domain/attendance_feed.dart';
-import 'package:drop/features/attendance/domain/attendance_gps.dart';
-import 'package:drop/features/attendance/domain/attendance_resolution.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/attendance/data/datasources/attendance_remote_datasource.dart';
+import 'package:opshub/features/attendance/data/models/attendance_correction_model.dart';
+import 'package:opshub/features/attendance/data/models/attendance_model.dart';
+import 'package:opshub/features/attendance/domain/attendance_calculator.dart';
+import 'package:opshub/features/attendance/domain/attendance_feed.dart';
+import 'package:opshub/features/attendance/domain/attendance_gps.dart';
+import 'package:opshub/features/attendance/domain/attendance_resolution.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
 
 class AttendanceRepositoryImpl implements AttendanceRepository {
   final AttendanceRemoteDataSource _remote;

@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/core/widgets/status_badge.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_outcomes.dart';
-import 'package:drop/features/task/presentation/activity_format.dart';
-import 'package:drop/core/widgets/live_status_border.dart';
-import 'package:drop/features/task/presentation/widgets/task_badge.dart';
-import 'package:drop/features/task/presentation/widgets/task_surface.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/branch_avatar.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/core/widgets/status_badge.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_outcomes.dart';
+import 'package:opshub/features/task/presentation/activity_format.dart';
+import 'package:opshub/core/widgets/live_status_border.dart';
+import 'package:opshub/features/task/presentation/widgets/task_badge.dart';
+import 'package:opshub/features/task/presentation/widgets/task_surface.dart';
 
 /// The premium DROP task card — built for **scanning**, not for reading a record.
 /// Metadata reads as glanceable *signals* (status pill · priority · branch ·

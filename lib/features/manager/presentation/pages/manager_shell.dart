@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/widgets/role_scaffold.dart';
+import 'package:opshub/core/widgets/role_scaffold.dart';
 import 'manager_home_screen.dart';
 
 /// Role shell for the manager role. Hosts the [ManagerHomeScreen]; the manager

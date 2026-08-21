@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/cases/presentation/widgets/case_composer.dart';
-import 'package:drop/core/media/picked_attachment.dart';
+import 'package:opshub/features/cases/presentation/widgets/case_composer.dart';
+import 'package:opshub/core/media/picked_attachment.dart';
 
 void main() {
   Widget host({

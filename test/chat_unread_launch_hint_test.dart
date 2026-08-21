@@ -4,15 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/routes/router_extensions.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
-import 'package:drop/features/chat/domain/usecases/get_cached_conversations.dart';
-import 'package:drop/features/chat/domain/usecases/get_conversations.dart';
-import 'package:drop/features/chat/domain/usecases/start_conversation.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/routes/router_extensions.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/usecases/get_cached_conversations.dart';
+import 'package:opshub/features/chat/domain/usecases/get_conversations.dart';
+import 'package:opshub/features/chat/domain/usecases/start_conversation.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
 
 /// List-endpoint-only stub. Every other repository call is out of scope for the
 /// launch hint and throws through [noSuchMethod] if reached.

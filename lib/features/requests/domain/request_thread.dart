@@ -1,5 +1,5 @@
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
-import 'package:drop/features/requests/domain/entities/request_event.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_event.dart';
 
 /// Sentinel id for a **client-synthesized** submitted event. Never written to
 /// Firestore — it only exists so the timeline is self-contained on screen.

@@ -4,15 +4,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
-import 'package:drop/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart';
-import 'package:drop/features/attendance/presentation/admin/attendance_admin_workspace_screen.dart';
-import 'package:drop/features/branch/domain/branch_geofence.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_reporting_repository.dart';
+import 'package:opshub/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart';
+import 'package:opshub/features/attendance/presentation/admin/attendance_admin_workspace_screen.dart';
+import 'package:opshub/features/branch/domain/branch_geofence.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
 
 /// The Admin workspace used to hang on its spinner forever whenever the branch
 /// directory was **already loaded** before the screen mounted — which is the

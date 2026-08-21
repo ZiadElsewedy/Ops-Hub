@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_opshub_logo.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 
 /// Where the DROP artwork's visual centre actually sits inside the Lottie's
 /// 720×405 composition, relative to the frame's geometric centre — the mean

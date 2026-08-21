@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
-import 'package:drop/features/task/domain/task_schedule.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
+import 'package:opshub/features/task/domain/task_schedule.dart';
 
 /// Task Scheduling V2 — the pure schedule math: smart-default windows from a
 /// shift, the derived time-aware phase, and the "due soon" count.

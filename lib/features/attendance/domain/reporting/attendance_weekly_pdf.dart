@@ -3,9 +3,9 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_week_review.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_weekly_report.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_week_review.dart';
 
 /// The weekly report as a document a manager can send to an owner ([ADR-019]).
 ///

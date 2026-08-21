@@ -1,9 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/case_category.dart';
-import 'package:drop/core/enums/case_privacy.dart';
-import 'package:drop/core/enums/case_recipient.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/enums/case_category.dart';
+import 'package:opshub/core/enums/case_privacy.dart';
+import 'package:opshub/core/enums/case_recipient.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 part 'case_entity.freezed.dart';
 

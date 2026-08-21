@@ -1,13 +1,13 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/utils/concurrent.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/today_coverage.dart';
-import 'package:drop/features/schedule/domain/today_roster.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/core/utils/concurrent.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/today_coverage.dart';
+import 'package:opshub/features/schedule/domain/today_roster.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
 import 'today_coverage_state.dart';
 
 /// Owns the admin Today read path. It intentionally never reads or writes the

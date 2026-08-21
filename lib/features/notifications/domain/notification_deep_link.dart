@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/route_names.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/route_names.dart';
 
 /// The canonical `route` values a notification carries in its payload — the
 /// deep-link contract shared by the producers (`NotifyTaskEvent`,

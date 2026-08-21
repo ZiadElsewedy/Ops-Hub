@@ -1,6 +1,6 @@
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
-import 'package:drop/features/sales/domain/sales_business_time.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/features/sales/domain/sales_business_time.dart';
 
 /// Watches a branch's target and daily ledger for the injected Cairo month.
 class GetCurrentSalesMonth {

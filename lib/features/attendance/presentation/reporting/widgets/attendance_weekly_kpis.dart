@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_report.dart';
 
 /// The four numbers a store manager is accountable for
 /// (`ATTENDANCE_REPORTS_IA` §6.5, amended 2026-07-31).

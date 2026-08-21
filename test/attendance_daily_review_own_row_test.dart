@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/attendance/domain/attendance_board.dart';
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_state.dart';
-import 'package:drop/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
-import 'package:drop/features/attendance/presentation/widgets/attendance_manager_actions.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/attendance/domain/attendance_board.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_state.dart';
+import 'package:opshub/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
+import 'package:opshub/features/attendance/presentation/widgets/attendance_manager_actions.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
 
 /// UI contract for the "no self-approval" rule on Daily Review: a manager may
 /// not settle their OWN shift (enforced server-side in `firestore.rules`), so on

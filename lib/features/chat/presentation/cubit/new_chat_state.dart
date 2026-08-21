@@ -1,4 +1,4 @@
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 /// State for the new-conversation teammate picker. Plain sealed classes (no
 /// codegen), consistent with the chat feature's value-object precedent —

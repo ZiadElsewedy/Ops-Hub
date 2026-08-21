@@ -1,26 +1,26 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/repositories/auth_repository.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/notifications/domain/repositories/notification_repository.dart';
-import 'package:drop/features/notifications/domain/usecases/notify_task_event.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/repositories/task_repository.dart';
-import 'package:drop/features/task/domain/usecases/assign_task.dart';
-import 'package:drop/features/task/domain/usecases/create_task.dart';
-import 'package:drop/features/task/domain/usecases/delete_task.dart';
-import 'package:drop/features/task/domain/usecases/update_task.dart';
-import 'package:drop/features/task/domain/usecases/upload_task_attachment.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/repositories/auth_repository.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:opshub/features/notifications/domain/usecases/notify_task_event.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/repositories/task_repository.dart';
+import 'package:opshub/features/task/domain/usecases/assign_task.dart';
+import 'package:opshub/features/task/domain/usecases/create_task.dart';
+import 'package:opshub/features/task/domain/usecases/delete_task.dart';
+import 'package:opshub/features/task/domain/usecases/update_task.dart';
+import 'package:opshub/features/task/domain/usecases/upload_task_attachment.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
 
 /// **How an employee's shift task streams get bound.**
 ///

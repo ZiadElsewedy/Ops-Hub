@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/move_validation.dart';
-import 'package:drop/features/schedule/domain/swap_policy.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/move_validation.dart';
+import 'package:opshub/features/schedule/domain/swap_policy.dart';
 
 /// Schedule 4.0 — validation for manager/admin direct roster edits (move /
 /// switch / remove). Blocked edits must return a user-facing reason; legal

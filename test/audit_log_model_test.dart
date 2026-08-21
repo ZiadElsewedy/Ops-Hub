@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/audit_entity_type.dart';
-import 'package:drop/core/enums/audit_event_type.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/audit/data/models/audit_log_model.dart';
-import 'package:drop/features/audit/domain/entities/audit_log_entry.dart';
+import 'package:opshub/core/enums/audit_entity_type.dart';
+import 'package:opshub/core/enums/audit_event_type.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/audit/data/models/audit_log_model.dart';
+import 'package:opshub/features/audit/domain/entities/audit_log_entry.dart';
 
 void main() {
   group('AuditLogModel serialization', () {

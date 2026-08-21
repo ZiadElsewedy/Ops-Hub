@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/widgets/app_empty_state.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
-import 'package:drop/core/widgets/empty_state_medallion.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/widgets/app_empty_state.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/empty_state_medallion.dart';
 
 /// **OpsHubEmptyState** — a **brand-led** empty state: the DROP mark, quietly lit
 /// inside the shared medallion, instead of a generic grey glyph — then the

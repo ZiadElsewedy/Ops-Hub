@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
-import 'package:drop/features/notifications/domain/repositories/notification_repository.dart';
-import 'package:drop/features/notifications/domain/usecases/mark_notification_read.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:opshub/features/notifications/domain/usecases/mark_notification_read.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Drives [NotificationCubit] over a controllable fake feed to verify the
 /// read/unread model (Notifications V2 — Part 4), the badge count, action

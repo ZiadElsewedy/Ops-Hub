@@ -1,4 +1,4 @@
-import 'package:drop/features/notifications/data/datasources/notification_sweep.dart';
+import 'package:opshub/features/notifications/data/datasources/notification_sweep.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The paging behind **Mark all read** and **Clear archived**.

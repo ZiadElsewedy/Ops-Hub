@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/task/domain/work_types/work_field_spec.dart';
-import 'package:drop/features/task/domain/work_types/work_type_definition.dart';
-import 'package:drop/features/task/domain/work_types/work_type_registry.dart';
-import 'package:drop/features/task/presentation/work_type_presenter.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/task/domain/work_types/work_field_spec.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_definition.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_registry.dart';
+import 'package:opshub/features/task/presentation/work_type_presenter.dart';
 
 /// The **work-type selector** — the defining choice of the whole workflow. For a
 /// small catalogue (≤ [_inlineThreshold]) it renders inline selectable cards, so

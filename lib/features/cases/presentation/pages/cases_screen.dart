@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/opshub_empty_state.dart';
-import 'package:drop/features/cases/domain/case_ordering.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/presentation/cubit/case_conversation_cubit.dart';
-import 'package:drop/features/cases/presentation/cubit/case_list_cubit.dart';
-import 'package:drop/features/cases/presentation/cubit/case_list_state.dart';
-import 'package:drop/features/cases/presentation/widgets/case_conversation_view.dart';
-import 'package:drop/features/cases/presentation/widgets/case_list_tile.dart';
-import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_search_field.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/features/cases/domain/case_ordering.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_conversation_cubit.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_list_cubit.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_list_state.dart';
+import 'package:opshub/features/cases/presentation/widgets/case_conversation_view.dart';
+import 'package:opshub/features/cases/presentation/widgets/case_list_tile.dart';
+import 'package:opshub/core/widgets/list_skeleton.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
 
 /// Case Management entry point. **Desktop** → a split-pane workspace (case
 /// inbox on the left, active conversation on the right). **Mobile / tablet** →

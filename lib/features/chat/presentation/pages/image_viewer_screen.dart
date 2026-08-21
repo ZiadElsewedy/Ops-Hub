@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// A full-screen, pinch-to-zoom image viewer. Renders local bytes immediately
 /// (an optimistic/just-sent image) or lazily resolves a brokered download URL

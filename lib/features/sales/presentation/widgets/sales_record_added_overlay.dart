@@ -2,14 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/rolling_number.dart';
-import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/rolling_number.dart';
+import 'package:opshub/features/sales/domain/entities/sales_record_result.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
 
 /// The celebratory "+59,000 EGP added to the branch total" confirmation shown
 /// once, after a manager/admin records a day directly.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// What the user chose in the attachment sheet.
 enum ChatAttachmentChoice { camera, gallery, document }

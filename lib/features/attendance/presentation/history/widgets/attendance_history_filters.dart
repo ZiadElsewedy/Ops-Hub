@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/attendance_status_filter.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/features/attendance/domain/attendance_history_preset.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/core/enums/attendance_status_filter.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/app_search_field.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_preset.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
 
 /// The **composable** filter bar for the Attendance History ledger: a curated
 /// quick-view row, a date-range selector, a status facet, a shift facet, and

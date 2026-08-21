@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/presentation/widgets/case_list_tile.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/presentation/widgets/case_list_tile.dart';
 
 void main() {
   final caseItem = CaseEntity(

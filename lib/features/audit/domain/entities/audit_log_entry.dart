@@ -1,7 +1,7 @@
-import 'package:drop/core/enums/audit_entity_type.dart';
-import 'package:drop/core/enums/audit_event_type.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/audit/domain/entities/audit_actor.dart';
+import 'package:opshub/core/enums/audit_entity_type.dart';
+import 'package:opshub/core/enums/audit_event_type.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/audit/domain/entities/audit_actor.dart';
 
 /// The current audit **schema version**. Bump this only when the *meaning* of the
 /// record's shape changes (e.g. a metadata key is renamed or a field's semantics

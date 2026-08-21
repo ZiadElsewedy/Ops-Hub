@@ -1,5 +1,5 @@
-import 'package:drop/features/chat/domain/entities/chat_read_receipt.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/entities/chat_read_receipt.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
 
 /// Marks a conversation read up to the highest **visible** message's seq — the
 /// opened-and-visible signal, not a side effect of fetching. Idempotent.

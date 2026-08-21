@@ -1,5 +1,5 @@
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
 
 /// Loads a page of a conversation's history (newest page first; pass the
 /// previous page's `nextCursor` to page back through older messages). Loading

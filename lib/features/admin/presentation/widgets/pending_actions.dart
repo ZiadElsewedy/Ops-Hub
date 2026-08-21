@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/metric_pill.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/core/widgets/metric_pill.dart';
 
 /// Admin Home **Pending Actions** panel — a consolidated, actionable queue of
 /// everything waiting on the admin: shift-swap requests, tasks waiting review,

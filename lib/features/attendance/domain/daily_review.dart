@@ -1,4 +1,4 @@
-import 'package:drop/features/attendance/domain/attendance_board.dart';
+import 'package:opshub/features/attendance/domain/attendance_board.dart';
 
 /// What kind of decision a Daily Review row is asking for.
 ///

@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/enums/request_type.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
-import 'package:drop/features/requests/domain/entities/request_event.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/enums/request_type.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_event.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 /// Firestore (de)serialization for [RequestEntity] — collection `requests/{id}`.
 ///

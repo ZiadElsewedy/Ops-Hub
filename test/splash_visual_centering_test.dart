@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/auth/presentation/pages/splash_page.dart';
+import 'package:opshub/features/auth/presentation/pages/splash_page.dart';
 
 /// Measures the ACTUAL visual centre of the DROP artwork inside the Lottie's
 /// settled tail frames (what's held on screen while bootstrap finishes) and

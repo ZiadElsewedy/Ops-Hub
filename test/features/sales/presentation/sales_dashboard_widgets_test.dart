@@ -1,12 +1,12 @@
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/features/sales/domain/sales_calculator.dart';
-import 'package:drop/features/sales/domain/sales_trend.dart';
-import 'package:drop/features/sales/presentation/sales_outlook_tint.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_month_overview.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_pace_card.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_progress_ring.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_submissions_door.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/features/sales/domain/sales_calculator.dart';
+import 'package:opshub/features/sales/domain/sales_trend.dart';
+import 'package:opshub/features/sales/presentation/sales_outlook_tint.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_month_overview.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_pace_card.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_progress_ring.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_submissions_door.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

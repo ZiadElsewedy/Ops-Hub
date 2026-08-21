@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
 
 part 'attendance_details_state.freezed.dart';
 

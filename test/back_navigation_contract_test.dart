@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/routes/app_page_route.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/routes/app_page_route.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
 
 /// **The back-navigation contract** (`core/routes/app_page_route.dart`).
 ///

@@ -2,18 +2,18 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/schedule/data/models/shift_swap_model.dart';
-import 'package:drop/features/schedule/data/models/weekly_schedule_model.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/schedule/data/models/shift_swap_model.dart';
+import 'package:opshub/features/schedule/data/models/weekly_schedule_model.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
 
 /// Firestore access for the weekly schedule + shift swaps (Phase 7). Schedules
 /// live at `weekly_schedules/{branchId_yyyy-MM-dd}` (deterministic id → one doc

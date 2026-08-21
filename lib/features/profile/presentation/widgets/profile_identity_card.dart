@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/brand_watermark.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/presentation/widgets/profile_avatar.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/core/widgets/brand_watermark.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/presentation/widgets/profile_avatar.dart';
 
 /// The identity lockup that opens the Profile screen — cover, avatar, name,
 /// who the person is in the org, their bio, and the screen's **one** primary

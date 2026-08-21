@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/sales/data/datasources/sales_remote_datasource.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/sales/data/datasources/sales_remote_datasource.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/entities/sales_record_result.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
 
 class SalesRepositoryImpl implements SalesRepository {
   SalesRepositoryImpl(this._remote);

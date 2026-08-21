@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/data/models/attendance_ledger_model.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_exception.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/data/models/attendance_ledger_model.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_exception.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
 
 void main() {
   test('parses the Cloud Function row shape defensively', () {

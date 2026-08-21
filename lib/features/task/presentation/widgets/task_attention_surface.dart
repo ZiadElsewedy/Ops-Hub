@@ -1,9 +1,9 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
 
 /// The **1px edge is the state**. One hairline per task status — soft,
 /// desaturated, and completely still. Colour never shouts: it is read

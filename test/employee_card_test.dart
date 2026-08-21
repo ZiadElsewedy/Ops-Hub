@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/admin/presentation/widgets/employee_card.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/features/admin/presentation/widgets/employee_card.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 void main() {
   const activeUser = UserEntity(

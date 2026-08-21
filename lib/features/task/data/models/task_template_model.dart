@@ -1,8 +1,8 @@
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/core/enums/task_type.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/task_template_entity.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/core/enums/task_type.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/task_template_entity.dart';
 
 /// Firestore (de)serialization for [TaskTemplateEntity] — collection
 /// `task_templates/{templateId}`. Stores the reusable checklist as a list of

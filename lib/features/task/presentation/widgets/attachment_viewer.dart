@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
-import 'package:drop/features/task/presentation/attachment_format.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/features/task/presentation/attachment_format.dart';
 
 /// Opens the fullscreen media viewer at [initialIndex] — swipe between an event's
 /// attachments. Images support pinch/double-tap zoom (built-in [InteractiveViewer]);

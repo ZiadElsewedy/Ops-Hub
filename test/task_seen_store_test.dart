@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/services/task_seen_store.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/features/task/presentation/widgets/task_attention_surface.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/services/task_seen_store.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/features/task/presentation/widgets/task_attention_surface.dart';
 
 void main() {
   // The store gracefully falls back to in-memory when path_provider is

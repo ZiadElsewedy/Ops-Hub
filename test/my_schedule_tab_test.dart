@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_state.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
-import 'package:drop/features/schedule/presentation/pages/my_schedule_screen.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_state.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_state.dart';
+import 'package:opshub/features/schedule/presentation/pages/my_schedule_screen.dart';
 
 /// Guards the employee My Week tab — the premium hero/week-cards UI that is,
 /// per the owner's 2026-07-07 ruling, THE employee schedule UI on every tier

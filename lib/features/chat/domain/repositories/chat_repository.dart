@@ -1,8 +1,8 @@
-import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/domain/entities/chat_read_receipt.dart';
+import 'package:opshub/features/chat/domain/entities/chat_attachment_download.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/domain/entities/chat_read_receipt.dart';
 
 /// Contract for direct (1:1) chat data access, backed by the NestJS API
 /// (`drop-api` · `chat/` module) — REST only; realtime (socket) delivery is a

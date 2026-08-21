@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
 
 /// Outcome status of one automation execution (the coarse verdict).
 enum AutomationRunStatus {

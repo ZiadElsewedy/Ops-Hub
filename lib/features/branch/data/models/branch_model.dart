@@ -1,7 +1,7 @@
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/branch/domain/branch_geofence.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/schedule/domain/swap_policy.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/branch/domain/branch_geofence.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/schedule/domain/swap_policy.dart';
 
 /// Firestore (de)serialization for [BranchEntity] — collection `branches/{id}`.
 class BranchModel {

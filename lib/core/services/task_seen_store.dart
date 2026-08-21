@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// Pure "new task" decision — a task is **unseen** when it is still `pending`
 /// and this viewer has never opened it. Extracted so the rule is trivially

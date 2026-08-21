@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/observability/crash_reporter.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/observability/crash_reporter.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// Phase 3 observability: breadcrumb recording, metadata rendering, timing
 /// escalation, and crash-context derivation. Console output is disabled —

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/features/task/domain/entities/activity_entry.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/presentation/activity_format.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/widgets/activity_timeline.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/features/task/domain/entities/activity_entry.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/presentation/activity_format.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/widgets/activity_timeline.dart';
 
 /// The reworked Task Details activity timeline (2026-07-06): hero head +
 /// compact ledger rows + fold. Render-only — the cubit is touched lazily on

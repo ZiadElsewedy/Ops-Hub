@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_template_entity.dart';
-import 'package:drop/features/communications/domain/repositories/broadcast_template_repository.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_template_entity.dart';
+import 'package:opshub/features/communications/domain/repositories/broadcast_template_repository.dart';
 import 'broadcast_template_state.dart';
 
 /// Broadcast templates (Communications Center — Phase 2). Repo-direct (no

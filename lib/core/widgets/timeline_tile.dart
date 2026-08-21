@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// A single row in a vertical timeline — a coloured dot connected by a spine to
 /// the next row, with a title, a trailing timestamp, an optional subtitle

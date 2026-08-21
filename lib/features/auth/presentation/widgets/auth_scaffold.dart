@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// Responsive chrome for the standalone auth/onboarding pages that live
 /// **outside** the app shell (forgot password, forced password change, profile

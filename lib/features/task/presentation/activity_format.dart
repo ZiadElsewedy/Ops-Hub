@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/task_origin.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/task_origin.dart';
 
 /// Presentation helpers that map a task [ActivityEntry.status] string onto a
 /// human label + dot colour, and format an event time. Shared by the Task

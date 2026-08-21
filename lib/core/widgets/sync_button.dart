@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// Relative "last synced" label for a dashboard [SyncButton]. Pure with an
 /// injectable clock so the freshness copy is unit-testable without pumping a

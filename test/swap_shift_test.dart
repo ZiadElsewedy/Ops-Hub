@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/swap_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/swap_status.dart';
 
 /// Pure-logic coverage for the shift-swap additions (exchange model + cancelled).
 void main() {

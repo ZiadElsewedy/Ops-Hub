@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/operations/presentation/pages/employee_detail_screen.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/widgets/manager_task_card.dart';
-import 'package:drop/features/task/presentation/widgets/task_browser.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/operations/presentation/pages/employee_detail_screen.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/cubit/task_state.dart';
+import 'package:opshub/features/task/presentation/widgets/manager_task_card.dart';
+import 'package:opshub/features/task/presentation/widgets/task_browser.dart';
 
 /// The employee drill-down used to render every task — including a dozen
 /// approved ones — as a full-size [ManagerTaskCard], which is what made the

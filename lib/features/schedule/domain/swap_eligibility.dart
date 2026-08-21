@@ -1,6 +1,6 @@
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
 
 /// Pure, framework-free validation for **shift-swap requests** (spec §2).
 ///

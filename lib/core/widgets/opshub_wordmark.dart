@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// **OpsHubWordmark** — the DROP logotype rendered **typographically** (heavy
 /// weight, tight tracking), the minimal-luxury-streetwear complement to the

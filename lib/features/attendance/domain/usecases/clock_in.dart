@@ -1,5 +1,5 @@
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
 
 /// Clocks in — persists a freshly built in-progress [AttendanceEntity] on its
 /// deterministic id. The caller (the cubit) has already run

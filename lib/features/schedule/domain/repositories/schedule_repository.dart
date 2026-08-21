@@ -1,11 +1,11 @@
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
 
 /// Contract for weekly-schedule + shift-swap data access (Phase 7). Branch/role
 /// access is enforced server-side by `firestore.rules` (admin: all branches;

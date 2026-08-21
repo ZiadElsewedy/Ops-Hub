@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 part 'activity_entry.freezed.dart';
 

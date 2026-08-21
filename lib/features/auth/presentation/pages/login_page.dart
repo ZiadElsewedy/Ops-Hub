@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/routes/route_names.dart';
+import 'package:opshub/core/routes/route_names.dart';
 
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/opshub_auth_mark.dart';
-import 'package:drop/core/widgets/animated_opshub_logo.dart';
-import 'package:drop/features/auth/presentation/animations/fade_slide_transition.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/auth/presentation/widgets/app_password_field.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/opshub_auth_mark.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/features/auth/presentation/animations/fade_slide_transition.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_password_field.dart';
 
 /// The DROP sign-in screen. DROP is **admin-provisioned**: there is no public
 /// registration, Google sign-in, or phone/OTP — only email + password, plus a

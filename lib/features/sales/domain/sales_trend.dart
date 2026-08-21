@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/sales_business_time.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/sales_business_time.dart';
 
 /// One day in the trailing sales trend: a business date and the **approved**
 /// takings that closed on it (0 when the day has no approved close yet).

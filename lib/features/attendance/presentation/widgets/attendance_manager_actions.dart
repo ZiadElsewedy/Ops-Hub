@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/features/attendance/domain/attendance_board.dart';
-import 'package:drop/features/attendance/domain/attendance_write_outcome.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
-import 'package:drop/features/attendance/presentation/widgets/attendance_action_sheet.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/features/attendance/domain/attendance_board.dart';
+import 'package:opshub/features/attendance/domain/attendance_write_outcome.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
+import 'package:opshub/features/attendance/presentation/widgets/attendance_action_sheet.dart';
 
 /// The three manager write actions, in one place.
 ///

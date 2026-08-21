@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
 
 /// Schedule V2 · Pillar 5 — the shift-template domain: role mapping, the
 /// per-week [ShiftPlan] snapshot + resolution, the template library, and — the

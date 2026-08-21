@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_opshub_logo.dart';
-import 'package:drop/features/auth/presentation/animations/fade_slide_transition.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/features/auth/presentation/animations/fade_slide_transition.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
 
 /// The one-time cinematic **Welcome** screen. The router confines an *employee*
 /// whose profile is complete but `hasCompletedOnboarding == false` here — shown

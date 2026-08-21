@@ -1,11 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/admin/domain/entities/user_compensation.dart';
-import 'package:drop/features/admin/domain/repositories/user_admin_repository.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/admin/domain/entities/user_compensation.dart';
+import 'package:opshub/features/admin/domain/repositories/user_admin_repository.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
 import 'admin_users_state.dart';
 
 /// Which slice of users a screen is showing. (Public registration / pending

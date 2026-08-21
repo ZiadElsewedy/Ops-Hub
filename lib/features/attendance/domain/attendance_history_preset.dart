@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/attendance_status_filter.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/core/enums/attendance_status_filter.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
 
 /// A curated one-tap **quick view** over the attendance ledger — the answer to a
 /// question a manager (or an employee, on their own history) asks often, as a

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// The DROP brand logo — the wordmark artwork at `assets/opshub_logo.png`.
 ///

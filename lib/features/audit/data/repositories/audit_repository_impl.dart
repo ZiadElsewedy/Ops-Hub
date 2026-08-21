@@ -1,10 +1,10 @@
-import 'package:drop/core/enums/audit_entity_type.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/audit/data/datasources/audit_remote_datasource.dart';
-import 'package:drop/features/audit/data/models/audit_log_model.dart';
-import 'package:drop/features/audit/domain/entities/audit_log_entry.dart';
-import 'package:drop/features/audit/domain/repositories/audit_repository.dart';
+import 'package:opshub/core/enums/audit_entity_type.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/audit/data/datasources/audit_remote_datasource.dart';
+import 'package:opshub/features/audit/data/models/audit_log_model.dart';
+import 'package:opshub/features/audit/domain/entities/audit_log_entry.dart';
+import 'package:opshub/features/audit/domain/repositories/audit_repository.dart';
 
 class AuditRepositoryImpl implements AuditRepository {
   AuditRepositoryImpl(this._remote);

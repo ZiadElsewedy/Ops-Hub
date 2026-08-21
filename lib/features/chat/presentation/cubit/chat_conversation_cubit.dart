@@ -1,24 +1,24 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/chat_attachment_kind.dart';
-import 'package:drop/core/enums/chat_message_type.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/utils/concurrent.dart';
-import 'package:drop/core/utils/uuid.dart';
-import 'package:drop/features/chat/domain/chat_realtime.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/presentation/chat_thread_cache.dart';
-import 'package:drop/features/chat/domain/usecases/delete_chat_message_for_everyone.dart';
-import 'package:drop/features/chat/domain/usecases/delete_chat_message_for_me.dart';
-import 'package:drop/features/chat/domain/usecases/get_chat_attachment_url.dart';
-import 'package:drop/features/chat/domain/usecases/get_conversation.dart';
-import 'package:drop/features/chat/domain/usecases/load_chat_history.dart';
-import 'package:drop/features/chat/domain/usecases/mark_chat_read.dart';
-import 'package:drop/features/chat/domain/usecases/send_chat_message.dart';
+import 'package:opshub/core/enums/chat_attachment_kind.dart';
+import 'package:opshub/core/enums/chat_message_type.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/concurrent.dart';
+import 'package:opshub/core/utils/uuid.dart';
+import 'package:opshub/features/chat/domain/chat_realtime.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/presentation/chat_thread_cache.dart';
+import 'package:opshub/features/chat/domain/usecases/delete_chat_message_for_everyone.dart';
+import 'package:opshub/features/chat/domain/usecases/delete_chat_message_for_me.dart';
+import 'package:opshub/features/chat/domain/usecases/get_chat_attachment_url.dart';
+import 'package:opshub/features/chat/domain/usecases/get_conversation.dart';
+import 'package:opshub/features/chat/domain/usecases/load_chat_history.dart';
+import 'package:opshub/features/chat/domain/usecases/mark_chat_read.dart';
+import 'package:opshub/features/chat/domain/usecases/send_chat_message.dart';
 import 'chat_conversation_state.dart';
 
 /// Drives ONE open chat thread — created per opened conversation (mirroring

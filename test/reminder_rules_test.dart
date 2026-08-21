@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/task/domain/reminder_rules.dart';
+import 'package:opshub/features/task/domain/reminder_rules.dart';
 
 /// Phase 2 Commit 5 — the pure task-reminder decision logic (mirrored by the
 /// `runTaskReminders` Cloud Function).

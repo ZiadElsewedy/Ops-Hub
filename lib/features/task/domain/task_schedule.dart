@@ -9,17 +9,17 @@
 /// That is exactly the operational distinction a manager needs.
 library;
 
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
 // `cairoCivilTime` is a general Africa/Cairo business-time helper (it happens to
 // live under the sales feature); reused here so the shift-window DST rule is not
 // duplicated. See `shiftDefaultSchedule`.
-import 'package:drop/features/sales/domain/sales_business_time.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_feed.dart' show isTaskOverdue;
+import 'package:opshub/features/sales/domain/sales_business_time.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_feed.dart' show isTaskOverdue;
 
 /// The time-aware operational phase, derived per [schedulePhase].
 enum TaskSchedulePhase { scheduled, active, dueSoon, overdue, done }

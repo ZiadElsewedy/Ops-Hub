@@ -1,10 +1,10 @@
 import 'dart:developer' as developer;
 
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
-import 'package:drop/features/notifications/domain/notification_deep_link.dart';
-import 'package:drop/features/notifications/domain/repositories/notification_repository.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/domain/notification_deep_link.dart';
+import 'package:opshub/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
 
 /// Builds + persists the in-app notification(s) for a **shift-swap** event,
 /// reusing the existing notification pipeline (one `notifications/{id}` doc per

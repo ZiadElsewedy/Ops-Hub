@@ -1,10 +1,10 @@
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/schedule/data/datasources/shift_template_remote_datasource.dart';
-import 'package:drop/features/schedule/data/models/shift_template_model.dart';
-import 'package:drop/features/schedule/domain/repositories/shift_template_repository.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/schedule/data/datasources/shift_template_remote_datasource.dart';
+import 'package:opshub/features/schedule/data/models/shift_template_model.dart';
+import 'package:opshub/features/schedule/domain/repositories/shift_template_repository.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
 
 class ShiftTemplateRepositoryImpl implements ShiftTemplateRepository {
   final ShiftTemplateRemoteDataSource _remote;

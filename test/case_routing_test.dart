@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/case_category.dart';
-import 'package:drop/core/enums/case_privacy.dart';
-import 'package:drop/core/enums/case_recipient.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/cases/domain/case_participation.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/core/enums/case_category.dart';
+import 'package:opshub/core/enums/case_privacy.dart';
+import 'package:opshub/core/enums/case_recipient.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/cases/domain/case_participation.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
 
 void main() {
   group('CaseCategory (6 categories) smart routing', () {

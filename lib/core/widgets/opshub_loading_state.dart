@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 
 /// **OpsHubLoadingState** — a **branded** full-area loading moment: the DROP mark
 /// with a slow, calm opacity-pulse (the brand "breathing") and an optional

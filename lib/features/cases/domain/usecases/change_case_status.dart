@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/features/cases/domain/repositories/case_repository.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/features/cases/domain/repositories/case_repository.dart';
 
 /// Moves a case to a new [CaseStatus] — a single targeted doc update. The
 /// `onCaseUpdated` Cloud Function appends the system message + notifies.

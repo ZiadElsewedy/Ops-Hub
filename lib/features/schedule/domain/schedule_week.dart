@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
 
 /// Week-math helpers for the weekly schedule (Phase 7). A "week" is identified by
 /// its **start date** — the Sunday at 00:00 — so a branch has exactly one

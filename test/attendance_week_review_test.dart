@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_week_review.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_week_review.dart';
 
 void main() {
   final reviewedAt = DateTime(2026, 8, 1, 18);

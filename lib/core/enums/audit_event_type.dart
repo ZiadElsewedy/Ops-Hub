@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/audit_entity_type.dart';
+import 'package:opshub/core/enums/audit_entity_type.dart';
 
 /// The canonical taxonomy of **auditable business actions** in DROP — the
 /// `eventType` of a record in the immutable `audit_logs` collection. This answers

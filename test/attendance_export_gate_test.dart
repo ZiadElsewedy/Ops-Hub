@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_export_gate.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_export_gate.dart';
 
 void main() {
   AttendanceExportAvailability gate({

@@ -1,4 +1,4 @@
-import 'package:drop/core/errors/failures.dart';
+import 'package:opshub/core/errors/failures.dart';
 
 /// **NetworkGuard** — the one line that stops a write from being swallowed.
 ///

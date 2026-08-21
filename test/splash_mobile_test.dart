@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/animated_opshub_logo.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
-import 'package:drop/features/auth/presentation/pages/splash_page.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/features/auth/presentation/pages/splash_page.dart';
 
 /// The mobile cold-start splash (phone widths < 600) — the local, Lottie-free
 /// intro. These prove the premium mobile treatment: the animated light-sweep

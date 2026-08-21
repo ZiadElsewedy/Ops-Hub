@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/notification_type.dart';
+import 'package:opshub/core/enums/notification_type.dart';
 
 part 'notification_entity.freezed.dart';
 

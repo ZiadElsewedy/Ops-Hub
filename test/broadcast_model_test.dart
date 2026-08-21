@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/broadcast_audience.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/communications/data/models/broadcast_model.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
+import 'package:opshub/core/enums/broadcast_audience.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/communications/data/models/broadcast_model.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_entity.dart';
 
 /// Verifies the Communications Center broadcast model round-trips through
 /// Firestore serialization, and that the all-branches sentinel (`branchId == ''`)

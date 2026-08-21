@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/routes/router_extensions.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/routes/router_extensions.dart';
 
 /// Opens a notification tap's destination **with a back stack that reaches
 /// Home**. Every push-tap surface (background, cold start, the foreground

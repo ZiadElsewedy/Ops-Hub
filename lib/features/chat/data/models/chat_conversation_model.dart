@@ -1,4 +1,4 @@
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
 
 /// JSON (de)serialization for conversations — the exact wire shapes of the
 /// backend's `ConversationResponseDto` and `ConversationListItemResponseDto`

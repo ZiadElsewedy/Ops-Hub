@@ -1,15 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_correction_kind.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/attendance/data/datasources/attendance_remote_datasource.dart';
-import 'package:drop/features/attendance/data/models/attendance_correction_model.dart';
-import 'package:drop/features/attendance/data/models/attendance_model.dart';
-import 'package:drop/features/attendance/data/repositories/attendance_repository_impl.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/core/enums/attendance_correction_kind.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/attendance/data/datasources/attendance_remote_datasource.dart';
+import 'package:opshub/features/attendance/data/models/attendance_correction_model.dart';
+import 'package:opshub/features/attendance/data/models/attendance_model.dart';
+import 'package:opshub/features/attendance/data/repositories/attendance_repository_impl.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 /// **The offline write rule**, at the layer that enforces it.
 ///

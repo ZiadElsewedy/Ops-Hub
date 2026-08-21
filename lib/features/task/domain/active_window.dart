@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// Whether [task] belongs to the employee's **current operational window** — the
 /// set of work that should count toward "today's" progress on the home screen.

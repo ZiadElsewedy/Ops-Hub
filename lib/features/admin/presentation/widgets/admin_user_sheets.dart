@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/validators.dart';
-import 'package:drop/core/widgets/app_dialog.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/admin/domain/entities/user_compensation.dart';
-import 'package:drop/features/admin/presentation/cubit/admin_users_cubit.dart';
-import 'package:drop/features/admin/presentation/widgets/compensation_fields.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/validators.dart';
+import 'package:opshub/core/widgets/app_dialog.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/admin/domain/entities/user_compensation.dart';
+import 'package:opshub/features/admin/presentation/cubit/admin_users_cubit.dart';
+import 'package:opshub/features/admin/presentation/widgets/compensation_fields.dart';
 
 Future<void> showResetAccountSheet({
   required BuildContext context,

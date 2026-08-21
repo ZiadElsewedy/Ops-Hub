@@ -1,6 +1,6 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:drop/features/attendance/domain/attendance_location.dart';
-import 'package:drop/features/attendance/domain/attendance_location_service.dart';
+import 'package:opshub/features/attendance/domain/attendance_location.dart';
+import 'package:opshub/features/attendance/domain/attendance_location_service.dart';
 
 /// The `geolocator`-backed [AttendanceLocationService] — the one place the plugin
 /// is touched. It runs the permission → service → high-accuracy-fix sequence and

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/admin/domain/entities/user_compensation.dart';
-import 'package:drop/features/admin/presentation/cubit/admin_users_cubit.dart';
-import 'package:drop/features/admin/presentation/employee_metrics.dart';
-import 'package:drop/features/admin/presentation/widgets/admin_user_sheets.dart';
-import 'package:drop/features/admin/presentation/widgets/compensation_fields.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/admin/domain/entities/user_compensation.dart';
+import 'package:opshub/features/admin/presentation/cubit/admin_users_cubit.dart';
+import 'package:opshub/features/admin/presentation/employee_metrics.dart';
+import 'package:opshub/features/admin/presentation/widgets/admin_user_sheets.dart';
+import 'package:opshub/features/admin/presentation/widgets/compensation_fields.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 /// Desktop person **inspector** — a right slide-over that replaces the modal
 /// Details dialog. The list stays visible behind a light scrim; the panel

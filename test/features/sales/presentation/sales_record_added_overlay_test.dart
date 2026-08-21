@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_record_added_overlay.dart';
+import 'package:opshub/features/sales/domain/entities/sales_record_result.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_record_added_overlay.dart';
 
 void main() {
   Future<void> pumpOverlay(WidgetTester tester, SalesRecordResult result) async {

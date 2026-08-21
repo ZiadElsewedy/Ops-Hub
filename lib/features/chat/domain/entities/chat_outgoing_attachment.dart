@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:drop/core/enums/chat_attachment_format.dart';
-import 'package:drop/core/enums/chat_attachment_kind.dart';
+import 'package:opshub/core/enums/chat_attachment_format.dart';
+import 'package:opshub/core/enums/chat_attachment_kind.dart';
 
 /// The attachment payload of an outgoing send — the client mirror of the
 /// backend's `SendMessageAttachmentDto` (`drop-api` ·

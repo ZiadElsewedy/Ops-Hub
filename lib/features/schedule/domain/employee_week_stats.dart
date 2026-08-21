@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
 
 /// One person's week at a glance — the facts the inspector drawer shows when a
 /// manager selects an employee. Pure and cheap (one pass over 7 days): worked

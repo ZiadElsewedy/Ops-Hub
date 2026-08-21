@@ -1,6 +1,6 @@
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/admin/domain/entities/user_compensation.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/admin/domain/entities/user_compensation.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 /// Admin operations over users. Reuses the auth [UserEntity]. All methods require
 /// an admin caller (Firestore rules for field updates; admin-only Cloud Functions

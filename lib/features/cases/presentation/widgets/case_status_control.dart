@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/cases/presentation/case_format.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/cases/presentation/case_format.dart';
 
 /// The status control that lives in the conversation **header** (not a bottom
 /// bar). For a recipient it's a dropdown of the allowed next transitions; for a

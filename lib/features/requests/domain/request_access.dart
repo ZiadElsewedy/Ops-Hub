@@ -1,5 +1,5 @@
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
 
 /// Pure role/branch access predicates for a single request — the single source
 /// the detail UI + cubit consult so a button is never offered that the Firestore

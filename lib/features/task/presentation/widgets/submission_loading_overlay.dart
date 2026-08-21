@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/features/task/presentation/submission_progress.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/features/task/presentation/submission_progress.dart';
 
 /// The single, state-driven submission overlay. Rendered by the Task Details
 /// screen in a Stack whenever `TaskState.isSubmitting` — it fills the screen,

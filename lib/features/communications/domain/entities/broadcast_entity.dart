@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/broadcast_audience.dart';
-import 'package:drop/core/enums/user_role.dart';
+import 'package:opshub/core/enums/broadcast_audience.dart';
+import 'package:opshub/core/enums/user_role.dart';
 
 part 'broadcast_entity.freezed.dart';
 

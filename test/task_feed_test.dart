@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
 
 /// The global task feed engine (P2): active-set base + filters + presets +
 /// search + sort + grouping — all pure and total.

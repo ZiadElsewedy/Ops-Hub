@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/presentation/chat_attachment_picker.dart';
-import 'package:drop/features/chat/presentation/chat_message_preview.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_attachment_sheet.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/presentation/chat_attachment_picker.dart';
+import 'package:opshub/features/chat/presentation/chat_message_preview.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_attachment_sheet.dart';
 
 /// The message composer pinned at the bottom of a chat thread.
 ///

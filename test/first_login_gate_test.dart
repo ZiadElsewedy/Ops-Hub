@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/app_router.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/app_router.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 /// The pure first-login ordering that the router's redirect delegates to:
 /// temp-password change → profile completion → (employees only) the one-time

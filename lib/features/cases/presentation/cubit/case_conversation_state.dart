@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/domain/entities/case_message.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_message.dart';
 
 part 'case_conversation_state.freezed.dart';
 

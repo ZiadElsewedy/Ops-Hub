@@ -1,5 +1,5 @@
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/utils/dashboard_mood.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/utils/dashboard_mood.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

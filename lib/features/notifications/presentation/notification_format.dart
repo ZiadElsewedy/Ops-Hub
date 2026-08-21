@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
 
 /// Shared, **pure** presentation helpers for the Notification Center — the
 /// operational inbox's information architecture (§5a). Kept out of the widget

@@ -1,4 +1,4 @@
-import 'package:drop/features/schedule/domain/today_coverage.dart';
+import 'package:opshub/features/schedule/domain/today_coverage.dart';
 
 sealed class TodayCoverageState {
   const TodayCoverageState();

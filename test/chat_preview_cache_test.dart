@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/chat/presentation/chat_format.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
-import 'package:drop/features/chat/domain/usecases/get_conversations.dart';
-import 'package:drop/features/chat/domain/usecases/start_conversation.dart';
+import 'package:opshub/features/chat/presentation/chat_format.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/usecases/get_conversations.dart';
+import 'package:opshub/features/chat/domain/usecases/start_conversation.dart';
 
 /// The cache under test never touches the network, so the repository only has
 /// to exist.

@@ -1,10 +1,10 @@
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/communications/data/datasources/broadcast_schedule_remote_datasource.dart';
-import 'package:drop/features/communications/data/models/broadcast_schedule_model.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_schedule_entity.dart';
-import 'package:drop/features/communications/domain/repositories/broadcast_schedule_repository.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/communications/data/datasources/broadcast_schedule_remote_datasource.dart';
+import 'package:opshub/features/communications/data/models/broadcast_schedule_model.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_schedule_entity.dart';
+import 'package:opshub/features/communications/domain/repositories/broadcast_schedule_repository.dart';
 
 class BroadcastScheduleRepositoryImpl implements BroadcastScheduleRepository {
   final BroadcastScheduleRemoteDataSource _remote;

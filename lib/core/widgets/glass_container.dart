@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
 
 /// The shared premium surface for every DROP card — a subtle elevated→surface
 /// gradient, a hairline border, soft depth shadow and a large radius. Dashboard

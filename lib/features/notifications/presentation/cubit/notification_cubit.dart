@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
-import 'package:drop/features/notifications/domain/repositories/notification_repository.dart';
-import 'package:drop/features/notifications/domain/usecases/mark_notification_read.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:opshub/features/notifications/domain/usecases/mark_notification_read.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Drives the in-app notification inbox (Notification System Phase 1). Subscribes
 /// to the signed-in user's notification feed and exposes the unread count + the

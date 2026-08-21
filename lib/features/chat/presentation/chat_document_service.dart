@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// The outcome of opening (or saving) a chat document.
 enum ChatDocOutcome {

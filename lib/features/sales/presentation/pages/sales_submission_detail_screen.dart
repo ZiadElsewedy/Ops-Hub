@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/page_hero.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_submission_detail_cubit.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_reason_sheet.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_target_editor_sheet.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/page_hero.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_submission_detail_cubit.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_reason_sheet.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_target_editor_sheet.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_submission_tile.dart';
 
 /// One daily close, with the actions the **viewer's role** actually allows.
 ///

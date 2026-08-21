@@ -1,5 +1,5 @@
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
 
 /// Watches one branch-month's daily submissions.
 class WatchSalesSubmissions {

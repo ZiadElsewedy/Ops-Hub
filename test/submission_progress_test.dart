@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/task/presentation/submission_progress.dart';
+import 'package:opshub/features/task/presentation/submission_progress.dart';
 
 const _mb = 1024 * 1024;
 

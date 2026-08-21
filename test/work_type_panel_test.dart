@@ -1,11 +1,11 @@
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/work_types/definitions/inventory_count_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/purchase_errand_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/transfer_work_type.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/widgets/work_type_panel.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/inventory_count_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/purchase_errand_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/transfer_work_type.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/widgets/work_type_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

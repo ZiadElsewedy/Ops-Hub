@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// The six notification switches exposed on the Notifications settings screen.
 ///

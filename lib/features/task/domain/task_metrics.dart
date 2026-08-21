@@ -7,11 +7,11 @@
 /// it does in the feed.
 library;
 
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/task/domain/active_window.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/task/domain/active_window.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
 
 /// Open tasks (pending / started / rejected) past their deadline — the shared
 /// "overdue" definition (terminal states are never overdue).

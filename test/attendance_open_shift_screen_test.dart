@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_location_policy.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/attendance/domain/attendance_config.dart';
-import 'package:drop/features/attendance/domain/attendance_validation.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_cubit.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_state.dart';
-import 'package:drop/features/attendance/presentation/pages/attendance_screen.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/core/enums/attendance_location_policy.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/attendance/domain/attendance_config.dart';
+import 'package:opshub/features/attendance/domain/attendance_validation.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_cubit.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_state.dart';
+import 'package:opshub/features/attendance/presentation/pages/attendance_screen.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
 
 /// The personal clock screen for a **manager** — the open-shift presence model
 /// (`enforceSchedule: false`) and the switched-off explanatory state

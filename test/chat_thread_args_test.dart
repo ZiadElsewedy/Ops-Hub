@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/presentation/chat_thread_args.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/presentation/chat_thread_args.dart';
 
 void main() {
   const args = ChatThreadArgs(

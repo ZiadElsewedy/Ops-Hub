@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 
 /// [OpsHubLogo] with premium motion — a soft diagonal band of light sweeps
 /// across the wordmark, then the logo rests until the next pass. Strictly

@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/schedule/domain/employee_week_stats.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/schedule/domain/employee_week_stats.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
 
 WeeklyScheduleEntity _sched(
   Map<ScheduleDay, Map<ScheduleShift, List<String>>> assignments,

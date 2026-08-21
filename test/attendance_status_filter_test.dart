@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/attendance_status_filter.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/attendance_status_filter.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 AttendanceEntity _rec({
   AttendanceStatus status = AttendanceStatus.completed,

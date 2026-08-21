@@ -1,14 +1,14 @@
 import 'dart:io';
 
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/features/attendance/domain/attendance_calculator.dart';
-import 'package:drop/features/attendance/domain/attendance_gps.dart';
-import 'package:drop/features/attendance/domain/attendance_feed.dart';
-import 'package:drop/features/attendance/domain/attendance_resolution.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/features/attendance/domain/attendance_calculator.dart';
+import 'package:opshub/features/attendance/domain/attendance_gps.dart';
+import 'package:opshub/features/attendance/domain/attendance_feed.dart';
+import 'package:opshub/features/attendance/domain/attendance_resolution.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
 
 /// Contract for attendance data access. Branch/role access is enforced
 /// server-side by `firestore.rules` (`attendance/{id}`): an employee reads +

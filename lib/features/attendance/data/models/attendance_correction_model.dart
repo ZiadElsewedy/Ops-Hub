@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/enums/attendance_correction_kind.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/attendance/domain/attendance_resolution.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/core/enums/attendance_correction_kind.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/attendance/domain/attendance_resolution.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
 
 /// Firestore (de)serialization for [AttendanceCorrectionEntity] — collection
 /// `attendance_corrections/{id}` (auto id). Server-managed timestamps

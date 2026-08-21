@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/features/task/domain/note_category.dart';
-import 'package:drop/features/task/presentation/activity_format.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/features/task/domain/note_category.dart';
+import 'package:opshub/features/task/presentation/activity_format.dart';
 
 /// Note categorization (Home Dashboard redesign) — the note's category is stored
 /// as its activity `status` kind, and `activity_format` gives each a distinct

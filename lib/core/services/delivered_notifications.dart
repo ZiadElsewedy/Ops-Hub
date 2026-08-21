@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// Clears already-delivered chat notifications from the OS surface (iOS
 /// Notification Center / Android status bar) so opening a conversation removes

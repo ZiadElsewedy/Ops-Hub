@@ -3,19 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/utils/platform_capabilities.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/platform_capabilities.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/chat/presentation/chat_deep_link_navigation.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_cubit.dart';
 
 /// App-wide in-app message notifications. Mounted once above the router (via
 /// `MaterialApp.router`'s builder) so a new chat message raises a tappable

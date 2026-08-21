@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/brand_watermark.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/brand_watermark.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 
 /// What DROP is, and how to reach a human about it.
 ///

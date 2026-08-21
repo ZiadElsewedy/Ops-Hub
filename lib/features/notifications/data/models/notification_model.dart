@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
 
 /// Firestore (de)serialization for [NotificationEntity] — collection
 /// `notifications/{id}`. Hand-written (not json_serializable) so Firestore

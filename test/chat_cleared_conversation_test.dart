@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/services/chat_cleared_store.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
-import 'package:drop/features/chat/domain/usecases/get_conversations.dart';
-import 'package:drop/features/chat/domain/usecases/start_conversation.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:opshub/core/services/chat_cleared_store.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/usecases/get_conversations.dart';
+import 'package:opshub/features/chat/domain/usecases/start_conversation.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_cubit.dart';
 
 // Clearing or deleting a conversation for me must actually stick: the inbox row
 // disappears and stays gone across a refresh (the list endpoint keeps reporting

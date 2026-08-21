@@ -1,23 +1,23 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/case_category.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/enums/case_privacy.dart';
-import 'package:drop/core/enums/case_recipient.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/services/case_seen_store.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/domain/entities/case_identity.dart';
-import 'package:drop/features/cases/domain/repositories/case_repository.dart';
-import 'package:drop/features/cases/domain/usecases/create_case.dart';
-import 'package:drop/features/cases/domain/usecases/upload_case_attachment.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
-import 'package:drop/core/media/picked_attachment.dart';
+import 'package:opshub/core/enums/case_category.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/case_privacy.dart';
+import 'package:opshub/core/enums/case_recipient.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/services/case_seen_store.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_identity.dart';
+import 'package:opshub/features/cases/domain/repositories/case_repository.dart';
+import 'package:opshub/features/cases/domain/usecases/create_case.dart';
+import 'package:opshub/features/cases/domain/usecases/upload_case_attachment.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/media/picked_attachment.dart';
 import 'case_list_state.dart';
 
 /// Drives the Case inbox (the list) for all three roles. The list is scoped by

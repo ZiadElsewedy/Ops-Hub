@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/shift_hours_scope.dart';
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_template_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_template_state.dart';
-import 'package:drop/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/shift_hours_scope.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_template_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_template_state.dart';
+import 'package:opshub/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart';
 
 /// The **shift-template manager** (Schedule V2 · Pillar 5) — a simple sheet to
 /// view a branch's reusable shift templates and edit their hours, with the

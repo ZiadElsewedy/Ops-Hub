@@ -1,11 +1,11 @@
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/admin/data/datasources/user_admin_remote_datasource.dart';
-import 'package:drop/features/admin/domain/entities/user_compensation.dart';
-import 'package:drop/features/admin/domain/repositories/user_admin_repository.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/admin/data/datasources/user_admin_remote_datasource.dart';
+import 'package:opshub/features/admin/domain/entities/user_compensation.dart';
+import 'package:opshub/features/admin/domain/repositories/user_admin_repository.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 class UserAdminRepositoryImpl implements UserAdminRepository {
   final UserAdminRemoteDataSource _remote;

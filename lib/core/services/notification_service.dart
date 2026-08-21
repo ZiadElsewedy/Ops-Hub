@@ -2,10 +2,10 @@ import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/utils/platform_capabilities.dart';
-import 'package:drop/features/notifications/domain/notification_deep_link.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/platform_capabilities.dart';
+import 'package:opshub/features/notifications/domain/notification_deep_link.dart';
 
 /// Whether a foreground FCM message is intentionally left to chat's
 /// socket-backed in-app banner instead of surfacing a second notification.

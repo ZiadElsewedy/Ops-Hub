@@ -1,7 +1,7 @@
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
 
 /// Presentation-side formatting for the chat feature (the `case_format.dart`
 /// sibling). Pure functions only.

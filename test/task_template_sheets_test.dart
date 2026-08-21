@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/task_type.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/task_template_entity.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/widgets/task_action_sheets.dart'
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/task_type.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/task_template_entity.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/cubit/task_state.dart';
+import 'package:opshub/features/task/presentation/widgets/task_action_sheets.dart'
     show SheetHandle;
-import 'package:drop/features/task/presentation/widgets/task_template_sheets.dart';
+import 'package:opshub/features/task/presentation/widgets/task_template_sheets.dart';
 
 /// The 2026-08-01 fullscreen conversion of Templates (section A) + "more
 /// detailed" fixes (section B). `_save`'s business logic must be

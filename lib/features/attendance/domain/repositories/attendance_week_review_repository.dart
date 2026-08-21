@@ -1,4 +1,4 @@
-import 'package:drop/features/attendance/domain/reporting/attendance_week_review.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_week_review.dart';
 
 /// Read/write contract for the week-review assertion ([ADR-019]).
 ///

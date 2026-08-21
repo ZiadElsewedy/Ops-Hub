@@ -1,4 +1,4 @@
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 import 'package:flutter/painting.dart';
 
 /// The live operational **state** of the admin dashboard, expressed as one short

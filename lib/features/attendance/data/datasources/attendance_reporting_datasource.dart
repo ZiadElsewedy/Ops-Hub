@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/attendance/data/models/attendance_ledger_model.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/attendance/data/models/attendance_ledger_model.dart';
 
 abstract class AttendanceReportingDataSource {
   Stream<List<AttendanceLedgerModel>> watchBranchLedgerRange({

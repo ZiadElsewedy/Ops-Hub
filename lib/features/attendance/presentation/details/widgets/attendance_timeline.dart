@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/timeline_tile.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/timeline_tile.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
 
 /// The record's **timeline** — its server-derived audit trail
 /// ([AttendanceEvent]s) rendered through the shared [TimelineTile], so it reads

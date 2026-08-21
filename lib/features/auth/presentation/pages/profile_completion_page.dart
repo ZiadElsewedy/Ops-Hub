@@ -3,20 +3,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/utils/validators.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/features/auth/presentation/widgets/auth_scaffold.dart';
-import 'package:drop/features/auth/presentation/animations/fade_slide_transition.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_state.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/utils/validators.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/features/auth/presentation/widgets/auth_scaffold.dart';
+import 'package:opshub/features/auth/presentation/animations/fade_slide_transition.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_state.dart';
 
 /// First-login profile completion. Shown (and confined to by the router) when the
 /// signed-in account has `isProfileCompleted == false`. Collects the onboarding

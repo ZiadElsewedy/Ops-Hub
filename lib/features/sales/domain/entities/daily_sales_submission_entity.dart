@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
 
 part 'daily_sales_submission_entity.freezed.dart';
 

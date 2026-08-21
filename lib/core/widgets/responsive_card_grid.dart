@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_spacing.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
 
 /// Lays a list of cards out in a width-aware grid so wide desktop windows show
 /// several cards per row instead of one stretched, over-wide card — while mobile

@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/broadcast_audience.dart';
-import 'package:drop/core/enums/broadcast_recurrence.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/communications/data/models/broadcast_schedule_model.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_schedule_entity.dart';
+import 'package:opshub/core/enums/broadcast_audience.dart';
+import 'package:opshub/core/enums/broadcast_recurrence.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/communications/data/models/broadcast_schedule_model.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_schedule_entity.dart';
 
 /// Phase 2 Commit 4 — the broadcast schedule model round-trips, including the
 /// recurrence + targeting fields and the timestamp serialization.

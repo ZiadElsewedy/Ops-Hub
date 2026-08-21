@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/rolling_number.dart' show kReelSettle;
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/rolling_number.dart' show kReelSettle;
 
 /// The month's progress toward target as a ring — a [tint]ed arc (a soft sweep
 /// toward white with a restrained halo) over a hairline track, the percentage

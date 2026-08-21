@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/branch/domain/branch_geofence.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/branch/domain/branch_geofence.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
 
 /// The admin **attendance-area editor** — sets a branch's GPS geofence (location ·
 /// allowed radius · minimum GPS accuracy) that the employee clock-in is verified

@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/services/delivered_notifications.dart';
+import 'package:opshub/core/services/delivered_notifications.dart';
 
 /// Pins the platform-channel contract for clearing delivered OS notifications
 /// (the WhatsApp-style "open the chat → its notifications disappear" behaviour).

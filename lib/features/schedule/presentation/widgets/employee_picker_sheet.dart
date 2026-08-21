@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/presentation/widgets/employee_row.dart';
-import 'package:drop/features/schedule/presentation/widgets/sheet_chrome.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/presentation/widgets/employee_row.dart';
+import 'package:opshub/features/schedule/presentation/widgets/sheet_chrome.dart';
 
 /// Shared employee picker used to assign an employee to a shift and to reassign
 /// a broken slot — a single premium list so the two flows never drift. [onPick]

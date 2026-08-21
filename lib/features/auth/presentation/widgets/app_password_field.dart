@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
 
 /// Password input built on [AppTextField]: obscured with the same built-in
 /// show/hide toggle, lock prefix, and unified focus/error styling. Use this on

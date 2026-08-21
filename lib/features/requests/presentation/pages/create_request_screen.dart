@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/request_type.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
-import 'package:drop/features/requests/presentation/request_format.dart';
-import 'package:drop/core/media/picked_attachment.dart';
-import 'package:drop/features/task/presentation/widgets/attachment_picker.dart';
+import 'package:opshub/core/enums/request_type.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/features/requests/presentation/cubit/requests_list_cubit.dart';
+import 'package:opshub/features/requests/presentation/request_format.dart';
+import 'package:opshub/core/media/picked_attachment.dart';
+import 'package:opshub/features/task/presentation/widgets/attachment_picker.dart';
 
 /// The fast, premium request-filing flow — pick a type, write one short
 /// message/reason, optionally attach a photo, submit. Deliberately just two

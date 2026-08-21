@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
 
 /// The two daily shift slots a weekly schedule fills (Phase 7) — **Morning** and
 /// **Night**, reusing the V1 shift names from Phase 2 (`morning` / `night`).

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/segmented_tab_bar.dart';
+import 'package:opshub/core/widgets/segmented_tab_bar.dart';
 
 void main() {
   Widget host({

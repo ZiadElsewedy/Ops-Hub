@@ -1,4 +1,4 @@
-import 'package:drop/features/communications/domain/entities/broadcast_template_entity.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_template_entity.dart';
 
 /// Contract for broadcast templates (Communications Center — Phase 2). Access is
 /// enforced server-side by `firestore.rules` (`broadcastTemplates/{id}`, mirroring

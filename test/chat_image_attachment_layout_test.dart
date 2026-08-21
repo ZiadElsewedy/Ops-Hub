@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:drop/core/enums/chat_attachment_kind.dart';
-import 'package:drop/core/enums/chat_message_type.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_message_list.dart';
+import 'package:opshub/core/enums/chat_attachment_kind.dart';
+import 'package:opshub/core/enums/chat_message_type.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_message_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

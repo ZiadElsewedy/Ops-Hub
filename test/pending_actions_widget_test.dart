@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/admin/presentation/widgets/pending_actions.dart';
+import 'package:opshub/features/admin/presentation/widgets/pending_actions.dart';
 
 /// Renders the Admin Home Pending Actions panel headlessly to prove it actually
 /// shows up (the earlier `if (count > 0)` gate made it vanish on empty data) and

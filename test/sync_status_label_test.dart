@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/sync_button.dart';
+import 'package:opshub/core/widgets/sync_button.dart';
 
 /// The dashboard Sync button's relative "last synced" label — a pure function so
 /// the freshness copy can be verified without pumping the whole screen.

@@ -3,7 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// Ambient context stamped onto every crash report. Fed passively by the
 /// systems that already see everything:

@@ -1,4 +1,4 @@
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
 
 /// Domain port for the chat realtime channel (the backend's Socket.IO
 /// `/chat` namespace) — the socket sibling of [ChatRepository]. **Read-only by

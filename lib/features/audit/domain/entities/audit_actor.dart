@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 /// **WHO** performed an audited action — the actor half of an audit record,
 /// captured at the moment of the event (denormalized on purpose: an audit trail

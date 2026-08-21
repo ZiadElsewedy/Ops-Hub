@@ -13,7 +13,7 @@
 /// keying on the shift keeps those as two distinct, non-colliding records.
 library;
 
-import 'package:drop/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
 
 /// The date key `yyyyMMdd` for [date] (local calendar day of the shift). Stored
 /// on the record as `dayKey` so the branch live board can query one bounded day

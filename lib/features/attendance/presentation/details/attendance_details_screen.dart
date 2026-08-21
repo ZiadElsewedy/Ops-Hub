@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/opshub_loading_state.dart';
-import 'package:drop/core/widgets/status_badge.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
-import 'package:drop/features/attendance/presentation/details/attendance_details_cubit.dart';
-import 'package:drop/features/attendance/presentation/details/attendance_details_state.dart';
-import 'package:drop/features/attendance/presentation/details/widgets/attendance_correction_section.dart';
-import 'package:drop/features/attendance/presentation/details/widgets/attendance_metadata_section.dart';
-import 'package:drop/features/attendance/presentation/details/widgets/attendance_shift_section.dart';
-import 'package:drop/features/attendance/presentation/details/widgets/attendance_timeline.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/opshub_loading_state.dart';
+import 'package:opshub/core/widgets/status_badge.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/features/attendance/presentation/details/attendance_details_cubit.dart';
+import 'package:opshub/features/attendance/presentation/details/attendance_details_state.dart';
+import 'package:opshub/features/attendance/presentation/details/widgets/attendance_correction_section.dart';
+import 'package:opshub/features/attendance/presentation/details/widgets/attendance_metadata_section.dart';
+import 'package:opshub/features/attendance/presentation/details/widgets/attendance_shift_section.dart';
+import 'package:opshub/features/attendance/presentation/details/widgets/attendance_timeline.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
 
 /// The **Attendance record Details** screen — the canonical, audit-log view of
 /// one record. Deep-linkable by [recordId]; when opened from a history list the

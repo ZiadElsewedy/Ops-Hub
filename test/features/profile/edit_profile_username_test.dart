@@ -3,15 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/utils/validators.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_state.dart';
-import 'package:drop/features/profile/presentation/pages/edit_profile_page.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/utils/validators.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_state.dart';
+import 'package:opshub/features/profile/presentation/pages/edit_profile_page.dart';
 
 /// The handle had **no input anywhere in the app** while
 /// `ProfileEntity.isComplete` required it — so every account was permanently

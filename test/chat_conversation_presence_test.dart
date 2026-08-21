@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/chat/domain/chat_realtime.dart';
-import 'package:drop/features/chat/presentation/chat_conversation_presence.dart';
+import 'package:opshub/features/chat/domain/chat_realtime.dart';
+import 'package:opshub/features/chat/presentation/chat_conversation_presence.dart';
 
 class _FakeRealtime implements ChatRealtime {
   final joined = <String>[];

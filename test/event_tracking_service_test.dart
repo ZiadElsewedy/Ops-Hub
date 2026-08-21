@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/audit_entity_type.dart';
-import 'package:drop/core/enums/audit_event_type.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/audit/domain/entities/audit_actor.dart';
-import 'package:drop/features/audit/domain/entities/audit_log_entry.dart';
-import 'package:drop/features/audit/domain/repositories/audit_repository.dart';
-import 'package:drop/features/audit/domain/services/event_tracking_service.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/enums/audit_entity_type.dart';
+import 'package:opshub/core/enums/audit_event_type.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/audit/domain/entities/audit_actor.dart';
+import 'package:opshub/features/audit/domain/entities/audit_log_entry.dart';
+import 'package:opshub/features/audit/domain/repositories/audit_repository.dart';
+import 'package:opshub/features/audit/domain/services/event_tracking_service.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 /// Records what the service asks the repository to persist, and can be told to
 /// throw so we can prove tracking is fire-and-forget-safe.

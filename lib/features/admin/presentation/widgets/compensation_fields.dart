@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/validators.dart';
-import 'package:drop/features/auth/presentation/widgets/app_dropdown_field.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/validators.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_dropdown_field.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
 
 /// Canonical compensation option values (stored lowercase on `users/{uid}`)
 /// and their display labels — the single source for the Create Account form,

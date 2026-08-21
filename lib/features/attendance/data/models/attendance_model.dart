@@ -1,13 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/enums/attendance_source.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/attendance/domain/attendance_break.dart';
-import 'package:drop/features/attendance/domain/attendance_gps.dart';
-import 'package:drop/features/attendance/domain/attendance_location.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/core/enums/attendance_source.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/attendance/domain/attendance_break.dart';
+import 'package:opshub/features/attendance/domain/attendance_gps.dart';
+import 'package:opshub/features/attendance/domain/attendance_location.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
 
 /// Firestore (de)serialization for [AttendanceEntity] — collection
 /// `attendance/{id}` (deterministic id). Server-managed timestamps

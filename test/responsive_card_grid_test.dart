@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/responsive_card_grid.dart';
+import 'package:opshub/core/widgets/responsive_card_grid.dart';
 
 void main() {
   // Host the grid at a chosen logical width so the breakpoint-based column count

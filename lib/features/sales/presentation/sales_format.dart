@@ -1,4 +1,4 @@
-import 'package:drop/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
 
 String formatEgp(int piastres, {bool withSuffix = false}) {
   final negative = piastres < 0;

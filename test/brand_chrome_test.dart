@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/animated_opshub_logo.dart';
-import 'package:drop/core/widgets/app_sidebar.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
-import 'package:drop/core/widgets/role_scaffold.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/core/widgets/app_sidebar.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/role_scaffold.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Brand-rollout chrome checks (2026-07-02): the real DROP artwork
 /// (`assets/opshub_logo.png`, via [OpsHubLogo]) must lead the role-home app bar,

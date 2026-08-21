@@ -1,4 +1,4 @@
-import 'package:drop/features/attendance/domain/attendance_location.dart';
+import 'package:opshub/features/attendance/domain/attendance_location.dart';
 
 /// Why acquiring a GPS fix for a clock action failed. Maps 1:1 onto the clock
 /// rejection reasons the UI shows.

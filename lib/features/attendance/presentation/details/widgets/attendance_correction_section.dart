@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/status_badge.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/status_badge.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
 
 /// The **Corrections** section of the Details screen — a read-only history of the
 /// correction requests filed against this record (the only sanctioned way a

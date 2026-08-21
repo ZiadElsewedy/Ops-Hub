@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
-import 'package:drop/features/notifications/presentation/notification_format.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/presentation/notification_format.dart';
 
 /// Notification Center pure helpers (§5a operations inbox): the priority model,
 /// the category model, and the Today/Yesterday/Earlier time grouping.

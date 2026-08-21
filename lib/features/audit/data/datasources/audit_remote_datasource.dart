@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/audit/data/models/audit_log_model.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/audit/data/models/audit_log_model.dart';
 
 /// Firestore access for the immutable audit trail (`audit_logs/{id}`).
 ///

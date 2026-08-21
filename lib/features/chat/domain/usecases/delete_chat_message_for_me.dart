@@ -1,4 +1,4 @@
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
 
 /// Removes a message from the caller's view only — the other participant still
 /// sees it. Idempotent.

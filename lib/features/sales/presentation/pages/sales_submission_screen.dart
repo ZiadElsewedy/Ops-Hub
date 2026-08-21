@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/page_hero.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/page_hero.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
 
 /// Close of day. Two modes on one screen:
 ///  * no [submissionId] — submit today's sales for the first time;

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/audit_entity_type.dart';
-import 'package:drop/core/enums/audit_event_type.dart';
+import 'package:opshub/core/enums/audit_entity_type.dart';
+import 'package:opshub/core/enums/audit_event_type.dart';
 
 void main() {
   group('AuditEventType', () {

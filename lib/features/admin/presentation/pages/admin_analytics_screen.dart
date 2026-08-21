@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
-import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
-import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
-import 'package:drop/features/statistics/presentation/widgets/stat_grid.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/features/statistics/domain/entities/statistics_entity.dart';
+import 'package:opshub/features/statistics/presentation/cubit/statistics_cubit.dart';
+import 'package:opshub/features/statistics/presentation/cubit/statistics_state.dart';
+import 'package:opshub/features/statistics/presentation/widgets/stat_grid.dart';
 
 /// Admin → Analytics (Phase 9). The full operational metric wall, moved off the
 /// (now KPI-only) Admin Home into its own page. Grouped into Workforce / Tasks /

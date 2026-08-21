@@ -1,5 +1,5 @@
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/repositories/auth_repository.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/repositories/auth_repository.dart';
 
 /// The set of people the caller may start a conversation with — the ONE source
 /// of the chat directory, used by both the new-conversation picker and the

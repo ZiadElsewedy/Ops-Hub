@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
 
 part 'profile_state.freezed.dart';
 

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
 
 int sumApprovedPiastres(Iterable<DailySalesSubmissionEntity> submissions) =>
     submissions

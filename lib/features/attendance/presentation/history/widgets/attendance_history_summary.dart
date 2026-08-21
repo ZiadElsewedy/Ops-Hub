@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/widgets/stat_strip.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
-import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
-import 'package:drop/features/attendance/presentation/reporting/attendance_report_state.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/widgets/stat_strip.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:opshub/features/attendance/presentation/reporting/attendance_report_cubit.dart';
+import 'package:opshub/features/attendance/presentation/reporting/attendance_report_state.dart';
 
 /// The Attendance History summary strip, backed by the persisted
 /// `attendance_expectations` reporting ledger. It never reconstructs reporting

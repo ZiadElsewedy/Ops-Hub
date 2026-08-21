@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
 
 /// A branch's identity mark — its uploaded **logo**, else monochrome **initials**
 /// from the name (a store glyph when the name is empty). A rounded square (a

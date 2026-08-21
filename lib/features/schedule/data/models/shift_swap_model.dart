@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
 
 /// Firestore (de)serialization for [ShiftSwapEntity] — collection
 /// `shift_swaps/{id}`.

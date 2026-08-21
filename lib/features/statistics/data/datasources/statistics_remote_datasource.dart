@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/statistics/data/models/statistics_model.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/statistics/data/models/statistics_model.dart';
 
 typedef _Doc = QueryDocumentSnapshot<Map<String, dynamic>>;
 

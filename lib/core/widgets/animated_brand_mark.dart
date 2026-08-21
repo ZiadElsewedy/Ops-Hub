@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:drop/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 
 /// The DROP brand mark rendered from the **Lottie animation** (`assets/0704.json`)
 /// — the same asset the splash plays — so the animated logo can appear in-app

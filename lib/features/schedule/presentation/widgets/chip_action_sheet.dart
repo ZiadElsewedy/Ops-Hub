@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/move_validation.dart';
-import 'package:drop/features/schedule/domain/swap_policy.dart';
-import 'package:drop/features/schedule/presentation/widgets/employee_row.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
-import 'package:drop/features/schedule/presentation/widgets/sheet_chrome.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/move_validation.dart';
+import 'package:opshub/features/schedule/domain/swap_policy.dart';
+import 'package:opshub/features/schedule/presentation/widgets/employee_row.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:opshub/features/schedule/presentation/widgets/sheet_chrome.dart';
 
 /// Premium mobile actions for one person on one shift (Schedule 4.0): long-
 /// pressing an [AssignmentChip] on touch opens this sheet — Move (pick a new

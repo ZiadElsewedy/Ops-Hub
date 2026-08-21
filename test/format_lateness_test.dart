@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/task/presentation/activity_format.dart';
+import 'package:opshub/features/task/presentation/activity_format.dart';
 
 /// The one place the "finished late" phrase is composed — every per-task
 /// lateness call site (task card, task details, Done tab, Operations) renders

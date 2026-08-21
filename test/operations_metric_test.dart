@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/operations/domain/branch_summary.dart';
-import 'package:drop/features/operations/domain/branch_workload.dart';
-import 'package:drop/features/operations/presentation/pages/branch_operations_screen.dart';
-import 'package:drop/features/operations/presentation/pages/operations_metric_screen.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/operations/domain/branch_summary.dart';
+import 'package:opshub/features/operations/domain/branch_workload.dart';
+import 'package:opshub/features/operations/presentation/pages/branch_operations_screen.dart';
+import 'package:opshub/features/operations/presentation/pages/operations_metric_screen.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 void main() {
   test('metric predicates stay mutually aligned with the KPI semantics', () {

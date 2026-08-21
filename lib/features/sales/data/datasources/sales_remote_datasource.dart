@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/sales/data/models/branch_sales_month_model.dart';
-import 'package:drop/features/sales/data/models/daily_sales_submission_model.dart';
-import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
-import 'package:drop/features/sales/domain/sales_submission_id.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/sales/data/models/branch_sales_month_model.dart';
+import 'package:opshub/features/sales/data/models/daily_sales_submission_model.dart';
+import 'package:opshub/features/sales/domain/entities/sales_record_result.dart';
+import 'package:opshub/features/sales/domain/sales_submission_id.dart';
 
 abstract class SalesRemoteDataSource {
   Stream<BranchSalesMonthModel?> watchMonth(String branchId, String monthKey);

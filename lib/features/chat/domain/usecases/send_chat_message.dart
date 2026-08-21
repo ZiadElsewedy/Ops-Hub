@@ -1,6 +1,6 @@
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
 
 /// Sends one message — text, attachment, or both. The caller owns the
 /// [idempotencyKey] (a UUID minted once per logical send and reused on retry,

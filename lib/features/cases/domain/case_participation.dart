@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
 
 /// Which side of the conversation the viewer is on. The case doc carries no
 /// creator uid (privacy split), so this is inferred from role + routing:

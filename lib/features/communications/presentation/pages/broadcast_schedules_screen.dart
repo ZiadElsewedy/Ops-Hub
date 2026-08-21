@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/broadcast_category.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_dialog.dart';
-import 'package:drop/core/widgets/responsive_card_grid.dart';
-import 'package:drop/core/widgets/app_empty_state.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_schedule_entity.dart';
-import 'package:drop/features/communications/presentation/communications_format.dart';
-import 'package:drop/features/communications/presentation/cubit/broadcast_schedule_cubit.dart';
-import 'package:drop/features/communications/presentation/cubit/broadcast_schedule_state.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
+import 'package:opshub/core/enums/broadcast_category.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_dialog.dart';
+import 'package:opshub/core/widgets/responsive_card_grid.dart';
+import 'package:opshub/core/widgets/app_empty_state.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/list_skeleton.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_schedule_entity.dart';
+import 'package:opshub/features/communications/presentation/communications_format.dart';
+import 'package:opshub/features/communications/presentation/cubit/broadcast_schedule_cubit.dart';
+import 'package:opshub/features/communications/presentation/cubit/broadcast_schedule_state.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
 
 /// Scheduled broadcasts (Communications Center — Phase 2 Commit 4) — the manager
 /// surface for recurring/one-time schedules: next run, recurrence, run count,

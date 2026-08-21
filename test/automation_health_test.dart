@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/task/domain/entities/automation_health.dart';
-import 'package:drop/features/task/domain/entities/recurring_task_template_entity.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/task/domain/entities/automation_health.dart';
+import 'package:opshub/features/task/domain/entities/recurring_task_template_entity.dart';
 
 RecurringTaskTemplateEntity _template({
   int runCount = 0,
