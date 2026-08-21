@@ -70,8 +70,8 @@ independently-verified commits on `rebrand-opshub`:
 `flutter analyze` clean throughout (0 errors; 1 pre-existing info lint,
 unrelated). `flutter test` (full suite): **8 pre-existing failures** —
 `chat_nav_promotion_test.dart` (stale Settings-hub route expectation),
-`sales_dashboard_widgets_test.dart` ×3, `sales_record_added_overlay_test.dart`
-×2, `profile_page_test.dart`, `offline_write_guard_test.dart` — all confirmed
+`sales_dashboard_widgets_test.dart` ×4, `sales_record_added_overlay_test.dart`
+×2, `offline_write_guard_test.dart` — all confirmed
 failing **before** this rebrand too (re-run against baseline commit `739f224`
 in an isolated worktree; same 8 fail there) and none of the touched files carry
 anything but import-path/comment changes from this series, so they are

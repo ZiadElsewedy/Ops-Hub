@@ -22,8 +22,8 @@ import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
 /// fired.
 void main() {
   const branches = [
-    BranchEntity(id: 'arkan', name: 'Drop the shop | Arkan'),
-    BranchEntity(id: 'lmd', name: 'Drop The Shop | LMD'),
+    BranchEntity(id: 'arkan', name: 'OpsHub | Arkan'),
+    BranchEntity(id: 'lmd', name: 'OpsHub | LMD'),
     BranchEntity(id: 'closed', name: 'Old Branch', isActive: false),
   ];
 

@@ -49,7 +49,7 @@ class BranchTaskListScreen extends StatelessWidget {
           ? 'Search every branch, task and assignee'
           : 'Every task in this branch, including unassigned',
       // A two-line lockup, because the mobile app bar shows the **title only**:
-      // `"$branchName · All tasks"` truncated to "Drop The shop | Arkan · All
+      // `"$branchName · All tasks"` truncated to "OpsHub | Arkan · All
       // t…", losing the one word that says what the page is. The subject leads;
       // the scope sits under it, where it can ellipsize harmlessly.
       titleWidget: Column(

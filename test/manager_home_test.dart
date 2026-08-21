@@ -47,7 +47,7 @@ import 'package:opshub/features/task/presentation/pages/filtered_tasks_screen.da
 /// * the hero sentence and that panel read the **same** total, so they cannot
 ///   disagree the way the old surface did;
 /// * `Late` appears exactly once on the screen.
-const _branch = BranchEntity(id: 'arkan', name: 'Drop The shop | Arkan');
+const _branch = BranchEntity(id: 'arkan', name: 'OpsHub | Arkan');
 
 const _manager = UserEntity(
   uid: 'mgr1',
@@ -86,7 +86,7 @@ class _FakeStatisticsCubit extends Cubit<StatisticsState>
 class _FakeTaskCubit extends Cubit<TaskState> implements TaskCubit {
   _FakeTaskCubit(List<TaskEntity> tasks) : super(TaskState.loaded(tasks));
   @override
-  Map<String, String> get branchNames => const {'arkan': 'Drop The shop | Arkan'};
+  Map<String, String> get branchNames => const {'arkan': 'OpsHub | Arkan'};
   @override
   Future<void> load(UserEntity user, {bool forceRefresh = false}) async {}
   @override
@@ -243,7 +243,7 @@ void main() {
     // the eyebrow now (one fewer text line), and `PageHero` uppercases that —
     // so match the uppercased form, not the source string.
     expect(find.textContaining('Ziad'), findsWidgets);
-    expect(find.textContaining('DROP THE SHOP | ARKAN'), findsOneWidget);
+    expect(find.textContaining('OPSHUB | ARKAN'), findsOneWidget);
 
     // One attention panel leads; the Today doors follow. (The page is a lazy
     // ListView, so only the built range is asserted here.)

@@ -27,7 +27,7 @@ UserEntity _mgr(String uid, String name) => UserEntity(
       role: UserRole.manager,
     );
 
-const _branch = BranchEntity(id: 'b1', name: 'Drop The Shop | Arkan');
+const _branch = BranchEntity(id: 'b1', name: 'OpsHub | Arkan');
 
 WeeklyScheduleEntity _schedule({
   Map<ScheduleDay, Map<ScheduleShift, List<String>>> assignments = const {},
@@ -98,7 +98,7 @@ void main() {
       // Document header: brand · branch · week · generated · manager.
       // The brand mark appears twice: the header wordmark and the footer byline.
       expect(find.text('OpsHub'), findsNWidgets(2));
-      expect(find.text('Drop The Shop | Arkan'), findsOneWidget);
+      expect(find.text('OpsHub | Arkan'), findsOneWidget);
       expect(find.text('05/07 – 11/07'), findsOneWidget);
       expect(find.text('MANAGER'), findsOneWidget);
       expect(find.text('Rana Fouad'), findsOneWidget);
@@ -229,7 +229,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(FinalScheduleSheet), findsOneWidget);
-      expect(find.text('Drop The Shop | Arkan'), findsOneWidget);
+      expect(find.text('OpsHub | Arkan'), findsOneWidget);
       // The manager is derived from the members for the header (they also appear
       // as a roster row, so the name shows in both places).
       expect(find.text('MANAGER'), findsOneWidget);
@@ -287,8 +287,8 @@ void main() {
 
   test('export filename is stable and filesystem-safe', () {
     expect(
-      scheduleExportFilename('Drop The Shop | Arkan', DateTime(2026, 7, 5)),
-      'drop_the_shop_arkan_schedule_2026-07-05.png',
+      scheduleExportFilename('OpsHub | Arkan', DateTime(2026, 7, 5)),
+      'opshub_arkan_schedule_2026-07-05.png',
     );
   });
 }

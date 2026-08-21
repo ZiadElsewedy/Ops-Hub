@@ -56,7 +56,7 @@ void main() {
     // a document that says so — not a crash and not a zero-filled table.
     final bytes = await buildWeeklyAttendancePdf(
       report: reportOf(const []),
-      branchName: 'Drop The Shop',
+      branchName: 'OpsHub',
       generatedAt: DateTime(2026, 8, 1, 9),
     );
     expectValidPdf(bytes);
@@ -65,7 +65,7 @@ void main() {
   test('a populated week produces a larger document', () async {
     final empty = await buildWeeklyAttendancePdf(
       report: reportOf(const []),
-      branchName: 'Drop The Shop',
+      branchName: 'OpsHub',
       generatedAt: DateTime(2026, 8, 1, 9),
     );
     final full = await buildWeeklyAttendancePdf(
@@ -79,7 +79,7 @@ void main() {
           workedMinutes: 0,
         ),
       ]),
-      branchName: 'Drop The Shop',
+      branchName: 'OpsHub',
       generatedAt: DateTime(2026, 8, 1, 9),
     );
 
@@ -92,7 +92,7 @@ void main() {
       report: reportOf([
         row(exceptionCodes: const [AttendanceExceptionCode.missingPunch]),
       ]),
-      branchName: 'Drop The Shop',
+      branchName: 'OpsHub',
       generatedAt: DateTime(2026, 8, 1, 9),
     );
     expectValidPdf(bytes);
@@ -111,7 +111,7 @@ void main() {
     );
     final bytes = await buildWeeklyAttendancePdf(
       report: reportOf([row()]),
-      branchName: 'Drop The Shop',
+      branchName: 'OpsHub',
       reviewState: reviewed,
       generatedAt: DateTime(2026, 8, 1, 9),
     );
@@ -121,7 +121,7 @@ void main() {
   test('a name that would break a CSV is harmless in a PDF', () async {
     final bytes = await buildWeeklyAttendancePdf(
       report: reportOf([row(userName: 'Amal, "A"')]),
-      branchName: 'Drop The Shop | Arkan',
+      branchName: 'OpsHub | Arkan',
       generatedAt: DateTime(2026, 8, 1, 9),
     );
     expectValidPdf(bytes);
@@ -129,8 +129,8 @@ void main() {
 
   test('the filename sorts beside the timesheet', () {
     expect(
-      attendanceWeeklyPdfFilename('Drop The Shop | Arkan', DateTime(2026, 7, 26)),
-      'attendance-Drop-The-Shop-Arkan-20260726.pdf',
+      attendanceWeeklyPdfFilename('OpsHub | Arkan', DateTime(2026, 7, 26)),
+      'attendance-OpsHub-Arkan-20260726.pdf',
     );
     expect(
       attendanceWeeklyPdfFilename('  ', DateTime(2026, 7, 26)),

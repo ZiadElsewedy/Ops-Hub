@@ -50,7 +50,7 @@ void main() {
       final bytes = buildScheduleFinalXlsx(
         schedule: _schedule(),
         members: members,
-        branchName: 'Drop The Shop | Arkan',
+        branchName: 'OpsHub | Arkan',
         managerName: 'Rana Fouad',
         generatedAt: DateTime(2026, 7, 9),
       );
@@ -75,14 +75,14 @@ void main() {
       final bytes = buildScheduleFinalXlsx(
         schedule: _schedule(),
         members: members,
-        branchName: 'Drop The Shop | Arkan',
+        branchName: 'OpsHub | Arkan',
         managerName: 'Rana Fouad',
         generatedAt: DateTime(2026, 7, 9),
       );
       final sheet = _unzip(bytes)['xl/worksheets/sheet1.xml']!;
 
       // Header block.
-      expect(sheet, contains('Drop The Shop | Arkan'));
+      expect(sheet, contains('OpsHub | Arkan'));
       expect(sheet, contains('Weekly staff schedule'));
       expect(sheet, contains('Manager: Rana Fouad'));
 
@@ -121,8 +121,8 @@ void main() {
 
     test('filename is stable and filesystem-safe', () {
       expect(
-        scheduleFinalXlsxFilename('Drop The Shop | Arkan', DateTime(2026, 7, 5)),
-        'drop_the_shop_arkan_schedule_2026-07-05.xlsx',
+        scheduleFinalXlsxFilename('OpsHub | Arkan', DateTime(2026, 7, 5)),
+        'opshub_arkan_schedule_2026-07-05.xlsx',
       );
     });
   });

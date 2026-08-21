@@ -168,10 +168,10 @@ void main() {
 
   test('the filename is findable and safe', () {
     final name = attendanceTimesheetFilename(
-      'Drop The Shop | Arkan',
+      'OpsHub | Arkan',
       DateTime(2026, 7, 26),
     );
-    expect(name, 'attendance-Drop-The-Shop-Arkan-20260726.csv');
+    expect(name, 'attendance-OpsHub-Arkan-20260726.csv');
     expect(
       attendanceTimesheetFilename('   ', DateTime(2026, 7, 26)),
       'attendance-branch-20260726.csv',

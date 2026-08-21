@@ -18,7 +18,7 @@ import 'package:opshub/features/profile/presentation/pages/profile_page.dart';
 
 const _branch = BranchEntity(
   id: 'branch-1',
-  name: 'Drop The shop | Arkan',
+  name: 'OpsHub | Arkan',
   location: 'Sheikh Zayed',
 );
 
@@ -166,7 +166,7 @@ void main() {
     expect(find.text('EMPLOYEE'), findsOneWidget);
     expect(find.text('Front of house, Arkan branch.'), findsOneWidget);
     expect(
-      find.text('Drop The shop | Arkan · Sheikh Zayed'),
+      find.text('OpsHub | Arkan · Sheikh Zayed'),
       findsOneWidget,
     );
     expect(find.text('Morning'), findsOneWidget);

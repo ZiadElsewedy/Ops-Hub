@@ -32,8 +32,8 @@ void main() {
   final morningEnd = DateTime(2026, 8, 1, 16, 30);
 
   const branches = [
-    BranchEntity(id: 'arkan', name: 'Drop the shop | Arkan'),
-    BranchEntity(id: 'lmd', name: 'Drop The Shop | LMD'),
+    BranchEntity(id: 'arkan', name: 'OpsHub | Arkan'),
+    BranchEntity(id: 'lmd', name: 'OpsHub | LMD'),
   ];
 
   const manager = UserEntity(
