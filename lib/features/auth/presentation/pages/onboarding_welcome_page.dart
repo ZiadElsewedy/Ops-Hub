@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:lottie/lottie.dart';
 import 'package:opshub/core/extensions/context_extensions.dart';
 import 'package:opshub/core/responsive/breakpoints.dart';
 import 'package:opshub/core/theme/app_colors.dart';
 import 'package:opshub/core/theme/app_typography.dart';
 import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 import 'package:opshub/features/auth/presentation/animations/fade_slide_transition.dart';
 import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
@@ -19,9 +19,8 @@ import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
 /// again.
 ///
 /// Strictly monochrome, single-screen, Apple/Linear-calm: a static light
-/// atmosphere, the OpsHub brand as the hero (the launch Lottie on tablet/desktop,
-/// the animated light-sweep logo on phones — mirroring the splash's deliberate
-/// no-heavy-Lottie-on-phones decision), and a staggered reveal of a short
+/// atmosphere, the OpsHub brand as the hero (a static mark on tablet/desktop,
+/// the animated light-sweep logo on phones), and a staggered reveal of a short
 /// welcome that sets the tone: accountability, teamwork, one place for the work.
 class OnboardingWelcomePage extends StatefulWidget {
   const OnboardingWelcomePage({super.key});
@@ -163,32 +162,14 @@ class _OnboardingWelcomePageState extends State<OnboardingWelcomePage> {
     );
   }
 
-  /// The brand hero: the launch Lottie on tablet/desktop widths; the animated
-  /// light-sweep logo on phones (which never load the 13MB export — the same
-  /// deliberate performance split the splash uses).
+  /// The brand hero: a static mark on tablet/desktop widths; the animated
+  /// light-sweep logo on phones.
   Widget _hero(double width, bool isMobile) {
     if (isMobile) {
       final h = (width * 0.30).clamp(96.0, 120.0);
       return AnimatedOpsHubLogo(height: h);
     }
-    final heroW = (width * 0.26).clamp(220.0, 360.0);
-    return RepaintBoundary(
-      child: SizedBox(
-        width: heroW,
-        height: heroW * 9 / 16,
-        child: LottieBuilder(
-          lottie: _WelcomeLottie('assets/0704.json'),
-          fit: BoxFit.contain,
-          // Autoplay once as the cinematic beat; the CTA never waits on it.
-          animate: true,
-          repeat: false,
-          // A missing/malformed asset degrades to the animated wordmark — the
-          // Welcome can never render blank.
-          errorBuilder: (context, error, stackTrace) =>
-              const Center(child: AnimatedOpsHubLogo(height: 120)),
-        ),
-      ),
-    );
+    return OpsHubLogo(height: (width * 0.12).clamp(120.0, 200.0));
   }
 
   Widget _value(IconData icon, String text, Duration delay) =>
@@ -253,25 +234,5 @@ class _WelcomeAtmosphere extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-/// Bounds the 13MB launch export's 720×405 WebP frames to a 480px decode so the
-/// one-time Welcome never pays the full ~113MiB decoded-image cost. Mirrors the
-/// splash's launch provider deliberately (kept local to avoid coupling the two;
-/// converge into one shared provider if a third caller ever needs it).
-class _WelcomeLottie extends AssetLottie {
-  // ignore: use_super_parameters
-  _WelcomeLottie(String assetName)
-    : super(assetName, backgroundLoading: true);
-
-  static const _decodedWidth = 480;
-
-  @override
-  ImageProvider<Object>? getImageProvider(LottieImageAsset lottieImage) {
-    final provider = super.getImageProvider(lottieImage);
-    return provider == null
-        ? null
-        : ResizeImage(provider, width: _decodedWidth, allowUpscaling: false);
   }
 }

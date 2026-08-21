@@ -1,45 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:opshub/core/responsive/breakpoints.dart';
 import 'package:opshub/core/theme/app_colors.dart';
 import 'package:opshub/core/theme/app_typography.dart';
 import 'package:opshub/core/widgets/animated_opshub_logo.dart';
 import 'package:opshub/core/widgets/opshub_logo.dart';
 
-/// Where the OpsHub artwork's visual centre actually sits inside the Lottie's
-/// 720×405 composition, relative to the frame's geometric centre — the mean
-/// of the settled tail frames' bright-pixel bounding boxes (the frames held
-/// on screen during the bootstrap wait), measured and locked by
-/// `test/splash_visual_centering_test.dart`. The splash applies the inverse
-/// (scaled) so the ARTWORK is what lands on the window centre, not the frame
-/// box. Mid-flight the camera move swings the artwork ±≈18px by design.
-const Offset kLogoVisualCenterOffset = Offset(4, 21);
-
-/// Where the OpsHub artwork's bright pixels BEGIN vertically inside the 720×405
-/// frame (composition px, settled-tail mean) — i.e. the invisible dead space
-/// baked into the top of every Lottie frame. Measured and locked by
-/// `test/splash_visual_centering_test.dart`. Used to centre the lockup's
-/// VISIBLE bounding box instead of its layout box.
-const double kLogoArtworkTop = 59;
-
-/// How far above the window's geometric centre the lockup's visible bounding
-/// box sits. A mass dead-centred geometrically reads LOW to the eye, and the
-/// owner's reference mock frames the lockup high with breathing room below.
-///
-/// **65.5, not 50.** This constant read 50 while the page actually rendered a
-/// 65.5px lift at 1440×900 and 61.6px at 1024×720 — the lift formula predated
-/// [kLogoManualScale] (owner-tuned by eye 2026-07-05) and never accounted for
-/// it, so the real framing drifted with window size and no longer matched the
-/// number. The owner tuned the *pixels*, so the pixels are the specification:
-/// this is now the measured value of the framing they signed off at 1440×900,
-/// and the formula below reproduces it at **every** window size.
-const double kSplashOpticalLift = 65.5;
-
-/// MANUAL visual correction (owner-tuned by eye, 2026-07-05): the whole Lottie
-/// box is nudged right and scaled up. Paint-only — OPERATIONS, the bar and
-/// all spacing are untouched. Tune these two numbers to taste.
-const double kLogoManualNudgeX = 120;
-const double kLogoManualScale = 1.50;
 const Duration _mobileIntroDuration = Duration(milliseconds: 1800);
 
 /// How far above the phone's optical centre the mobile lockup rests — a mass
@@ -59,7 +24,7 @@ double _reveal(double v, double start, double end, Curve curve) {
 ///
 /// Bootstrap is intentionally owned by the composition root (`LaunchApp` in
 /// `main.dart`), not this page. Keeping this widget presentation-only lets the
-/// Firebase/session work and the Lottie playback run independently, with the
+/// Firebase/session work and the intro animation run independently, with the
 /// parent acting as the two-condition rendezvous.
 class SplashPage extends StatefulWidget {
   const SplashPage({
@@ -102,20 +67,16 @@ class _SplashPageState extends State<SplashPage>
       _controller
         ..duration = _mobileIntroDuration
         ..forward().whenComplete(_reportAnimationComplete);
+    } else {
+      _controller
+        ..duration = _introDuration
+        ..forward().whenComplete(_reportAnimationComplete);
     }
   }
 
-  /// The cold-start intro always plays over this exact wall-clock duration,
-  /// regardless of the Lottie asset's native frame length — swapping the
-  /// composition later never silently changes how long the launch feels.
-  static const _introDuration = Duration(seconds: 5);
-
-  void _play(LottieComposition composition) {
-    if (_controller.isAnimating || _animationReported) return;
-    _controller
-      ..duration = _introDuration
-      ..forward().whenComplete(_reportAnimationComplete);
-  }
+  /// The desktop cold-start intro — a short static-logo beat. The loading bar
+  /// keeps animating on its own until bootstrap finishes independently.
+  static const _introDuration = Duration(milliseconds: 1200);
 
   void _reportAnimationComplete() {
     if (!mounted || _animationReported) return;
@@ -135,78 +96,25 @@ class _SplashPageState extends State<SplashPage>
 
     if (_isMobile) return _buildMobileSplash(showError);
 
-    // ── DEBUG (debug builds only): prove the centering math on this platform.
-    // Prints the render-surface size, its geometric centre, and the safe-area
-    // insets — so a macOS title-bar / notch offset would show up here as
-    // non-zero padding instead of being guessed at. Compare `size/2` against
-    // where the lockup actually lands on screen.
-    assert(() {
-      final mq = MediaQuery.of(context);
-      debugPrint(
-        '[SplashPage] size=${mq.size} '
-        'centre=(${(mq.size.width / 2).toStringAsFixed(1)}, '
-        '${(mq.size.height / 2).toStringAsFixed(1)}) '
-        'padding=${mq.padding} viewPadding=${mq.viewPadding} '
-        'viewInsets=${mq.viewInsets} dpr=${mq.devicePixelRatio}',
-      );
-      return true;
-    }());
-
-    // Logo scales with the window but is clamped so it never gets huge or
-    // tiny; height follows the source 16:9 frame. The layout is exactly
-    // Center → Column(min) → [logo, OPERATIONS, bar] — no SafeArea, Stack,
-    // Align, Positioned, ConstrainedBox, or Padding — so nothing but Center
-    // decides where the lockup sits. The Lottie box itself receives only the
-    // owner-tuned manual translation and scale inside _logoLockup.
-    final logoWidth = (MediaQuery.sizeOf(context).width * 0.32).clamp(
-      240.0,
-      440.0,
+    final logoHeight = (MediaQuery.sizeOf(context).width * 0.10).clamp(
+      88.0,
+      140.0,
     );
-
-    // ── Centre the lockup's VISIBLE bounding box, not its layout box. ──
-    // The Lottie frame bakes dead space above the artwork (kLogoArtworkTop),
-    // which drags the visible mass low when the layout box is centred; and a
-    // geometrically-centred mass reads low to the eye anyway
-    // (kSplashOpticalLift). The bottom balancer SizedBox raises the visible
-    // group by `lift` while keeping the layout pure Center → Column — the
-    // combined artwork→bar bbox then sits kSplashOpticalLift above the
-    // window's geometric centre.
-    // The lockup's VISIBLE top is the artwork's first bright pixel, which is
-    // not the top of the layout box. Two things separate them, and the old
-    // formula only knew about the first:
-    //   1. the Lottie frame bakes `kLogoArtworkTop` of dead space above the
-    //      artwork, and
-    //   2. `kLogoManualScale` magnifies the box about its own centre — so the
-    //      box's painted top rises by half its growth, while the dead space
-    //      inside it is magnified too.
-    // Leaving (2) out is what made the real lift drift with window size.
-    final boxH = logoWidth * 9 / 16;
-    final artworkInset = kLogoArtworkTop / 405 * boxH;
-    final scaleRise = boxH * (kLogoManualScale - 1) / 2;
-    final visibleTopVsLayoutTop = artworkInset * kLogoManualScale - scaleRise;
-    final lift = kSplashOpticalLift + visibleTopVsLayoutTop / 2;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 1. Logo — manually positioned by eye.
-            Center(child: _logoLockup(logoWidth)),
-            const SizedBox(height: 24),
-            // 2. OPERATIONS — the premium wordmark.
-            const Center(child: _OperationsWordmark()),
+            OpsHubLogo(height: logoHeight),
             const SizedBox(height: 28),
-            // 3. Loading bar (or the startup error, animation-gated).
+            const _OperationsWordmark(),
+            const SizedBox(height: 28),
             Center(
               child: showError
                   ? _StartupError(onRetry: widget.onRetry)
                   : const _PremiumLoadingBar(),
             ),
-            // 4. Balancer — shifts the visible group up by `lift` within
-            // the Center, with zero transforms (pure layout).
-            SizedBox(height: 2 * lift),
           ],
         ),
       ),
@@ -290,80 +198,6 @@ class _SplashPageState extends State<SplashPage>
         ],
       ),
     );
-  }
-
-  /// The logo box, MANUALLY corrected by eye (owner ruling — no automatic
-  /// bbox centering): the whole Lottie container is nudged right by
-  /// [kLogoManualNudgeX] and scaled up by [kLogoManualScale]. Both transforms
-  /// are paint-only, so OPERATIONS, the bar and all spacing are untouched.
-  /// The soft radial light behind the mark paints under the child.
-  Widget _logoLockup(double logoWidth) {
-    return Transform.translate(
-      offset: const Offset(kLogoManualNudgeX, 0),
-      child: Transform.scale(
-        scale: kLogoManualScale,
-        child: SizedBox(
-          width: logoWidth,
-          height: logoWidth * 9 / 16,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                radius: 0.6,
-                colors: [AppColors.white.withAlpha(16), Colors.transparent],
-              ),
-            ),
-            child: RepaintBoundary(child: _logo()),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// The cold-start Lottie — the animated OpsHub logo. A malformed/missing asset
-  /// falls back to the static wordmark and releases the animation gate so it
-  /// can never deadlock startup.
-  Widget _logo() => Semantics(
-    label: 'OpsHub',
-    image: true,
-    child: LottieBuilder(
-      // This export contains 102 embedded 720×405 WebP image assets (not
-      // lightweight vector paths). Load the JSON off the UI isolate and
-      // decode the images at a bounded size to avoid a ~113 MiB cold-start
-      // decoded-image footprint.
-      lottie: _LaunchAssetLottie('assets/0704.json'),
-      controller: _controller,
-      fit: BoxFit.contain,
-      repeat: false,
-      animate: false,
-      onLoaded: _play,
-      errorBuilder: (context, error, stackTrace) {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _reportAnimationComplete(),
-        );
-        return const OpsHubLogo(height: 88);
-      },
-    ),
-  );
-}
-
-/// Asset provider that keeps the supplied Lottie intact while bounding its
-/// embedded raster-frame decode size. `AssetLottie` otherwise resolves data URI
-/// images at their full 720×405 source dimensions before playback begins.
-class _LaunchAssetLottie extends AssetLottie {
-  // The explicit forward keeps the private provider's fixed loading policy
-  // visible at the call site.
-  // ignore: use_super_parameters
-  _LaunchAssetLottie(String assetName)
-    : super(assetName, backgroundLoading: true);
-
-  static const _decodedWidth = 480;
-
-  @override
-  ImageProvider<Object>? getImageProvider(LottieImageAsset lottieImage) {
-    final provider = super.getImageProvider(lottieImage);
-    return provider == null
-        ? null
-        : ResizeImage(provider, width: _decodedWidth, allowUpscaling: false);
   }
 }
 

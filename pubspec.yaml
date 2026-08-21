@@ -179,7 +179,6 @@ flutter:
     - assets/opshub_icon.svg
     - assets/gmail.svg
     - assets/whatsapp.svg
-    - assets/0704.json
     - assets/submission_loading.json
 
   fonts:
