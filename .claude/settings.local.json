@@ -24,7 +24,7 @@
       "Bash(xargs kill)",
       "mcp__Claude_Preview__preview_start",
       "Bash(pkill -f \"flutter run -d macos\")",
-      "Bash(pkill -f \"DROP.app\")",
+      "Bash(pkill -f \"OpsHub.app\")",
       "Bash(git checkout *)",
       "Bash(rm -f macos/Podfile.lock)",
       "Bash(python3 -)",
