@@ -6,6 +6,7 @@ import 'package:opshub/core/theme/app_colors.dart';
 import 'package:opshub/core/theme/app_radius.dart';
 import 'package:opshub/core/theme/app_spacing.dart';
 import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
 import 'package:opshub/core/utils/app_logger.dart';
 import 'package:opshub/core/widgets/user_avatar.dart';
 import 'package:opshub/features/auth/domain/entities/user_entity.dart';
@@ -123,6 +124,14 @@ class _ConversationInfoScreenState extends State<ConversationInfoScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.darkBg,
         title: Text('Conversation info', style: AppTypography.h3),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(left: 6, right: 16),
+            child: Center(
+              child: OpsHubLockup(height: 15, color: AppColors.textTertiary),
+            ),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.pagePadding),

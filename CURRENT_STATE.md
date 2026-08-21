@@ -5,6 +5,26 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **OpsHub brand lockup (mark + name) is now the app-wide brand mark (2026-08-21,
+> polish, client-only, auth page iOS-verified):** The `OpsHubLockup`
+> (`core/widgets/opshub_lockup.dart`) — hub glyph **plus** the "OpsHub" wordmark,
+> a single accessibility node with a configurable `semanticLabel` — is the brand
+> mark across **all** shared chrome, so the written name reads on effectively
+> every page. It replaced the glyph-only marks in: `RoleScaffold` (mobile
+> role-home app bar, scale-down-fitted so a crowded bar shrinks it rather than
+> truncating), `AdaptiveScaffold._AppBarBrandMark` (the quiet trailing mark on
+> every mobile page, capped + scale-down), and `AppSidebar` (desktop brand
+> header; the old "OPERATIONS" descriptor dropped since the lockup spells the
+> brand). Also on the three first-login gate pages (shared `AuthScaffold`) and
+> the two chat detail screens. Login/Splash/Onboarding keep `OpsHubAuthMark`.
+> Left alone by design: the immersive chat image viewer and the Schedule Final
+> View export preview (its captured sheet already renders "OpsHub"). Chrome layer
+> only; no domain/data/rules/functions change. `flutter analyze` clean;
+> `brand_chrome_test` (6) green. See [CHANGELOG.md](CHANGELOG.md) 2026-08-21. ✅
+> **iOS-verified on Reset Password** (mark + name centred in the app bar). The
+> home / sidebar / detail chrome sits **behind login**, so it is covered by
+> widget tests + analyze but **not device-screenshotted** (no test account).
+
 > **Full Drop → OpsHub rebrand, incl. brand assets (2026-08-21, docs/branding,
 > client + docs only, NOT device-verified):** Product name, package
 > (`drop`→`opshub`), `Drop*` widget/file names, all user-facing strings, Cloud

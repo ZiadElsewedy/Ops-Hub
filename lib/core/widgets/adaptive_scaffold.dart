@@ -3,7 +3,7 @@ import 'package:opshub/core/responsive/breakpoints.dart';
 import 'package:opshub/core/theme/app_colors.dart';
 import 'package:opshub/core/theme/app_spacing.dart';
 import 'package:opshub/core/theme/app_typography.dart';
-import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
 
 /// A scaffold that adapts its chrome to the platform width.
 ///
@@ -138,16 +138,27 @@ class AdaptiveScaffold extends StatelessWidget {
   }
 }
 
-/// The quiet OpsHub mark closing every mobile app bar — brand presence on all
-/// migrated screens without competing with the actionable icons beside it.
+/// The quiet OpsHub brand lockup (mark + name) closing every mobile app bar —
+/// brand presence on all migrated screens without competing with the actionable
+/// icons beside it. Capped and scale-down-fitted so a crowded bar shrinks the
+/// lockup as one unit rather than ever truncating the name.
 class _AppBarBrandMark extends StatelessWidget {
   const _AppBarBrandMark();
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(left: 6, right: 16),
-      child: Center(child: OpsHubLogo(height: 16, color: AppColors.textTertiary)),
+    return Padding(
+      padding: const EdgeInsets.only(left: 6, right: 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 104),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: OpsHubLockup(
+                height: 16, color: AppColors.textTertiary),
+          ),
+        ),
+      ),
     );
   }
 }

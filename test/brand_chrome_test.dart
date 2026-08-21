@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:opshub/core/widgets/adaptive_scaffold.dart';
 import 'package:opshub/core/widgets/animated_opshub_logo.dart';
 import 'package:opshub/core/widgets/app_sidebar.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
 import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_wordmark.dart';
 import 'package:opshub/core/widgets/role_scaffold.dart';
+import 'package:opshub/features/auth/presentation/widgets/auth_scaffold.dart';
 import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
@@ -67,6 +70,27 @@ void main() {
     expect(find.byType(OpsHubLogo), findsNothing);
   });
 
+  testWidgets(
+      'AuthScaffold gate pages carry the OpsHub lockup (mark + name) in the app bar',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: AuthScaffold(child: SizedBox()),
+    ));
+
+    // The lockup carries both the glyph and the written "OpsHub" wordmark.
+    final lockup = find.descendant(
+        of: find.byType(AppBar), matching: find.byType(OpsHubLockup));
+    expect(lockup, findsOneWidget);
+    expect(
+      find.descendant(of: lockup, matching: find.byType(OpsHubLogo)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: lockup, matching: find.byType(OpsHubWordmark)),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('AppSidebar brand header uses the static real logo artwork',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
@@ -126,22 +150,21 @@ void main() {
       ),
     ));
 
+    // The home app bar leads with the brand lockup — glyph + "OpsHub" name.
+    final lockup = find.descendant(
+        of: find.byType(AppBar), matching: find.byType(OpsHubLockup));
+    expect(lockup, findsOneWidget);
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.byType(OpsHubLogo)),
+      find.descendant(of: lockup, matching: find.byType(OpsHubLogo)),
       findsOneWidget,
     );
-    // The role word is no longer drawn beside the mark — it was the first thing
-    // a crowded action cluster truncated ("Mana…") and each home's hero already
-    // names the user and their scope. It survives as the bar's accessible label.
-    expect(find.text('Dashboard'), findsNothing);
     expect(
-      tester.getSemantics(
-        find.descendant(
-          of: find.byType(AppBar),
-          matching: find.byType(OpsHubLogo),
-        ),
-      ),
-      matchesSemantics(label: 'Dashboard', isHeader: true, isImage: true),
+      find.descendant(of: lockup, matching: find.byType(OpsHubWordmark)),
+      findsOneWidget,
     );
+    // The role word is not drawn as visible text (the wordmark reads "OpsHub"),
+    // but it survives as the bar's accessible label for screen readers.
+    expect(find.text('Dashboard'), findsNothing);
+    expect(find.bySemanticsLabel('Dashboard'), findsOneWidget);
   });
 }

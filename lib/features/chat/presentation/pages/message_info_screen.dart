@@ -3,6 +3,7 @@ import 'package:opshub/core/theme/app_colors.dart';
 import 'package:opshub/core/theme/app_radius.dart';
 import 'package:opshub/core/theme/app_spacing.dart';
 import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
 import 'package:opshub/core/utils/app_date_formatter.dart';
 import 'package:opshub/features/chat/domain/entities/chat_message.dart';
 import 'package:opshub/features/chat/presentation/chat_message_preview.dart';
@@ -61,6 +62,14 @@ class MessageInfoScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.darkBg,
         title: Text('Message info', style: AppTypography.h3),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(left: 6, right: 16),
+            child: Center(
+              child: OpsHubLockup(height: 15, color: AppColors.textTertiary),
+            ),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.pagePadding),

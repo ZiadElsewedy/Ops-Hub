@@ -4,7 +4,7 @@ import 'package:opshub/core/theme/app_colors.dart';
 import 'package:opshub/core/theme/app_radius.dart';
 import 'package:opshub/core/theme/app_spacing.dart';
 import 'package:opshub/core/theme/app_typography.dart';
-import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
 
 /// A single navigable destination in the [AppSidebar].
 class SidebarItem {
@@ -104,27 +104,23 @@ class AppSidebar extends StatelessWidget {
                 AppSpacing.lg,
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const OpsHubLogo(height: 30),
-                  const SizedBox(width: AppSpacing.sm),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Text(
-                      'OPERATIONS',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textTertiary,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.6,
-                      ),
+                  // Brand lockup — the hub mark + the "OpsHub" name. It spells
+                  // the brand, so the old separate "OPERATIONS" descriptor (which
+                  // would overflow this ~207px header beside the name) is dropped.
+                  // Flexible + scale-down so a narrow sidebar shrinks it as one
+                  // unit rather than overflowing.
+                  const Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: OpsHubLockup(height: 28),
                     ),
                   ),
                   if (onCollapse != null) ...[
                     const Spacer(),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                      child: _SidebarCollapseButton(onTap: onCollapse!),
-                    ),
+                    _SidebarCollapseButton(onTap: onCollapse!),
                   ],
                 ],
               ),

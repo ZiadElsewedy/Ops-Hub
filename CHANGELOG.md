@@ -14,6 +14,68 @@ released — OpsHub ships from branches and has no version tags.
 
 ---
 
+## 2026-08-21 — OpsHub brand lockup (mark + name) rolled out app-wide (branch `rebrand-opshub`; polish, client-only, auth page iOS-verified)
+
+Follow-up to the entry below: by owner request the `OpsHubLockup` (hub glyph +
+"OpsHub" name) replaces the **glyph-only** marks across the shared chrome, so the
+written name reads on effectively every page — not just the auth/chat surfaces.
+
+- **`RoleScaffold`** mobile role-home app bar — the leading glyph became the
+  lockup, wrapped in a scale-down `FittedBox` so a crowded bar (the manager has
+  the most actions) shrinks it as one unit rather than truncating the name to
+  "OpsH…" (the exact failure the old plain role word had). The role is the
+  lockup's accessible label.
+- **`AdaptiveScaffold`** — the quiet trailing `_AppBarBrandMark` on every mobile
+  page became the lockup (height 16, tertiary), capped at 104px and
+  scale-down-fitted so action-heavy bars never overflow.
+- **`AppSidebar`** desktop brand header — the glyph became the lockup (height
+  28); the old separate "OPERATIONS" descriptor was dropped (the lockup now
+  spells the brand, and "OpsHub OPERATIONS" overflowed the ~207px header).
+  Flexible + scale-down keeps it safe on a narrow sidebar.
+- **`OpsHubLockup`** gained a `semanticLabel` (default `'OpsHub'`) and now
+  presents as a **single** accessibility node (glyph + word no longer announce
+  twice), via `ExcludeSemantics` around the visual row.
+
+`flutter analyze` clean; `brand_chrome_test` updated for the new structure
+(AuthScaffold/RoleScaffold assert glyph + wordmark + single semantic label),
+all 6 green. The home / sidebar / detail chrome sits behind login, so it is
+covered by widget tests + analyze but **not device-screenshotted** (no test
+account); the auth-page lockup remains iOS-verified.
+
+## 2026-08-21 — OpsHub brand lockup (mark + name) added to the last unbranded pages (branch `rebrand-opshub`; polish, client-only, auth page iOS-verified)
+
+Closed the remaining brand-presence gaps so the OpsHub brand appears on
+effectively every page. Most surfaces were already branded — every
+`AdaptiveScaffold` page carries the quiet trailing glyph mark (`showBrandMark`,
+default on), the three role home dashboards lead with the glyph via
+`RoleScaffold`, and Login/Splash/Onboarding via `OpsHubAuthMark`. The gaps:
+
+- **New `OpsHubLockup` widget** (`core/widgets/opshub_lockup.dart`) — the
+  horizontal brand lockup: the hub glyph [OpsHubLogo] beside the "OpsHub"
+  [OpsHubWordmark] text, so the written **name** reads next to the mark (as
+  opposed to the glyph-only mark the role-home / `AdaptiveScaffold` app bars
+  carry). Sized by glyph height; the wordmark scales from it; both tint together.
+- **The three first-login gate pages** (Forgot Password, Force Password Change,
+  Profile Completion) share `AuthScaffold`, which had no brand — inconsistent
+  with the branded Login/Splash/Onboarding they sit beside. `AuthScaffold` now
+  leads with a centred `OpsHubLockup` (height 20) — in the mobile app-bar title
+  (`centerTitle`, coexisting with the back button + any Sign-out action) and
+  centred behind the desktop top utility row. One change covers all three pages.
+- **Chat detail screens** (Conversation info, Message info) used a bare
+  `Scaffold`/`AppBar`; both now carry a quiet trailing
+  `OpsHubLockup(height: 15, textTertiary)`.
+
+Deliberately left alone: the immersive full-screen chat image viewer (a media
+overlay, not a page — a mark would clutter it) and the Schedule Final View export
+preview (its captured sheet already renders "OpsHub"). Render/chrome layer only —
+no domain/data/state/rules/functions change. `flutter analyze` clean;
+`brand_chrome_test` extended to assert the lockup (glyph + wordmark) on
+`AuthScaffold`, suite green. ✅ **iOS-verified** on the Reset Password (Forgot
+Password) page — the mark + "OpsHub" name renders centred in the app bar; the two
+other gate pages share the same `AuthScaffold` and were not separately reached
+(they need an authenticated account in the gate state). Chat screens not
+device-checked.
+
 ## 2026-08-21 — Full rebrand: Drop/DROP → OpsHub, incl. brand assets (branch `rebrand-opshub`; LOW risk, client + docs only)
 
 The product-wide rebrand from Drop/DROP to OpsHub, done as a series of small,

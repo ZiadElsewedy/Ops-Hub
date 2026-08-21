@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:opshub/core/responsive/breakpoints.dart';
 import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
 
 /// Responsive chrome for the standalone auth/onboarding pages that live
 /// **outside** the app shell (forgot password, forced password change, profile
@@ -48,6 +49,11 @@ class AuthScaffold extends StatelessWidget {
           leading: showBack
               ? const BackButton(color: AppColors.textPrimary)
               : null,
+          // The OpsHub brand lockup (mark + name) leads these standalone
+          // auth/gate pages, matching the branded Login / Splash / Onboarding
+          // they sit beside in the flow.
+          centerTitle: true,
+          title: const OpsHubLockup(height: 20),
           actions: actions,
         ),
         body: child,
@@ -61,12 +67,23 @@ class AuthScaffold extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
-            child: Row(
+            // The back/actions row with the OpsHub mark centred behind it, so the
+            // brand leads these gate pages just as it does the desktop Login panel.
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                if (showBack && canPop)
-                  _BackButton(onTap: () => Navigator.of(context).maybePop()),
-                const Spacer(),
-                ...actions,
+                const Center(
+                  child: OpsHubLockup(height: 20),
+                ),
+                Row(
+                  children: [
+                    if (showBack && canPop)
+                      _BackButton(
+                          onTap: () => Navigator.of(context).maybePop()),
+                    const Spacer(),
+                    ...actions,
+                  ],
+                ),
               ],
             ),
           ),

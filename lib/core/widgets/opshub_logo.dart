@@ -6,9 +6,11 @@ import 'package:opshub/core/theme/app_colors.dart';
 ///
 /// It's tinted to [color] (white on the dark UI by default) via
 /// [BlendMode.srcIn] to stay crisp on the near-black background. Size it with
-/// [height]; the width follows the artwork's aspect ratio. Used app-wide:
-/// splash/loading, login, the role-home app bars, the desktop sidebar lockup,
-/// and the quiet mark on every mobile app bar (`AdaptiveScaffold.showBrandMark`).
+/// [height]; the width follows the artwork's aspect ratio. Used directly for
+/// splash/loading and login, and as the glyph half of the app-wide
+/// [OpsHubLockup] (mark + "OpsHub" name) that brands the role-home app bars, the
+/// desktop sidebar, and the quiet trailing mark on every mobile app bar
+/// (`AdaptiveScaffold.showBrandMark`).
 class OpsHubLogo extends StatelessWidget {
   final double height;
   final Color? color;
