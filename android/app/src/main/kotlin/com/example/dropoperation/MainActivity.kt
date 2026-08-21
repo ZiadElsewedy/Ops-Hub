@@ -17,7 +17,7 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 getString(R.string.default_notification_channel_id),
-                "DROP notifications",
+                "OpsHub notifications",
                 NotificationManager.IMPORTANCE_HIGH,
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)

@@ -1,6 +1,6 @@
 {
   "name": "drop-functions",
-  "description": "DROP — Cloud Functions (Communications Center send engine)",
+  "description": "OpsHub — Cloud Functions (Communications Center send engine)",
   "engines": {
     "node": "22"
   },

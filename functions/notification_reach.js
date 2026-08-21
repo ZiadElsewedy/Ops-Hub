@@ -20,7 +20,7 @@
  * inherits the template's `createdBy`.
  */
 
-/** The role string DROP treats as global (no branch, reaches everything). */
+/** The role string OpsHub treats as global (no branch, reaches everything). */
 const ADMIN_ROLE = "admin";
 
 /**

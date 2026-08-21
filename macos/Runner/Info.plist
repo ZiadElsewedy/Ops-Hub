@@ -21,7 +21,7 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>NSLocationUsageDescription</key>
-	<string>Drop Operations uses your location to verify you're at your branch when you clock in and out.</string>
+	<string>OpsHub uses your location to verify you're at your branch when you clock in and out.</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSMinimumSystemVersion</key>

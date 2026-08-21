@@ -44,7 +44,7 @@ dependencies:
   # import dio directly.
   dio: ^5.7.0
 
-  # Connectivity — DROP requires a live connection to open (see
+  # Connectivity — OpsHub requires a live connection to open (see
   # `core/network/connectivity_service.dart`). Reports the *interface* only,
   # which is why the service pairs it with a real reachability probe.
   connectivity_plus: ^6.1.0

@@ -55,6 +55,12 @@ independently-verified commits on `rebrand-opshub`:
   `GoogleService-Info.plist` first. The strictly-monochrome design system
   (ADR-004) is untouched by design. The on-disk repository folder name stays
   `Drop-operations`.
+- **Residual sweep (2026-08-21, follow-up):** a second, whole-repo pass caught
+  what the first two passes missed — iOS/macOS location-permission strings
+  (plus the letter-spaced "D R O P" camera/microphone/photo-library strings on
+  iOS), the Android notification-channel display name, Linux window titles,
+  `functions/*.js` + `functions/package.json`, and the pubspec connectivity
+  comment.
 - **Pending manual follow-ups (not done here):** the splash launch animation
   `assets/0704.json` is still the old Drop-branded Lottie — no replacement was
   provided; the bundle identifiers above could be renamed once Firebase
