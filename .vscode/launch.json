@@ -7,22 +7,22 @@
   //   Release (`flutter build … --release`)         → Production  → Railway
   //
   // To test a debug build on a physical device against your Mac's LAN backend,
-  // use the "Drop Operations (device on LAN)" config below and edit the IP.
+  // use the "OpsHub (device on LAN)" config below and edit the IP.
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Drop Operations (Development)",
+      "name": "OpsHub (Development)",
       "request": "launch",
       "type": "dart"
     },
     {
-      "name": "Drop Operations (device on LAN)",
+      "name": "OpsHub (device on LAN)",
       "request": "launch",
       "type": "dart",
       "toolArgs": ["--dart-define=DEV_API_BASE_URL=http://192.168.1.8:3000"]
     },
     {
-      "name": "Drop Operations (Production, release)",
+      "name": "OpsHub (Production, release)",
       "request": "launch",
       "type": "dart",
       "flutterMode": "release"
