@@ -5,8 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"DROP documentation protocol — PROJECT_CONTEXT.md, CURRENT_STATE.md, and CHANGELOG.md (repo root) are treated as production source code. For EVERY task: 1) read all three first and use them as the source of truth; 2) verify they match the codebase; 3) implement the task; 4) if anything changed, update the docs automatically — never ask whether to update, just do it; 5) run the documentation self-check in PROJECT_CONTEXT section 5 before finishing. Also auto-update any project memory file that becomes stale or contradicts the code, after verifying against the code. Never let the docs fall behind the code.\"}}'",
-            "statusMessage": "Loading DROP documentation protocol"
+            "command": "printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"OpsHub documentation protocol — PROJECT_CONTEXT.md, CURRENT_STATE.md, and CHANGELOG.md (repo root) are treated as production source code. For EVERY task: 1) read all three first and use them as the source of truth; 2) verify they match the codebase; 3) implement the task; 4) if anything changed, update the docs automatically — never ask whether to update, just do it; 5) run the documentation self-check in PROJECT_CONTEXT section 5 before finishing. Also auto-update any project memory file that becomes stale or contradicts the code, after verifying against the code. Never let the docs fall behind the code.\"}}'",
+            "statusMessage": "Loading OpsHub documentation protocol"
           }
         ]
       }
