@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="assets/drop_wordmark.png" alt="DROP" width="160" />
+<img src="assets/opshub_wordmark.png" alt="OpsHub" width="160" />
 
-# Drop Operations
+# OpsHub
 
-**Role-based branch &amp; shift operations for _DROP THE SHOP_.**
+**Role-based, multi-branch operations management — for any business.**
 
 Task assignment with proof · GPS attendance · weekly scheduling &amp; shift swaps · approvals · branch administration · live operations dashboards.
 
@@ -25,9 +25,10 @@ Task assignment with proof · GPS attendance · weekly scheduling &amp; shift sw
 
 ## Overview
 
-**Drop Operations** is an internal, **role-based operations tool** — not a SaaS product. It has
-no public sign-up and no buyers, only a small, known set of staff across a handful of
-branches. Three roles run the whole system:
+**OpsHub** is a **role-based operations management platform for multi-branch
+businesses** — one app to run tasks, attendance, scheduling, approvals, and
+communications across every branch. It is deployed as an internal tool: access is
+**admin-provisioned**, with no public sign-up. Three roles run the whole system:
 
 | Role | Scope |
 | --- | --- |
@@ -73,7 +74,7 @@ role home**.
 
 ## Design philosophy
 
-DROP is deliberately **lean but premium**. The rules below are load-bearing — most are
+OpsHub is deliberately **lean but premium**. The rules below are load-bearing — most are
 backed by an [Architecture Decision Record](docs/decisions/).
 
 - **Workflow over architecture. UX over feature count.** Default to *deletion* — the burden
@@ -234,20 +235,18 @@ in the same task.
 
 ## Project identity
 
-The repository folder is **`Drop-operations`**; the Dart package is **`drop`** (every import
-is `package:drop/…`). Two user-facing names, split by surface:
+The repository folder on disk is **`Drop-operations`** (not renamed); the Dart package is
+**`opshub`** (every import is `package:opshub/…`). The product has a single user-facing
+name, **`OpsHub`**, used everywhere — the OS launcher/window label on every platform,
+the in-app wordmark, splash, About, notifications, and all in-app copy.
 
-- **`Drop Ops`** — the short **OS label** the operating system shows (launcher, window title,
-  app-switcher).
-- **`Drop Operations`** — the full name used **everywhere inside** the app (wordmark, splash,
-  About, notifications, in-app copy).
-
-Platform bundle identifier is **`com.ziad.drop`** (iOS/macOS); Android/Linux use the
-`dropoperation` form.
+Platform **bundle identifiers are deliberately unchanged** — `com.ziad.drop` (iOS/macOS)
+and `com.example.dropoperation` (Android) — because they are registered with Firebase;
+renaming them requires re-registering the apps in the Firebase console first.
 
 > This is a private package (`publish_to: none`) and is **not** distributed on pub.dev.
 
 <div align="center">
 <br/>
-<sub>Built with Flutter · Firebase · Clean Architecture — for DROP THE SHOP.</sub>
+<sub>Built with Flutter · Firebase · Clean Architecture.</sub>
 </div>
