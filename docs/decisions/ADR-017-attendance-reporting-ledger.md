@@ -88,7 +88,7 @@ A metric that cannot name the decision it changes is the vanity shape and stays 
   Cloud Function under ADR-005.
 - Persisting late / early-leave / overtime as statuses. They stay **derived** from
   minute fields; queryability is solved with rollup rows, not a wider status enum.
-- DROP as a payroll processor. It hands off a reconciled ledger; it does not compute
+- OpsHub as a payroll processor. It hands off a reconciled ledger; it does not compute
   pay.
 - Decorative heatmaps, and trend alerts to employees.
 - Any new backend platform. Firebase only ([ADR-001](ADR-001-firebase-backend.md)).

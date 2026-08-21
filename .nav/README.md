@@ -1,12 +1,12 @@
-# 🛰️ ATLAS — the DROP Developer Operating System
+# 🛰️ ATLAS — the OpsHub Developer Operating System
 
 > **This is not documentation. It is a navigation system.**
 > Documentation explains the project. ATLAS tells you *where to go* and *what will break*.
 > Optimized for instant lookup by humans **and** AI agents (Claude, Cursor, ChatGPT).
 
-**Product:** DROP — role-based Operations Management System (Flutter + Firebase + one external NestJS chat API).
+**Product:** OpsHub — role-based Operations Management System (Flutter + Firebase + one external NestJS chat API).
 Dart package id is `drop`; the project folder is `Drop-operations`, and the user-facing
-product name is **Drop Operation**.
+product name is **OpsHub**.
 
 ---
 

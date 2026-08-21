@@ -1,6 +1,6 @@
-# DROP Design System V2 — Foundation
+# OpsHub Design System V2 — Foundation
 
-> The inheritance contract for every DROP surface. Phase 1 established this while
+> The inheritance contract for every OpsHub surface. Phase 1 established this while
 > redesigning the Admin dashboard; Branches, Requests, Cases, Communications,
 > Inventory, Analytics and every future module compose the **same** primitives so
 > the product reads as one system.
@@ -9,7 +9,7 @@
 
 The dashboard answers one question: **"what needs my attention right now?"** — not
 "here is every row in the database." The fix for visual competition is **ranking,
-spacing and grouping**, never removing richness. Keep the crafted DROP identity
+spacing and grouping**, never removing richness. Keep the crafted OpsHub identity
 (glass surfaces, living-border motion, rich metrics, monochrome + single accent).
 The goal is **premium**, not minimal. Do **not** flatten into a generic
 Linear/Jira/Notion clone.
@@ -112,7 +112,7 @@ Home became a second caller. They are the **whole** dashboard language — a rol
 home should compose them and derive its own counts, never re-draw them.
 
 The mobile role-home frame is owned by `RoleScaffold`: a 72px toolbar with the
-DROP mark, restrained monochrome depth + bottom hairline, one flat
+OpsHub mark, restrained monochrome depth + bottom hairline, one flat
 `GlassContainer` command capsule for role-specific daily actions, and a separate
 account avatar control. The role word stays accessible but visually hidden (it
 previously truncated on the manager's crowded bar). Each command is a labelled
@@ -185,7 +185,7 @@ control) is a quiet escape hatch — **never** the update mechanism.
 
 ## States
 
-- **Empty:** `DropEmptyState` / `AppEmptyState` (branded / routine). ⚠️ Only as a
+- **Empty:** `OpsHubEmptyState` / `AppEmptyState` (branded / routine). ⚠️ Only as a
   **direct `RefreshIndicator`/body child** (bounded height). Inside an unbounded
   `ListView`, use a compact inline empty (see `RecentActivityFeed._AllClear`) — a
   full-bleed empty forces an infinite-height layout.
@@ -193,7 +193,7 @@ control) is a quiet escape hatch — **never** the update mechanism.
   reward it. An `AttentionTile` at zero shows a check + a reassuring line
   (`clearedMessage`: "No overdue tasks") instead of a bare "0"; an empty feed reads
   "All clear / everything is handled", not "no data". Never leave a lone grey "0".
-- **Loading:** `DropLoadingState` (full page) / structure-suggesting **skeleton
+- **Loading:** `OpsHubLoadingState` (full page) / structure-suggesting **skeleton
   rows** shaped like the real content (`Skeleton`), not a bare spinner, for an
   inline list.
 

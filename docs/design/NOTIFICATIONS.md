@@ -1,4 +1,4 @@
-# Notifications V2 — DROP
+# Notifications V2 — OpsHub
 
 Status: **pilot-hardening pass, 2026-07-10** (branch `feature/notifications-v2`).
 Scope of this pass: reliability + one crash-safe deep-link path. The in-app

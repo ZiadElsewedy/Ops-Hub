@@ -4,7 +4,7 @@
 
 ## Context
 
-Every other feature in DROP is branch-scoped. Tasks, schedules, attendance,
+Every other feature in OpsHub is branch-scoped. Tasks, schedules, attendance,
 requests and cases all answer "what may this person reach" with the same
 predicate — `resource.branchId == selfBranch()`, with admin as a global
 override. That invariant is documented in `PROJECT_CONTEXT.md` and enforced in

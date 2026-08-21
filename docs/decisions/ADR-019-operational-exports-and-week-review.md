@@ -16,7 +16,7 @@ feeds pay must not move after hand-off.
 
 Every one of those decisions rests on a premise the owner has now retired:
 
-> **DROP is an operations management system, not a payroll system, and payroll
+> **OpsHub is an operations management system, not a payroll system, and payroll
 > integration is not planned.**
 
 The premise mattered more than it looked. Remove it and the reasoning collapses
@@ -101,7 +101,7 @@ Unlock ceremonies, approval chains, multi-level sign-off, and any version
 history. One button, one reversal, both attributed. The moment week review needs
 a workflow it has become the lock this ADR declined to build.
 
-Also unchanged: DROP does not calculate pay, and does not round to payroll
+Also unchanged: OpsHub does not calculate pay, and does not round to payroll
 increments.
 
 ## Consequences

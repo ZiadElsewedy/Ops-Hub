@@ -1,6 +1,6 @@
 # Tasks — the operations workflow
 
-The core of DROP. A manager/admin creates work, an employee executes it, a
+The core of OpsHub. A manager/admin creates work, an employee executes it, a
 manager/admin reviews it. Everything else in the app orbits this.
 
 Covers `features/task/` and `features/operations/` (the branch cockpit that reads

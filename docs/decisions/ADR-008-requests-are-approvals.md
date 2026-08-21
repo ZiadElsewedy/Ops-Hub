@@ -5,7 +5,7 @@
 ## Context
 
 Operations Requests drifted toward a ticketing system — richer statuses, assignment,
-priority, the shape of Jira or a service desk. DROP has a handful of users per
+priority, the shape of Jira or a service desk. OpsHub has a handful of users per
 branch. A ticket queue is a coordination tool for teams too large to just ask each
 other, which is not this.
 

@@ -1,8 +1,8 @@
 # Event Tracking + Audit Log
 
-> Immutable, append-only record of every important business action in DROP.
+> Immutable, append-only record of every important business action in OpsHub.
 > **Not analytics** — this is an operational audit trail: *who did what, to which
-> entity, when, and from where.* Built as a normal DROP clean-architecture slice
+> entity, when, and from where.* Built as a normal OpsHub clean-architecture slice
 > (`lib/features/audit/`), strictly additive, deploy-light.
 
 **Status:** shipped 2026-07-10 (`feature/notifications-v2`). Client-only (no Cloud
@@ -156,7 +156,7 @@ repository read filters it out unless `includeDeleted: true` is passed.
 - **delete** — `false`. No hard delete, ever.
 
 > Client-direct writes (not a Cloud Function) are the deliberate, deploy-light
-> choice — consistent with DROP's "client writes, rules enforce" pattern
+> choice — consistent with OpsHub's "client writes, rules enforce" pattern
 > (`usageStats`, the tasks denylist, the broadcast field-restriction). The
 > `actorId == uid` rule is the anti-forgery guarantee. Hardening the write behind
 > an Admin-SDK callable (like notifications' `sendNotification`) is a documented
@@ -260,7 +260,7 @@ fails** (unrelated). `flutter analyze` — 0 new issues.
 - **No audit UI yet** — the read side (repository) is complete and paginated; an
   admin "Activity / Audit" screen is a clean follow-up (feed of
   `watchRecent()` + `forEntity()` drill-downs).
-- **Soft-deletes filtered client-side** — fine at DROP's scale; a
+- **Soft-deletes filtered client-side** — fine at OpsHub's scale; a
   `isDeleted+timestamp` composite index would move it server-side if volume grows.
 - **Retention** — records are kept indefinitely; a scheduled
   `auditHousekeeping` function could archive/prune beyond a horizon later.

@@ -4,14 +4,14 @@
 
 ## Context
 
-DROP is repeatedly pulled toward the shape of the tools it superficially resembles —
+OpsHub is repeatedly pulled toward the shape of the tools it superficially resembles —
 Jira, Slack, Linear, Deputy, Connecteam. Those are products for organisations large
 enough that people cannot simply talk to each other, sold to buyers who compare
-feature grids. DROP is an internal operations tool for **DROP THE SHOP**, used by a
+feature grids. OpsHub is an internal operations tool for **OpsHub**, used by a
 small, known set of people across a handful of branches.
 
 Copying their surface imports coordination overhead that only exists to solve a
-scale problem DROP does not have.
+scale problem OpsHub does not have.
 
 ## Decision
 
@@ -36,7 +36,7 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 
 - Some obviously-useful-sounding features will be refused. That is the decision
   working.
-- **Cost:** DROP will lose a feature-grid comparison against Deputy or Connecteam.
+- **Cost:** OpsHub will lose a feature-grid comparison against Deputy or Connecteam.
   Irrelevant — it has no buyers, only users.
 - A UI overhaul is never a refactor. The owner's taste is **visible craft over
   minimalist reduction**; "work on it more" means *enrich*, not *simplify*. Never

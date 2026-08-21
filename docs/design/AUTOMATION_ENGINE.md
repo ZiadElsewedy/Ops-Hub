@@ -1,4 +1,4 @@
-# DROP — Automated Task Engine (Audit + Hardening)
+# OpsHub — Automated Task Engine (Audit + Hardening)
 
 > **Status:** P0 + P1 implemented (`feature/media-upload-v2`, 2026-07-11);
 > **execution observability (Tier 1) implemented 2026-07-18** under
@@ -14,7 +14,7 @@
 
 ---
 
-## 1. What "automation" means in DROP
+## 1. What "automation" means in OpsHub
 
 Two **independent** recurrence engines feed the one `tasks/{id}` collection:
 

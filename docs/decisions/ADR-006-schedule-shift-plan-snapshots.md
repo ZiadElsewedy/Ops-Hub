@@ -33,7 +33,7 @@ Overnight shifts are expressed as `end > 1440`. All slot timing lives in
 - History is immutable by construction — no migration, no backfill, no "as-of" query.
 - The 3-way scope makes the blast radius of an hours edit a deliberate choice
   instead of a surprise.
-- **Cost:** shift hours are stored redundantly per week. At DROP's scale (a handful
+- **Cost:** shift hours are stored redundantly per week. At OpsHub's scale (a handful
   of branches × 52 weeks) this is free.
 - **Cost:** three resolution layers must be kept in one place. They are — never read
   `shiftHours` or `shiftPlan` directly; always go through `hoursFor`.

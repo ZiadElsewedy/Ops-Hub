@@ -1,6 +1,6 @@
-# DROP — Project Context
+# OpsHub — Project Context
 
-> **How DROP is built.** Architecture, module map, and the conventions every
+> **How OpsHub is built.** Architecture, module map, and the conventions every
 > contributor (human or AI) must follow. Read this first; read nothing else unless
 > the task needs it.
 
@@ -25,22 +25,22 @@ previous documentation set grew to 11,000 lines of partly-false claims.
 
 ---
 
-## 1. What DROP is
+## 1. What OpsHub is
 
-**Drop Operation — Operations Management System.** An internal, role-based operations tool for
-**DROP THE SHOP**: branches, shifts, tasks, attendance, approvals, and employee
+**OpsHub — Operations Management System.** An internal, role-based operations tool for
+a multi-branch business: branches, shifts, tasks, attendance, approvals, and employee
 activity. Three roles — **admin · manager · employee**.
 
-The repository folder is **`Drop-operations`**. The Dart package remains `drop`
-(valid package identifiers cannot contain a hyphen); platform-safe identifiers use
-`dropoperation` where needed. Two user-facing names, split by surface: the **OS
-label is `Drop Ops`** — the short name the operating system shows (iOS/Android
-launcher label, macOS/Windows/Linux window & app-switcher title, and the
-`MaterialApp` `title`). Everything **inside** the app keeps the full **`Drop
-Operations`** — `AppConstants.appName`, the `DropWordmark` logotype, the splash
-label, and all in-app copy (About, login, onboarding, notifications, schedule PDF
-headers). Only user-invisible identifiers keep the short `drop`/`dropoperation`
-forms; code comments still say "DROP" as shorthand.
+The repository folder on disk is still **`Drop-operations`** (not renamed). The Dart
+package is **`opshub`** (declared in `pubspec.yaml`; valid Dart package identifiers
+cannot contain a hyphen). The product has **one** user-facing name — **`OpsHub`** —
+used everywhere: the OS launcher/window label on every platform, the `MaterialApp`
+`title`, `AppConstants.appName`, the `OpsHubWordmark` logotype, the splash label, and
+all in-app copy. **Platform bundle identifiers are deliberately unchanged** —
+`com.ziad.drop` (iOS/macOS) and `com.example.dropoperation` (Android) — because they
+are registered with Firebase; changing them requires re-registering the apps in the
+Firebase console and swapping `google-services.json` / `GoogleService-Info.plist`
+first.
 
 It is **not** a social network, an ERP, an analytics engine, or a SaaS product. It
 has no buyers, only users: a small, known set of people across a handful of
@@ -59,7 +59,7 @@ anything large. In short:
   risk.
 - **Premium, not minimal.** Lean is about *count*, not *craft*.
 - **Learn from mature products (Deputy, Connecteam, Sling); never copy them** —
-  they solve a scale problem DROP does not have.
+  they solve a scale problem OpsHub does not have.
 
 Classify every change (**bug / polish / refactor / feature**) and label its risk
 (**LOW / MED / HIGH**). Lead with operational impact.
@@ -267,14 +267,14 @@ Reuse these. Do not re-implement or duplicate them.
 | The typeface itself | `assets/fonts/` + the `fonts:` block in `pubspec.yaml` + `AppTypography.fontFamily` — all three, or the app falls back per platform |
 | Connectivity / offline behaviour | `core/network/connectivity_service.dart` + `core/widgets/connectivity_scope.dart` — never trust the interface alone; the probe is the verdict |
 | **Any new repository write** | start it with `NetworkGuard.ensureWritable()` (`core/network/network_guard.dart`) — without it, an offline write is cached, reported as success, and replayed silently an hour later |
-| Any "nothing here" state | `core/widgets/app_empty_state.dart` · `drop_empty_state.dart` · `empty_state_medallion.dart` — never a bespoke circle + icon |
+| Any "nothing here" state | `core/widgets/app_empty_state.dart` · `opshub_empty_state.dart` · `empty_state_medallion.dart` — never a bespoke circle + icon |
 | Any failure or retry surface | `core/widgets/app_error_state.dart` (`AppErrorState` full-area · `AppProblemPanel` inline) — never an empty state with an error glyph |
 | Any loading placeholder | `core/widgets/list_skeleton.dart` · `skeleton.dart` — a centred spinner only inside a button or sheet action |
 | Global component styling | `core/theme/app_theme.dart` |
 | Firestore / Storage security | `firestore.rules` · `storage.rules` → add a case in `firestore-tests/` → **deploy** |
 | Server logic | `functions/index.js` → **deploy** |
-| Collection names / in-app app name (`Drop Operations`) | `core/constants/app_constants.dart` |
-| The **OS label** (`Drop Ops`) — launcher/window/app-switcher title | iOS `Info.plist` (`CFBundleDisplayName`/`CFBundleName`) + Android `AndroidManifest.xml` (`android:label`) + macOS `project.pbxproj` (`INFOPLIST_KEY_CFBundleDisplayName`) + Windows `Runner.rc` + Linux `my_application.cc` + both `MaterialApp` `title`s in `main.dart` — **all of them, or the name differs per platform** |
+| Collection names / in-app app name (`OpsHub`) | `core/constants/app_constants.dart` |
+| The **OS label** (`OpsHub`) — launcher/window/app-switcher title | iOS `Info.plist` (`CFBundleDisplayName`/`CFBundleName`) + Android `AndroidManifest.xml` (`android:label`) + macOS `project.pbxproj` (`INFOPLIST_KEY_CFBundleDisplayName`) + Windows `Runner.rc` + Linux `my_application.cc` + both `MaterialApp` `title`s in `main.dart` — **all of them, or the name differs per platform** |
 | DI wiring | `core/di/injection.dart` |
 | App bootstrap / providers | `main.dart` |
 | **Anything about who is signed in, or ending a session** | `features/auth/presentation/cubit/auth_cubit.dart` — including single active session ([ADR-023](docs/decisions/ADR-023-single-active-session.md)). **Never re-check the session inside a feature** |
@@ -360,12 +360,12 @@ dart run build_runner build --delete-conflicting-outputs
 only accent. The only chromatic colours are semantic `success` / `error` / `warning` /
 `info`, and they express **status only** (`info` is hairline-only — never a fill).
 
-This is the single most re-litigated decision in DROP — read
+This is the single most re-litigated decision in OpsHub — read
 [ADR-004](docs/decisions/ADR-004-monochrome-design.md) **before** proposing a brand
 colour. (A brand accent on the Branch Sales figures was tried and reverted on
 2026-08-07 — the ADR records it.)
 
-- **Calm through hierarchy, not reduction.** DROP is premium, not minimal. A 4-step
+- **Calm through hierarchy, not reduction.** OpsHub is premium, not minimal. A 4-step
   grey ramp (`FFFFFF` / `A7A7AF` / `6E6E77` / `48484E`) does the work colour would;
   **no two adjacent texts share a grey**.
 - **Never replace a lived-in UI without sign-off.** "Work on it more" means
@@ -381,7 +381,7 @@ colour. (A brand accent on the Branch Sales figures was tried and reverted on
   that is not bundled, or the app silently renders in a different face per platform
   (that is exactly how it ran on Roboto on Android for months).
 - **An empty state is a finished state, not a missing one.** Every "nothing here"
-  surface renders through `AppEmptyState` (glyph) or `DropEmptyState` (brand), both
+  surface renders through `AppEmptyState` (glyph) or `OpsHubEmptyState` (brand), both
   of which carry their mark in `EmptyStateMedallion`. Don't hand-roll a circle and
   a grey icon per screen. Equally: a container whose every cell is conditional must
   gate **itself and its spacing** on having content — an empty bordered box reads to
@@ -435,8 +435,8 @@ colour. (A brand accent on the Branch Sales figures was tried and reverted on
 | Status pill | `StatusBadge` (`.task` is canonical) |
 | Grouped account rows (Settings, Profile) | `SettingsSectionHeader` + `SettingsGroup` + `SettingsRow` / `SettingsSwitchRow` + `SettingsIconMedallion` (`core/widgets/settings_tiles.dart`) — one card, inset hairlines, 40px medallions. A new account surface must not fork it |
 | Task card edge | `TaskAttentionSurface` + `taskAttentionTone` (Employee Home) |
-| Empty state | `DropEmptyState` |
-| Loading | `Skeleton` / `DropLoadingState` |
+| Empty state | `OpsHubEmptyState` |
+| Loading | `Skeleton` / `OpsHubLoadingState` |
 | Feedback | `AppSnackbar.success/error` — never raw `ScaffoldMessenger` |
 | Spacing / radius | `AppSpacing` / `AppRadius` — never hardcode |
 
@@ -445,7 +445,7 @@ New surfaces compose the Design System V2 primitives — see
 
 ### Adaptive shell
 
-- **Mobile/tablet:** `RoleScaffold` owns the role-home AppBar (DROP mark + one
+- **Mobile/tablet:** `RoleScaffold` owns the role-home AppBar (OpsHub mark + one
   glass role-action capsule + separate account avatar) and `AppBottomNav`.
   Actions remain role-scoped; the manager's five-control worst case must fit at
   320px with every target ≥44px.

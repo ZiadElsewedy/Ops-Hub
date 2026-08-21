@@ -9,11 +9,11 @@
 
 ## 0. How to read this
 
-The original V2 brief was ~20 subsystems that add up to a full Workforce-Management platform (Deputy / WhenIWork / Homebase). This document is the **triage of that brief against DROP's own philosophy**, plus the pillar plan for the parts that survive.
+The original V2 brief was ~20 subsystems that add up to a full Workforce-Management platform (Deputy / WhenIWork / Homebase). This document is the **triage of that brief against OpsHub's own philosophy**, plus the pillar plan for the parts that survive.
 
 Two rules govern every line below:
 
-1. **Premium ≠ enterprise.** The parts that make Schedule *feel* premium are cheap and IN. The parts that make it an *enterprise WMS* are expensive, high-risk, built for a scale DROP doesn't have — OUT until a real need appears.
+1. **Premium ≠ enterprise.** The parts that make Schedule *feel* premium are cheap and IN. The parts that make it an *enterprise WMS* are expensive, high-risk, built for a scale OpsHub doesn't have — OUT until a real need appears.
 2. **Extend, don't rebuild.** Schedule is a mature ~13,500-LOC feature. Most of the brief is already partly built. Every pillar names the real files it grows from.
 
 ---
@@ -51,7 +51,7 @@ Pulled from standing owner rulings — these are non-negotiable framing, not asp
 
 ## 3. Scope decision
 
-### ✅ IN — genuine DROP-premium, high leverage
+### ✅ IN — genuine OpsHub-premium, high leverage
 
 | # | Item | Lands in |
 |---|---|---|
@@ -79,7 +79,7 @@ Pulled from standing owner rulings — these are non-negotiable framing, not asp
 | — | Versioning (v1/v2/v3), draft-vs-published, shift locking | Enterprise workflow engine. | Employees see wrong in-progress edits AND that causes real confusion. |
 | 11 | Excel keyboard interaction (arrow/tab/copy/paste/range/fill/undo/redo) | Huge surface, tiny payoff at this scale. | Managers build schedules for >50 people regularly. |
 | 13/14 | Workload heatmaps + AI assignment suggestions | WMS analytics. Doubly settled — the lighter-weight version of this (Pillar 3 findings) was itself deleted 2026-07-15 as unwanted. | Explicit owner ask. |
-| 17 | Background isolates / "hundreds of employees" | Premature — not DROP's scale. | Profiler shows real jank on a real branch. |
+| 17 | Background isolates / "hundreds of employees" | Premature — not OpsHub's scale. | Profiler shows real jank on a real branch. |
 | 19 | Offline edit + pending-ops + conflict-resolution/merge | Distributed-systems complexity. Firestore offline persistence already covers reads. | Managers routinely edit on flaky connections AND lose edits. |
 | 20 | ~~Excel export~~ / CSV export | ✅ **Excel (`.xlsx`) shipped 2026-08-05** (owner ask) alongside PNG + PDF. **CSV** stays out — no concrete request. | A concrete "I need CSV for payroll" request. |
 
@@ -191,9 +191,9 @@ Each pillar states **Goal · Architecture · UX · Logic · Risk · Out-of-scope
 ### Pillar 5 — Final View Redesign ✅ (shipped 2026-07-09)
 > **Sequencing note:** the owner pulled this **ahead of Pillar 4 (Shift Templates)** and called it "Pillar 4 — Final View Redesign." Shift Templates + Metadata/History remain deferred behind it.
 
-- **Goal (delivered):** the Final View was **redesigned from scratch** into a premium, read-only, print/export-ready schedule — a modern spreadsheet (Apple Numbers / Notion tables) in DROP's monochrome language. Not a polish pass; a rebuild.
+- **Goal (delivered):** the Final View was **redesigned from scratch** into a premium, read-only, print/export-ready schedule — a modern spreadsheet (Apple Numbers / Notion tables) in OpsHub's monochrome language. Not a polish pass; a rebuild.
 - **Architecture (as built):** a **dedicated presentation surface** `widgets/final_schedule_sheet.dart` (`FinalScheduleSheet`) — *not* the editor with another mode. `pages/schedule_final_view.dart` keeps only the route/chrome (`showScheduleFinalView` launch signature, the preview toolbar, and the `RepaintBoundary`→`toImage`→Downloads **PNG export**) and hosts the sheet. The old grid-reuse `_ExportCanvas` + fact-pills were deleted.
-- **Layout:** one **employee per row** × **day per column** (Sun→Sat + dates), a single scannable **token per cell** (`M`·`N`·`M/N`·`OFF`·`LEAVE`·`VAC`), a document header (DROP · branch · Week of · Generated · Manager), a **day-notes row** (only when notes exist), and a legend. Fixed-width **1600 landscape document**, natural height (≈ A4-landscape for a typical roster), `FittedBox`-scaled to any screen; subtle zebra + hairline rules, no chips/avatars/heavy shadows.
+- **Layout:** one **employee per row** × **day per column** (Sun→Sat + dates), a single scannable **token per cell** (`M`·`N`·`M/N`·`OFF`·`LEAVE`·`VAC`), a document header (OpsHub · branch · Week of · Generated · Manager), a **day-notes row** (only when notes exist), and a legend. Fixed-width **1600 landscape document**, natural height (≈ A4-landscape for a typical roster), `FittedBox`-scaled to any screen; subtle zebra + hairline rules, no chips/avatars/heavy shadows.
 - **UX:** pure presentation — no drag/inspector/health/analytics/suggestions/builder controls. Employee names lead; shift tokens are the scan target; whitespace carries the rest.
 - **Logic:** none new — reads `WeeklyScheduleEntity` / `UserEntity` / `ShiftHours` / `LeaveType` / `ScheduleWeek` / `AppDateFormatter` only.
 - **Risk:** LOW (presentation-only; frozen surfaces untouched).

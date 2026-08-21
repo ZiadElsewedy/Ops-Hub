@@ -4,7 +4,7 @@
 
 ## Context
 
-DROP is admin-provisioned: an admin creates each account and hands over a temporary
+OpsHub is admin-provisioned: an admin creates each account and hands over a temporary
 password. Nothing stopped that password from being used on five phones at once — so
 one employee's credentials could put five people inside the branch's operational
 data, and an account handed to a departing employee stayed live on their personal

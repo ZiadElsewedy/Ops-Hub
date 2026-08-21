@@ -2,7 +2,7 @@
 
 **Status:** Accepted · **Date:** 2026-06-14, reaffirmed 2026-06-25, 2026-07-08 and 2026-08-07
 
-> This decision has been reversed and re-reversed more than any other in DROP.
+> This decision has been reversed and re-reversed more than any other in OpsHub.
 > It is written down so it stops being re-argued. **Read this before proposing a
 > brand colour.**
 >
@@ -27,7 +27,7 @@ The UI is **strictly monochrome** — black / white / grey, dark mode only.
   carries every primary action, focus state, active nav tab, and key highlight.
 - The **only** chromatic colours are the semantic `success` / `error` / `warning`,
   and they may express **status only** — never brand, never decoration.
-- Calm comes from **hierarchy, not reduction**. DROP is premium, not minimal:
+- Calm comes from **hierarchy, not reduction**. OpsHub is premium, not minimal:
   a 4-step grey ramp (`FFFFFF` / `A7A7AF` / `6E6E77` / `48484E`) does the work a
   colour would, and **no two adjacent texts share a grey**.
 - Never write raw `Color(...)` or `TextStyle(...)` in a feature. Reference

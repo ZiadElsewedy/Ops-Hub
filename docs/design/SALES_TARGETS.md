@@ -95,7 +95,7 @@ No embedded totals, no timeline array; `audit_logs` is the immutable history.
   `submittedById ASC, monthKey ASC, businessDateKey DESC`
 
 Managers query their own `branchId`; admins run one bounded branch-month query per
-known branch. **No global materialized rollup** — DROP's branch set is small.
+known branch. **No global materialized rollup** — OpsHub's branch set is small.
 
 ## Server-authoritative boundary ([ADR-005](../decisions/ADR-005-server-authoritative-writes.md))
 
@@ -246,7 +246,7 @@ greys/white** — the only semantic colour is `StatusBadge` for `pending` / `rej
   framed as a personal quota — "My Sales" mis-stated what the feature measures.
 - **Brand is the logo, never the word.** Where a surface carries a mark it is
   `BrandWatermark(assetLogo: true)` — the real artwork at low opacity, not a
-  typographic "DROP".
+  typographic "OpsHub".
 
 **Routes** — role-guarded in `app_router.dart` + `route_names.dart`:
 
@@ -399,7 +399,7 @@ write aggregation — that is an ADR decision, not a default (ADR-009/010, ADR-0
 
 ## Implementation plan
 
-Phased, following DROP's `datasource → repository → use case → cubit/state → page →
+Phased, following OpsHub's `datasource → repository → use case → cubit/state → page →
 inject → router → codegen → rules + tests → functions + deploy` workflow.
 
 | Phase | Scope | Gate |

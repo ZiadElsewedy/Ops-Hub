@@ -1,4 +1,4 @@
-# DROP — Current State
+# OpsHub — Current State
 
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
@@ -308,7 +308,7 @@
 > dropped the flat `SalesMoneyRow` for a small **progress ring** + achieved-over-
 > target (`112,000 / 1,000,000`) + `… EGP remaining`. Achieved rolls in (shared
 > premium count-up + light sweep), the ring sweeps on `kPremiumSettle`, remaining
-> rolls a beat later. DROP corner mark removed from this card to match the mockup
+> rolls a beat later. OpsHub corner mark removed from this card to match the mockup
 > (chevron only). `SalesMoneyRow` retained for the admin overview.
 
 > **Employee Branch-sales screen leads with an animated target hero (2026-08-08,
@@ -383,22 +383,22 @@
 > (`schedule_manager_day_off_test.dart`). Design doc
 > [SCHEDULE](docs/design/SCHEDULE.md) amended.
 
-> **OS label split to "Drop Ops"; in-app name stays "Drop Operations"
+> **OS label split to "OpsHub"; in-app name stays "OpsHub"
 > (2026-08-08, polish, NOT device-verified):** The short name the operating
-> system shows was changed **Drop Operations → Drop Ops** on the OS-level surfaces
+> system shows was changed **OpsHub → OpsHub** on the OS-level surfaces
 > only — iOS `CFBundleDisplayName`/`CFBundleName`, Android `android:label`, macOS
 > `INFOPLIST_KEY_CFBundleDisplayName` (the stray trailing space was also dropped),
 > Windows `FileDescription`/`ProductName`, Linux window/header-bar titles, and both
 > `MaterialApp` `title`s (the desktop/web window & app-switcher title). Everything
 > **inside** the app is deliberately **unchanged** and still reads *Drop
-> Operations*: `AppConstants.appName`, the `DropWordmark` logotype, the splash
+> Operations*: `AppConstants.appName`, the `OpsHubWordmark` logotype, the splash
 > label, and all copy (About, login, onboarding, notifications, schedule
 > Final-view + PDF headers). No logic, schema, rules, or functions changed;
 > `flutter analyze` clean (only `main.dart` is a Dart edit — the rest are platform
 > config). No tests changed (the 3 name tests assert the wordmark/copy, all kept).
 > ⚠️ **NOT device-verified** — the launcher label and window-title rendering need a
-> real build per platform. *(Supersedes the earlier same-day DROP → Drop
-> Operations rename, which had made the OS labels "Drop Operations" too.)*
+> real build per platform. *(Supersedes the earlier same-day OpsHub → Drop
+> Operations rename, which had made the OS labels "OpsHub" too.)*
 
 > **Reviewer attendance search is now directory-backed (2026-08-07, feature,
 > presentation + pure domain + one bounded read, client-only, NO deploy, NOT
@@ -987,7 +987,7 @@
 > preferences must survive a reinstall or apply across devices they need a
 > Firestore home.
 > **Appearance is a deliberately inert row** — a monochrome COMING SOON label,
-> no screen, no theme switching (DROP is dark-only, ADR-004).
+> no screen, no theme switching (OpsHub is dark-only, ADR-004).
 > The Settings row widgets moved unchanged to
 > `features/settings/presentation/widgets/settings_tiles.dart` so both screens
 > share one row. Pinned by `test/features/settings/` and the extended
@@ -1248,7 +1248,7 @@
 
 > **Premium Settings account hub (2026-08-05, presentation only):** Settings now
 > leads with a tappable signed-in identity card (real avatar, name, email and
-> role), then separates Security, Workspace and Drop Operation information into
+> role), then separates Security, Workspace and OpsHub information into
 > shared glass surfaces with clearer supporting copy. Sign out is isolated as a
 > deliberate destructive action, version metadata stays visible, and the page
 > enters with the shared restrained stagger motion. All existing routes/actions
@@ -1378,7 +1378,7 @@
 > underneath it, so Approve looked like it did nothing. **Not device-verified.**
 
 > **Project identity alignment (2026-08-05):** The repository folder is
-> **`Drop-operations`** and the user-facing product name is **Drop Operation**.
+> **`Drop-operations`** and the user-facing product name is **OpsHub**.
 > Android/Linux use the valid identifier `com.example.dropoperation`; iOS/macOS
 > continue to use `com.ziad.drop`. The Android Firebase registration/configuration
 > must be regenerated for the new identifier before a Firebase-enabled release.
@@ -1530,7 +1530,7 @@
 | **Blocking release** | 🚦 **See [docs/RELEASE_V1.md](docs/RELEASE_V1.md) for the full gate.** Headline blockers: Android `applicationId` is `com.example.dropoperation` (Play-rejected) and release builds use the **debug keystore** · **no Firestore backups, PITR or delete protection** · APNs credential for iOS push · attendance on-device GPS QA · the app has **never been run on Android**. ✅ The automation P0 functions deploy **is done** (13:16 UTC), and ✅ **rules + all 24 functions are deployed and verified** (18:32–18:40 UTC) — the stale-deploy blockers B3/B4 are closed. ⚠️ H3 (`recurringTaskTemplates` read is not branch-scoped) was meant to ride that rules deploy and **did not** — it still needs its own. **(Chat P0-1 read-receipts + P1-1 unread counts are LIVE on Railway `main`, commit `2513c89`, via PR #7/#8.)** |
 | **Platforms** | iOS · Android · macOS |
 
-DROP is **feature-complete for its intended scope** and now gated on QA, not on
+OpsHub is **feature-complete for its intended scope** and now gated on QA, not on
 deployment.
 
 **Firebase deploy DONE 2026-07-31** to `bazic-d9ad7` (the only project; there is no
@@ -1625,7 +1625,7 @@ pruning. `Community-Hub` is **dead** — the feature was removed 2026-07-15.
 | **Employee Home** | **Hero reworked 2026-08-01.** The progress ring counted *in review* as finished, so it showed "3 of 3" beside "1 in review · 2 done"; it now uses the same `done = approved + completed` as the strip's Done cell. (It was deleted in the first pass and **owner-restored** the same day at 78px beside the shift — kept on the condition that it counts what the strip counts, and it is the **only** place the ratio is drawn.) The green **"All caught up!"** banner is deleted — third restatement of a finished day, and the only colour on screen; its "Open all tasks" row stays. The card also holds the **clock state** (`Clocked in 8:04 · 6h 30m on shift` / amber `Not clocked in` once the shift is underway / grey `Clocked out`), which had **no presence on Home before** despite being a twice-daily action reachable only via an unlabelled fingerprint icon. The button **hands off to the Attendance screen** — it does not clock in (GPS + geofence rules stay in one place), and Home never calls `previewLocation()` so it can't provoke a location prompt. ⚠️ Home now holds two Firestore attendance listeners while open. Strip zero-columns collapse to *"Nothing to do"* |
 | **Task details** | **Info page reworked 2026-08-03.** The task **title** now leads the body (it lived only in the app bar, above a full-bleed branch cover — the page opened on a status pill and seven metadata chips without ever saying what the work was), with the **description directly under it** (its standalone section is deleted). The meta row is conditional rather than exhaustive: no branch chip when the cover banner already names it, no raw `type` string, no `Normal` priority (the default on every task), no `Active` phase beside a Due chip, no past `Starts` date — seven chips down to two on a typical task. **Assignment** (renamed from "Assigned to") is one lockup: assignee, then an indented `↳ Assigned by **Admin**` handover line, replacing a name/role block, a divider, and an orphan grey caption. The activity timeline is unchanged |
 | **Manager Home** | **Rebuilt 2026-08-03** into the branch command center — the same ranked ladder Admin Home was signed off on, scoped to one branch: hero (greeting · one live state sentence · branch name · one **New Task** CTA) → **Needs attention** (`AttentionPanel`) → **Today** → **On shift today** → **Recent activity** → Operations digest · quick actions · recent messages, with a fixed 360px right rail on desktop. Replaced ten equal-weight stat cards plus an embedded task browser, where nothing was ranked and a hero `Active tasks 4` disagreed with the feed strip beneath it. Every count now comes from the live `TaskCubit` stream via `task_metrics.dart` (a figure and its drill-down list cannot drift); `StatisticsCubit` supplies only roster context. The hero sentence and the panel read the **same** total; **`Late` is drawn exactly once**. The full search/filter/sort browser was **moved, not deleted** — it lives in Branch Operations, reached from *Recent activity → See all*. **Second pass the same day** (owner: *"why everything in 1 page on mobile … way more clear and clickable … too much text"*): Today is four `MetricTile` doors (2×2 on a phone) with `Due soon` replaced by a drillable **`Due today`**; On shift today is **one tappable card** instead of four unclickable cells — and (third pass) it opens a read-only **roster peek** naming who is on each shift with its hours (`showTodayRosterSheet`, backed by the pure `schedule/domain/today_roster.dart`), **not** the weekly editor; the peek restores whatever (branch, week) the app-wide `ScheduleCubit` was showing, so it never moves the Schedule tab behind the user; the hero lost a whole text line (branch moved into the eyebrow, scope line and `Synced just now` dropped) and section subtitles are gone; **Quick actions is deleted** (duplicated the bottom nav + app bar) and **Recent messages is desktop-only**. The **all-clear panel is compact** — one row (check · title · the derived list of what was checked), down from ~230px of check + headline + sentence + zeroes, which made *nothing to do* the tallest thing on a calm board; `AttentionPanel.clearMessage` is gone and Admin Home gets the same treatment. Covered by `test/manager_home_test.dart` (10 tests) on both tiers + `today_roster_test.dart` (7) |
-| **Design system** | Monochrome V2 primitives. Admin Dashboard V2 owner-signed-off. **The V2 command-center chrome is shared as of 2026-08-03** — `PrimaryCta` · `SyncButton` (+ pure `syncLabel`) · `HeroMood` · `AttentionPanel`/`AttentionSignal` · `DigestPanel`/`DigestEntry` · `CommandHint` moved out of `admin_dashboard_screen.dart`'s private classes into `core/widgets/`, with `live_status_border.dart` and `dashboard_mood.dart` following into `core/`. Admin Home renders identically and now composes them. **Task card border language** (ADR-014) live on Employee Home: the 1px edge is the state and never moves; only an unopened `pending` task gets the attention treatment. `RoleScaffold`'s mobile app bar leads with the DROP mark alone — the role word remains hidden because it truncated to "Mana…" and each home's hero already names the user and scope. Its role actions now share one flat glass command capsule beside a surfaced account avatar, with 44px targets and unread/account semantics |
+| **Design system** | Monochrome V2 primitives. Admin Dashboard V2 owner-signed-off. **The V2 command-center chrome is shared as of 2026-08-03** — `PrimaryCta` · `SyncButton` (+ pure `syncLabel`) · `HeroMood` · `AttentionPanel`/`AttentionSignal` · `DigestPanel`/`DigestEntry` · `CommandHint` moved out of `admin_dashboard_screen.dart`'s private classes into `core/widgets/`, with `live_status_border.dart` and `dashboard_mood.dart` following into `core/`. Admin Home renders identically and now composes them. **Task card border language** (ADR-014) live on Employee Home: the 1px edge is the state and never moves; only an unopened `pending` task gets the attention treatment. `RoleScaffold`'s mobile app bar leads with the OpsHub mark alone — the role word remains hidden because it truncated to "Mana…" and each home's hero already names the user and scope. Its role actions now share one flat glass command capsule beside a surfaced account avatar, with 44px targets and unread/account semantics |
 | **Observability** | `AppLog` + `CrashReporter` (4 funnels, persisted across launches) |
 
 ### In progress
@@ -1671,7 +1671,7 @@ Optional dev-only LAN override: `--dart-define=DEV_API_BASE_URL=http://<lan-ip>:
 | P10 — Real profiles + polish + LAN | Done, **uncommitted** (2026-07-23; directory scope superseded by P12). **Real titles:** `GET /conversations` returns `counterpartExternalId` (Firebase uid, resolved through the flat `GetChatDirectory` Firebase lookup); the inbox renders real **avatar · name · role**, and the thread header shows the counterpart avatar+name — no backend id is ever a UI key. **Composer** redesigned premium (rounded 46px pill, reactive send button, multiline). **Thread** gets message grouping (time on the run tail only) + a premium empty state. **Networking:** backend binds `0.0.0.0:3000`; a debug-only Android manifest allows cleartext; one `--dart-define=API_BASE_URL=http://192.168.1.8:3000` wires REST + socket for both the iOS Simulator and a physical Android device. `ApiClient` + `ChatListCubit` now log the real transport error (no more silent loading→error loop). Composer refined (reactive send button + lifted bar + safe-area anchor), empty state personalized ("Say hello to {first name}"). **Verified live on the iOS Simulator via the LAN IP: real profiles, inbox, thread, and a live message send all work end-to-end** |
 | P11 — V1 polish (composer · reply · attachments · optimistic · perf) | Done, **uncommitted** (2026-07-24). **Composer** rebuilt premium (r26 pill, left paperclip → attachment sheet, circular send that animates in only when there's text/an attachment, staged-attachment preview). **Reply** two ways: WhatsApp swipe-right (`_SwipeToReply` — bubble tracks the drag, reply glyph + one haptic at threshold, spring-back) **and** long-press menu (Reply · Copy · Message info · Delete-for-me/everyone); quoted preview renders in the bubble and as a composer banner. **Attachments** (`ChatAttachmentSource` seam + `ChatAttachmentPicker` over image_picker/**file_picker**): Camera/Gallery/Documents sheet, preview-before-send, premium file cards, optimistic image thumbnail from local bytes, full-screen `ImageViewerScreen` (local bytes now, brokered URL via `GetChatAttachmentUrl` for received). **Message info** screen — only backend-provided fields (sent time, status, sender, ids, seq, attachment, reply ref), IDs tap-to-copy. **Optimistic send** (`sendMessage` returns immediately, inserts a `SENDING` bubble, background POST → replace with server msg / mark `FAILED` + tap-to-retry reusing the idempotency key). **Perf:** `ChatThreadCache` (in-memory) paints a re-opened thread instantly, then refreshes; skeleton loader for a cold open. All presentation/cubit — REST stays the only write path. **NOT device-verified this session** (user reviews on-device) |
 | P12 — Flat participant directory | Done, **uncommitted** (2026-07-24), [ADR-012](docs/decisions/ADR-012-chat-directory-is-flat.md). The picker was a bare own-branch Firestore read, but **admins are provisioned branchless** (the role is global) — so an admin's picker was empty and no staff member ever saw an admin (confirmed against live data: 1 branchless admin, 8 employees over 2 branches, 1 manager). Rather than special-case admins, chat's access model is now **flat: every authenticated user may message every other active user**. `GetChatDirectory` = ONE unfiltered `getAllUsers` read, filtered only by self-exclusion + `isActive` (applied in the use case so a legacy doc missing the field keeps its `true` default); shared by the picker *and* the inbox directory. **No branch or role predicate anywhere in the chat path.** New `AuthRepository.getAllUsers`. **Requires a rules deploy** — `users` read is now `if isSignedIn()`, replacing the owner/admin/same-branch disjunction |
-| P16 — Final UX/UI polish | Done, **uncommitted** (2026-07-24). Presentation-only; no architecture / API / backend change. **Conversation options** three-dot menu (info · search · mute · clear · delete; both destructive actions confirm). **Conversation Info screen** — avatar · name · position/role · branch (Firebase directory + `BranchCubit`) · shared media/document counts · the same actions; **online/last-seen deliberately omitted** (no backend presence — DROP doesn't fabricate it). **In-conversation search** — live (200ms debounce) tone-aware match highlighting, emphasized active match auto-scrolled into view, `n/total` + prev/next (Enter = next), "No matching messages." bar. **Clear chat history** = `clearChatForMe()`, a bulk delete-for-me over the loaded window via the **existing** per-message endpoint, pooled 3 (`mapPooled`); counterpart keeps their copy; Delete conversation reuses it then pops. **Desktop** — right-click context menu (Reply · Copy · Forward *(placeholder)* · Delete for me/everyone) sharing one action handler with the mobile sheet; pointer cursor on tappable bubbles. **Inbox loading** is now a tile skeleton list. Added `AppSnackbar.info`/`context.showInfo`; `ChatThreadArgs.counterpartExternalId`. **Not device-verified this session** |
+| P16 — Final UX/UI polish | Done, **uncommitted** (2026-07-24). Presentation-only; no architecture / API / backend change. **Conversation options** three-dot menu (info · search · mute · clear · delete; both destructive actions confirm). **Conversation Info screen** — avatar · name · position/role · branch (Firebase directory + `BranchCubit`) · shared media/document counts · the same actions; **online/last-seen deliberately omitted** (no backend presence — OpsHub doesn't fabricate it). **In-conversation search** — live (200ms debounce) tone-aware match highlighting, emphasized active match auto-scrolled into view, `n/total` + prev/next (Enter = next), "No matching messages." bar. **Clear chat history** = `clearChatForMe()`, a bulk delete-for-me over the loaded window via the **existing** per-message endpoint, pooled 3 (`mapPooled`); counterpart keeps their copy; Delete conversation reuses it then pops. **Desktop** — right-click context menu (Reply · Copy · Forward *(placeholder)* · Delete for me/everyone) sharing one action handler with the mobile sheet; pointer cursor on tappable bubbles. **Inbox loading** is now a tile skeleton list. Added `AppSnackbar.info`/`context.showInfo`; `ChatThreadArgs.counterpartExternalId`. **Not device-verified this session** |
 | P15 — Feature improvements | Done, **uncommitted** (2026-07-24). Six additive upgrades, no UI-architecture / realtime / backend-contract change: **(1) document preview** — `ChatDocumentService` downloads (cached, dedup by attachment id) + opens PDF/DOC/DOCX/XLS/XLSX/PPT/PPTX/TXT via the platform default app (`open_filex` mobile · OS `Process` desktop), loading + error-with-**Retry** (in-app PDF renderer deferred as build-risky); **(2) inbox search** — AppBar search → debounced O(n) live filter on name/role/last-message, scroll-preserved, "No conversations found." empty state; **(3) unread badge** — sidebar Chat row shows live `ChatListCubit.totalUnread` (hidden at 0); **(4) Recent Messages** dashboard widget (`RecentMessagesCard`, top-5, avatar·name·preview·time·unread, on employee + manager homes); **(5) in-app notifications** — tappable banner from any screen via new `ChatListCubit.incoming` stream + `ChatNotificationListener`, suppressed for the on-screen conversation (`AppDependencies.activeChatConversation`); desktop uses the same banner (OS-level local notif out of scope); **(6) document bubble** redesign (format icon + `PDF • 577 KB` + desktop hover Open/Download). `open_filex` added. **Not device-verified this session** (`pod install` for open_filex) |
 | P14 — Offline cache (Drift/SQLite) | Done, **uncommitted** (2026-07-24; attachment-URL reuse hardened 2026-08-03). Production-grade local cache under `features/chat/data/local/` (`ChatDatabase` + `ChatLocalDataSource`): persists conversations, messages, **reply + attachment metadata**, and a durable text-send outbox — **never image/attachment bytes**. `ChatRepositoryImpl` takes an *optional* local datasource (null ⇒ REST-only original, so fakes/tests are untouched): read-through / write-through, offline fallback to cache, cache-first back-pagination (`local:<seq>` cursor), conflict-safe upserts (idempotent by id, ordered by server `seq`), plus an in-memory per-message brokered-URL cache through `ChatAttachmentDownload.isExpired`; URLs are not persisted. `ChatThreadCache` is now two-tier (in-memory + durable Drift) ⇒ instant open survives a restart and realtime messages persist via the existing `_emit → put`. Cubit changes additive only (cold-restore, keep local bubbles across refresh, adopt outbox + auto-retry failed sends on load/reconnect). Cache wiped on sign-out. **No image bytes or backend-contract change.** +15 original tests; URL-regression coverage added 2026-08-03. **Not device-verified this session** |
 | P13 — Mobile UI refinement | Done, **uncommitted** (2026-07-24). Presentation-only polish pass, no backend/contract change. **Alignment root-cause fix:** own messages were rendering LEFT — `_SwipeToReply`'s `Stack` shrink-wraps the bubble and pins it `topStart`, collapsing the bubble Column's `crossAxisAlignment`, so swipe-enabled (confirmed) sends aligned left while `local:`/tombstone bubbles aligned right. Side is now enforced by an `Align` at the list-item level (works in both the swipe and non-swipe paths). Grouping keys on **side/ownership** not raw `senderId` (folds optimistic `local:` bubbles into my run; a side change always forces a tail + gap, so two people's runs can't merge). Bubble radii 20 + 6pt tail, padding 14×9, within-group gap 3 / between-group 12, max width 0.76·w cap 560. **Composer:** animated focus (border brightens/thickens on focus), 24pt pill, tightened padding. Ticks unchanged (monochrome per the design ruling). Verified on the iPhone 17 simulator |
@@ -1749,7 +1749,7 @@ Attendance is an operational reporting ledger, a scoped carve-out of
 (the live board itself is unchanged). Rationale and the full end-to-end audit:
 [ATTENDANCE_AUDIT_2026-07-30.md](docs/design/ATTENDANCE_AUDIT_2026-07-30.md).
 Still refused: composite employee scores, leaderboards, client-authored payroll
-totals, persisted late/overtime statuses, DROP as a payroll processor.
+totals, persisted late/overtime statuses, OpsHub as a payroll processor.
 
 The first pure, additive P0 core exists under
 `lib/features/attendance/domain/reporting/`: period windows/ids, roster-derived
@@ -2010,7 +2010,7 @@ tests.
 
 **Phase 4 was RESCOPED and SHIPPED 2026-08-01** by
 [ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md), after
-the owner retired its premise: **DROP is an operations system, not a payroll
+the owner retired its premise: **OpsHub is an operations system, not a payroll
 system, and payroll integration is not planned.**
 
 That collapsed the old reasoning in sequence — no machine ingests a file, so no
@@ -2119,7 +2119,7 @@ admin live board's own detail sheet, which is already an admin surface.
 **Both remaining product decisions are now DECIDED (2026-07-31, uncommitted).**
 
 *Overtime threshold — there is none, and exception kind #5 is struck.* Confirming
-overtime in DROP alters no record, no payment and no export (ADR-017: DROP hands
+overtime in OpsHub alters no record, no payment and no export (ADR-017: OpsHub hands
 off a ledger, R17: overtime is "never auto-approved, never fed anywhere"), so an
 approval step fails ADR-017's own metric bar. `overtimeGraceMinutes` (15) already
 defines when overtime *exists*; a second number for when it needs *approval*
@@ -2167,11 +2167,11 @@ default schedule enforcement; `AttendanceCalculator` remains unchanged.
 | Feature | Removed | Why |
 | --- | --- | --- |
 | **Schedule Health** | 2026-07-15 | [ADR-007](docs/decisions/ADR-007-schedule-health-removed.md) — advice that never gated anything |
-| **Community Hub / DROP Events** | 2026-07-15 | Owner request. Live Firestore data left untouched |
+| **Community Hub / OpsHub Events** | 2026-07-15 | Owner request. Live Firestore data left untouched |
 | **Analytics pipeline** | 2026-06-23 | [ADR-009](docs/decisions/ADR-009-no-analytics-pipeline.md) — vanity metrics |
 | **Attendance breaks** | 2026-07-15 | Descoped for MVP. `AttendanceBreak` kept as a dormant extension point |
 | **Shift foundation (Phase 2)** | Phase 10 | Dead code; the weekly schedule is the roster |
-| **Public registration / OTP / Google** | 2026-06-26 | DROP is admin-provisioned |
+| **Public registration / OTP / Google** | 2026-06-26 | OpsHub is admin-provisioned |
 | **Employee-card KPI strip** (Completed · Pending · Rate · Late) | 2026-08-01 | Owner ask. Identical on every row, so it ranked nobody while costing the tallest band of the card. Performance lives in the Details inspector; `computeEmployeeMetrics` is untouched |
 
 ---
