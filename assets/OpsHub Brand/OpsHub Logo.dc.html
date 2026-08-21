@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #FBFBFC; }
+  a { color: #2563EB; text-decoration: none; }
+  a:hover { color: #1B2A4A; }
+</style>
+</helmet>
+
+<div style="font-family: 'Space Grotesk', Helvetica, sans-serif; color: #1B2A4A; background: #FBFBFC; padding: 88px 96px 120px; display: flex; flex-direction: column; gap: 96px; max-width: 1360px; margin: 0 auto;">
+
+  <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #E4E6EB; padding-bottom: 20px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #6B7689;">OpsHub — Identity system</div>
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.12em; color: #6B7689;">v1.0</div>
+  </div>
+
+  <!-- Primary horizontal lockup -->
+  <section style="display: flex; flex-direction: column; gap: 32px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #9AA3B2;">01 / Horizontal lockup</div>
+    <div style="background: #FFFFFF; border: 1px solid #E9EBEF; padding: 96px 80px; display: flex; justify-content: center;">
+      <div style="display: flex; align-items: center; gap: 26px;">
+        <svg width="88" height="88" viewBox="0 0 64 64" fill="none" aria-label="OpsHub icon">
+          <path d="M32 14V32H50" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32V50" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32H14" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <circle cx="32" cy="32" r="8.5" fill="{{ accent }}"></circle>
+          <circle cx="32" cy="10" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="54" cy="32" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="32" cy="54" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="10" cy="32" r="4.5" fill="#1B2A4A"></circle>
+        </svg>
+        <div style="font-size: 62px; font-weight: 600; letter-spacing: -0.035em; line-height: 1;">Ops<span style="font-weight: 500; color: #47536B;">Hub</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Standalone icon -->
+  <section style="display: flex; flex-direction: column; gap: 32px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #9AA3B2;">02 / Standalone icon</div>
+    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px;">
+      <div style="background: #FFFFFF; border: 1px solid #E9EBEF; padding: 72px; display: flex; justify-content: center; align-items: center;">
+        <svg width="200" height="200" viewBox="0 0 64 64" fill="none">
+          <path d="M32 14V32H50" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32V50" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32H14" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <circle cx="32" cy="32" r="8.5" fill="{{ accent }}"></circle>
+          <circle cx="32" cy="10" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="54" cy="32" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="32" cy="54" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="10" cy="32" r="4.5" fill="#1B2A4A"></circle>
+        </svg>
+      </div>
+      <div style="background: #1B2A4A; padding: 72px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 40px;">
+        <svg width="120" height="120" viewBox="0 0 64 64" fill="none">
+          <path d="M32 14V32H50" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32V50" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32H14" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="square"></path>
+          <circle cx="32" cy="32" r="8.5" fill="{{ accent }}"></circle>
+          <circle cx="32" cy="10" r="4.5" fill="#FFFFFF"></circle>
+          <circle cx="54" cy="32" r="4.5" fill="#FFFFFF"></circle>
+          <circle cx="32" cy="54" r="4.5" fill="#FFFFFF"></circle>
+          <circle cx="10" cy="32" r="4.5" fill="#FFFFFF"></circle>
+        </svg>
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <svg width="30" height="30" viewBox="0 0 64 64" fill="none">
+            <path d="M32 14V32H50" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="square"></path>
+            <path d="M32 32V50" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="square"></path>
+            <path d="M32 32H14" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="square"></path>
+            <circle cx="32" cy="32" r="9" fill="{{ accent }}"></circle>
+            <circle cx="32" cy="10" r="5" fill="#FFFFFF"></circle>
+            <circle cx="54" cy="32" r="5" fill="#FFFFFF"></circle>
+            <circle cx="32" cy="54" r="5" fill="#FFFFFF"></circle>
+            <circle cx="10" cy="32" r="5" fill="#FFFFFF"></circle>
+          </svg>
+          <div style="font-size: 24px; font-weight: 600; letter-spacing: -0.03em; color: #FFFFFF; line-height: 1;">Ops<span style="font-weight: 500; color: #93A0B8;">Hub</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scale -->
+  <section style="display: flex; flex-direction: column; gap: 32px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #9AA3B2;">03 / Scale &amp; monochrome</div>
+    <div style="background: #FFFFFF; border: 1px solid #E9EBEF; padding: 64px 80px; display: flex; align-items: flex-end; gap: 64px;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 18px;">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <path d="M32 14V32H50" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32V50" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32H14" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <circle cx="32" cy="32" r="8.5" fill="{{ accent }}"></circle>
+          <circle cx="32" cy="10" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="54" cy="32" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="32" cy="54" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="10" cy="32" r="4.5" fill="#1B2A4A"></circle>
+        </svg>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9AA3B2;">64</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 18px;">
+        <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+          <path d="M32 14V32H50" stroke="#1B2A4A" stroke-width="4.5" stroke-linecap="square"></path>
+          <path d="M32 32V50" stroke="#1B2A4A" stroke-width="4.5" stroke-linecap="square"></path>
+          <path d="M32 32H14" stroke="#1B2A4A" stroke-width="4.5" stroke-linecap="square"></path>
+          <circle cx="32" cy="32" r="9" fill="{{ accent }}"></circle>
+          <circle cx="32" cy="10" r="5" fill="#1B2A4A"></circle>
+          <circle cx="54" cy="32" r="5" fill="#1B2A4A"></circle>
+          <circle cx="32" cy="54" r="5" fill="#1B2A4A"></circle>
+          <circle cx="10" cy="32" r="5" fill="#1B2A4A"></circle>
+        </svg>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9AA3B2;">32</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 18px;">
+        <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
+          <path d="M32 14V32H50" stroke="#1B2A4A" stroke-width="5.5" stroke-linecap="square"></path>
+          <path d="M32 32V50" stroke="#1B2A4A" stroke-width="5.5" stroke-linecap="square"></path>
+          <path d="M32 32H14" stroke="#1B2A4A" stroke-width="5.5" stroke-linecap="square"></path>
+          <circle cx="32" cy="32" r="10" fill="{{ accent }}"></circle>
+          <circle cx="32" cy="10" r="6" fill="#1B2A4A"></circle>
+          <circle cx="54" cy="32" r="6" fill="#1B2A4A"></circle>
+          <circle cx="32" cy="54" r="6" fill="#1B2A4A"></circle>
+          <circle cx="10" cy="32" r="6" fill="#1B2A4A"></circle>
+        </svg>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9AA3B2;">20</div>
+      </div>
+      <div style="width: 1px; align-self: stretch; background: #E9EBEF;"></div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 18px;">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <path d="M32 14V32H50" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32V50" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <path d="M32 32H14" stroke="#1B2A4A" stroke-width="3.5" stroke-linecap="square"></path>
+          <circle cx="32" cy="32" r="8.5" fill="#1B2A4A"></circle>
+          <circle cx="32" cy="10" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="54" cy="32" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="32" cy="54" r="4.5" fill="#1B2A4A"></circle>
+          <circle cx="10" cy="32" r="4.5" fill="#1B2A4A"></circle>
+        </svg>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #9AA3B2;">1-color</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Palette + type -->
+  <section style="display: flex; flex-direction: column; gap: 32px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #9AA3B2;">04 / Palette &amp; type</div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;">
+      <div style="background: #FFFFFF; border: 1px solid #E9EBEF; display: flex; flex-direction: column;">
+        <div style="height: 132px; background: #1B2A4A;"></div>
+        <div style="padding: 20px 22px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 15px; font-weight: 600;">Deep navy</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6B7689;">#1B2A4A</div>
+        </div>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #E9EBEF; display: flex; flex-direction: column;">
+        <div style="height: 132px; background: {{ accent }};"></div>
+        <div style="padding: 20px 22px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 15px; font-weight: 600;">Accent</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6B7689;">{{ accent }}</div>
+        </div>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #E9EBEF; display: flex; flex-direction: column; justify-content: space-between; padding: 22px;">
+        <div style="font-size: 44px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05;">Aa</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 15px; font-weight: 600;">Space Grotesk</div>
+          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6B7689;">Medium 500 / Semibold 600</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#F59E0B&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#F59E0B&quot;,&quot;#00C9A7&quot;,&quot;#2563EB&quot;],&quot;section&quot;:&quot;Brand&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? "#00C9A7" };
+  }
+}
+</script>
+</body>
+</html>
