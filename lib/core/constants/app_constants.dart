@@ -1,7 +1,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Drop Operations';
+  static const String appName = 'OpsHub';
   static const String usersCollection = 'users';
   static const String tasksCollection = 'tasks';
   static const String taskTemplatesCollection = 'task_templates';

@@ -34,7 +34,7 @@
          cloud backups regardless). `tools:replace` forces this to win over any
          library that merges in `allowBackup=true`. -->
     <application
-        android:label="Drop Ops"
+        android:label="OpsHub"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

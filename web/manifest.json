@@ -1,11 +1,11 @@
 {
-    "name": "DROP",
-    "short_name": "DROP",
+    "name": "OpsHub",
+    "short_name": "OpsHub",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#000000",
     "theme_color": "#000000",
-    "description": "DROP — Operations Management System.",
+    "description": "OpsHub — Operations Management System.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
