@@ -8,7 +8,7 @@ void main() {
   group('BranchModel media fields (§8)', () {
     test('fromMap reads logoUrl/coverUrl', () {
       final m = BranchModel.fromMap(
-        {'name': 'DROP Arkan', 'logoUrl': 'l.jpg', 'coverUrl': 'c.jpg'},
+        {'name': 'OpsHub Arkan', 'logoUrl': 'l.jpg', 'coverUrl': 'c.jpg'},
         id: 'b1',
       );
       expect(m.logoUrl, 'l.jpg');
@@ -48,13 +48,13 @@ void main() {
 
     testWidgets('shows initials from the name when there is no logo',
         (tester) async {
-      await tester.pumpWidget(host(const BranchAvatar(name: 'DROP Arkan')));
-      expect(find.text('DA'), findsOneWidget);
+      await tester.pumpWidget(host(const BranchAvatar(name: 'OpsHub Arkan')));
+      expect(find.text('OA'), findsOneWidget);
     });
 
     testWidgets('renders an Image when a logo url is set', (tester) async {
       await tester.pumpWidget(
-        host(const BranchAvatar(logoUrl: 'https://x/y.jpg', name: 'DROP Arkan')),
+        host(const BranchAvatar(logoUrl: 'https://x/y.jpg', name: 'OpsHub Arkan')),
       );
       expect(find.byType(Image), findsOneWidget);
     });
