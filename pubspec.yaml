@@ -156,7 +156,7 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/E22CA445-D611-4A31-8EE5-BB661032E09C.png"
   min_sdk_android: 21
-  # macOS Dock/Finder icon — Big Sur squircle composed from assets/drop_logo.png
+  # macOS Dock/Finder icon — Big Sur squircle composed from assets/opshub_logo.png
   # (dark monochrome gradient + white DROP wordmark). The iconset under
   # macos/Runner/Assets.xcassets was generated from this master.
   macos:
@@ -175,7 +175,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/drop_logo.png
+    - assets/opshub_logo.png
     - assets/gmail.svg
     - assets/whatsapp.svg
     - assets/0704.json

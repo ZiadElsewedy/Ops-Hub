@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/widgets/app_empty_state.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 import 'package:drop/core/widgets/empty_state_medallion.dart';
 
-/// **DropEmptyState** — a **brand-led** empty state: the DROP mark, quietly lit
+/// **OpsHubEmptyState** — a **brand-led** empty state: the DROP mark, quietly lit
 /// inside the shared medallion, instead of a generic grey glyph — then the
 /// message + optional action. The branded sibling of `AppEmptyState` (same
 /// centered, always-scrollable layout so it works as a `RefreshIndicator`
@@ -14,8 +14,8 @@ import 'package:drop/core/widgets/empty_state_medallion.dart';
 ///
 /// Use `AppEmptyState` for routine "nothing here" placeholders; reach for this
 /// where the empty moment is a brand touchpoint. Strictly monochrome.
-class DropEmptyState extends StatelessWidget {
-  const DropEmptyState({
+class OpsHubEmptyState extends StatelessWidget {
+  const OpsHubEmptyState({
     super.key,
     required this.message,
     this.title,
@@ -49,7 +49,7 @@ class DropEmptyState extends StatelessWidget {
                   // the quieting now.
                   child: Opacity(
                     opacity: 0.55,
-                    child: DropLogo(height: 17, color: AppColors.textPrimary),
+                    child: OpsHubLogo(height: 17, color: AppColors.textPrimary),
                   ),
                 ),
                 title: title,

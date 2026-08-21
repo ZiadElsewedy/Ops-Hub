@@ -7,7 +7,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_empty_state.dart';
 import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/core/widgets/skeleton.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
@@ -319,7 +319,7 @@ class _TaskBrowserState extends State<TaskBrowser> {
     }
 
     return Expanded(
-      child: DropEmptyState(
+      child: OpsHubEmptyState(
         title: widget.emptyTitle,
         message: widget.emptyMessage,
       ),

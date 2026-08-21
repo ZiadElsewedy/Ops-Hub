@@ -10,7 +10,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/features/cases/domain/case_ordering.dart';
 import 'package:drop/features/cases/domain/entities/case_entity.dart';
 import 'package:drop/features/cases/presentation/cubit/case_conversation_cubit.dart';
@@ -308,7 +308,7 @@ class _InboxState extends State<_Inbox> {
         ),
         Expanded(
           child: nothing
-              ? DropEmptyState(
+              ? OpsHubEmptyState(
                   title: widget.cases.isEmpty ? 'No cases yet' : 'Nothing here',
                   message: widget.cases.isEmpty
                       ? 'Open a case to start a private conversation about an issue.'

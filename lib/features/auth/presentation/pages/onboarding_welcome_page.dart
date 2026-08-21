@@ -5,7 +5,7 @@ import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_drop_logo.dart';
+import 'package:drop/core/widgets/animated_opshub_logo.dart';
 import 'package:drop/features/auth/presentation/animations/fade_slide_transition.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
@@ -169,7 +169,7 @@ class _OnboardingWelcomePageState extends State<OnboardingWelcomePage> {
   Widget _hero(double width, bool isMobile) {
     if (isMobile) {
       final h = (width * 0.30).clamp(96.0, 120.0);
-      return AnimatedDropLogo(height: h);
+      return AnimatedOpsHubLogo(height: h);
     }
     final heroW = (width * 0.26).clamp(220.0, 360.0);
     return RepaintBoundary(
@@ -185,7 +185,7 @@ class _OnboardingWelcomePageState extends State<OnboardingWelcomePage> {
           // A missing/malformed asset degrades to the animated wordmark — the
           // Welcome can never render blank.
           errorBuilder: (context, error, stackTrace) =>
-              const Center(child: AnimatedDropLogo(height: 120)),
+              const Center(child: AnimatedOpsHubLogo(height: 120)),
         ),
       ),
     );

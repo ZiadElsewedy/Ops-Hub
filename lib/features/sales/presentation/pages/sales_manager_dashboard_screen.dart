@@ -10,7 +10,7 @@ import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/brand_watermark.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
 import 'package:drop/features/auth/presentation/widgets/app_button.dart';
@@ -133,7 +133,7 @@ class _SalesManagerDashboardScreenState
         if (state is SalesManagerDashboardDisabled) {
           return Padding(
             padding: const EdgeInsets.all(AppSpacing.pagePadding),
-            child: DropEmptyState(
+            child: OpsHubEmptyState(
               title: 'Sales targets are off',
               message:
                   '${state.branchName ?? 'This branch'} doesn’t run a monthly '

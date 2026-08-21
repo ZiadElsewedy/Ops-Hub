@@ -2,26 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 
-/// **DropLoadingState** — a **branded** full-area loading moment: the DROP mark
+/// **OpsHubLoadingState** — a **branded** full-area loading moment: the DROP mark
 /// with a slow, calm opacity-pulse (the brand "breathing") and an optional
 /// message. For whole-screen / whole-section waits where a logo reads better
 /// than a bare spinner.
 ///
 /// Use list **skeletons** for content placeholders; reach for this on a
 /// full-screen gate (a route loader, a first paint). Strictly monochrome.
-class DropLoadingState extends StatefulWidget {
-  const DropLoadingState({super.key, this.message, this.logoHeight = 44});
+class OpsHubLoadingState extends StatefulWidget {
+  const OpsHubLoadingState({super.key, this.message, this.logoHeight = 44});
 
   final String? message;
   final double logoHeight;
 
   @override
-  State<DropLoadingState> createState() => _DropLoadingStateState();
+  State<OpsHubLoadingState> createState() => _OpsHubLoadingStateState();
 }
 
-class _DropLoadingStateState extends State<DropLoadingState>
+class _OpsHubLoadingStateState extends State<OpsHubLoadingState>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -47,7 +47,7 @@ class _DropLoadingStateState extends State<DropLoadingState>
         children: [
           FadeTransition(
             opacity: _pulse,
-            child: DropLogo(height: widget.logoHeight),
+            child: OpsHubLogo(height: widget.logoHeight),
           ),
           if (widget.message != null) ...[
             const SizedBox(height: AppSpacing.lg),

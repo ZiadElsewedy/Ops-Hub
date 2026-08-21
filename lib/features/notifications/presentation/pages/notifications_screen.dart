@@ -10,7 +10,7 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_dialog.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
 import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
@@ -352,18 +352,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _empty() {
     if (_showArchived) {
-      return const DropEmptyState(
+      return const OpsHubEmptyState(
         title: 'Nothing archived',
         message: 'Archived notifications will collect here.',
       );
     }
     if (_category != NotificationCategory.all) {
-      return DropEmptyState(
+      return OpsHubEmptyState(
         title: 'No ${_category.label.toLowerCase()} notifications',
         message: 'Nothing here right now.',
       );
     }
-    return const DropEmptyState(
+    return const OpsHubEmptyState(
       title: "You're all caught up",
       message: 'Task updates and announcements will show up here.',
     );

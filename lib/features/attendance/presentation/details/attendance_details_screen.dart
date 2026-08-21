@@ -5,7 +5,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/utils/app_date_formatter.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/drop_loading_state.dart';
+import 'package:drop/core/widgets/opshub_loading_state.dart';
 import 'package:drop/core/widgets/status_badge.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
 import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
@@ -61,7 +61,7 @@ class _DetailsView extends StatelessWidget {
             corrections: s.corrections,
           ),
           error: (e) => _CenterMessage(message: e.message),
-          orElse: () => const DropLoadingState(),
+          orElse: () => const OpsHubLoadingState(),
         ),
       ),
     );

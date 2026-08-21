@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 
 /// The DROP brand mark rendered from the **Lottie animation** (`assets/0704.json`)
 /// — the same asset the splash plays — so the animated logo can appear in-app
@@ -13,7 +13,7 @@ import 'package:drop/core/widgets/drop_logo.dart';
 /// a black box — and stays strictly monochrome.
 ///
 /// Plays **once** on mount by default then rests on the assembled logo; a load
-/// failure falls back to the static [DropLogo]. The embedded frames decode at a
+/// failure falls back to the static [OpsHubLogo]. The embedded frames decode at a
 /// bounded width so a small chrome mark never pays the splash's full footprint.
 class AnimatedBrandMark extends StatefulWidget {
   const AnimatedBrandMark({
@@ -95,7 +95,7 @@ class _AnimatedBrandMarkState extends State<AnimatedBrandMark>
               animate: false,
               onLoaded: _onLoaded,
               errorBuilder: (_, _, _) =>
-                  Center(child: DropLogo(height: widget.height * 0.72)),
+                  Center(child: OpsHubLogo(height: widget.height * 0.72)),
             ),
           ),
         ),

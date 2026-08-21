@@ -3,8 +3,8 @@ import 'package:lottie/lottie.dart';
 import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_drop_logo.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/animated_opshub_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 
 /// Where the DROP artwork's visual centre actually sits inside the Lottie's
 /// 720×405 composition, relative to the frame's geometric centre — the mean
@@ -254,7 +254,7 @@ class _SplashPageState extends State<SplashPage>
                                 label: 'Drop Operations',
                                 image: true,
                                 child: RepaintBoundary(
-                                  child: AnimatedDropLogo(height: logoHeight),
+                                  child: AnimatedOpsHubLogo(height: logoHeight),
                                 ),
                               ),
                             ),
@@ -340,7 +340,7 @@ class _SplashPageState extends State<SplashPage>
         WidgetsBinding.instance.addPostFrameCallback(
           (_) => _reportAnimationComplete(),
         );
-        return const DropLogo(height: 88);
+        return const OpsHubLogo(height: 88);
       },
     ),
   );

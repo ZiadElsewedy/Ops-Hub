@@ -4,7 +4,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/features/task/domain/entities/task_entity.dart';
 import 'package:drop/features/task/domain/task_feed.dart';
 import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
@@ -85,7 +85,7 @@ class FilteredTasksScreen extends StatelessWidget {
                   children: [
                     ?descriptionLine,
                     Expanded(
-                      child: DropEmptyState(
+                      child: OpsHubEmptyState(
                         title: emptyTitle,
                         message: emptyMessage,
                       ),

@@ -9,7 +9,7 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/theme/phosphor_icons.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_bottom_nav.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
@@ -99,7 +99,7 @@ class RoleScaffold extends StatelessWidget {
         title: Semantics(
           header: true,
           label: title,
-          child: const DropLogo(height: 22),
+          child: const OpsHubLogo(height: 22),
         ),
         actions: [
           // Communications Center — admin + manager only (employees can't access).

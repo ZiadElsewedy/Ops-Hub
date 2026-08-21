@@ -11,7 +11,7 @@ import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/drop_loading_state.dart';
+import 'package:drop/core/widgets/opshub_loading_state.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
@@ -228,7 +228,7 @@ class _MyWeekTabState extends State<_MyWeekTab>
         );
       },
       builder: (context, state) => state.maybeWhen(
-        loading: () => const DropLoadingState(message: 'Loading your week…'),
+        loading: () => const OpsHubLoadingState(message: 'Loading your week…'),
         loaded: (branchId, weekStart, schedule, members, busy) =>
             _buildList(context, weekStart, schedule, members),
         error: (m) => Center(
@@ -244,7 +244,7 @@ class _MyWeekTabState extends State<_MyWeekTab>
         // `initial` (load not kicked off yet, e.g. before the post-frame _load
         // or a momentarily-null user) must never render as a blank screen —
         // show the loader; the app-bar Refresh recovers any stuck state.
-        orElse: () => const DropLoadingState(message: 'Loading your week…'),
+        orElse: () => const OpsHubLoadingState(message: 'Loading your week…'),
       ),
     );
   }

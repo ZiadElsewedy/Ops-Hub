@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/animated_drop_logo.dart';
+import 'package:drop/core/widgets/animated_opshub_logo.dart';
 import 'package:drop/core/widgets/app_sidebar.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 import 'package:drop/core/widgets/role_scaffold.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
@@ -13,7 +13,7 @@ import 'package:drop/features/notifications/presentation/cubit/notification_cubi
 import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Brand-rollout chrome checks (2026-07-02): the real DROP artwork
-/// (`assets/drop_logo.png`, via [DropLogo]) must lead the role-home app bar,
+/// (`assets/opshub_logo.png`, via [OpsHubLogo]) must lead the role-home app bar,
 /// the desktop sidebar lockup, and close every mobile [AdaptiveScaffold] app
 /// bar — so the brand is present on the homepage and all migrated screens.
 
@@ -50,7 +50,7 @@ void main() {
     ));
 
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.byType(DropLogo)),
+      find.descendant(of: find.byType(AppBar), matching: find.byType(OpsHubLogo)),
       findsOneWidget,
     );
   });
@@ -64,7 +64,7 @@ void main() {
       ),
     ));
 
-    expect(find.byType(DropLogo), findsNothing);
+    expect(find.byType(OpsHubLogo), findsNothing);
   });
 
   testWidgets('AppSidebar brand header uses the static real logo artwork',
@@ -88,23 +88,23 @@ void main() {
       ),
     ));
 
-    expect(find.byType(DropLogo), findsOneWidget);
-    expect(find.byType(AnimatedDropLogo), findsNothing);
+    expect(find.byType(OpsHubLogo), findsOneWidget);
+    expect(find.byType(AnimatedOpsHubLogo), findsNothing);
   });
 
-  testWidgets('AnimatedDropLogo renders the artwork and loops without error',
+  testWidgets('AnimatedOpsHubLogo renders the artwork and loops without error',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(
-      home: Scaffold(body: Center(child: AnimatedDropLogo(height: 60))),
+      home: Scaffold(body: Center(child: AnimatedOpsHubLogo(height: 60))),
     ));
 
-    expect(find.byType(DropLogo), findsOneWidget);
+    expect(find.byType(OpsHubLogo), findsOneWidget);
     // The shimmer repeats forever (pumpAndSettle would hang) — step through
     // more than one full 3200ms cycle to prove the loop is well-behaved.
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 1500));
     await tester.pump(const Duration(milliseconds: 3300));
-    expect(find.byType(AnimatedDropLogo), findsOneWidget);
+    expect(find.byType(AnimatedOpsHubLogo), findsOneWidget);
   });
 
   testWidgets('RoleScaffold home app bar leads with the DROP lockup',
@@ -127,7 +127,7 @@ void main() {
     ));
 
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.byType(DropLogo)),
+      find.descendant(of: find.byType(AppBar), matching: find.byType(OpsHubLogo)),
       findsOneWidget,
     );
     // The role word is no longer drawn beside the mark — it was the first thing
@@ -138,7 +138,7 @@ void main() {
       tester.getSemantics(
         find.descendant(
           of: find.byType(AppBar),
-          matching: find.byType(DropLogo),
+          matching: find.byType(OpsHubLogo),
         ),
       ),
       matchesSemantics(label: 'Dashboard', isHeader: true, isImage: true),

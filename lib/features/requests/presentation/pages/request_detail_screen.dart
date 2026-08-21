@@ -9,7 +9,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_dialog.dart';
-import 'package:drop/core/widgets/drop_loading_state.dart';
+import 'package:drop/core/widgets/opshub_loading_state.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/requests/domain/entities/request_entity.dart';
@@ -55,7 +55,7 @@ class _RequestDetailView extends StatelessWidget {
         return state.when(
           loading: () => const AdaptiveScaffold(
             title: 'Request',
-            body: DropLoadingState(message: 'Loading request…'),
+            body: OpsHubLoadingState(message: 'Loading request…'),
           ),
           unavailable: () => AdaptiveScaffold(
             title: 'Request',
@@ -65,7 +65,7 @@ class _RequestDetailView extends StatelessWidget {
           ),
           error: (_) => const AdaptiveScaffold(
             title: 'Request',
-            body: DropLoadingState(message: 'Loading request…'),
+            body: OpsHubLoadingState(message: 'Loading request…'),
           ),
           loaded: (request, events, busy) =>
               _Loaded(request: request, events: events, busy: busy, user: user),

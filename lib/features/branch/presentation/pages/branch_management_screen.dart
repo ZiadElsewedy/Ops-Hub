@@ -9,7 +9,7 @@ import 'package:drop/core/widgets/app_dialog.dart';
 import 'package:drop/core/widgets/app_glass_card.dart';
 import 'package:drop/core/widgets/responsive_card_grid.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/app_search_field.dart';
@@ -300,7 +300,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     );
   }
 
-  Widget _empty(bool noBranchesAtAll) => DropEmptyState(
+  Widget _empty(bool noBranchesAtAll) => OpsHubEmptyState(
         title: noBranchesAtAll ? 'No branches yet' : 'No matches',
         message: noBranchesAtAll
             ? 'Tap "New Branch" to add your first branch.'

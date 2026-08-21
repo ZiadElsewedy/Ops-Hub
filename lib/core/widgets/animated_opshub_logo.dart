@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 
-/// [DropLogo] with premium motion — a soft diagonal band of light sweeps
+/// [OpsHubLogo] with premium motion — a soft diagonal band of light sweeps
 /// across the wordmark, then the logo rests until the next pass. Strictly
 /// monochrome (the band is white light, no colour, no glow halo).
 ///
 /// Use it where the brand is the hero — the splash lockup, the login brand
-/// panel. Quiet chrome marks (app bars, hint rows) keep the static [DropLogo].
-class AnimatedDropLogo extends StatefulWidget {
-  const AnimatedDropLogo({
+/// panel. Quiet chrome marks (app bars, hint rows) keep the static [OpsHubLogo].
+class AnimatedOpsHubLogo extends StatefulWidget {
+  const AnimatedOpsHubLogo({
     super.key,
     this.height = 80,
     this.period = const Duration(milliseconds: 3200),
@@ -22,10 +22,10 @@ class AnimatedDropLogo extends StatefulWidget {
   final Duration period;
 
   @override
-  State<AnimatedDropLogo> createState() => _AnimatedDropLogoState();
+  State<AnimatedOpsHubLogo> createState() => _AnimatedOpsHubLogoState();
 }
 
-class _AnimatedDropLogoState extends State<AnimatedDropLogo>
+class _AnimatedOpsHubLogoState extends State<AnimatedOpsHubLogo>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl =
       AnimationController(vsync: this, duration: widget.period)..repeat();
@@ -67,7 +67,7 @@ class _AnimatedDropLogoState extends State<AnimatedDropLogo>
       },
       // The base sits just under full white so the passing band visibly
       // lights the letters up to 100%.
-      child: DropLogo(
+      child: OpsHubLogo(
         height: widget.height,
         color: AppColors.textPrimary.withAlpha(225),
       ),

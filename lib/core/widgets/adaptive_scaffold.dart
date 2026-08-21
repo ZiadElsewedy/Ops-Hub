@@ -3,7 +3,7 @@ import 'package:drop/core/responsive/breakpoints.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 
 /// A scaffold that adapts its chrome to the platform width.
 ///
@@ -147,7 +147,7 @@ class _AppBarBrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.only(left: 6, right: 16),
-      child: Center(child: DropLogo(height: 16, color: AppColors.textTertiary)),
+      child: Center(child: OpsHubLogo(height: 16, color: AppColors.textTertiary)),
     );
   }
 }

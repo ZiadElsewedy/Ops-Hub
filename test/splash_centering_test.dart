@@ -17,7 +17,7 @@ void main() {
       ),
     );
     // The Lottie asset can't load in the test harness → errorBuilder fires and
-    // the DropLogo fallback renders. One frame is enough to lay it all out.
+    // the OpsHubLogo fallback renders. One frame is enough to lay it all out.
     await tester.pump();
   }
 

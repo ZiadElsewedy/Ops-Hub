@@ -32,7 +32,7 @@ import 'package:drop/features/schedule/presentation/pages/my_schedule_screen.dar
 /// opacity 0 forever.
 ///
 /// The fakes emit loading→loaded back-to-back so the (infinitely pulsing)
-/// DropLoadingState never mounts and pumpAndSettle terminates. Every test ends
+/// OpsHubLoadingState never mounts and pumpAndSettle terminates. Every test ends
 /// by unmounting the tree — the hero's live countdown pill owns a minute-tick
 /// Timer that must be disposed before the test completes.
 

@@ -11,7 +11,7 @@ import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_empty_state.dart';
 import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/features/chat/presentation/chat_thread_args.dart';
@@ -166,12 +166,12 @@ class _List extends StatelessWidget {
               // Three distinct states, never one generic blank: nobody to
               // message at all · nothing typed yet · nothing matched.
               ? total == 0
-                  ? const DropEmptyState(
+                  ? const OpsHubEmptyState(
                       title: 'No teammates yet',
                       message: 'There is no one else to message yet.',
                     )
                   : searching
-                      ? DropEmptyState(
+                      ? OpsHubEmptyState(
                           title: 'No matches',
                           message: 'No teammate matches "$query".',
                         )

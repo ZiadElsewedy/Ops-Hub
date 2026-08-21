@@ -11,7 +11,7 @@ import 'package:drop/core/widgets/app_error_state.dart';
 import 'package:drop/core/widgets/app_glass_card.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/core/widgets/premium_button.dart';
 import 'package:drop/core/widgets/user_avatar.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
@@ -135,7 +135,7 @@ class _SwapListViewState extends State<SwapListView> {
           child: RefreshIndicator(
             onRefresh: () => context.read<ShiftSwapCubit>().refresh(),
             child: swaps.isEmpty
-                ? DropEmptyState(
+                ? OpsHubEmptyState(
                     title: 'No swap requests',
                     message: widget.isManager
                         ? 'When a coworker accepts a teammate’s swap, it’ll '

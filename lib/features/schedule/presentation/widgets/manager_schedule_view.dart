@@ -10,8 +10,8 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
-import 'package:drop/core/widgets/drop_loading_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
+import 'package:drop/core/widgets/opshub_loading_state.dart';
 import 'package:drop/features/auth/domain/entities/user_entity.dart';
 import 'package:drop/core/extensions/context_extensions.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
@@ -148,7 +148,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
         listener: (context, state) =>
             state.whenOrNull(error: (m) => AppSnackbar.error(context, m)),
         builder: (context, state) => state.maybeWhen(
-          loading: () => const DropLoadingState(message: 'Loading schedule…'),
+          loading: () => const OpsHubLoadingState(message: 'Loading schedule…'),
           loaded: (branchId, weekStart, schedule, members, busy) =>
               _body(branchId, weekStart, schedule, members, busy),
           orElse: () => const SizedBox.shrink(),
@@ -595,7 +595,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
     List<UserEntity> members,
   ) {
     if (branchId.isEmpty) {
-      return const DropEmptyState(
+      return const OpsHubEmptyState(
         title: 'Pick a branch',
         message: 'Select a branch to view its schedule.',
       );
@@ -1330,7 +1330,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
   // Brand-led (§9b): the DROP mark leads the empty moments instead of a
   // generic grey glyph.
   Widget _emptySchedule() {
-    return DropEmptyState(
+    return OpsHubEmptyState(
       title: 'No schedule for this week yet',
       message: 'Create one to start assigning shifts.',
       action: FilledButton.icon(

@@ -7,7 +7,7 @@ import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
 import 'package:drop/core/widgets/adaptive_scaffold.dart';
 import 'package:drop/core/widgets/app_error_state.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:drop/core/widgets/opshub_empty_state.dart';
 import 'package:drop/core/widgets/glass_container.dart';
 import 'package:drop/core/widgets/list_skeleton.dart';
 import 'package:drop/features/branch/domain/entities/branch_entity.dart';
@@ -89,7 +89,7 @@ class _SalesAdminOverviewScreenState extends State<SalesAdminOverviewScreen> {
               if (enabled.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(AppSpacing.pagePadding),
-                  child: DropEmptyState(
+                  child: OpsHubEmptyState(
                     title: 'No branch runs a sales target',
                     message:
                         'Turn on the monthly sales target in a branch’s settings '

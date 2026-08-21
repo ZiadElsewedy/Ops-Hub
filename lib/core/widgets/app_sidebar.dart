@@ -4,7 +4,7 @@ import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_radius.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 
 /// A single navigable destination in the [AppSidebar].
 class SidebarItem {
@@ -106,7 +106,7 @@ class AppSidebar extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const DropLogo(height: 30),
+                  const OpsHubLogo(height: 30),
                   const SizedBox(width: AppSpacing.sm),
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.xs),

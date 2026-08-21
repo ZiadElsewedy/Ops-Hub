@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:drop/core/theme/app_colors.dart';
 import 'package:drop/core/theme/app_spacing.dart';
 import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 
 /// The auth-flow brand lockup: the DROP mark + the "DROP Operations System"
 /// tagline. Used on the Login screen so the auth brand header lives in **one**
 /// place (no per-page logo duplication). Strictly monochrome.
-class DropAuthMark extends StatelessWidget {
-  const DropAuthMark({super.key, this.logoHeight = 52});
+class OpsHubAuthMark extends StatelessWidget {
+  const OpsHubAuthMark({super.key, this.logoHeight = 52});
 
   final double logoHeight;
 
@@ -18,7 +18,7 @@ class DropAuthMark extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropLogo(height: logoHeight),
+        OpsHubLogo(height: logoHeight),
         const SizedBox(height: AppSpacing.md),
         Text(
           'DROP OPERATIONS SYSTEM',

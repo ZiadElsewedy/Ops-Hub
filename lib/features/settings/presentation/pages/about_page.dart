@@ -13,13 +13,13 @@ import 'package:drop/core/widgets/app_glass_card.dart';
 import 'package:drop/core/widgets/app_motion.dart';
 import 'package:drop/core/widgets/app_snackbar.dart';
 import 'package:drop/core/widgets/brand_watermark.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:drop/core/widgets/opshub_logo.dart';
 
 /// What DROP is, and how to reach a human about it.
 ///
 /// Composed from the design-system primitives rather than hand-rolled boxes:
 /// [AppGlassCard] for the surfaces (gradient + two-layer depth), the real
-/// [DropLogo] artwork behind a [BrandWatermark] so the lockup matches the
+/// [OpsHubLogo] artwork behind a [BrandWatermark] so the lockup matches the
 /// splash, and [EntranceFade] so the page assembles with the same stagger as
 /// every other screen.
 ///
@@ -173,7 +173,7 @@ class _BrandCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const DropLogo(height: 36),
+              const OpsHubLogo(height: 36),
               const SizedBox(height: 10),
               Text(
                 'OPERATIONS',
