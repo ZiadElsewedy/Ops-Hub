@@ -236,7 +236,7 @@ class _Fact {
   final String detail;
 }
 
-/// The conditional pair. Same 3-step ramp as every other DROP metric cell —
+/// The conditional pair. Same 3-step ramp as every other OpsHub metric cell —
 /// white value → light-grey label → medium-grey denominator — but at supporting
 /// weight, because they inform rather than lead.
 class _SecondaryFacts extends StatelessWidget {

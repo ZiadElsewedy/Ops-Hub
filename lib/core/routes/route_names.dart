@@ -29,7 +29,7 @@ class RouteNames {
   /// Per-device notification switches (locally persisted; no server state yet).
   static const String notificationSettings = '/settings/notifications';
 
-  /// What DROP is + how to reach support. Shared by every role.
+  /// What OpsHub is + how to reach support. Shared by every role.
   static const String about = '/settings/about';
 
   /// In-app notification inbox (Notification System Phase 1) — shared by every

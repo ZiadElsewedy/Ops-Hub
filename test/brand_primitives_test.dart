@@ -11,9 +11,9 @@ void main() {
   Widget host(Widget child) =>
       MaterialApp(home: Scaffold(body: child));
 
-  testWidgets('OpsHubWordmark renders the Drop Operations logotype', (tester) async {
+  testWidgets('OpsHubWordmark renders the OpsHub logotype', (tester) async {
     await tester.pumpWidget(host(const OpsHubWordmark()));
-    expect(find.text('Drop Operations'), findsOneWidget);
+    expect(find.text('OpsHub'), findsOneWidget);
   });
 
   testWidgets('OpsHubEmptyState shows title + message (+ optional action)',
@@ -39,7 +39,7 @@ void main() {
 
   testWidgets('OpsHubAuthMark shows the brand mark + tagline', (tester) async {
     await tester.pumpWidget(host(const OpsHubAuthMark()));
-    expect(find.text('DROP OPERATIONS SYSTEM'), findsOneWidget);
+    expect(find.text('OPSHUB OPERATIONS SYSTEM'), findsOneWidget);
   });
 
   testWidgets('BrandWatermark renders its child + a faint wordmark',
@@ -48,10 +48,10 @@ void main() {
       const BrandWatermark(child: Text('hero content')),
     ));
     expect(find.text('hero content'), findsOneWidget);
-    expect(find.text('Drop Operations'), findsOneWidget); // the watermark mark
+    expect(find.text('OpsHub'), findsOneWidget); // the watermark mark
   });
 
-  testWidgets('BrandWatermark can use the real asset-backed DROP logo',
+  testWidgets('BrandWatermark can use the real asset-backed OpsHub logo',
       (tester) async {
     await tester.pumpWidget(host(
       const BrandWatermark(

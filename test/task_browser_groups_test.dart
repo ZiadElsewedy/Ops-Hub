@@ -9,7 +9,7 @@ import 'package:opshub/features/task/presentation/widgets/task_browser_groups.da
 /// about the live feed's active window, not about the record.
 void main() {
   // A fixed Wednesday, so "earlier this week" and "last week" are unambiguous
-  // against DROP's Sunday→Saturday schedule week.
+  // against OpsHub's Sunday→Saturday schedule week.
   final now = DateTime(2026, 8, 5, 14, 0);
 
   TaskEntity approved(String id, DateTime at) => TaskEntity(

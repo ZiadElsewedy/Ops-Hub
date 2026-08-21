@@ -50,7 +50,7 @@ class Stat {
   final VoidCallback? onTap;
 }
 
-/// **StatStrip** — a calm, single-surface row of small facts (DROP Design System
+/// **StatStrip** — a calm, single-surface row of small facts (OpsHub Design System
 /// V2). The lightweight "here's today" layer: a few `value / label` stats inside
 /// one quiet [GlassContainer], no charts. The small sibling of a metric-card
 /// grid, for the supporting numbers that inform without demanding action.

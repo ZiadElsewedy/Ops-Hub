@@ -5,7 +5,7 @@ import 'package:opshub/core/widgets/app_empty_state.dart';
 import 'package:opshub/core/widgets/opshub_logo.dart';
 import 'package:opshub/core/widgets/empty_state_medallion.dart';
 
-/// **OpsHubEmptyState** — a **brand-led** empty state: the DROP mark, quietly lit
+/// **OpsHubEmptyState** — a **brand-led** empty state: the OpsHub mark, quietly lit
 /// inside the shared medallion, instead of a generic grey glyph — then the
 /// message + optional action. The branded sibling of `AppEmptyState` (same
 /// centered, always-scrollable layout so it works as a `RefreshIndicator`

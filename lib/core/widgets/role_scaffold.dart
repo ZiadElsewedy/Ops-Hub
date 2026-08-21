@@ -22,7 +22,7 @@ import 'package:opshub/features/notifications/presentation/cubit/notification_st
 ///   [AdaptiveScaffold] page header. No app bar, no bottom nav.
 /// * **Mobile / tablet** → the original chrome: a compact app bar
 ///   (notification bell + tappable avatar → the More/Settings hub, which holds
-///   Profile · Change Password · Sign Out) and the DROP bottom navigation bar
+///   Profile · Change Password · Sign Out) and the OpsHub bottom navigation bar
 ///   (Home · Tasks · Schedule · Chat). Chat opens the conversation inbox; the
 ///   list self-scopes and access is enforced server-side.
 class RoleScaffold extends StatelessWidget {
@@ -89,7 +89,7 @@ class RoleScaffold extends StatelessWidget {
         backgroundColor: AppColors.darkBg,
         elevation: 0,
         titleSpacing: 24,
-        // Brand lockup only — the real DROP artwork leads every role's home.
+        // Brand lockup only — the real OpsHub artwork leads every role's home.
         // The role word used to sit beside it and was the first thing the
         // action cluster ate on a phone ("Mana…" on the manager, which has the
         // most actions of any role). It was also redundant: each home opens

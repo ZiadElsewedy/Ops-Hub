@@ -14,7 +14,7 @@ import 'package:opshub/features/auth/domain/repositories/auth_repository.dart';
 import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 import 'auth_state.dart';
 
-/// Shown when a signed-in account has been deactivated by an admin. DROP is
+/// Shown when a signed-in account has been deactivated by an admin. OpsHub is
 /// admin-provisioned: access is gated solely by `isActive`.
 const String _disabledMessage =
     'This account has been disabled. Contact your administrator.';

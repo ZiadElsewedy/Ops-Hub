@@ -19,7 +19,7 @@ import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
 /// again.
 ///
 /// Strictly monochrome, single-screen, Apple/Linear-calm: a static light
-/// atmosphere, the DROP brand as the hero (the launch Lottie on tablet/desktop,
+/// atmosphere, the OpsHub brand as the hero (the launch Lottie on tablet/desktop,
 /// the animated light-sweep logo on phones — mirroring the splash's deliberate
 /// no-heavy-Lottie-on-phones decision), and a staggered reveal of a short
 /// welcome that sets the tone: accountability, teamwork, one place for the work.

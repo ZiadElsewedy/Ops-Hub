@@ -1,4 +1,4 @@
-/// The seven days of a weekly schedule (Phase 7). DROP THE SHOP weeks start on
+/// The seven days of a weekly schedule (Phase 7). OpsHub weeks start on
 /// **Sunday** (matching the operations calendar), so the enum is ordered
 /// Sunday → Saturday and that order is the canonical index used throughout the
 /// schedule UI and serialization.

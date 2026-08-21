@@ -569,7 +569,7 @@ class ChatListCubit extends Cubit<ChatListState> {
   }
 
   /// Starts (get-or-creates) the conversation with the teammate identified by
-  /// [targetUserRef] — the teammate's **DROP user id (Firebase uid)**, the only
+  /// [targetUserRef] — the teammate's **OpsHub user id (Firebase uid)**, the only
   /// identity a client holds for another user; the server resolves it to the
   /// internal participant and returns the conversation. Returns it for
   /// navigation, or null on failure. Idempotent server-side, so picking a

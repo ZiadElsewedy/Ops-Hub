@@ -5,7 +5,7 @@ import 'package:opshub/core/theme/app_spacing.dart';
 import 'package:opshub/core/theme/app_typography.dart';
 
 /// **PrimaryCta** — the single, prominent primary action of a [PageHero]
-/// (DROP Design System V2). A filled monochrome button (white accent · dark
+/// (OpsHub Design System V2). A filled monochrome button (white accent · dark
 /// label) that carries a soft key-light shadow so it reads as *the* action, and
 /// responds to hover (a whisper of lift) and press (a subtle scale) — the
 /// tactile feedback of a premium control.

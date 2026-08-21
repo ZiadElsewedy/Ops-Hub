@@ -175,7 +175,7 @@ class _Loaded extends StatelessWidget {
   Widget build(BuildContext context) {
     final cubit = context.read<AttendanceHistoryCubit>();
 
-    // A plain ListView (the pattern every other DROP list screen uses) — the
+    // A plain ListView (the pattern every other OpsHub list screen uses) — the
     // header widgets first, then the record cards or a calm empty message.
     return RefreshIndicator(
       onRefresh: cubit.refresh,

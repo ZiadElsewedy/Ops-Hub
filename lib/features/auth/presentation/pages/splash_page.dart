@@ -6,7 +6,7 @@ import 'package:opshub/core/theme/app_typography.dart';
 import 'package:opshub/core/widgets/animated_opshub_logo.dart';
 import 'package:opshub/core/widgets/opshub_logo.dart';
 
-/// Where the DROP artwork's visual centre actually sits inside the Lottie's
+/// Where the OpsHub artwork's visual centre actually sits inside the Lottie's
 /// 720×405 composition, relative to the frame's geometric centre — the mean
 /// of the settled tail frames' bright-pixel bounding boxes (the frames held
 /// on screen during the bootstrap wait), measured and locked by
@@ -15,7 +15,7 @@ import 'package:opshub/core/widgets/opshub_logo.dart';
 /// box. Mid-flight the camera move swings the artwork ±≈18px by design.
 const Offset kLogoVisualCenterOffset = Offset(4, 21);
 
-/// Where the DROP artwork's bright pixels BEGIN vertically inside the 720×405
+/// Where the OpsHub artwork's bright pixels BEGIN vertically inside the 720×405
 /// frame (composition px, settled-tail mean) — i.e. the invisible dead space
 /// baked into the top of every Lottie frame. Measured and locked by
 /// `test/splash_visual_centering_test.dart`. Used to centre the lockup's
@@ -319,7 +319,7 @@ class _SplashPageState extends State<SplashPage>
     );
   }
 
-  /// The cold-start Lottie — the animated DROP logo. A malformed/missing asset
+  /// The cold-start Lottie — the animated OpsHub logo. A malformed/missing asset
   /// falls back to the static wordmark and releases the animation gate so it
   /// can never deadlock startup.
   Widget _logo() => Semantics(

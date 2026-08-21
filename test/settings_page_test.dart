@@ -90,7 +90,7 @@ void main() {
       expect(find.text('ADMIN'), findsOneWidget);
       expect(find.text('Change password'), findsOneWidget);
       expect(find.text('Cases'), findsOneWidget);
-      expect(find.text('About Drop Operation'), findsOneWidget);
+      expect(find.text('About OpsHub'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('View and edit profile'));

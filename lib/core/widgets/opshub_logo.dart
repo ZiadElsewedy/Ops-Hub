@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:opshub/core/theme/app_colors.dart';
 
-/// The DROP brand logo — the wordmark artwork at `assets/opshub_logo.png`.
+/// The OpsHub brand logo — the wordmark artwork at `assets/opshub_logo.png`.
 ///
 /// The PNG is a transparent-background outline, so it's tinted to [color]
 /// (white on the dark UI by default) via [BlendMode.srcIn] to stay crisp on the

@@ -22,7 +22,7 @@ import 'package:opshub/features/notifications/presentation/notification_navigati
 ///   so there was no back button on any platform and, since the iOS chevron
 ///   was dropped, no back gesture either. A hard dead end.
 ///
-/// A cold start sits squarely in that window: DROP holds the routed app behind
+/// A cold start sits squarely in that window: OpsHub holds the routed app behind
 /// the bootstrap *and* the ~2s splash intro, while `getInitialMessage()`
 /// resolves in milliseconds.
 ///

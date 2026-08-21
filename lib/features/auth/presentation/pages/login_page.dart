@@ -17,7 +17,7 @@ import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
 import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
 import 'package:opshub/features/auth/presentation/widgets/app_password_field.dart';
 
-/// The DROP sign-in screen. DROP is **admin-provisioned**: there is no public
+/// The OpsHub sign-in screen. OpsHub is **admin-provisioned**: there is no public
 /// registration, Google sign-in, or phone/OTP — only email + password, plus a
 /// Forgot Password path. Premium, strictly monochrome (white accent, no indigo).
 class LoginPage extends StatefulWidget {
@@ -213,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // The DROP brand logo artwork (assets/opshub_logo.png), tinted
+            // The OpsHub brand logo artwork (assets/opshub_logo.png), tinted
             // white, with the shimmer sweep — the brand hero of the panel.
             const AnimatedOpsHubLogo(height: 88),
             const SizedBox(height: AppSpacing.lg),

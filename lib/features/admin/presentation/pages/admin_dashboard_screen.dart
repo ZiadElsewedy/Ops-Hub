@@ -38,7 +38,7 @@ import 'package:opshub/features/task/presentation/pages/filtered_tasks_screen.da
 import 'package:opshub/features/task/presentation/widgets/recent_activity_feed.dart';
 import 'package:opshub/features/task/presentation/widgets/task_template_sheets.dart';
 
-/// Admin Home — an operations **command center** (DROP Design System V2). Ranked
+/// Admin Home — an operations **command center** (OpsHub Design System V2). Ranked
 /// as a progressive-disclosure ladder so the admin instantly sees *what needs
 /// attention right now*, then today's health, then recent activity — never "here
 /// is every row in the database".

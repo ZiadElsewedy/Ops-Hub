@@ -31,7 +31,7 @@ class DigestEntry {
   final Color? accent;
 }
 
-/// **DigestPanel** — the quiet "everything else, at a glance" layer of a DROP
+/// **DigestPanel** — the quiet "everything else, at a glance" layer of a OpsHub
 /// dashboard (Design System V2): one grouped surface of module rows
 /// (requests · cases · schedule · attendance), each a door rather than a
 /// destination in the nav.

@@ -119,7 +119,7 @@ class _RecordBucket {
   if (diff <= 0) return (key: 'r:today', label: 'Closed today', order: 10);
   if (diff == 1) return (key: 'r:yesterday', label: 'Yesterday', order: 11);
 
-  // DROP's schedule week runs Sunday → Saturday. `weekday % 7` maps Sunday to 0,
+  // OpsHub's schedule week runs Sunday → Saturday. `weekday % 7` maps Sunday to 0,
   // and the date is rebuilt through the constructor (not `subtract`) so a DST
   // shift can never land the boundary on the wrong calendar day.
   final weekStart = DateTime(

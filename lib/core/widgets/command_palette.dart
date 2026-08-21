@@ -11,7 +11,7 @@ import 'package:opshub/core/widgets/user_avatar.dart';
 import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
 
-/// ⌘K command palette — the keyboard-first way around DROP on desktop.
+/// ⌘K command palette — the keyboard-first way around OpsHub on desktop.
 /// Three result groups: **Go to** (the role's sidebar destinations, with
 /// their ⌘n shortcuts), **Actions** (role-gated jumps to where the action
 /// lives), and **People** (the already-loaded task directory; admin/manager

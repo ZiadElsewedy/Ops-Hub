@@ -40,7 +40,7 @@ abstract class SessionStore {
 /// direction, since a null local id never *evicts* a session (see
 /// `AuthCubit._isSessionTakenOver`).
 class SecureSessionStore implements SessionStore {
-  /// One key for the whole app: DROP is single-account-per-device by design
+  /// One key for the whole app: OpsHub is single-account-per-device by design
   /// (admin-provisioned, no account switcher), and the id is meaningless
   /// without the Firebase session it was minted alongside.
   static const String _key = 'drop.active_session_id';

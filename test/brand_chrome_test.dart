@@ -12,7 +12,7 @@ import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
 import 'package:opshub/features/notifications/presentation/cubit/notification_cubit.dart';
 import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
-/// Brand-rollout chrome checks (2026-07-02): the real DROP artwork
+/// Brand-rollout chrome checks (2026-07-02): the real OpsHub artwork
 /// (`assets/opshub_logo.png`, via [OpsHubLogo]) must lead the role-home app bar,
 /// the desktop sidebar lockup, and close every mobile [AdaptiveScaffold] app
 /// bar — so the brand is present on the homepage and all migrated screens.
@@ -43,7 +43,7 @@ UserEntity _employee() => const UserEntity(
 void main() {
   // The default 800×600 test surface is below the 1024 desktop breakpoint,
   // so AdaptiveScaffold/RoleScaffold render their MOBILE chrome here.
-  testWidgets('AdaptiveScaffold mobile app bar carries the DROP mark',
+  testWidgets('AdaptiveScaffold mobile app bar carries the OpsHub mark',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: AdaptiveScaffold(title: 'Tasks', body: SizedBox()),
@@ -107,7 +107,7 @@ void main() {
     expect(find.byType(AnimatedOpsHubLogo), findsOneWidget);
   });
 
-  testWidgets('RoleScaffold home app bar leads with the DROP lockup',
+  testWidgets('RoleScaffold home app bar leads with the OpsHub lockup',
       (tester) async {
     final auth = _FakeAuthCubit(_employee());
     final notifications = _FakeNotificationCubit();

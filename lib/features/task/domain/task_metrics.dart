@@ -1,5 +1,5 @@
 /// Pure task-metric derivations for the dashboard "Needs Attention" tiles and
-/// the "Today" stat strip (DROP Design System V2). No Flutter, no Firestore — it
+/// the "Today" stat strip (OpsHub Design System V2). No Flutter, no Firestore — it
 /// derives the operational counts straight from the already-in-memory
 /// `TaskCubit` stream (zero new reads), so each figure is unit-testable and
 /// cannot drift from the live task list. Reuses the canonical predicates in

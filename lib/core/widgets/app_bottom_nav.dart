@@ -15,7 +15,7 @@ class AppNavItem {
   final String label;
 }
 
-/// The DROP bottom navigation bar — a flat dark bar with a top hairline, a
+/// The OpsHub bottom navigation bar — a flat dark bar with a top hairline, a
 /// white pill behind the active icon, and a white label for the selected tab
 /// (grey otherwise). Matches the role chrome in the design mockups.
 ///

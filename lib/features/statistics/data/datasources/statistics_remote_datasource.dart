@@ -124,7 +124,7 @@ class StatisticsRemoteDataSourceImpl implements StatisticsRemoteDataSource {
 
       // Pure counts via server-side aggregation — no document downloads. All
       // are single-field filters (automatic indexes; no composite index).
-      // (The old user-approval `pendingApprovals` count was removed — DROP is
+      // (The old user-approval `pendingApprovals` count was removed — OpsHub is
       // admin-provisioned, so there is no approval queue.)
       final counts = await Future.wait([
         _aggCount(_users.where('role', isEqualTo: 'employee')),

@@ -19,7 +19,7 @@ import 'package:opshub/core/widgets/settings_tiles.dart';
 ///
 /// Identity leads, operational shortcuts sit in clear groups, and destructive
 /// sign-out is deliberately separated from ordinary navigation. All surfaces
-/// reuse the shared glass/motion system so Settings feels like part of DROP,
+/// reuse the shared glass/motion system so Settings feels like part of OpsHub,
 /// not a platform preferences form.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -88,7 +88,7 @@ class SettingsPage extends StatelessWidget {
                         isLast: true,
                         // Deliberately inert for v1: the row states that the
                         // destination is coming rather than opening an empty
-                        // screen or pretending to switch a theme DROP does not
+                        // screen or pretending to switch a theme OpsHub does not
                         // have yet (it is dark-only — ADR-004).
                         onTap: null,
                         trailing: SettingsComingSoonLabel(),

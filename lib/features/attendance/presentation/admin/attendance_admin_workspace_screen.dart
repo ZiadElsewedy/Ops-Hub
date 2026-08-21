@@ -523,7 +523,7 @@ class _Fact extends StatelessWidget {
 }
 
 // The payroll hand-off section lived here. ADR-019 removed it with the rest of
-// the payroll machinery: DROP is an operations system, nothing ingests a payroll
+// the payroll machinery: OpsHub is an operations system, nothing ingests a payroll
 // file, and an export nobody reads is worse than none. Managers export the
 // timesheet and the PDF from the weekly report itself.
 

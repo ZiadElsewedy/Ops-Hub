@@ -12,7 +12,7 @@ import 'package:opshub/features/chat/domain/entities/chat_read_receipt.dart';
 /// never reveals existence.
 abstract class ChatRepository {
   /// Starts (get-or-creates) the conversation with the teammate identified by
-  /// [targetUserRef] — their **DROP user id (Firebase uid)**, the identity a
+  /// [targetUserRef] — their **OpsHub user id (Firebase uid)**, the identity a
   /// client holds for another user. The server resolves it to the internal
   /// participant (provisioning the teammate's user record on first sight) and
   /// returns the conversation. Idempotent per pair — the same conversation is

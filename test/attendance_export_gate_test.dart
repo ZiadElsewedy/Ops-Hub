@@ -55,7 +55,7 @@ void main() {
   });
 
   test('payroll is gone — the enum carries only operational artifacts', () {
-    // ADR-019: DROP is an operations system, nothing ingests a payroll file.
+    // ADR-019: OpsHub is an operations system, nothing ingests a payroll file.
     expect(AttendanceExportKind.values, hasLength(2));
     expect(
       AttendanceExportKind.values.map((k) => k.label),

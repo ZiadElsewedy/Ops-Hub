@@ -7,7 +7,7 @@ import 'package:opshub/core/theme/app_typography.dart';
 import 'package:opshub/core/widgets/animated_count.dart';
 import 'package:opshub/core/widgets/glass_container.dart';
 
-/// **MetricTile** — a light, **always tappable** figure cell (DROP Design System
+/// **MetricTile** — a light, **always tappable** figure cell (OpsHub Design System
 /// V2). A big counting-up number, a glyph + label, and an `arrow_outward`
 /// affordance so it reads as a door rather than as printed text.
 ///

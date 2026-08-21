@@ -39,7 +39,7 @@ class AttentionSignal {
   final VoidCallback onTap;
 }
 
-/// **AttentionPanel** — the dominant "act on these first" layer of a DROP
+/// **AttentionPanel** — the dominant "act on these first" layer of a OpsHub
 /// dashboard (Design System V2), and the surface the Admin command center was
 /// signed off on.
 ///

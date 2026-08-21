@@ -1134,7 +1134,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
   }
 
   /// One-line affordance hint under the grid — drag / switch / right-click /
-  /// tap are invisible until named. Signed off with a quiet DROP mark.
+  /// tap are invisible until named. Signed off with a quiet OpsHub mark.
   // ── Insight strip ──────────────────────────────────────────────
   /// Fact chips derived from the roster (open · one-person · double-booked)
   /// plus the pending-swap queue. Clicking a fact chip highlights its slots in
@@ -1327,7 +1327,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
   }
 
   // ── Empty / placeholder states ─────────────────────────────────
-  // Brand-led (§9b): the DROP mark leads the empty moments instead of a
+  // Brand-led (§9b): the OpsHub mark leads the empty moments instead of a
   // generic grey glyph.
   Widget _emptySchedule() {
     return OpsHubEmptyState(

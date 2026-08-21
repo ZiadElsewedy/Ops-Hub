@@ -149,7 +149,7 @@ class AppTheme {
 
   // ── Date / time pickers — bespoke monochrome instead of generic Material ──
   // The stock pickers are the most "default Flutter" surface in the create-task
-  // flow. These themes dress them in the DROP language: a near-black elevated
+  // flow. These themes dress them in the OpsHub language: a near-black elevated
   // sheet, a large radius, the white accent for the selected day/time, and the
   // neutral text ramp — so choosing a start/due time feels part of the product.
   static final DatePickerThemeData _datePickerTheme = DatePickerThemeData(

@@ -19,7 +19,7 @@ import 'package:opshub/features/sales/presentation/widgets/sales_progress_ring.d
 ///
 /// A Home module is one row in a dashboard: the ring answers "how far?" at a
 /// glance, `achieved / target` states it in figures, and everything heavier
-/// (pace, history, the DROP mark) lives one tap away on `/sales/mine`. The
+/// (pace, history, the OpsHub mark) lives one tap away on `/sales/mine`. The
 /// achieved figure and the ring read [AppColors.salesEmerald]; the achieved
 /// figure is a [RollingNumber] odometer because it is the number that moves.
 class SalesTargetCard extends StatelessWidget {

@@ -1,4 +1,4 @@
-/// The three DROP access roles. Every user has exactly one role, which drives
+/// The three OpsHub access roles. Every user has exactly one role, which drives
 /// post-login navigation, route guards (see `createRouter`) and the data-access
 /// model enforced by Firestore security rules.
 ///

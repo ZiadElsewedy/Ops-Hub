@@ -2,7 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'profile_entity.freezed.dart';
 
-/// The complete DROP user profile.
+/// The complete OpsHub user profile.
 ///
 /// This is the production social-profile contract. Some fields (social
 /// counters, presence) are not yet driven by a backend — they default to 0 /

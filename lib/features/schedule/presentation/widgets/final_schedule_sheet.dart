@@ -11,7 +11,7 @@ import 'package:opshub/features/schedule/domain/reporting/final_schedule_grid.da
 import 'package:opshub/features/schedule/domain/schedule_week.dart';
 
 /// The **printable final schedule** (Schedule V2 · Pillar 5) — a premium,
-/// read-only, export-ready roster styled like a modern spreadsheet in DROP's
+/// read-only, export-ready roster styled like a modern spreadsheet in OpsHub's
 /// monochrome language.
 ///
 /// Owner-directed layout (2026-08-05): **shifts down the side, days across the

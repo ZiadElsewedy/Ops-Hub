@@ -4,7 +4,7 @@ import 'package:opshub/core/theme/app_spacing.dart';
 import 'package:opshub/core/theme/app_typography.dart';
 import 'package:opshub/core/widgets/opshub_logo.dart';
 
-/// The auth-flow brand lockup: the DROP mark + the "DROP Operations System"
+/// The auth-flow brand lockup: the OpsHub mark + the "OpsHub Operations System"
 /// tagline. Used on the Login screen so the auth brand header lives in **one**
 /// place (no per-page logo duplication). Strictly monochrome.
 class OpsHubAuthMark extends StatelessWidget {

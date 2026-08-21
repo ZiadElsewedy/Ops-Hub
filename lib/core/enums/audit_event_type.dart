@@ -1,6 +1,6 @@
 import 'package:opshub/core/enums/audit_entity_type.dart';
 
-/// The canonical taxonomy of **auditable business actions** in DROP — the
+/// The canonical taxonomy of **auditable business actions** in OpsHub — the
 /// `eventType` of a record in the immutable `audit_logs` collection. This answers
 /// the **"did WHAT"** question of the audit trail.
 ///

@@ -1,4 +1,4 @@
-/// The operational push-notification events DROP sends.
+/// The operational push-notification events OpsHub sends.
 /// These are the agreed `type` values for the FCM **data** payload and the
 /// `notifications/{id}.type` field — the contract shared by the client triggers
 /// (`NotifyTaskEvent`), the `sendBroadcast` / `runTaskReminders` Cloud Functions,

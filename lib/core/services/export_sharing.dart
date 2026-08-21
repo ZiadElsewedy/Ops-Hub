@@ -4,11 +4,11 @@
 /// View export through here, so an export lands and is sent the same way across
 /// the app.
 ///
-/// **Why `share_plus` and not `open_filex`.** Owner-approved exception to DROP's
+/// **Why `share_plus` and not `open_filex`.** Owner-approved exception to OpsHub's
 /// dependency-light stance (2026-08-07). `open_filex` could only open a local
 /// viewer, so *sending* an export took an extra hop through Quick Look;
 /// `share_plus` raises the real share sheet (WhatsApp · Mail · AirDrop · Files) on
-/// iOS/Android/macOS — DROP's three targets. This file is the only place
+/// iOS/Android/macOS — OpsHub's three targets. This file is the only place
 /// `share_plus` is imported.
 library;
 

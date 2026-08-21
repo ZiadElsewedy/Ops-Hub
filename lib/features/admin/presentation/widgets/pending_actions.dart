@@ -8,7 +8,7 @@ import 'package:opshub/core/widgets/metric_pill.dart';
 /// Admin Home **Pending Actions** panel — a consolidated, actionable queue of
 /// everything waiting on the admin: shift-swap requests, tasks waiting review,
 /// and overdue tasks. Each non-empty queue is a tappable row that jumps straight
-/// to where it's resolved. (Employee approvals were removed — DROP is
+/// to where it's resolved. (Employee approvals were removed — OpsHub is
 /// admin-provisioned, so there is no approval queue.)
 ///
 /// Presentational only (counts + callbacks) so it renders in widget tests with no

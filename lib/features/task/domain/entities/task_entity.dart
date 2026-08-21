@@ -12,7 +12,7 @@ import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 part 'task_entity.freezed.dart';
 
-/// A unit of work in DROP (Phase 3) — the core operations workflow: a
+/// A unit of work in OpsHub (Phase 3) — the core operations workflow: a
 /// manager/admin creates and assigns a task, one or more employees execute it
 /// (start → complete, with optional notes + proof image), and a manager/admin
 /// reviews it (approve / reject).

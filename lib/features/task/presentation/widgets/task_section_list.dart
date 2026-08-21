@@ -8,7 +8,7 @@ import 'package:opshub/features/task/presentation/widgets/task_browser_groups.da
 import 'package:opshub/features/task/presentation/widgets/task_feed_row.dart';
 import 'package:opshub/features/task/presentation/widgets/task_preview_sheet.dart';
 
-/// **The** way a list of tasks is drawn in DROP: date sections, then rows.
+/// **The** way a list of tasks is drawn in OpsHub: date sections, then rows.
 ///
 /// Extracted so the browser (branch list · employee drill-down) and every
 /// metric drill-down (`FilteredTasksScreen`) cannot drift into two dialects of

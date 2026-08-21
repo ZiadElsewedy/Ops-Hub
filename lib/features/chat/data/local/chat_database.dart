@@ -12,7 +12,7 @@ part 'chat_database.g.dart';
 /// **metadata**), and a small outbox of not-yet-acknowledged text sends.
 ///
 /// This file is the **only** place the app touches SQLite, mirroring the
-/// single-seam discipline the rest of DROP follows (`core/network` for HTTP,
+/// single-seam discipline the rest of OpsHub follows (`core/network` for HTTP,
 /// `core/media` for Storage). Nothing outside `features/chat/data/local/` may
 /// import `drift`.
 ///

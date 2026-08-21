@@ -1817,7 +1817,7 @@ class TaskCubit extends Cubit<TaskState> {
 
   /// Creates *today's* instance of [template] at the same deterministic id
   /// (`rt_{templateId}_{yyyy-MM-dd}`) the `generateShiftTaskInstances` Cloud
-  /// Function uses. "Today" is device-local because DROP operates in one
+  /// Function uses. "Today" is device-local because OpsHub operates in one
   /// business timezone (Egypt); the server generator is still the authority if a
   /// device clock or zone is wrong. A no-op when [template] isn't due today
   /// (weekly, wrong weekday), an instance for today already exists, or the

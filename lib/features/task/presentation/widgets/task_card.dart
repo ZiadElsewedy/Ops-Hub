@@ -19,7 +19,7 @@ import 'package:opshub/core/widgets/live_status_border.dart';
 import 'package:opshub/features/task/presentation/widgets/task_badge.dart';
 import 'package:opshub/features/task/presentation/widgets/task_surface.dart';
 
-/// The premium DROP task card — built for **scanning**, not for reading a record.
+/// The premium OpsHub task card — built for **scanning**, not for reading a record.
 /// Metadata reads as glanceable *signals* (status pill · priority · branch ·
 /// starts/due) rather than a label→value table.
 ///

@@ -4,7 +4,7 @@ import 'package:opshub/core/enums/task_status.dart';
 import 'package:opshub/features/task/domain/entities/task_entity.dart';
 import 'package:opshub/features/task/domain/task_metrics.dart';
 
-/// Pure dashboard metric derivations (DROP Design System V2). Each figure that
+/// Pure dashboard metric derivations (OpsHub Design System V2). Each figure that
 /// feeds a Needs-Attention tile / the Today strip is unit-verified so it can't
 /// drift from the live task list.
 void main() {

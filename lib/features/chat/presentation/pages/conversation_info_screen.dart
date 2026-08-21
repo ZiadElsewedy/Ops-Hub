@@ -17,7 +17,7 @@ import 'package:opshub/features/chat/presentation/chat_format.dart';
 /// the conversation actions (search, mute, clear, delete).
 ///
 /// Presentation-only. Online / last-seen is deliberately **not** shown — the
-/// backend exposes no presence, and DROP never fabricates it. Role/branch are
+/// backend exposes no presence, and OpsHub never fabricates it. Role/branch are
 /// resolved best-effort from the Firebase directory + [BranchCubit]; anything
 /// that can't be resolved is simply omitted.
 class ConversationInfoScreen extends StatefulWidget {

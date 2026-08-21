@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:opshub/core/theme/app_colors.dart';
 
-/// **OpsHubWordmark** — the DROP logotype rendered **typographically** (heavy
+/// **OpsHubWordmark** — the OpsHub logotype rendered **typographically** (heavy
 /// weight, tight tracking), the minimal-luxury-streetwear complement to the
 /// PNG artwork [OpsHubLogo]. Use it where the asset is overkill: inline headers,
 /// empty/loading states, auth chrome — it's vector-crisp at any size, needs no

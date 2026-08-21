@@ -23,7 +23,7 @@ import 'package:opshub/features/task/presentation/pages/task_details_screen.dart
 import 'package:opshub/features/task/presentation/widgets/task_card.dart' show resolveAssignees;
 import 'package:opshub/features/task/presentation/widgets/task_feed_expansion.dart' show TaskFeedActions;
 
-/// The shared **task preview → optional full details** navigation pattern (DROP
+/// The shared **task preview → optional full details** navigation pattern (OpsHub
 /// Design System V2). Tapping a task anywhere on the dashboard opens a draggable
 /// preview sheet — a read of the task plus its quick actions and a sticky footer
 /// — so the admin can triage without ever leaving the dashboard (scroll + state

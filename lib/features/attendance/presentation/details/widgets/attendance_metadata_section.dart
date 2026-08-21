@@ -10,7 +10,7 @@ import 'package:opshub/features/attendance/domain/entities/attendance_entity.dar
 /// by default; expands to a flat list of the record's technical facts.
 ///
 /// It surfaces **only fields the record actually persists** — deliberately no
-/// invented `timezone` / `app version` / `platform` / `sync status`, which DROP
+/// invented `timezone` / `app version` / `platform` / `sync status`, which OpsHub
 /// does not record (adding them was declined as over-engineering). What isn't
 /// stored isn't shown, so the block never implies more provenance than exists.
 class AttendanceMetadataSection extends StatefulWidget {

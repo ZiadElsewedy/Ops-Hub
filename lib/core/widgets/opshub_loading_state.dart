@@ -4,7 +4,7 @@ import 'package:opshub/core/theme/app_spacing.dart';
 import 'package:opshub/core/theme/app_typography.dart';
 import 'package:opshub/core/widgets/opshub_logo.dart';
 
-/// **OpsHubLoadingState** — a **branded** full-area loading moment: the DROP mark
+/// **OpsHubLoadingState** — a **branded** full-area loading moment: the OpsHub mark
 /// with a slow, calm opacity-pulse (the brand "breathing") and an optional
 /// message. For whole-screen / whole-section waits where a logo reads better
 /// than a bare spinner.

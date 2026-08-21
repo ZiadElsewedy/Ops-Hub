@@ -32,7 +32,7 @@ class CrashContext {
   }
 }
 
-/// Global crash capture for DROP. One funnel for every class of uncaught
+/// Global crash capture for OpsHub. One funnel for every class of uncaught
 /// error:
 /// - **Flutter framework errors** → `FlutterError.onError`;
 /// - **platform / engine + uncaught async errors** →

@@ -5,7 +5,7 @@ import 'package:opshub/core/theme/app_spacing.dart';
 import 'package:opshub/core/widgets/glass_container.dart';
 import 'package:opshub/core/widgets/status_badge.dart';
 
-/// **AppGlassCard** — the canonical premium surface of the DROP component
+/// **AppGlassCard** — the canonical premium surface of the OpsHub component
 /// system. A rounded, gradient, depth-shadowed "glass" card that can carry a
 /// **subtle semantic glow** (a status colour) without breaking the strictly
 /// monochrome design: the surface + chrome stay greyscale, and only a soft

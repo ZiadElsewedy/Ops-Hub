@@ -73,7 +73,7 @@ class AdaptiveScaffold extends StatelessWidget {
   /// a screen has many actions on a narrow desktop window).
   final bool scrollableHeaderActions;
 
-  /// Quiet DROP brand mark at the trailing edge of the **mobile** app bar
+  /// Quiet OpsHub brand mark at the trailing edge of the **mobile** app bar
   /// (desktop is already branded by the persistent [AppSidebar] lockup).
   /// Non-interactive and tinted tertiary so it never competes with actions.
   final bool showBrandMark;
@@ -138,7 +138,7 @@ class AdaptiveScaffold extends StatelessWidget {
   }
 }
 
-/// The quiet DROP mark closing every mobile app bar — brand presence on all
+/// The quiet OpsHub mark closing every mobile app bar — brand presence on all
 /// migrated screens without competing with the actionable icons beside it.
 class _AppBarBrandMark extends StatelessWidget {
   const _AppBarBrandMark();

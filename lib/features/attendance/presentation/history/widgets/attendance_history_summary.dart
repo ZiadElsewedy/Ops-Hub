@@ -130,7 +130,7 @@ class _SummaryStrip extends StatelessWidget {
             value: _rate(summary.punctualArrivalRate),
           ),
           Stat(label: 'Worked', value: _worked(summary.workedMinutes)),
-          // "Payroll blockers" used to sit here. DROP does no payroll (ADR-009 /
+          // "Payroll blockers" used to sit here. OpsHub does no payroll (ADR-009 /
           // ADR-010 scope guardrail), so naming one on a ledger the owner reads
           // daily promised something the product does not do. The same count is
           // still available where it belongs — the week's close, which is the

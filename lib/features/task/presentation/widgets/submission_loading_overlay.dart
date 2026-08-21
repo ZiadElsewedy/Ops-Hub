@@ -9,7 +9,7 @@ import 'package:opshub/features/task/presentation/submission_progress.dart';
 /// (`assets/submission_loading.json`). Because it's driven by cubit state (not a
 /// dialog), exactly one ever exists and it survives rebuilds / navigation.
 ///
-/// The Lottie is forced to DROP's monochrome white via [LottieDelegates] so it
+/// The Lottie is forced to OpsHub's monochrome white via [LottieDelegates] so it
 /// stays on-brand (ADR-004); reduced motion collapses it to a still frame.
 class SubmissionLoadingOverlay extends StatelessWidget {
   const SubmissionLoadingOverlay({

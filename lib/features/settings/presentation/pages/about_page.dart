@@ -15,7 +15,7 @@ import 'package:opshub/core/widgets/app_snackbar.dart';
 import 'package:opshub/core/widgets/brand_watermark.dart';
 import 'package:opshub/core/widgets/opshub_logo.dart';
 
-/// What DROP is, and how to reach a human about it.
+/// What OpsHub is, and how to reach a human about it.
 ///
 /// Composed from the design-system primitives rather than hand-rolled boxes:
 /// [AppGlassCard] for the surfaces (gradient + two-layer depth), the real

@@ -3,7 +3,7 @@ import 'package:opshub/core/theme/app_colors.dart';
 import 'package:opshub/core/widgets/opshub_logo.dart';
 import 'package:opshub/core/widgets/opshub_wordmark.dart';
 
-/// Overlays a **barely-there** DROP wordmark in the corner of a premium hero —
+/// Overlays a **barely-there** OpsHub wordmark in the corner of a premium hero —
 /// a quiet brand presence, never decoration (§9b Wave 3, "selective header
 /// branding"). Opacity is capped low (0.02–0.05); the mark is non-interactive
 /// and clipped to the content bounds, so it can't obscure text or break layout.

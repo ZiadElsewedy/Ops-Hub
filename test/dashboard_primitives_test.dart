@@ -5,7 +5,7 @@ import 'package:opshub/core/widgets/attention_tile.dart';
 import 'package:opshub/core/widgets/page_hero.dart';
 import 'package:opshub/core/widgets/stat_strip.dart';
 
-/// Widget tests for the reusable DROP Design System V2 primitives — the
+/// Widget tests for the reusable OpsHub Design System V2 primitives — the
 /// building blocks every future module inherits. Rendered headlessly (no cubits,
 /// no router) so they stay fast and stable.
 void main() {

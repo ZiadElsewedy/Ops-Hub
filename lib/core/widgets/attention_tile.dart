@@ -7,7 +7,7 @@ import 'package:opshub/core/widgets/animated_count.dart';
 import 'package:opshub/core/widgets/glass_container.dart';
 
 /// **AttentionTile** — a priority triage cell for the "Needs Attention" layer
-/// (DROP Design System V2). A soft-accent glyph, a big live [count], and a
+/// (OpsHub Design System V2). A soft-accent glyph, a big live [count], and a
 /// label; tapping it opens the filtered view for that signal. This is the
 /// generalisation of the old bespoke dashboard pending-action pills, built to be
 /// reused by any module (tasks pending review, requests awaiting a decision,

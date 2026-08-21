@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:opshub/features/auth/presentation/pages/splash_page.dart';
 
-/// Measures the ACTUAL visual centre of the DROP artwork inside the Lottie's
+/// Measures the ACTUAL visual centre of the OpsHub artwork inside the Lottie's
 /// settled tail frames (what's held on screen while bootstrap finishes) and
 /// asserts the in-code compensation constant matches it. The splash can then
 /// never be visually off-centre without this test failing — the constant is

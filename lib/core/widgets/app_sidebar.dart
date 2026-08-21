@@ -94,7 +94,7 @@ class AppSidebar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Brand header — the real DROP artwork. Keep persistent desktop
+            // Brand header — the real OpsHub artwork. Keep persistent desktop
             // chrome static so idle navigation never burns the UI thread.
             Padding(
               padding: const EdgeInsets.fromLTRB(

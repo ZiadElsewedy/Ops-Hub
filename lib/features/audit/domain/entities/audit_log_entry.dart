@@ -10,7 +10,7 @@ import 'package:opshub/features/audit/domain/entities/audit_actor.dart';
 /// place (that would rewrite history).
 const int kAuditSchemaVersion = 1;
 
-/// One immutable entry in the DROP audit trail. Answers, for a single business
+/// One immutable entry in the OpsHub audit trail. Answers, for a single business
 /// action: **WHO** ([actorId] / [actorName] / [actorRole]) did **WHAT**
 /// ([eventType]) to **WHICH ENTITY** ([entityType] / [entityId]) **WHEN**
 /// ([timestamp]) and **FROM WHERE** ([branchId] + [metadata]).

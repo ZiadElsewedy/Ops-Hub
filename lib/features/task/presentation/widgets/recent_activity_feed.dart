@@ -13,7 +13,7 @@ import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
 import 'package:opshub/features/task/presentation/cubit/task_state.dart';
 import 'package:opshub/features/task/presentation/widgets/task_activity_card.dart';
 
-/// **RecentActivityFeed** — the dashboard's "what's happening" layer (DROP Design
+/// **RecentActivityFeed** — the dashboard's "what's happening" layer (OpsHub Design
 /// System V2). The calm, vertical replacement for the dense/filtered task feed on
 /// the home screen: the most recently-touched active tasks rendered as clean
 /// [TaskActivityCard]s, newest first, capped at [limit]. No filter chips, no
