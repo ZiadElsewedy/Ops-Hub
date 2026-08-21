@@ -251,7 +251,7 @@ class _SplashPageState extends State<SplashPage>
                             child: Transform.scale(
                               scale: 0.9 + (0.1 * logoSettle),
                               child: Semantics(
-                                label: 'Drop Operations',
+                                label: 'OpsHub',
                                 image: true,
                                 child: RepaintBoundary(
                                   child: AnimatedOpsHubLogo(height: logoHeight),
@@ -323,7 +323,7 @@ class _SplashPageState extends State<SplashPage>
   /// falls back to the static wordmark and releases the animation gate so it
   /// can never deadlock startup.
   Widget _logo() => Semantics(
-    label: 'Drop Operations',
+    label: 'OpsHub',
     image: true,
     child: LottieBuilder(
       // This export contains 102 embedded 720×405 WebP image assets (not
@@ -632,7 +632,7 @@ class _StartupError extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: [
       Text(
-        'Drop Operations could not start. Check your connection and try again.',
+        'OpsHub could not start. Check your connection and try again.',
         textAlign: TextAlign.center,
         style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
       ),

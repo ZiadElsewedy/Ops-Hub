@@ -141,7 +141,7 @@ class SettingsPage extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xxl),
                 const SettingsReveal(
                   index: 8,
-                  child: SettingsSectionHeader(label: 'Drop Operation'),
+                  child: SettingsSectionHeader(label: 'OpsHub'),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 SettingsReveal(
@@ -150,7 +150,7 @@ class SettingsPage extends StatelessWidget {
                     children: [
                       SettingsRow(
                         icon: Icons.info_outline_rounded,
-                        label: 'About Drop Operation',
+                        label: 'About OpsHub',
                         subtitle: 'Product details and human support',
                         isFirst: true,
                         onTap: () => context.push(RouteNames.about),
@@ -169,7 +169,7 @@ class SettingsPage extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
                 Center(
                   child: Text(
-                    'DROP THE SHOP · OPERATIONS',
+                    'OPSHUB · OPERATIONS',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.textQuaternary,
                       letterSpacing: 1.4,

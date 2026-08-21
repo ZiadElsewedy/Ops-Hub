@@ -52,8 +52,8 @@ class _OnboardingWelcomePageState extends State<OnboardingWelcomePage> {
         ? name.split(' ').first
         : null;
     final headline = firstName != null
-        ? 'Welcome to Drop Operations, $firstName.'
-        : 'Welcome to Drop Operations.';
+        ? 'Welcome to OpsHub, $firstName.'
+        : 'Welcome to OpsHub.';
 
     return Scaffold(
       backgroundColor: Colors.black,

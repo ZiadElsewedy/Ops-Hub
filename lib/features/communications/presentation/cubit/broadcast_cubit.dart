@@ -287,7 +287,7 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     final name = user.displayName?.trim();
     if (name != null && name.isNotEmpty) return name;
     final email = user.email.trim();
-    return email.isNotEmpty ? email : 'Drop Operations';
+    return email.isNotEmpty ? email : 'OpsHub';
   }
 
   String _message(Object e) =>

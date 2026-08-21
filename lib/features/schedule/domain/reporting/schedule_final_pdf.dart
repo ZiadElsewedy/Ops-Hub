@@ -42,7 +42,7 @@ Future<Uint8List> buildScheduleFinalPdf({
         alignment: pw.Alignment.centerRight,
         margin: const pw.EdgeInsets.only(top: 10),
         child: pw.Text(
-          'Drop Operations  ·  Page ${context.pageNumber} of ${context.pagesCount}',
+          'OpsHub  ·  Page ${context.pageNumber} of ${context.pagesCount}',
           style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
         ),
       ),
@@ -84,7 +84,7 @@ pw.Widget _header({
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
       pw.Text(
-        'Drop Operations',
+        'OpsHub',
         style: pw.TextStyle(
           fontSize: 9,
           fontWeight: pw.FontWeight.bold,

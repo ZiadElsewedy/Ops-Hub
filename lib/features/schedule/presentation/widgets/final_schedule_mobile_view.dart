@@ -109,7 +109,7 @@ class FinalScheduleMobileView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Drop Operations',
+                      'OpsHub',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.textTertiary,
                         fontWeight: FontWeight.w800,

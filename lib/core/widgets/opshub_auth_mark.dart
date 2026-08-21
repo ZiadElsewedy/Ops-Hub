@@ -21,7 +21,7 @@ class OpsHubAuthMark extends StatelessWidget {
         OpsHubLogo(height: logoHeight),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'DROP OPERATIONS SYSTEM',
+          'OPSHUB OPERATIONS SYSTEM',
           style: AppTypography.caption.copyWith(
             letterSpacing: 2.0,
             fontWeight: FontWeight.w600,

@@ -14,4 +14,4 @@ PRODUCT_NAME = OpsHub
 PRODUCT_BUNDLE_IDENTIFIER = com.ziad.drop
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 DROP THE SHOP. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 OpsHub. All rights reserved.

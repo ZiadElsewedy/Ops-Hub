@@ -402,7 +402,7 @@ Future<void> _surfacePendingCrashReport() async {
       backgroundColor: AppColors.darkSurfaceElevated,
       leading: const Icon(Icons.bug_report_outlined, color: AppColors.error),
       content: const Text(
-        'Drop Operations quit unexpectedly last time. You can export the crash report '
+        'OpsHub quit unexpectedly last time. You can export the crash report '
         'for debugging.',
         style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
       ),

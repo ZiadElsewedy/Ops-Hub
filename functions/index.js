@@ -1,5 +1,5 @@
 /**
- * DROP — Communications Center send engine.
+ * OpsHub — Communications Center send engine.
  *
  * Callable `sendBroadcast`: the authoritative broadcast write + push pipeline.
  * Responsibilities:
@@ -208,7 +208,7 @@ async function dispatchBroadcast(params) {
   const senderId = String(params.senderId || "").trim();
   const senderRole = String(params.senderRole || "manager").trim() || "manager";
   const senderBranch = String(params.senderBranch || "").trim();
-  const senderName = String(params.senderName || "DROP").trim() || "DROP";
+  const senderName = String(params.senderName || "OpsHub").trim() || "OpsHub";
   const targetUserId = String(params.targetUserId || "").trim();
   const roleFilter = String(params.roleFilter || "").trim();
   const targetUserIds = Array.isArray(params.targetUserIds)
@@ -565,7 +565,7 @@ exports.sendBroadcast = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Unknown broadcast audience.");
   }
 
-  const senderName = sender.fullName || sender.displayName || sender.email || "DROP";
+  const senderName = sender.fullName || sender.displayName || sender.email || "OpsHub";
 
   const result = await dispatchBroadcast({
     senderId: auth.uid,
@@ -589,7 +589,7 @@ exports.sendBroadcast = onCall(async (request) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // createUserAccount — the secure account-provisioning path (admin-only).
 //
-// DROP no longer allows public registration: only an admin creates accounts.
+// OpsHub no longer allows public registration: only an admin creates accounts.
 // This callable creates the Firebase Auth user with the Admin SDK (which does
 // NOT sign the calling admin out, unlike the client createUserWithEmailAndPassword)
 // and seeds the `users/{uid}` document with the role/branch/shift/position plus

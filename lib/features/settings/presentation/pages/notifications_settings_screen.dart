@@ -142,7 +142,7 @@ class _NotificationsSettingsScreenState
       SettingsSwitchRow(
         icon: Icons.notifications_active_outlined,
         label: 'Enable Notifications',
-        subtitle: 'Turn every Drop Operations notification on or off',
+        subtitle: 'Turn every OpsHub notification on or off',
         value: _prefs.enabled,
         onChanged: (v) => _update(_prefs.copyWith(enabled: v)),
         isFirst: true,

@@ -138,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                 const FadeSlideTransition(
                   delay: Duration(milliseconds: 140),
                   child: Text(
-                    'Sign in to your Drop Operations account',
+                    'Sign in to your OpsHub account',
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyLarge,
                   ),
@@ -180,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                     const Text('Welcome back', style: AppTypography.h1),
                     const SizedBox(height: AppSpacing.sm),
                     const Text(
-                      'Sign in to your Drop Operations account',
+                      'Sign in to your OpsHub account',
                       style: AppTypography.body,
                     ),
                     const SizedBox(height: AppSpacing.xxxl),
@@ -227,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
               child: const Text(
                 'Run daily branch operations end to end — tasks, schedules, '
                 'shift swaps and team communications — from one premium control '
-                'surface for DROP THE SHOP.',
+                'surface for OpsHub.',
                 style: AppTypography.bodyLarge,
               ),
             ),
