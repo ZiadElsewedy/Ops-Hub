@@ -59,8 +59,8 @@ class DefaultFirebaseOptions {
   );
 
   // ⚠️ These MUST describe the Firebase iOS app whose BUNDLE_ID equals the bundle
-  // id Xcode actually builds (`com.ziad.drop`, see ios/…/project.pbxproj and
-  // macos/Runner/Configs/AppInfo.xcconfig).
+  // id Xcode actually builds (`com.opshub.app`, see ios/…/project.pbxproj and
+  // ios/Runner/GoogleService-Info.plist — both updated for the OpsHub rebrand).
   //
   // They previously pointed at a legacy `com.example` identifier
   // (appId …f1d3167839a737155a0bc0) — a DIFFERENT Firebase iOS app. Because
@@ -70,7 +70,7 @@ class DefaultFirebaseOptions {
   // key is attached per iOS app, and tokens were minted against an app the
   // sender never targets. Android was unaffected, which is why this stayed
   // invisible. If you re-run `flutterfire configure`, make sure you pick the
-  // `com.ziad.drop` app or this regresses.
+  // `com.opshub.app` app or this regresses.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyACEG2B-VTP88FtAloV56cVMElUakrGF0c',
     appId: '1:450092605249:ios:c938624f6a08c77d5a0bc0',
@@ -78,9 +78,16 @@ class DefaultFirebaseOptions {
     projectId: 'bazic-d9ad7',
     storageBucket: 'bazic-d9ad7.firebasestorage.app',
     iosClientId: '450092605249-09d0ii8o4tpjb8h0s5f5c1ofi4uepe7v.apps.googleusercontent.com',
-    iosBundleId: 'com.ziad.drop',
+    iosBundleId: 'com.opshub.app',
   );
 
+  // macOS deliberately NOT rebranded here: it has its OWN separate, still
+  // `com.ziad.drop`-registered Firebase client (macos/Runner/GoogleService-Info.plist,
+  // untouched by the iOS/Android rebrand config update), and
+  // macos/Runner/Configs/AppInfo.xcconfig's PRODUCT_BUNDLE_IDENTIFIER is still
+  // `com.ziad.drop` too. Flipping iosBundleId here without re-registering that
+  // macOS app in the Firebase console first would break macOS Firebase the same
+  // way the Android applicationId mismatch did.
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyACEG2B-VTP88FtAloV56cVMElUakrGF0c',
     appId: '1:450092605249:ios:c938624f6a08c77d5a0bc0',
