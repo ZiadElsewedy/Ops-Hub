@@ -14,6 +14,63 @@ released — OpsHub ships from branches and has no version tags.
 
 ---
 
+## 2026-08-21 — Full rebrand: Drop/DROP → OpsHub, incl. brand assets (branch `rebrand-opshub`; LOW risk, client + docs only)
+
+The product-wide rebrand from Drop/DROP to OpsHub, done as a series of small,
+independently-verified commits on `rebrand-opshub`:
+
+- **Naming.** App display name and every OS-level label (iOS/Android launcher,
+  macOS/Windows/Linux window & app-switcher title, `MaterialApp` `title`) →
+  **OpsHub**. Dart package `drop` → **`opshub`** — every `package:drop/` import
+  rewritten across `lib/` + `test/` (873 files, 6156 occurrences). `Drop*` brand
+  widgets/files renamed to `OpsHub*` (`OpsHubLogo`, `OpsHubWordmark`,
+  `AnimatedOpsHubLogo`, `OpsHubAuthMark`, `OpsHubEmptyState`,
+  `OpsHubLoadingState`, and their files). Every user-facing string
+  (`Drop Operations`/`Drop Operation` → `OpsHub`, all-caps captions, the login
+  tagline) and the Cloud Functions sender-name/copy in `functions/index.js` →
+  OpsHub. Company name **`DROP THE SHOP` → `OpsHub`** in `pubspec.yaml`
+  description and the Windows/macOS copyright strings.
+- **Docs.** PROJECT_CONTEXT.md, CURRENT_STATE.md, CHANGELOG.md, `docs/design/`,
+  `docs/decisions/`, `.nav/` swept the same way, including historical
+  CHANGELOG/ADR entries (a deliberate full-history rebrand, not just new
+  copy) — PROJECT_CONTEXT §1's naming section rewritten to state the real
+  post-rebrand scheme. README.md updated (not rewritten) and repositioned as a
+  generic **multi-branch operations platform** rather than a Drop-the-Shop-only
+  tool, with its Project Identity section brought in line with the same scheme.
+- **Brand assets.** New OpsHub hub icon: the in-app mark now renders
+  `assets/opshub_icon.svg` via `flutter_svg`, tinted **monochrome white**
+  (honors [ADR-004](docs/decisions/ADR-004-monochrome-design.md) — no brand
+  colour reaches the UI). Launcher/app icons regenerated for Android, iOS, and
+  macOS via `flutter_launcher_icons` from new masters (navy `#1B2A4A` field,
+  amber `#F59E0B` core, white nodes; `remove_alpha_ios` enabled for the
+  App-Store-required opaque iOS icon). Stale Drop artwork
+  (`opshub_logo.png`, `opshub_wordmark.png`, the old launcher master) removed;
+  the raw brand kit (`assets/OpsHub Brand/` — design-source SVGs, `.dc.html`)
+  untracked and added to `.gitignore` (design reference, kept outside the
+  tree).
+- **Deliberately unchanged.** Platform bundle identifiers `com.ziad.drop`
+  (iOS/macOS) and `com.example.dropoperation` (Android) — both are registered
+  with Firebase; renaming either requires re-registering the apps in the
+  Firebase console and swapping `google-services.json` /
+  `GoogleService-Info.plist` first. The strictly-monochrome design system
+  (ADR-004) is untouched by design. The on-disk repository folder name stays
+  `Drop-operations`.
+- **Pending manual follow-ups (not done here):** the splash launch animation
+  `assets/0704.json` is still the old Drop-branded Lottie — no replacement was
+  provided; the bundle identifiers above could be renamed once Firebase
+  re-registration is done; the project folder itself and
+  `.idea/runConfigurations/DROP_*.xml` could optionally be renamed too.
+
+`flutter analyze` clean throughout (0 errors; 1 pre-existing info lint,
+unrelated). `flutter test` (full suite): **8 pre-existing failures** —
+`chat_nav_promotion_test.dart` (stale Settings-hub route expectation),
+`sales_dashboard_widgets_test.dart` ×3, `sales_record_added_overlay_test.dart`
+×2, `profile_page_test.dart`, `offline_write_guard_test.dart` — all confirmed
+failing **before** this rebrand too (re-run against baseline commit `739f224`
+in an isolated worktree; same 8 fail there) and none of the touched files carry
+anything but import-path/comment changes from this series, so they are
+unrelated pre-existing issues, not a rebrand regression.
+
 ## 2026-08-12 — Critical-review fixes C1–C6 (⚠️ NEEDS A FUNCTIONS DEPLOY for C4; MED–HIGH risk)
 
 Six critical findings fixed, each re-derived from the code:

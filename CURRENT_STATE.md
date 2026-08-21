@@ -5,6 +5,22 @@
 >
 > **Last verified against the code:** 2026-08-08.
 
+> **Full Drop → OpsHub rebrand, incl. brand assets (2026-08-21, docs/branding,
+> client + docs only, NOT device-verified):** Product name, package
+> (`drop`→`opshub`), `Drop*` widget/file names, all user-facing strings, Cloud
+> Functions copy, and company name are all **OpsHub** now; docs (including
+> history) and README swept and repositioned as a multi-branch platform. New
+> in-app SVG hub mark (monochrome white, ADR-004) and regenerated
+> Android/iOS/macOS launcher icons (navy/amber/white); stale artwork and the
+> raw brand kit (`assets/OpsHub Brand/`) removed from the tree. **Deliberately
+> unchanged:** bundle IDs `com.ziad.drop` / `com.example.dropoperation`
+> (Firebase-registered), the on-disk folder `Drop-operations`, and the
+> monochrome design system. See [CHANGELOG.md](CHANGELOG.md) 2026-08-21 for the
+> full commit-by-commit detail. `flutter analyze` clean; the 8 failing tests in
+> the suite are pre-existing (confirmed failing at baseline `739f224`, not a
+> rebrand regression). **Still open:** `assets/0704.json` splash Lottie is
+> still Drop-branded (no replacement provided).
+
 > **Critical-review fixes C1–C6 (2026-08-12, bug/hardening, ⚠️ C4 NEEDS A
 > FUNCTIONS DEPLOY, NOT device-verified):** (C1) Operations-request decisions are
 > now a guarded Firestore **transaction** (`RequestRemoteDataSource.changeStatus`)
