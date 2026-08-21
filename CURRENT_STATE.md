@@ -1380,7 +1380,7 @@
 > underneath it, so Approve looked like it did nothing. **Not device-verified.**
 
 > **Project identity alignment (2026-08-05):** The repository folder is
-> **`Drop-operations`** and the user-facing product name is **OpsHub**.
+> **`OpsHub-operations`** and the user-facing product name is **OpsHub**.
 > Android/Linux use the valid identifier `com.example.dropoperation`; iOS/macOS
 > continue to use `com.ziad.drop`. The Android Firebase registration/configuration
 > must be regenerated for the new identifier before a Firebase-enabled release.

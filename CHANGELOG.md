@@ -48,24 +48,24 @@ independently-verified commits on `rebrand-opshub`:
   the raw brand kit (`assets/OpsHub Brand/` — design-source SVGs, `.dc.html`)
   untracked and added to `.gitignore` (design reference, kept outside the
   tree).
-- **Deliberately unchanged.** Platform bundle identifiers `com.ziad.drop`
-  (iOS/macOS) and `com.example.dropoperation` (Android) — both are registered
-  with Firebase; renaming either requires re-registering the apps in the
-  Firebase console and swapping `google-services.json` /
-  `GoogleService-Info.plist` first. The strictly-monochrome design system
-  (ADR-004) is untouched by design. The on-disk repository folder name stays
-  `Drop-operations`.
+- **Deliberately unchanged.** The strictly-monochrome design system (ADR-004)
+  is untouched by design. (Bundle identifiers and the on-disk folder name were
+  believed unchanged at the time of this entry — both have since moved; see
+  the 2026-08-21 follow-up entries below for the bundle-ID migration to
+  `com.opshub.app` on iOS/Android, and the folder rename to
+  `OpsHub-operations`.)
 - **Residual sweep (2026-08-21, follow-up):** a second, whole-repo pass caught
   what the first two passes missed — iOS/macOS location-permission strings
   (plus the letter-spaced "D R O P" camera/microphone/photo-library strings on
   iOS), the Android notification-channel display name, Linux window titles,
   `functions/*.js` + `functions/package.json`, and the pubspec connectivity
   comment.
-- **Pending manual follow-ups (not done here):** the splash launch animation
-  `assets/0704.json` is still the old Drop-branded Lottie — no replacement was
-  provided; the bundle identifiers above could be renamed once Firebase
-  re-registration is done; the project folder itself and
-  `.idea/runConfigurations/DROP_*.xml` could optionally be renamed too.
+- **Pending manual follow-ups:** resolved in follow-up commits the same day —
+  the splash Lottie was replaced with a static mark, iOS/Android bundle
+  identifiers were migrated to `com.opshub.app`, and the `.idea` run configs
+  were renamed. The on-disk folder rename (`Drop-operations` →
+  `OpsHub-operations`) is the one remaining step, done by the owner outside
+  version control.
 
 `flutter analyze` clean throughout (0 errors; 1 pre-existing info lint,
 unrelated). `flutter test` (full suite): **8 pre-existing failures** —

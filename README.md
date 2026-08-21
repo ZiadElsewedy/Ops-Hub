@@ -235,7 +235,7 @@ in the same task.
 
 ## Project identity
 
-The repository folder on disk is **`Drop-operations`** (not renamed); the Dart package is
+The repository folder on disk is **`OpsHub-operations`**; the Dart package is
 **`opshub`** (every import is `package:opshub/…`). The product has a single user-facing
 name, **`OpsHub`**, used everywhere — the OS launcher/window label on every platform,
 the in-app wordmark, splash, About, notifications, and all in-app copy.

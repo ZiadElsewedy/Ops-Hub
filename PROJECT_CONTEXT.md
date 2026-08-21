@@ -31,7 +31,7 @@ previous documentation set grew to 11,000 lines of partly-false claims.
 a multi-branch business: branches, shifts, tasks, attendance, approvals, and employee
 activity. Three roles — **admin · manager · employee**.
 
-The repository folder on disk is still **`Drop-operations`** (not renamed). The Dart
+The repository folder on disk is **`OpsHub-operations`**. The Dart
 package is **`opshub`** (declared in `pubspec.yaml`; valid Dart package identifiers
 cannot contain a hyphen). The product has **one** user-facing name — **`OpsHub`** —
 used everywhere: the OS launcher/window label on every platform, the `MaterialApp`
