@@ -51,3 +51,7 @@ compensation_backup_*.json
 node_modules/
 firestore-debug.log
 ui-debug.log
+
+# Raw brand kit (design-source SVGs, support.js, .dc.html) — design reference
+# kept outside the tree; only the extracted app assets are tracked.
+assets/OpsHub Brand/
