@@ -5,7 +5,7 @@
 > Optimized for instant lookup by humans **and** AI agents (Claude, Cursor, ChatGPT).
 
 **Product:** OpsHub — role-based Operations Management System (Flutter + Firebase + one external NestJS chat API).
-Dart package id is `drop`; the project folder is `Drop-operations`, and the user-facing
+Dart package id is `opshub`; the project folder is `Drop-operations`, and the user-facing
 product name is **OpsHub**.
 
 ---

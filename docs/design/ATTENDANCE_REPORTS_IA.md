@@ -526,7 +526,7 @@ Never collapsed, never reordered — the shape of the week is the information.
 
 ```text
 Attendance & Reports / Weekly
-Drop The Shop
+OpsHub
 Sun 26 Jul - Sat 1 Aug  ·  In progress                      [Status pill]
 
 +--------------------------------------------------------------------------+
@@ -535,7 +535,7 @@ Sun 26 Jul - Sat 1 Aug  ·  In progress                      [Status pill]
 +--------------------------------------------------------------------------+
 
 +--------------------------------------------------------------------------+
-| Drop The Shop · 26 Jul - 1 Aug                                           |
+| OpsHub · 26 Jul - 1 Aug                                                  |
 | 42 of 45 shifts worked · 312h · 4h overtime                              |
 +--------------------------------------------------------------------------+
 
@@ -568,7 +568,7 @@ Sun 26 Jul - Sat 1 Aug  ·  In progress                      [Status pill]
 Weekly attendance
 Who worked this week
 
-Drop The Shop
+OpsHub
 Sun 26 Jul - Sat 1 Aug · In progress
 
 Needs your attention        (absent when nothing is open)

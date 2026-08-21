@@ -630,7 +630,7 @@ Three zones, fixed order, no configuration:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  Thursday 30 July · Drop The Shop                    │
+│  Thursday 30 July · OpsHub                           │
 │  3 things need you                          [Done]   │
 ├──────────────────────────────────────────────────────┤
 │  ZONE 1 — NEEDS YOU                                  │
@@ -720,7 +720,7 @@ exceptions", no green tick.
 The screen shows:
 
 ```
-Thursday 30 July · Drop The Shop
+Thursday 30 July · OpsHub
 Nothing needs you.
 7 of 7 shifts worked · 52h 30m · no overtime
 ▸ Show all 7 shifts
@@ -793,7 +793,7 @@ absence is itself information.
 
 **2 · The week in one line.**
 
-> *Drop The Shop · 26 Jul – 1 Aug · 42 of 45 shifts worked · 312h · 4h overtime*
+> *OpsHub · 26 Jul – 1 Aug · 42 of 45 shifts worked · 312h · 4h overtime*
 
 One sentence, no cards, no percentages. It exists because the manager's most common use
 of this report is reporting *upward*, and they need a sentence, not a dashboard.

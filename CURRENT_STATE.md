@@ -13,13 +13,16 @@
 > in-app SVG hub mark (monochrome white, ADR-004) and regenerated
 > Android/iOS/macOS launcher icons (navy/amber/white); stale artwork and the
 > raw brand kit (`assets/OpsHub Brand/`) removed from the tree. **Deliberately
-> unchanged:** bundle IDs `com.ziad.drop` / `com.example.dropoperation`
-> (Firebase-registered), the on-disk folder `Drop-operations`, and the
-> monochrome design system. See [CHANGELOG.md](CHANGELOG.md) 2026-08-21 for the
-> full commit-by-commit detail. `flutter analyze` clean; the 8 failing tests in
-> the suite are pre-existing (confirmed failing at baseline `739f224`, not a
-> rebrand regression). **Still open:** `assets/0704.json` splash Lottie is
-> still Drop-branded (no replacement provided).
+> unchanged:** the monochrome design system. Bundle IDs have since been
+> migrated to `com.opshub.app` on iOS/Android to match the updated Firebase
+> config; **macOS stays `com.ziad.drop`** (no `com.opshub.app` macOS Firebase
+> app is registered yet). The on-disk folder rename to `OpsHub-operations` is
+> the one remaining manual step. See [CHANGELOG.md](CHANGELOG.md) 2026-08-21
+> for the full commit-by-commit detail. `flutter analyze` clean; the 8 failing
+> tests in the suite are pre-existing (confirmed failing at baseline
+> `739f224`, not a rebrand regression). The Drop-branded splash Lottie
+> (`assets/0704.json`) has been removed; splash + onboarding now use the
+> static OpsHub mark.
 
 > **Critical-review fixes C1–C6 (2026-08-12, bug/hardening, ⚠️ C4 NEEDS A
 > FUNCTIONS DEPLOY, NOT device-verified):** (C1) Operations-request decisions are
@@ -398,23 +401,6 @@
 > roster read already returns the manager. `flutter analyze` clean, +3 tests
 > (`schedule_manager_day_off_test.dart`). Design doc
 > [SCHEDULE](docs/design/SCHEDULE.md) amended.
-
-> **OS label split to "OpsHub"; in-app name stays "OpsHub"
-> (2026-08-08, polish, NOT device-verified):** The short name the operating
-> system shows was changed **OpsHub → OpsHub** on the OS-level surfaces
-> only — iOS `CFBundleDisplayName`/`CFBundleName`, Android `android:label`, macOS
-> `INFOPLIST_KEY_CFBundleDisplayName` (the stray trailing space was also dropped),
-> Windows `FileDescription`/`ProductName`, Linux window/header-bar titles, and both
-> `MaterialApp` `title`s (the desktop/web window & app-switcher title). Everything
-> **inside** the app is deliberately **unchanged** and still reads *Drop
-> Operations*: `AppConstants.appName`, the `OpsHubWordmark` logotype, the splash
-> label, and all copy (About, login, onboarding, notifications, schedule
-> Final-view + PDF headers). No logic, schema, rules, or functions changed;
-> `flutter analyze` clean (only `main.dart` is a Dart edit — the rest are platform
-> config). No tests changed (the 3 name tests assert the wordmark/copy, all kept).
-> ⚠️ **NOT device-verified** — the launcher label and window-title rendering need a
-> real build per platform. *(Supersedes the earlier same-day OpsHub → Drop
-> Operations rename, which had made the OS labels "OpsHub" too.)*
 
 > **Reviewer attendance search is now directory-backed (2026-08-07, feature,
 > presentation + pure domain + one bounded read, client-only, NO deploy, NOT
