@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>450092605249-09d0ii8o4tpjb8h0s5f5c1ofi4uepe7v.apps.googleusercontent.com</string>
+	<string>450092605249-nsrlvkirg1k4qndt34bru3ne3lr72go5.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.450092605249-09d0ii8o4tpjb8h0s5f5c1ofi4uepe7v</string>
+	<string>com.googleusercontent.apps.450092605249-nsrlvkirg1k4qndt34bru3ne3lr72go5</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>450092605249-5qi6k65qr5n8l4dpoom1e2e11h8k3lad.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.ziad.drop</string>
+	<string>com.opshub.app</string>
 	<key>PROJECT_ID</key>
 	<string>bazic-d9ad7</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:450092605249:ios:c938624f6a08c77d5a0bc0</string>
+	<string>1:450092605249:ios:ea065bd2779db7445a0bc0</string>
 </dict>
 </plist>
