@@ -1,4 +1,4 @@
-# DROP Attendance & Reports IA
+# OpsHub Attendance & Reports IA
 
 Date: 2026-07-30
 
@@ -512,7 +512,7 @@ Late, early-leave, and overtime remain derived facts, not persisted statuses
 Band order: unresolved items → unexcused absences → lateness → clean.
 
 This reverses the previous alphabetical rule. The instinct behind that rule was
-right — DROP must never rank people, and ADR-017 refuses composite scores
+right — OpsHub must never rank people, and ADR-017 refuses composite scores
 permanently — but **alphabetical order is not what prevents ranking; refusing to
 compute a score is.** Alphabetical order only guaranteed that the one person who
 did not show up sat fourth in the list. Surfacing an exception is surfacing work,
@@ -526,7 +526,7 @@ Never collapsed, never reordered — the shape of the week is the information.
 
 ```text
 Attendance & Reports / Weekly
-Drop The Shop
+OpsHub
 Sun 26 Jul - Sat 1 Aug  ·  In progress                      [Status pill]
 
 +--------------------------------------------------------------------------+
@@ -535,7 +535,7 @@ Sun 26 Jul - Sat 1 Aug  ·  In progress                      [Status pill]
 +--------------------------------------------------------------------------+
 
 +--------------------------------------------------------------------------+
-| Drop The Shop · 26 Jul - 1 Aug                                           |
+| OpsHub · 26 Jul - 1 Aug                                                  |
 | 42 of 45 shifts worked · 312h · 4h overtime                              |
 +--------------------------------------------------------------------------+
 
@@ -568,7 +568,7 @@ Sun 26 Jul - Sat 1 Aug  ·  In progress                      [Status pill]
 Weekly attendance
 Who worked this week
 
-Drop The Shop
+OpsHub
 Sun 26 Jul - Sat 1 Aug · In progress
 
 Needs your attention        (absent when nothing is open)
@@ -1241,7 +1241,7 @@ For Attendance:
 ### 12.6 Payroll CSV schema — **RETIRED 2026-08-01**
 
 Removed by [ADR-019](../decisions/ADR-019-operational-exports-and-week-review.md).
-The 37-column schema existed to feed a payroll system; DROP is an operations
+The 37-column schema existed to feed a payroll system; OpsHub is an operations
 management system and payroll integration is not planned, so nothing will read
 it. The schema is in git history at `b02c949` should that premise ever change —
 in which case ADR-019 is reversed, not extended.
@@ -1260,7 +1260,7 @@ Function, no Storage object, no export ledger — an operational document shared
 with an owner carries no financial obligation, which was the only reason server
 generation was required.
 
-Rounding is unchanged and still refused: whole minutes out, and DROP does not
+Rounding is unchanged and still refused: whole minutes out, and OpsHub does not
 calculate pay.
 
 ## 13. Premium UI direction

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_helpers.dart';
 
 /// Verifies the schedule name-resolution + **orphan detection** logic — the root
 /// of the Branch Schedule "Unknown" issue. An assigned uid that isn't a current

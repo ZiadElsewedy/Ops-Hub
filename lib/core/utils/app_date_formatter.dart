@@ -1,10 +1,10 @@
 /// The single source of truth for turning a [DateTime] into a user-visible
-/// string in DROP. Every screen formats human dates through this class, so the
+/// string in OpsHub. Every screen formats human dates through this class, so the
 /// app speaks one date language and a formatting change is a one-file edit
 /// (it replaces the ~20 copy-pasted month arrays + AM/PM math that used to live
 /// in feature widgets).
 ///
-/// Pure Dart — no Flutter, no `intl`. DROP's dates are English, monochrome and
+/// Pure Dart — no Flutter, no `intl`. OpsHub's dates are English, monochrome and
 /// deliberately lightweight; each method documents the **exact** string it
 /// produces, and only the styles the app actually shows are exposed here.
 ///

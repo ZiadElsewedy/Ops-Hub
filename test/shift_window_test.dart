@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_window.dart';
-import 'package:drop/features/schedule/domain/swap_eligibility.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_window.dart';
+import 'package:opshub/features/schedule/domain/swap_eligibility.dart';
 
 /// Pure time math for shift slots — the midnight crossing is the case the whole
 /// helper exists for: the standard weekend (Thu/Fri/Sat) night ends **00:00 the

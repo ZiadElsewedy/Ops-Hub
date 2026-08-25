@@ -2,10 +2,10 @@ import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/utils/platform_capabilities.dart';
-import 'package:drop/features/notifications/domain/notification_deep_link.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/platform_capabilities.dart';
+import 'package:opshub/features/notifications/domain/notification_deep_link.dart';
 
 /// Whether a foreground FCM message is intentionally left to chat's
 /// socket-backed in-app banner instead of surfacing a second notification.
@@ -97,7 +97,7 @@ class NotificationService {
             'fcm',
             'notifications are ${settings.authorizationStatus.name} — iOS will '
             'not issue an APNs token, so no push can arrive until this is '
-            'granted (Settings > Drop Operations > Notifications).');
+            'granted (Settings > OpsHub > Notifications).');
       }
 
       // iOS ONLY: without this, iOS shows nothing while the app is open — the
@@ -327,6 +327,14 @@ class NotificationService {
         // own the session, so it owns the whole token list. This evicts any
         // stale token left by a device that hasn't handled its own sign-out.
         'fcmTokens': [token],
+        // Drop the pre-array legacy single field. The server push paths
+        // (`onNotificationCreated`, `dispatchBroadcast`) read BOTH `fcmTokens`
+        // and this legacy `fcmToken`; if a stale-but-still-live legacy value
+        // lingered here it would be pushed to alongside the array token — the
+        // same notification delivered twice. Nothing writes it any more, and
+        // the array now carries this device's token, so clearing it removes an
+        // entire duplicate-delivery class at the source on the next launch.
+        'fcmToken': FieldValue.delete(),
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       _currentToken = token;

@@ -1,11 +1,11 @@
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/template_repeat_mode.dart';
-import 'package:drop/features/task/data/models/task_template_model.dart'
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/template_repeat_mode.dart';
+import 'package:opshub/features/task/data/models/task_template_model.dart'
     show checklistTemplatesFromList, checklistTemplatesToList;
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/recurring_task_template_entity.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/recurring_task_template_entity.dart';
 
 /// Firestore (de)serialization for [RecurringTaskTemplateEntity] — collection
 /// `recurringTaskTemplates/{id}`. Reuses the existing checklist-template

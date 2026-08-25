@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
-import 'package:drop/features/attendance/presentation/cubit/attendance_admin_state.dart';
-import 'package:drop/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_cubit.dart';
+import 'package:opshub/features/attendance/presentation/cubit/attendance_admin_state.dart';
+import 'package:opshub/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
 
 /// Daily Review latches its one-shot load. The latch must be spent only once the
 /// load is actually dispatched — burning it on a pass that bailed out (a session

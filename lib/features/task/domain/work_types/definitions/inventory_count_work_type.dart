@@ -1,8 +1,8 @@
-import 'package:drop/features/task/domain/work_types/work_context.dart';
-import 'package:drop/features/task/domain/work_types/work_field_spec.dart';
-import 'package:drop/features/task/domain/work_types/work_type_definition.dart';
-import 'package:drop/features/task/domain/work_types/work_review.dart';
-import 'package:drop/features/task/domain/work_types/work_validation.dart';
+import 'package:opshub/features/task/domain/work_types/work_context.dart';
+import 'package:opshub/features/task/domain/work_types/work_field_spec.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_definition.dart';
+import 'package:opshub/features/task/domain/work_types/work_review.dart';
+import 'package:opshub/features/task/domain/work_types/work_validation.dart';
 
 /// **Inventory Count** — count stock on hand against the system figure and
 /// report any discrepancy.

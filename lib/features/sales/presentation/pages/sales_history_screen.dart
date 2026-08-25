@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
-import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/sales_business_time.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_submission_tile.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/list_skeleton.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/sales_business_time.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_submission_tile.dart';
 
 /// The branch sales ledger for one month, filtered to one status.
 ///
@@ -93,7 +93,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
         if (state is SalesManagerDashboardDisabled) {
           return Padding(
             padding: const EdgeInsets.all(AppSpacing.pagePadding),
-            child: DropEmptyState(
+            child: OpsHubEmptyState(
               title: 'Sales targets are off',
               message:
                   '${state.branchName ?? 'This branch'} doesn’t run a monthly '
@@ -183,7 +183,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
               child: entries.isEmpty
                   ? Padding(
                       padding: const EdgeInsets.all(AppSpacing.pagePadding),
-                      child: DropEmptyState(
+                      child: OpsHubEmptyState(
                         title: _emptyTitle(_filter),
                         message:
                             'Nothing here for ${formatBusinessMonth(_monthKey)}.',

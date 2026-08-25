@@ -1,21 +1,21 @@
 import 'dart:io';
 
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/attendance/data/datasources/attendance_remote_datasource.dart';
-import 'package:drop/features/attendance/data/models/attendance_correction_model.dart';
-import 'package:drop/features/attendance/data/models/attendance_model.dart';
-import 'package:drop/features/attendance/domain/attendance_calculator.dart';
-import 'package:drop/features/attendance/domain/attendance_feed.dart';
-import 'package:drop/features/attendance/domain/attendance_gps.dart';
-import 'package:drop/features/attendance/domain/attendance_resolution.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/attendance/data/datasources/attendance_remote_datasource.dart';
+import 'package:opshub/features/attendance/data/models/attendance_correction_model.dart';
+import 'package:opshub/features/attendance/data/models/attendance_model.dart';
+import 'package:opshub/features/attendance/domain/attendance_calculator.dart';
+import 'package:opshub/features/attendance/domain/attendance_feed.dart';
+import 'package:opshub/features/attendance/domain/attendance_gps.dart';
+import 'package:opshub/features/attendance/domain/attendance_resolution.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
 
 class AttendanceRepositoryImpl implements AttendanceRepository {
   final AttendanceRemoteDataSource _remote;
@@ -68,6 +68,15 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
   @override
   Future<void> clockIn(AttendanceEntity record) async {
+    // Clock-in is the MOST offline-sensitive write in the app: a Firestore
+    // `set` issued with no connection is cached, reported as success, and
+    // replayed whenever the network returns — at which point the
+    // server-timestamped `clockIn` resolves to the RECONNECT time, not when the
+    // person actually clocked in. That silently corrupts pay data while the UI
+    // says "clocked in". Fail fast instead so the user knows to reconnect.
+    // (The rest of the attendance writes below already guard the same way; these
+    // two were the gap.)
+    NetworkGuard.ensureWritable();
     try {
       await _remote.clockIn(AttendanceModel.fromEntity(record));
     } on ServerException catch (e) {
@@ -83,6 +92,9 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     required AttendanceTotals totals,
     AttendanceVerification? verification,
   }) async {
+    // Same offline hazard as [clockIn] — an offline clock-out would replay with
+    // a reconnect-time server timestamp and mis-state worked minutes.
+    NetworkGuard.ensureWritable();
     try {
       await _remote.clockOut(
         id,

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Drop Ops</string>
+	<string>OpsHub</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Drop Ops</string>
+	<string>OpsHub</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -56,13 +56,13 @@
 		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>D R O P needs access to your camera so you can take a profile picture and capture task proof.</string>
+	<string>OpsHub needs access to your camera so you can take a profile picture and capture task proof.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>DROP uses your location to verify you're at your branch when you clock in and out.</string>
+	<string>OpsHub uses your location to verify you're at your branch when you clock in and out.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>D R O P needs access to your microphone so you can record video proof for tasks.</string>
+	<string>OpsHub needs access to your microphone so you can record video proof for tasks.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>D R O P needs access to your photos so you can set a profile picture and attach task proof.</string>
+	<string>OpsHub needs access to your photos so you can set a profile picture and attach task proof.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

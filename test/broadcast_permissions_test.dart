@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/broadcast_audience.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/communications/domain/broadcast_permissions.dart';
+import 'package:opshub/core/enums/broadcast_audience.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/communications/domain/broadcast_permissions.dart';
 
 /// The recipient-resolution permission matrix (client-side guard). The
 /// `sendBroadcast` Cloud Function enforces the identical rules authoritatively;

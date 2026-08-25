@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/status_badge.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
-import 'package:drop/features/task/presentation/widgets/task_browser_groups.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/status_badge.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
+import 'package:opshub/features/task/presentation/widgets/task_browser_groups.dart';
 
 /// The scannable task row — **two lines, one job each**:
 ///

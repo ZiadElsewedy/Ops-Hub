@@ -3,7 +3,7 @@
 /// unit-tested and reused by both the composer (live preview) and the send path.
 ///
 /// Tokens look like `{{employee_name}}` — letters, digits and underscores,
-/// optionally surrounded by whitespace inside the braces. The common DROP
+/// optionally surrounded by whitespace inside the braces. The common OpsHub
 /// placeholders are `employee_name`, `task_name`, `branch_name`, `date`, and
 /// `sender_name`, but the engine is generic over any key.
 class TemplateRenderer {

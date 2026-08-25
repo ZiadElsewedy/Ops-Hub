@@ -1,5 +1,5 @@
 /**
- * DROP — Communications Center send engine.
+ * OpsHub — Communications Center send engine.
  *
  * Callable `sendBroadcast`: the authoritative broadcast write + push pipeline.
  * Responsibilities:
@@ -208,7 +208,7 @@ async function dispatchBroadcast(params) {
   const senderId = String(params.senderId || "").trim();
   const senderRole = String(params.senderRole || "manager").trim() || "manager";
   const senderBranch = String(params.senderBranch || "").trim();
-  const senderName = String(params.senderName || "DROP").trim() || "DROP";
+  const senderName = String(params.senderName || "OpsHub").trim() || "OpsHub";
   const targetUserId = String(params.targetUserId || "").trim();
   const roleFilter = String(params.roleFilter || "").trim();
   const targetUserIds = Array.isArray(params.targetUserIds)
@@ -565,7 +565,7 @@ exports.sendBroadcast = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Unknown broadcast audience.");
   }
 
-  const senderName = sender.fullName || sender.displayName || sender.email || "DROP";
+  const senderName = sender.fullName || sender.displayName || sender.email || "OpsHub";
 
   const result = await dispatchBroadcast({
     senderId: auth.uid,
@@ -589,7 +589,7 @@ exports.sendBroadcast = onCall(async (request) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // createUserAccount — the secure account-provisioning path (admin-only).
 //
-// DROP no longer allows public registration: only an admin creates accounts.
+// OpsHub no longer allows public registration: only an admin creates accounts.
 // This callable creates the Firebase Auth user with the Admin SDK (which does
 // NOT sign the calling admin out, unlike the client createUserWithEmailAndPassword)
 // and seeds the `users/{uid}` document with the role/branch/shift/position plus
@@ -1555,7 +1555,25 @@ exports.recordApprovedDailySales = onCall(async (request) => {
 });
 
 exports.onDailySalesSubmissionCreated = onDocumentCreated(`${BRANCH_SALES_SUBMISSIONS}/{submissionId}`, async (event) => {
-  const sub = event.data && event.data.data(); if (!sub || sub.status !== "pending") return;
+  const snap = event.data;
+  const sub = snap && snap.data(); if (!sub || sub.status !== "pending") return;
+  // Idempotency guard — like onNotificationCreated, this is a v2 (Eventarc)
+  // trigger delivered AT-LEAST-ONCE, so the same submission-created event can
+  // fire twice and write DUPLICATE "New sales submission" inbox rows
+  // (writeSalesNotifications mints random notification ids, so a redelivery
+  // adds a second row rather than overwriting). Claim the notify on the
+  // submission doc in a transaction: the first delivery sets `createNotifiedAt`
+  // and proceeds; any redelivery sees it set and returns. Same at-least-once →
+  // at-most-once trade as the push guard, and the notify was already
+  // best-effort (the catch below swallows failures).
+  const claimed = await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(snap.ref);
+    if (!fresh.exists) return false;
+    if (fresh.get("createNotifiedAt")) return false; // already notified by a prior delivery
+    tx.update(snap.ref, { createNotifiedAt: admin.firestore.FieldValue.serverTimestamp() });
+    return true;
+  });
+  if (!claimed) return;
   try { await writeSalesNotifications(await salesRecipients(String(sub.branchId || ""), { managersOnly: true, excludeUid: String(sub.submittedById || "") }), { title: "New sales submission", body: "A daily sales submission is ready for review.", submissionId: event.params.submissionId, monthKey: sub.monthKey }); }
   catch (err) { logger.warn("failed to write new sales submission notification", { error: String(err), submissionId: event.params.submissionId }); }
 });
@@ -1632,6 +1650,50 @@ exports.claimFcmToken = onDocumentUpdated(`${USERS}/{uid}`, async (event) => {
     } catch (err) {
       logger.warn("claimFcmToken failed", { uid, error: String(err) });
     }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// enforceAccountDeactivation — makes deactivation a REAL session eviction.
+//
+// Deactivating a user is a plain client Firestore write (`isActive = false`);
+// nothing touched Firebase Auth. So the account's Auth session stayed fully
+// valid: the client's `AuthCubit` watcher signs the device out ONLY if it is
+// online to see the flag flip — a backgrounded / force-killed / offline device
+// kept minting fresh ID tokens from its un-revoked refresh token and retained
+// access. Eviction was effectively a client-side no-op.
+//
+// This trigger closes it server-side. When `isActive` flips truthy→false we
+// DISABLE the Auth account (Firebase then rejects its ID-token refresh and every
+// new sign-in — the client already maps `user-disabled` to "This account has
+// been disabled") and revoke its existing refresh tokens. Flipping back to
+// active re-enables it. Deletion keeps its own path (`auth.deleteUser`).
+exports.enforceAccountDeactivation = onDocumentUpdated(`${USERS}/{uid}`, async (event) => {
+  const before = event.data.before.data() || {};
+  const after = event.data.after.data() || {};
+  // Treat a missing flag as active (legacy docs), so only a genuine transition
+  // acts — and re-running on an unrelated field change is a no-op.
+  const wasActive = before.isActive !== false;
+  const isActive = after.isActive !== false;
+  if (wasActive === isActive) return;
+
+  const uid = event.params.uid;
+  try {
+    if (!isActive) {
+      // Deactivated: reject the session now and stop it refreshing.
+      await auth.updateUser(uid, { disabled: true });
+      await auth.revokeRefreshTokens(uid);
+      logger.info("enforceAccountDeactivation: disabled + revoked", { uid });
+    } else {
+      // Reactivated: let them sign in again.
+      await auth.updateUser(uid, { disabled: false });
+      logger.info("enforceAccountDeactivation: re-enabled", { uid });
+    }
+  } catch (err) {
+    // `auth/user-not-found` is benign (doc without an Auth account, or a
+    // delete racing this) — anything else is worth surfacing.
+    if (err && err.code === "auth/user-not-found") return;
+    logger.error("enforceAccountDeactivation failed", { uid, error: String(err) });
   }
 });
 
@@ -1769,6 +1831,30 @@ exports.onNotificationCreated = onDocumentCreated(
     const title = String(n.title || "").trim();
     const body = String(n.body || "").trim();
     if (!title && !body) return;
+
+    // Idempotency guard — this is a v2 (Eventarc) trigger, and 2nd-gen
+    // event-driven functions are delivered AT-LEAST-ONCE: the same
+    // `notifications/{id}` create event can fire this handler more than once,
+    // and every redelivery would re-push → the recipient gets the SAME
+    // notification twice ("sometimes duplicated"). Claim the push atomically:
+    // the first delivery to win the transaction sets `pushedAt` and proceeds;
+    // any later delivery of the same event sees it set and returns without
+    // pushing. The transaction closes the check-then-set race between two
+    // concurrent deliveries of one event (a plain get+set could let both read
+    // "unset" and both push). This trades at-least-once for at-most-once on the
+    // push, which is the right call: one lost push in a rare crash-after-claim
+    // beats a duplicate on every redelivery, and the in-app inbox row (the
+    // durable record) is unaffected either way.
+    const claimedPush = await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(snap.ref);
+      if (!fresh.exists) return false; // deleted between fire and claim
+      if (fresh.get("pushedAt")) return false; // already pushed by a prior delivery
+      tx.update(snap.ref, {
+        pushedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return true;
+    });
+    if (!claimedPush) return;
 
     // Gather the recipient's device tokens (array + legacy single field).
     const userSnap = await db.collection(USERS).doc(recipientUid).get();
@@ -2177,7 +2263,15 @@ exports.runTaskReminders = onSchedule({ schedule: "every 30 minutes", maxInstanc
       // best-effort
     }
 
-    const kind = reminderDueKind(deadline, now, lastKind, count, cfg, businessHour);
+    // The scheduled window (dueAt − startsAt). A shift-bounded / same-day task
+    // suppresses the eager 24h rung, so its first reminder is the 1h one near
+    // the deadline instead of a "due within 24 hours" ping fired the instant it
+    // was created (the reported bug). Null when the task has no startsAt.
+    const startsAt = t.startsAt && t.startsAt.toDate ? t.startsAt.toDate() : null;
+    const windowMinutes = startsAt
+      ? Math.round((deadline.getTime() - startsAt.getTime()) / 60000)
+      : null;
+    const kind = reminderDueKind(deadline, now, lastKind, count, cfg, businessHour, windowMinutes);
     if (!kind) continue;
 
     // Resolved only once a reminder is actually owed. A shift task's roster

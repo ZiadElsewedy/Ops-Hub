@@ -1,5 +1,5 @@
-import 'package:drop/features/chat/data/models/chat_message_model.dart';
-import 'package:drop/features/chat/domain/chat_realtime.dart';
+import 'package:opshub/features/chat/data/models/chat_message_model.dart';
+import 'package:opshub/features/chat/domain/chat_realtime.dart';
 
 /// Wire → domain parsing for the server-emitted socket payloads — the exact
 /// shapes in `drop-api` · `chat/realtime/interface/socket/chat-events.ts`.

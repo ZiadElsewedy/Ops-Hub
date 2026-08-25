@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/presentation/schedule_insights.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_inspector_drawer.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/presentation/schedule_insights.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_inspector_drawer.dart';
 
 /// Schedule V2 — the Mac inspector drawer. Extracted stateless, so it tests in
 /// isolation: overview roster → tap a person → their week detail, no cubits.

@@ -1,18 +1,18 @@
 import 'dart:io';
 
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/cases/data/datasources/case_remote_datasource.dart';
-import 'package:drop/features/cases/data/models/case_model.dart';
-import 'package:drop/features/cases/domain/case_ordering.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/domain/entities/case_identity.dart';
-import 'package:drop/features/cases/domain/entities/case_message.dart';
-import 'package:drop/features/cases/domain/repositories/case_repository.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/cases/data/datasources/case_remote_datasource.dart';
+import 'package:opshub/features/cases/data/models/case_model.dart';
+import 'package:opshub/features/cases/domain/case_ordering.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_identity.dart';
+import 'package:opshub/features/cases/domain/entities/case_message.dart';
+import 'package:opshub/features/cases/domain/repositories/case_repository.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 class CaseRepositoryImpl implements CaseRepository {
   final CaseRemoteDataSource _remote;

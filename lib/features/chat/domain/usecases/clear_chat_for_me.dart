@@ -1,5 +1,5 @@
-import 'package:drop/core/utils/concurrent.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/core/utils/concurrent.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
 
 /// Deletes **every** message in a conversation for the caller only
 /// (delete-for-me) — the bulk clear behind "Delete conversation" from the

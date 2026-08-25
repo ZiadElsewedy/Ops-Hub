@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/services/usage_tracker.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/core/widgets/connectivity_scope.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/entities/activity_entry.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/note_category.dart';
-import 'package:drop/features/task/presentation/activity_format.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
-import 'package:drop/features/task/presentation/widgets/task_action_sheets.dart';
-import 'package:drop/features/task/presentation/widgets/task_card.dart'
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/services/usage_tracker.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/core/widgets/connectivity_scope.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/entities/activity_entry.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/note_category.dart';
+import 'package:opshub/features/task/presentation/activity_format.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
+import 'package:opshub/features/task/presentation/widgets/task_action_sheets.dart';
+import 'package:opshub/features/task/presentation/widgets/task_card.dart'
     show TaskActionButton, resolveAssignees;
 
 /// The **shared** expanded triage surface for a feed row (Home Dashboard

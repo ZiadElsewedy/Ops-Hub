@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/repositories/auth_repository.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
-import 'package:drop/features/chat/domain/usecases/get_chat_directory.dart';
-import 'package:drop/features/chat/domain/usecases/get_conversations.dart';
-import 'package:drop/features/chat/domain/usecases/start_conversation.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/repositories/auth_repository.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/usecases/get_chat_directory.dart';
+import 'package:opshub/features/chat/domain/usecases/get_conversations.dart';
+import 'package:opshub/features/chat/domain/usecases/start_conversation.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_cubit.dart';
 
 // Deactivating an account must make its chat disappear: the inbox drops the
 // conversation, the unread badge stops counting it, and (elsewhere) the thread

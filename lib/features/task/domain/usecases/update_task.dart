@@ -1,5 +1,5 @@
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/repositories/task_repository.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/repositories/task_repository.dart';
 
 /// Updates a task (manager/admin full edit; employee limited fields per rules).
 class UpdateTask {

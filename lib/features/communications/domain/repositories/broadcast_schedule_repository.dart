@@ -1,4 +1,4 @@
-import 'package:drop/features/communications/domain/entities/broadcast_schedule_entity.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_schedule_entity.dart';
 
 /// Contract for scheduled / recurring broadcasts (Communications Center — Phase 2
 /// Commit 4). Access is enforced server-side by `firestore.rules`

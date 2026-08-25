@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/task/data/models/task_model.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/task/data/models/task_model.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// Verifies the new `tasks.shift` field round-trips through serialization and is
 /// back-compatible — a missing or unknown value reads as null ("any"), never

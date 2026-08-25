@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_dialog.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/responsive_card_grid.dart';
-import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/features/admin/presentation/cubit/admin_users_cubit.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
-import 'package:drop/features/branch/presentation/pages/branch_geofence_editor_screen.dart';
-import 'package:drop/features/branch/presentation/widgets/branch_form_sheet.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_dialog.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/core/widgets/responsive_card_grid.dart';
+import 'package:opshub/core/widgets/branch_avatar.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/widgets/app_search_field.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/list_skeleton.dart';
+import 'package:opshub/features/admin/presentation/cubit/admin_users_cubit.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/features/branch/presentation/pages/branch_geofence_editor_screen.dart';
+import 'package:opshub/features/branch/presentation/widgets/branch_form_sheet.dart';
 
 /// Admin → Branches (Phase 9 redesign). Premium branch cards showing the
 /// branch's manager, employee count and status, with create / edit /
@@ -300,7 +300,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     );
   }
 
-  Widget _empty(bool noBranchesAtAll) => DropEmptyState(
+  Widget _empty(bool noBranchesAtAll) => OpsHubEmptyState(
         title: noBranchesAtAll ? 'No branches yet' : 'No matches',
         message: noBranchesAtAll
             ? 'Tap "New Branch" to add your first branch.'

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
 
 /// The grab handle at the top of a modal bottom sheet — centralised so every
 /// schedule sheet (shift details, picker, swap queue, resolve) looks identical.

@@ -9,29 +9,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/config/app_environment.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/observability/crash_reporter.dart';
-import 'package:drop/core/routes/app_router.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/services/usage_tracker.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/utils/platform_capabilities.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/core/widgets/connectivity_scope.dart';
-import 'package:drop/core/widgets/in_app_notification_host.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_notification_listener.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
-import 'package:drop/features/chat/presentation/chat_deep_link_navigation.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/auth/presentation/pages/splash_page.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
-import 'package:drop/features/notifications/domain/notification_deep_link.dart';
-import 'package:drop/features/notifications/presentation/notification_navigation.dart';
-import 'package:drop/firebase_options.dart';
+import 'package:opshub/core/config/app_environment.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/observability/crash_reporter.dart';
+import 'package:opshub/core/routes/app_router.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/services/usage_tracker.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/platform_capabilities.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/core/widgets/connectivity_scope.dart';
+import 'package:opshub/core/widgets/dismiss_keyboard.dart';
+import 'package:opshub/core/widgets/in_app_notification_host.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_notification_listener.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_unread_launch_hint.dart';
+import 'package:opshub/features/chat/presentation/chat_deep_link_navigation.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/auth/presentation/pages/splash_page.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:opshub/features/notifications/domain/notification_deep_link.dart';
+import 'package:opshub/features/notifications/presentation/notification_navigation.dart';
+import 'package:opshub/firebase_options.dart';
 
 /// Background FCM handler. The push carries a `notification` block, so the OS
 /// renders it while the app is backgrounded/terminated — no background data
@@ -130,7 +131,7 @@ class _LaunchAppState extends State<LaunchApp> {
     if (_canEnterApp) return App(router: _readyRouter!);
 
     return MaterialApp(
-      title: 'Drop Ops',
+      title: 'OpsHub',
       theme: AppTheme.dark,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.dark,
@@ -255,7 +256,12 @@ String _initialLocationFor(AuthState state) => state.maybeWhen(
     if (!user.isProfileCompleted) return RouteNames.profileCompletion;
     return RouteNames.homeForRole(user.role);
   },
-  orElse: () => RouteNames.login,
+  // No session → the landing page (the product's front door), not Login
+  // directly: the landing brands the product first, then hands off to the
+  // sign-in form via its CTA. An explicit sign-out still lands on Login (the
+  // router's unauthenticated redirect), which is the right surface when the
+  // session the user was inside has just ended.
+  orElse: () => RouteNames.landing,
 );
 
 void _configureNotificationService() {
@@ -401,7 +407,7 @@ Future<void> _surfacePendingCrashReport() async {
       backgroundColor: AppColors.darkSurfaceElevated,
       leading: const Icon(Icons.bug_report_outlined, color: AppColors.error),
       content: const Text(
-        'Drop Operations quit unexpectedly last time. You can export the crash report '
+        'OpsHub quit unexpectedly last time. You can export the crash report '
         'for debugging.',
         style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
       ),
@@ -468,7 +474,7 @@ class App extends StatelessWidget {
       child: BlocListener<AuthCubit, AuthState>(
         listener: (context, state) => _handleAuthState(state),
         child: MaterialApp.router(
-          title: 'Drop Ops',
+          title: 'OpsHub',
           theme: AppTheme.dark,
           darkTheme: AppTheme.dark,
           themeMode: ThemeMode.dark,
@@ -499,7 +505,13 @@ class App extends StatelessWidget {
                   child: InAppNotificationHost(
                     onOpen: (data) =>
                         _openTapDestination(router, _resolveTapLocation(data)),
-                    child: child ?? const SizedBox.shrink(),
+                    // App-wide tap-outside-to-dismiss for the soft keyboard.
+                    // Wraps the router's Navigator, so every screen, modal sheet
+                    // and dialog inherits it (typing a task title, a chat
+                    // message, a sales note, … now lowers on a tap away).
+                    child: DismissKeyboard(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               ),

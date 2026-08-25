@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_state.dart';
-import 'package:drop/features/schedule/presentation/widgets/employee_picker_sheet.dart';
-import 'package:drop/features/schedule/presentation/widgets/employee_row.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
-import 'package:drop/features/schedule/presentation/widgets/sheet_chrome.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_state.dart';
+import 'package:opshub/features/schedule/presentation/widgets/employee_picker_sheet.dart';
+import 'package:opshub/features/schedule/presentation/widgets/employee_row.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:opshub/features/schedule/presentation/widgets/sheet_chrome.dart';
 
 /// Opens the rich shift-details sheet for a (day, shift) cell — the operational
 /// control center. Reads the live [ScheduleCubit] (global provider) so the sheet

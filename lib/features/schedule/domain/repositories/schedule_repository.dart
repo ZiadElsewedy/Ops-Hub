@@ -1,11 +1,11 @@
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
 
 /// Contract for weekly-schedule + shift-swap data access (Phase 7). Branch/role
 /// access is enforced server-side by `firestore.rules` (admin: all branches;
@@ -65,6 +65,29 @@ abstract class ScheduleRepository {
     required ScheduleDay day,
     required ScheduleShift shift,
     required String employeeId,
+  });
+
+  /// Atomically reassigns [employeeId] from one slot to another (never in both,
+  /// never in neither). Caller guarantees the slots differ.
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  });
+
+  /// Atomically swaps [uidA] (slot A) and [uidB] (slot B) — all-or-nothing, so
+  /// neither is ever double-booked. Caller guarantees the slots and uids differ.
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
   });
 
   /// Sets (or clears, when [note] is empty) the manager note pinned to [day].

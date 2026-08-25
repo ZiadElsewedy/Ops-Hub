@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// The **single source** of the de-flashed task surface (2026-06-25 ruling —
 /// *premium ≠ flashy*). A flat solid surface with a hairline border and a

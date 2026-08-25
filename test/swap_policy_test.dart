@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/schedule/domain/swap_policy.dart';
+import 'package:opshub/features/schedule/domain/swap_policy.dart';
 
 /// Pure verification of the branch-level shift-swap policy (role compatibility +
 /// serialization + value equality). No Firebase needed.

@@ -1,6 +1,6 @@
-import 'package:drop/core/enums/broadcast_category.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_template_entity.dart';
+import 'package:opshub/core/enums/broadcast_category.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_template_entity.dart';
 
 /// Firestore (de)serialization for [BroadcastTemplateEntity] — collection
 /// `broadcastTemplates/{id}`. Hand-written (matching the project's model

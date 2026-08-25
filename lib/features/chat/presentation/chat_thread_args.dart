@@ -1,6 +1,6 @@
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/presentation/chat_format.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/presentation/chat_format.dart';
 
 /// Navigation payload for opening a chat thread (`/chat/:conversationId`
 /// route `extra`). Carries the resolved counterpart profile so the thread can
@@ -22,7 +22,7 @@ class ChatThreadArgs {
   /// before the first send (never shown to the user).
   final String? counterpartUserId;
 
-  /// The counterpart's DROP user id (Firebase uid) — the directory key, so the
+  /// The counterpart's OpsHub user id (Firebase uid) — the directory key, so the
   /// Conversation Info screen can resolve their role/branch. Null on a bare
   /// deep link.
   final String? counterpartExternalId;

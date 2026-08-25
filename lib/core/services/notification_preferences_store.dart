@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// The six notification switches exposed on the Notifications settings screen.
 ///
@@ -12,7 +12,7 @@ import 'package:drop/core/utils/app_logger.dart';
 /// boundary. Keeping it codegen-free keeps `core/services` free of generated
 /// files, exactly like [CaseSeenStore]'s map.
 ///
-/// Defaults are **all on**. DROP is an internal operations tool — a new install
+/// Defaults are **all on**. OpsHub is an internal operations tool — a new install
 /// that silently withheld task reminders would be a worse default than one that
 /// tells the employee too much, and the user can turn any of them off here.
 class NotificationPreferences {

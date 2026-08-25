@@ -9,13 +9,13 @@
 /// / newest.
 library;
 
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/active_window.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/active_window.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// One-tap compound filters pinned as chips. (A user-defined saved-view builder
 /// is deliberately NOT built — see the redesign doc.)

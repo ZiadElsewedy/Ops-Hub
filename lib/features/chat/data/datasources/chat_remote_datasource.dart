@@ -1,12 +1,12 @@
-import 'package:drop/core/network/api_client.dart';
-import 'package:drop/features/chat/data/models/chat_attachment_download_model.dart';
-import 'package:drop/features/chat/data/models/chat_conversation_model.dart';
-import 'package:drop/features/chat/data/models/chat_message_model.dart';
-import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/domain/entities/chat_read_receipt.dart';
+import 'package:opshub/core/network/api_client.dart';
+import 'package:opshub/features/chat/data/models/chat_attachment_download_model.dart';
+import 'package:opshub/features/chat/data/models/chat_conversation_model.dart';
+import 'package:opshub/features/chat/data/models/chat_message_model.dart';
+import 'package:opshub/features/chat/domain/entities/chat_attachment_download.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/domain/entities/chat_read_receipt.dart';
 
 /// Remote surface of the chat REST API. Thin by design — every method is one
 /// [ApiClient] call plus one model parse. Paths mirror the backend controllers

@@ -1,5 +1,5 @@
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/domain/repositories/profile_repository.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/domain/repositories/profile_repository.dart';
 
 class GetProfile {
   final ProfileRepository _repository;

@@ -22,7 +22,7 @@ unfinished generated shift task whose deadline plus grace had passed, but the
 wrongness happened at birth.
 
 The product spec already carries the ruling that makes this solvable without a
-branch setting: DROP operates in **Egypt only, on one timezone**
+branch setting: OpsHub operates in **Egypt only, on one timezone**
 ([spec §12.2](../design/AUTOMATED_TASKS_PRODUCT_SPEC.md)). Multi-timezone support
 is explicitly a future prerequisite, not a present requirement.
 

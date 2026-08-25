@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
 
 /// An Apple-style **segmented control** — a pill-shaped toggle with a single
 /// filled selector that slides between segments (like the iOS Files tab bar).

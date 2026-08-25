@@ -1,17 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/shift_hours_scope.dart';
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/repositories/shift_template_repository.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/shift_hours_scope.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/repositories/shift_template_repository.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
 
 /// Schedule V2 · Pillar 5 — `ScheduleCubit.applyShiftHours` routes the manager's
 /// scope choice to the right write, and a new week snapshots the branch plan.

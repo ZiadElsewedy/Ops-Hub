@@ -1,4 +1,4 @@
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
 
 /// Contract for the in-app notification inbox (Notification System Phase 1).
 /// Access is enforced server-side by `firestore.rules` (`notifications/{id}`):

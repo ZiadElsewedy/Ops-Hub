@@ -1,6 +1,6 @@
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
 
 /// A manager's statement that they looked at a branch-week ([ADR-019]).
 ///

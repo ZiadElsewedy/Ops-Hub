@@ -1,4 +1,4 @@
-# DROP Attendance — Product Redesign Plan
+# OpsHub Attendance — Product Redesign Plan
 
 > **Status:** DRAFT — proposed, not yet accepted. Awaiting owner sign-off on §11.
 > **Date:** 2026-07-31 · **Author:** Product · **Type:** PRD + implementation roadmap
@@ -125,7 +125,7 @@ Explicitly **not** part of this redesign:
 - **Composite employee performance scores or leaderboards.** Refused by ADR-017 and
   refused again here, for the same reason: they are gameable, they hide which behaviour
   needs action, and they invite use as discipline without context.
-- **Becoming a payroll processor.** DROP hands off a reconciled record. It does not
+- **Becoming a payroll processor.** OpsHub hands off a reconciled record. It does not
   compute pay.
 - **A general analytics pipeline.** ADR-009 remains active everywhere outside
   attendance reporting.
@@ -446,7 +446,7 @@ flowchart TD
 > **PROPOSED**, which means it depends on an open decision in §11.
 >
 > **Payroll impact** describes what the rule contributes to the reconciled hand-off.
-> DROP never computes pay.
+> OpsHub never computes pay.
 
 ## 5.1 Timing constants (unchanged, from the locked spec)
 
@@ -630,7 +630,7 @@ Three zones, fixed order, no configuration:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  Thursday 30 July · Drop The Shop                    │
+│  Thursday 30 July · OpsHub                           │
 │  3 things need you                          [Done]   │
 ├──────────────────────────────────────────────────────┤
 │  ZONE 1 — NEEDS YOU                                  │
@@ -720,7 +720,7 @@ exceptions", no green tick.
 The screen shows:
 
 ```
-Thursday 30 July · Drop The Shop
+Thursday 30 July · OpsHub
 Nothing needs you.
 7 of 7 shifts worked · 52h 30m · no overtime
 ▸ Show all 7 shifts
@@ -793,7 +793,7 @@ absence is itself information.
 
 **2 · The week in one line.**
 
-> *Drop The Shop · 26 Jul – 1 Aug · 42 of 45 shifts worked · 312h · 4h overtime*
+> *OpsHub · 26 Jul – 1 Aug · 42 of 45 shifts worked · 312h · 4h overtime*
 
 One sentence, no cards, no percentages. It exists because the manager's most common use
 of this report is reporting *upward*, and they need a sentence, not a dashboard.
@@ -860,7 +860,7 @@ Order: unresolved issues → no-shows → lateness → clean.
 
 Directly reverses the current alphabetical ordering. The current screen carries the
 disclaimer *"Alphabetical facts only. This report does not rank people."* The instinct
-behind it is right — DROP must never rank people, and ADR-017 refuses composite scores
+behind it is right — OpsHub must never rank people, and ADR-017 refuses composite scores
 permanently. But **alphabetical ordering is not what protects against ranking; refusing
 to compute a score is.** Sorting by exception surfaces work, not judgement. And it means
 the one person who did not show up is not the fourth row down.
@@ -1259,7 +1259,7 @@ Phases 1–2.
 *payroll schema* have landed and are tested. The *transport* cannot land here.
 
 > **RESCOPED 2026-08-01 by [ADR-019](../decisions/ADR-019-operational-exports-and-week-review.md).**
-> The owner retired the premise this phase was built on: *DROP is an operations
+> The owner retired the premise this phase was built on: *OpsHub is an operations
 > management system, not a payroll system, and payroll integration is not
 > planned.* That collapsed the reasoning below in sequence — no machine ingests
 > a file, so no machine schema; nothing consumes a figure, so nothing needs
@@ -1518,7 +1518,7 @@ flowchart TD
     ATT -->|expected vs actual| DR[DAILY REVIEW<br/>The settlement — resolve exceptions<br/>Owner: Manager · daily]
     DR -->|settled days| WR[WEEKLY REPORT<br/>The summary — did the week close clean<br/>Owner: Manager · weekly]
     WR -->|complete period| AA[ADMIN AUDIT<br/>The proof — is this defensible<br/>Owner: Admin]
-    AA -->|locked + reconciled| PAY[PAYROLL<br/>The hand-off — outside DROP<br/>Owner: Finance]
+    AA -->|locked + reconciled| PAY[PAYROLL<br/>The hand-off — outside OpsHub<br/>Owner: Finance]
 
     DR -.unresolved 48h.-> AA
     AA -.restatement.-> WR
@@ -1546,7 +1546,7 @@ that makes every layer after it simple.*
 | **Daily Review** | Settlement | Summarise or archive | Manager | Daily, ~2 min |
 | **Weekly Report** | Summary + hand-off | Discover problems | Manager | Weekly, ~5 min |
 | **Admin Audit** | Proof + integrity | Serve daily operations | Admin | On demand |
-| **Payroll** | Pay | *Outside DROP* | Finance | Per period |
+| **Payroll** | Pay | *Outside OpsHub* | Finance | Per period |
 
 ## 12.3 The rules that hold it together
 

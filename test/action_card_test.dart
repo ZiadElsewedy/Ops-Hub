@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/action_card.dart';
+import 'package:opshub/core/widgets/action_card.dart';
 
 void main() {
   Widget host(Widget child, {double width = 150}) => MaterialApp(

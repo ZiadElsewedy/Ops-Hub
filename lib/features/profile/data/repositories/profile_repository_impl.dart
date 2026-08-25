@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/auth/data/datasources/auth_remote_datasource.dart';
-import 'package:drop/features/profile/data/datasources/profile_remote_datasource.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/domain/repositories/profile_repository.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:opshub/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/domain/repositories/profile_repository.dart';
 
 class ProfileRepositoryImpl implements ProfileRepository {
   final ProfileRemoteDataSource _profileRemote;

@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/admin/domain/repositories/user_admin_repository.dart';
-import 'package:drop/features/admin/presentation/cubit/admin_users_cubit.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/admin/domain/repositories/user_admin_repository.dart';
+import 'package:opshub/features/admin/presentation/cubit/admin_users_cubit.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
 
 /// Records the delete and simulates the backend removing the account: after a
 /// delete, the role query no longer returns that uid — so the cubit's refresh

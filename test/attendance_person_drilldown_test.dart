@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
-import 'package:drop/features/attendance/domain/attendance_review_link.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
-import 'package:drop/features/attendance/presentation/history/widgets/attendance_history_filters.dart';
-import 'package:drop/features/attendance/presentation/reporting/widgets/attendance_weekly_employee_rows.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/attendance_review_link.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_weekly_report.dart';
+import 'package:opshub/features/attendance/presentation/history/widgets/attendance_history_filters.dart';
+import 'package:opshub/features/attendance/presentation/reporting/widgets/attendance_weekly_employee_rows.dart';
 
 /// The per-person drill-down: a report's "By person" row opens that person's own
 /// ledger, scoped to the branch and period the row was read in.

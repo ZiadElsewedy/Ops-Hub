@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/user_role.dart';
+import 'package:opshub/core/enums/user_role.dart';
 
 part 'user_entity.freezed.dart';
 
@@ -77,7 +77,7 @@ class UserEntity with _$UserEntity {
     // public user fetch can never carry salary data.
   }) = _UserEntity;
 
-  /// Whether the user may enter the app. DROP is admin-provisioned: the only
+  /// Whether the user may enter the app. OpsHub is admin-provisioned: the only
   /// access gate is [isActive] — a deactivated account is blocked at login and
   /// signed out. (`employmentStatus` is an HR label, not a gate.)
   bool get hasAppAccess => isActive;

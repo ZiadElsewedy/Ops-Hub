@@ -1,5 +1,5 @@
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
 
 /// The sales surface intentionally keeps this small union explicit so the
 /// app-wide stream can preserve its last loaded snapshot while mutating.

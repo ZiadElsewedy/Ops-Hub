@@ -25,6 +25,12 @@ class ReminderRules {
     int quietStartHour = 22,
     int quietEndHour = 7,
     bool enabled = true,
+
+    /// The task's scheduled window (`dueAt − startsAt`), when known. A
+    /// shift-bounded / same-day task (window ≤ 24h) suppresses the coarse 24h
+    /// rung so its first reminder is the 1h one near the deadline, not one fired
+    /// at creation. Null (no `startsAt`) keeps the 24h rung.
+    Duration? scheduledWindow,
   }) {
     if (!enabled) return null;
     if (reminderCount >= maxReminders) return null;
@@ -37,6 +43,15 @@ class ReminderRules {
     } else if (diff <= const Duration(hours: 1)) {
       kind = 'due1h';
     } else if (diff <= const Duration(hours: 24)) {
+      // The 24h rung is a full day's advance notice — meaningful only for a
+      // task whose window spans more than a day. A shift-bounded / same-day
+      // task is created inside its own window, so this rung would fire "due
+      // within 24 hours" at creation and misread the shift as a day. Suppress
+      // it; the task still gets `due1h` near its deadline and `overdue` after.
+      if (scheduledWindow != null &&
+          scheduledWindow <= const Duration(hours: 24)) {
+        return null;
+      }
       kind = 'due24h';
     } else {
       return null; // more than 24h out — nothing to send

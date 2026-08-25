@@ -1,19 +1,19 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
-import 'package:drop/features/sales/domain/sales_business_time.dart';
-import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/edit_approved_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/record_daily_sales.dart';
-import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/request_sales_correction.dart';
-import 'package:drop/features/sales/domain/usecases/set_branch_monthly_target.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/entities/sales_record_result.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/features/sales/domain/sales_business_time.dart';
+import 'package:opshub/features/sales/domain/usecases/approve_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/edit_approved_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/record_daily_sales.dart';
+import 'package:opshub/features/sales/domain/usecases/reject_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/request_sales_correction.dart';
+import 'package:opshub/features/sales/domain/usecases/set_branch_monthly_target.dart';
 
 sealed class SalesManagerDashboardState {
   const SalesManagerDashboardState();

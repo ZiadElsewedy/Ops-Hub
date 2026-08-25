@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
 
 /// Firestore serialization for [ProfileEntity], stored in `users/{uid}`.
 ///

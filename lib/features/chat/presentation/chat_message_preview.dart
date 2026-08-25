@@ -1,4 +1,4 @@
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
 
 /// A one-line textual preview of a message's content — the body when there is
 /// one, otherwise the attachment's filename, otherwise a generic label. Shared

@@ -1,4 +1,4 @@
-import 'package:drop/features/profile/domain/repositories/profile_repository.dart';
+import 'package:opshub/features/profile/domain/repositories/profile_repository.dart';
 
 class CheckUsername {
   final ProfileRepository _repository;

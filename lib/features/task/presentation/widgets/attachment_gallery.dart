@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
-import 'package:drop/features/task/presentation/attachment_format.dart';
-import 'package:drop/features/task/presentation/widgets/attachment_viewer.dart';
-import 'package:drop/features/task/presentation/widgets/video_thumbnail_image.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/features/task/presentation/attachment_format.dart';
+import 'package:opshub/features/task/presentation/widgets/attachment_viewer.dart';
+import 'package:opshub/features/task/presentation/widgets/video_thumbnail_image.dart';
 
 /// A premium thumbnail gallery of task media — images show a poster, videos a
 /// real cached frame with a play overlay (and duration in grid mode). Tapping a

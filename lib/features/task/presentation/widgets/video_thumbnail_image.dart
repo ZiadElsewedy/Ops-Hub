@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// Renders a **real poster frame** extracted from a video (network URL or local
 /// file path), filling its parent. The caller draws the play overlay on top.

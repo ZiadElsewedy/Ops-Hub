@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/task/data/models/automation_run_model.dart';
-import 'package:drop/features/task/domain/entities/automation_run_entity.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/task/data/models/automation_run_model.dart';
+import 'package:opshub/features/task/domain/entities/automation_run_entity.dart';
 
 void main() {
   group('AutomationRunModel.fromMap', () {

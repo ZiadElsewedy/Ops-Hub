@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_event.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_event.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
 import 'attendance_details_state.dart';
 
 /// Drives one attendance record's Details screen by merging three realtime

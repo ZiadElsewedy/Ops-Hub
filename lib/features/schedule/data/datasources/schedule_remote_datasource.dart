@@ -2,18 +2,18 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/schedule/data/models/shift_swap_model.dart';
-import 'package:drop/features/schedule/data/models/weekly_schedule_model.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/schedule/data/models/shift_swap_model.dart';
+import 'package:opshub/features/schedule/data/models/weekly_schedule_model.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
 
 /// Firestore access for the weekly schedule + shift swaps (Phase 7). Schedules
 /// live at `weekly_schedules/{branchId_yyyy-MM-dd}` (deterministic id → one doc
@@ -49,6 +49,33 @@ abstract class ScheduleRemoteDataSource {
     required ScheduleDay day,
     required ScheduleShift shift,
     required String employeeId,
+  });
+
+  /// Reassigns [employeeId] from one slot to another **atomically** — the person
+  /// is never simultaneously in both slots (a partial failure of a separate
+  /// assign-then-remove pair) nor dropped from both. Caller guarantees the two
+  /// slots differ.
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  });
+
+  /// Swaps [uidA] (in slot A) and [uidB] (in slot B) **atomically** — either both
+  /// end up in each other's slot or neither moves, so a mid-sequence failure can
+  /// never leave either person double-booked. Caller guarantees the two slots and
+  /// the two uids differ.
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
   });
 
   /// Sets (or clears, when [note] is empty) the manager note pinned to [day].
@@ -242,6 +269,84 @@ class ScheduleRemoteDataSourceImpl implements ScheduleRemoteDataSource {
       });
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? 'Failed to remove the employee.');
+    }
+  }
+
+  @override
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  }) async {
+    try {
+      // Atomic in ONE update: the two slots are DIFFERENT array fields, so their
+      // arrayUnion (target) and arrayRemove (source) transforms both apply in a
+      // single commit — the person is never momentarily in both slots and never
+      // dropped from both by a half-completed assign-then-remove pair.
+      await _schedules.doc(scheduleId).update({
+        'assignments.${toDay.value}.${toShift.value}':
+            FieldValue.arrayUnion([employeeId]),
+        'assignments.${fromDay.value}.${fromShift.value}':
+            FieldValue.arrayRemove([employeeId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? 'Failed to move the employee.');
+    }
+  }
+
+  @override
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
+  }) async {
+    // A swap needs BOTH an add and a remove on EACH of the two slot arrays, and
+    // Firestore permits only one array transform per field per write — so this
+    // cannot be a single-update like [moveEmployee]. A transaction reads the two
+    // slots, computes their final membership in memory, and writes both back in
+    // one atomic commit: either the trade lands whole or not at all, so no
+    // failure path can strand or double-book either person.
+    final ref = _schedules.doc(scheduleId);
+    try {
+      await _firestore.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        if (!snap.exists || snap.data() == null) {
+          throw const ServerException('The schedule no longer exists.');
+        }
+        final assignments =
+            (snap.data()!['assignments'] as Map?)?.cast<String, dynamic>() ??
+                const {};
+        List<String> slot(ScheduleDay day, ScheduleShift shift) {
+          final dayMap = (assignments[day.value] as Map?)?.cast<String, dynamic>();
+          final raw = dayMap?[shift.value] as List?;
+          return raw == null ? <String>[] : raw.map((e) => e.toString()).toList();
+        }
+
+        final newA = slot(dayA, shiftA)
+          ..remove(uidA);
+        if (!newA.contains(uidB)) newA.add(uidB);
+        final newB = slot(dayB, shiftB)
+          ..remove(uidB);
+        if (!newB.contains(uidA)) newB.add(uidA);
+
+        txn.update(ref, {
+          'assignments.${dayA.value}.${shiftA.value}': newA,
+          'assignments.${dayB.value}.${shiftB.value}': newB,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } on ServerException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? 'Failed to exchange the employees.');
     }
   }
 

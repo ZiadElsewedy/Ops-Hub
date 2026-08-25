@@ -1,39 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/core/widgets/attention_panel.dart';
-import 'package:drop/core/widgets/digest_panel.dart';
-import 'package:drop/core/widgets/metric_tile.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
-import 'package:drop/features/cases/presentation/cubit/case_list_cubit.dart';
-import 'package:drop/features/cases/presentation/cubit/case_list_state.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_state.dart';
-import 'package:drop/features/manager/presentation/pages/manager_home_screen.dart';
-import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
-import 'package:drop/features/requests/presentation/cubit/requests_list_state.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_target_card.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
-import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
-import 'package:drop/features/statistics/presentation/cubit/statistics_cubit.dart';
-import 'package:drop/features/statistics/presentation/cubit/statistics_state.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/pages/filtered_tasks_screen.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/core/widgets/attention_panel.dart';
+import 'package:opshub/core/widgets/digest_panel.dart';
+import 'package:opshub/core/widgets/metric_tile.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_list_cubit.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_list_state.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_state.dart';
+import 'package:opshub/features/manager/presentation/pages/manager_home_screen.dart';
+import 'package:opshub/features/requests/presentation/cubit/requests_list_cubit.dart';
+import 'package:opshub/features/requests/presentation/cubit/requests_list_state.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_target_card.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_state.dart';
+import 'package:opshub/features/statistics/domain/entities/statistics_entity.dart';
+import 'package:opshub/features/statistics/presentation/cubit/statistics_cubit.dart';
+import 'package:opshub/features/statistics/presentation/cubit/statistics_state.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/cubit/task_state.dart';
+import 'package:opshub/features/task/presentation/pages/filtered_tasks_screen.dart';
 
 /// Manager Home — the branch command center (rebuilt 2026-08-03).
 ///
@@ -47,7 +47,7 @@ import 'package:drop/features/task/presentation/pages/filtered_tasks_screen.dart
 /// * the hero sentence and that panel read the **same** total, so they cannot
 ///   disagree the way the old surface did;
 /// * `Late` appears exactly once on the screen.
-const _branch = BranchEntity(id: 'arkan', name: 'Drop The shop | Arkan');
+const _branch = BranchEntity(id: 'arkan', name: 'OpsHub | Arkan');
 
 const _manager = UserEntity(
   uid: 'mgr1',
@@ -86,7 +86,7 @@ class _FakeStatisticsCubit extends Cubit<StatisticsState>
 class _FakeTaskCubit extends Cubit<TaskState> implements TaskCubit {
   _FakeTaskCubit(List<TaskEntity> tasks) : super(TaskState.loaded(tasks));
   @override
-  Map<String, String> get branchNames => const {'arkan': 'Drop The shop | Arkan'};
+  Map<String, String> get branchNames => const {'arkan': 'OpsHub | Arkan'};
   @override
   Future<void> load(UserEntity user, {bool forceRefresh = false}) async {}
   @override
@@ -243,7 +243,7 @@ void main() {
     // the eyebrow now (one fewer text line), and `PageHero` uppercases that —
     // so match the uppercased form, not the source string.
     expect(find.textContaining('Ziad'), findsWidgets);
-    expect(find.textContaining('DROP THE SHOP | ARKAN'), findsOneWidget);
+    expect(find.textContaining('OPSHUB | ARKAN'), findsOneWidget);
 
     // One attention panel leads; the Today doors follow. (The page is a lazy
     // ListView, so only the built range is asserted here.)

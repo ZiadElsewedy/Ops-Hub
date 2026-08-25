@@ -1,17 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
-import 'package:drop/features/sales/domain/usecases/resubmit_corrected_sales.dart';
-import 'package:drop/features/sales/domain/usecases/submit_daily_sales.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_cubit.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/features/sales/domain/usecases/resubmit_corrected_sales.dart';
+import 'package:opshub/features/sales/domain/usecases/submit_daily_sales.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_cubit.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_state.dart';
 
 class _FakeSalesRepo implements SalesRepository {
   final month = StreamController<BranchSalesMonthEntity?>.broadcast();

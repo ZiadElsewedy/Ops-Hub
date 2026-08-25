@@ -1,7 +1,7 @@
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/features/attendance/domain/attendance_break.dart';
-import 'package:drop/features/attendance/domain/attendance_config.dart';
-import 'package:drop/features/attendance/domain/attendance_calculator.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/features/attendance/domain/attendance_break.dart';
+import 'package:opshub/features/attendance/domain/attendance_config.dart';
+import 'package:opshub/features/attendance/domain/attendance_calculator.dart';
 
 /// The concrete result an **approved** correction applies to its parent record:
 /// the settled clock-in / clock-out, the resulting [status], and the recomputed

@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/features/notifications/data/models/notification_model.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/features/notifications/data/models/notification_model.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
 
 /// Verifies the notification model (Notification System Phase 1 — Part 1)
 /// serializes/deserializes cleanly, including the typed payload reads.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ATLAS generator — scans the DROP repo and emits a machine-readable index
+"""ATLAS generator — scans the OpsHub repo and emits a machine-readable index
 plus per-feature mechanical inventory cards. Judgment sections are hand-authored
 elsewhere; this only emits what is *derivable from the code* so it never fabricates."""
 import os, re, json, subprocess, pathlib, collections

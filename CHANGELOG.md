@@ -10,9 +10,172 @@
 > [docs/design/](docs/design/).
 
 Format: loosely [Keep a Changelog](https://keepachangelog.com). Nothing has been
-released — DROP ships from branches and has no version tags.
+released — OpsHub ships from branches and has no version tags.
 
 ---
+
+## 2026-08-21 — OpsHub brand lockup (mark + name) rolled out app-wide (branch `rebrand-opshub`; polish, client-only, auth page iOS-verified)
+
+Follow-up to the entry below: by owner request the `OpsHubLockup` (hub glyph +
+"OpsHub" name) replaces the **glyph-only** marks across the shared chrome, so the
+written name reads on effectively every page — not just the auth/chat surfaces.
+
+- **`RoleScaffold`** mobile role-home app bar — the leading glyph became the
+  lockup, wrapped in a scale-down `FittedBox` so a crowded bar (the manager has
+  the most actions) shrinks it as one unit rather than truncating the name to
+  "OpsH…" (the exact failure the old plain role word had). The role is the
+  lockup's accessible label.
+- **`AdaptiveScaffold`** — the quiet trailing `_AppBarBrandMark` on every mobile
+  page became the lockup (height 16, tertiary), capped at 104px and
+  scale-down-fitted so action-heavy bars never overflow.
+- **`AppSidebar`** desktop brand header — the glyph became the lockup (height
+  28); the old separate "OPERATIONS" descriptor was dropped (the lockup now
+  spells the brand, and "OpsHub OPERATIONS" overflowed the ~207px header).
+  Flexible + scale-down keeps it safe on a narrow sidebar.
+- **`OpsHubLockup`** gained a `semanticLabel` (default `'OpsHub'`) and now
+  presents as a **single** accessibility node (glyph + word no longer announce
+  twice), via `ExcludeSemantics` around the visual row.
+
+`flutter analyze` clean; `brand_chrome_test` updated for the new structure
+(AuthScaffold/RoleScaffold assert glyph + wordmark + single semantic label),
+all 6 green. The home / sidebar / detail chrome sits behind login, so it is
+covered by widget tests + analyze but **not device-screenshotted** (no test
+account); the auth-page lockup remains iOS-verified.
+
+## 2026-08-21 — OpsHub brand lockup (mark + name) added to the last unbranded pages (branch `rebrand-opshub`; polish, client-only, auth page iOS-verified)
+
+Closed the remaining brand-presence gaps so the OpsHub brand appears on
+effectively every page. Most surfaces were already branded — every
+`AdaptiveScaffold` page carries the quiet trailing glyph mark (`showBrandMark`,
+default on), the three role home dashboards lead with the glyph via
+`RoleScaffold`, and Login/Splash/Onboarding via `OpsHubAuthMark`. The gaps:
+
+- **New `OpsHubLockup` widget** (`core/widgets/opshub_lockup.dart`) — the
+  horizontal brand lockup: the hub glyph [OpsHubLogo] beside the "OpsHub"
+  [OpsHubWordmark] text, so the written **name** reads next to the mark (as
+  opposed to the glyph-only mark the role-home / `AdaptiveScaffold` app bars
+  carry). Sized by glyph height; the wordmark scales from it; both tint together.
+- **The three first-login gate pages** (Forgot Password, Force Password Change,
+  Profile Completion) share `AuthScaffold`, which had no brand — inconsistent
+  with the branded Login/Splash/Onboarding they sit beside. `AuthScaffold` now
+  leads with a centred `OpsHubLockup` (height 20) — in the mobile app-bar title
+  (`centerTitle`, coexisting with the back button + any Sign-out action) and
+  centred behind the desktop top utility row. One change covers all three pages.
+- **Chat detail screens** (Conversation info, Message info) used a bare
+  `Scaffold`/`AppBar`; both now carry a quiet trailing
+  `OpsHubLockup(height: 15, textTertiary)`.
+
+Deliberately left alone: the immersive full-screen chat image viewer (a media
+overlay, not a page — a mark would clutter it) and the Schedule Final View export
+preview (its captured sheet already renders "OpsHub"). Render/chrome layer only —
+no domain/data/state/rules/functions change. `flutter analyze` clean;
+`brand_chrome_test` extended to assert the lockup (glyph + wordmark) on
+`AuthScaffold`, suite green. ✅ **iOS-verified** on the Reset Password (Forgot
+Password) page — the mark + "OpsHub" name renders centred in the app bar; the two
+other gate pages share the same `AuthScaffold` and were not separately reached
+(they need an authenticated account in the gate state). Chat screens not
+device-checked.
+
+## 2026-08-21 — Full rebrand: Drop/DROP → OpsHub, incl. brand assets (branch `rebrand-opshub`; LOW risk, client + docs only)
+
+The product-wide rebrand from Drop/DROP to OpsHub, done as a series of small,
+independently-verified commits on `rebrand-opshub`:
+
+- **Naming.** App display name and every OS-level label (iOS/Android launcher,
+  macOS/Windows/Linux window & app-switcher title, `MaterialApp` `title`) →
+  **OpsHub**. Dart package `drop` → **`opshub`** — every `package:drop/` import
+  rewritten across `lib/` + `test/` (873 files, 6156 occurrences). `Drop*` brand
+  widgets/files renamed to `OpsHub*` (`OpsHubLogo`, `OpsHubWordmark`,
+  `AnimatedOpsHubLogo`, `OpsHubAuthMark`, `OpsHubEmptyState`,
+  `OpsHubLoadingState`, and their files). Every user-facing string
+  (`Drop Operations`/`Drop Operation` → `OpsHub`, all-caps captions, the login
+  tagline) and the Cloud Functions sender-name/copy in `functions/index.js` →
+  OpsHub. Company name **`DROP THE SHOP` → `OpsHub`** in `pubspec.yaml`
+  description and the Windows/macOS copyright strings.
+- **Docs.** PROJECT_CONTEXT.md, CURRENT_STATE.md, CHANGELOG.md, `docs/design/`,
+  `docs/decisions/`, `.nav/` swept the same way, including historical
+  CHANGELOG/ADR entries (a deliberate full-history rebrand, not just new
+  copy) — PROJECT_CONTEXT §1's naming section rewritten to state the real
+  post-rebrand scheme. README.md updated (not rewritten) and repositioned as a
+  generic **multi-branch operations platform** rather than a Drop-the-Shop-only
+  tool, with its Project Identity section brought in line with the same scheme.
+- **Brand assets.** New OpsHub hub icon: the in-app mark now renders
+  `assets/opshub_icon.svg` via `flutter_svg`, tinted **monochrome white**
+  (honors [ADR-004](docs/decisions/ADR-004-monochrome-design.md) — no brand
+  colour reaches the UI). Launcher/app icons regenerated for Android, iOS, and
+  macOS via `flutter_launcher_icons` from new masters (navy `#1B2A4A` field,
+  amber `#F59E0B` core, white nodes; `remove_alpha_ios` enabled for the
+  App-Store-required opaque iOS icon). Stale Drop artwork
+  (`opshub_logo.png`, `opshub_wordmark.png`, the old launcher master) removed;
+  the raw brand kit (`assets/OpsHub Brand/` — design-source SVGs, `.dc.html`)
+  untracked and added to `.gitignore` (design reference, kept outside the
+  tree).
+- **Deliberately unchanged.** The strictly-monochrome design system (ADR-004)
+  is untouched by design. (Bundle identifiers and the on-disk folder name were
+  believed unchanged at the time of this entry — both have since moved; see
+  the 2026-08-21 follow-up entries below for the bundle-ID migration to
+  `com.opshub.app` on iOS/Android, and the folder rename to
+  `OpsHub-operations`.)
+- **Residual sweep (2026-08-21, follow-up):** a second, whole-repo pass caught
+  what the first two passes missed — iOS/macOS location-permission strings
+  (plus the letter-spaced "D R O P" camera/microphone/photo-library strings on
+  iOS), the Android notification-channel display name, Linux window titles,
+  `functions/*.js` + `functions/package.json`, and the pubspec connectivity
+  comment.
+- **Pending manual follow-ups:** resolved in follow-up commits the same day —
+  the splash Lottie was replaced with a static mark, iOS/Android bundle
+  identifiers were migrated to `com.opshub.app`, and the `.idea` run configs
+  were renamed. The on-disk folder rename (`Drop-operations` →
+  `OpsHub-operations`) is the one remaining step, done by the owner outside
+  version control.
+
+`flutter analyze` clean throughout (0 errors; 1 pre-existing info lint,
+unrelated). `flutter test` (full suite): **8 pre-existing failures** —
+`chat_nav_promotion_test.dart` (stale Settings-hub route expectation),
+`sales_dashboard_widgets_test.dart` ×4, `sales_record_added_overlay_test.dart`
+×2, `offline_write_guard_test.dart` — all confirmed
+failing **before** this rebrand too (re-run against baseline commit `739f224`
+in an isolated worktree; same 8 fail there) and none of the touched files carry
+anything but import-path/comment changes from this series, so they are
+unrelated pre-existing issues, not a rebrand regression.
+
+## 2026-08-12 — Critical-review fixes C1–C6 (⚠️ NEEDS A FUNCTIONS DEPLOY for C4; MED–HIGH risk)
+
+Six critical findings fixed, each re-derived from the code:
+
+- **C1 · Requests race.** `RequestRemoteDataSource.changeStatus` was a blind
+  `update` — two reviewers deciding the same pending request both landed
+  (last-write-wins; an approve could clobber a reject). Now a guarded
+  **transaction** re-checks status server-side (decision only from pending,
+  reopen only from decided) and the loser gets a conflict message. A transaction
+  also can't queue offline, removing the stale-replay hazard.
+- **C2 · Schedule move/exchange.** `move` and `exchange` chained separate
+  assign/remove writes; a partial failure left a person **double-booked** while
+  the UI reported failure. New atomic `moveEmployee` (one multi-field update) and
+  `exchangeEmployees` (transaction) on the datasource/repository — all-or-nothing.
+- **C3 · Schedule errors swallowed.** `ScheduleCubit._emitLoaded` / `_mutate`
+  generic `catch (_)` discarded the exception + stack. Now logged via
+  `AppLog.error` (same friendly user message).
+- **C4 · Session eviction no-op.** Deactivation was `isActive=false` on the doc
+  only — nothing touched Firebase Auth, so a deactivated user's session stayed
+  valid until the client watcher happened to be online. New Cloud Function
+  `enforceAccountDeactivation` disables + revokes the Auth account on
+  deactivation (re-enables on reactivation). **Requires `firebase deploy --only
+  functions`.**
+- **C5 · Singleton stream leaks.** `attendanceAdminCubit` (2 streams),
+  `branchOperationsCubit`, and `broadcastCubit` are app-wide singletons whose
+  live Firestore listeners were only cancelled in `close()` (never called for
+  `.value` providers). Added `reset()` to each and wired them into
+  `AppDependencies.clearUserScopedState()`.
+- **C6 · Offline clock-in.** `AttendanceRepositoryImpl.clockIn`/`clockOut`
+  skipped `NetworkGuard.ensureWritable()` (every other attendance write has it),
+  so an offline clock-in queued, reported success, and replayed with a
+  reconnect-time server timestamp — corrupting pay. Both now fail fast offline.
+
+Tests: schedule exchange/undo suites updated to the atomic methods; full suite
+green except the 6 pre-existing `sales_dashboard_widgets` layout failures and the
+pre-existing `chat_nav_promotion` failure (all fail on the clean tree too).
+⚠️ Not device-verified.
 
 ## 2026-08-10 — Cold-start notification tap "no route" — graceful recovery + diagnostics (bug; MED risk)
 
@@ -163,7 +326,7 @@ Android foreground-push check on hardware.
 ## 2026-08-09 — README rebuilt as a visual project front page (docs; LOW risk)
 
 The root `README.md` was reworked into a professional, balanced (showcase +
-onboarding) front page: brand hero (`assets/drop_wordmark.png`, the white DROP
+onboarding) front page: brand hero (`assets/opshub_wordmark.png`, the white OpsHub
 wordmark on black — a clean-named copy of the existing square logo, theme-proof
 on GitHub's light/dark), shields.io status badges, roles table, design
 philosophy, feature grid, a Mermaid `presentation → domain ← data` diagram, and
@@ -270,17 +433,17 @@ assert the full contract and **passes against the emulator** (own-branch manager
 the Dart suite passes unchanged (it exercises `reopenTask`, which was never
 role-gated in the cubit).
 
-## 2026-08-08 — OS label split to "Drop Ops"; in-app name stays "Drop Operations" (polish; LOW risk)
+## 2026-08-08 — OS label split to "OpsHub"; in-app name stays "OpsHub" (polish; LOW risk)
 
-The short name the operating system shows was changed **Drop Operations → Drop
-Ops** on OS-level surfaces only: iOS `CFBundleDisplayName`/`CFBundleName`, Android
+The short name the operating system shows was changed **OpsHub → OpsHub** on
+OS-level surfaces only: iOS `CFBundleDisplayName`/`CFBundleName`, Android
 `android:label`, macOS `INFOPLIST_KEY_CFBundleDisplayName` (stray trailing space
 also removed), Windows `FileDescription`/`ProductName`, Linux window/header-bar
 titles, and both `MaterialApp` `title`s. Everything inside the app is unchanged and
-still reads *Drop Operations* — `AppConstants.appName`, the `DropWordmark`
+still reads *OpsHub* — `AppConstants.appName`, the `OpsHubWordmark`
 logotype, the splash label, and all copy (About, login, onboarding, notifications,
-schedule Final-view + PDF headers). Supersedes the earlier same-day DROP → Drop
-Operations rename, which had set the OS labels to "Drop Operations" as well. Only
+schedule Final-view + PDF headers). Supersedes the earlier same-day OpsHub → OpsHub
+rename, which had set the OS labels to "OpsHub" as well. Only
 `main.dart` is a Dart edit; the rest are platform config. `flutter analyze` clean,
 no tests changed. NOT device-verified — the launcher label and window title need a
 real per-platform build.
@@ -292,7 +455,7 @@ the redesign layout: a small **progress ring** on the left, then the achieved
 figure over the target (**`112,000 / 1,000,000`**, achieved white + rolling, the
 `/ target` in the grey ramp) with **`… EGP remaining`** beneath. Achieved rolls
 in with the shared premium count-up (+ light sweep); the ring arc sweeps on the
-same `kPremiumSettle` curve; remaining rolls quietly a beat later. The DROP
+same `kPremiumSettle` curve; remaining rolls quietly a beat later. The OpsHub
 corner mark was dropped from this card to match the mockup — a chevron is the
 only trailing glyph. `SalesMoneyRow` is retained (still used by the admin
 overview). `flutter analyze` clean, NOT device-verified.
@@ -463,9 +626,9 @@ resolves for everyone. `flutter analyze` clean, +3 tests
 (`schedule_manager_day_off_test.dart`). NOT device-verified. Design doc
 [SCHEDULE](docs/design/SCHEDULE.md) amended.
 
-## 2026-08-08 — App display name renamed DROP → Drop Operations (polish; LOW risk)
+## 2026-08-08 — App display name renamed OpsHub → OpsHub (polish; LOW risk)
 
-The user-facing app name is now **Drop Operations** everywhere it is shown. One
+The user-facing app name is now **OpsHub** everywhere it is shown. One
 source of truth per surface changed; no logic, schema, rules, or functions
 touched.
 
@@ -473,12 +636,12 @@ touched.
   (`main.dart`), the crash-recovery banner, and the OS-settings hints in
   `notification_service.dart` / `attachment_picker.dart`.
 - **Brand wordmark (owner: rename everything, incl. wordmark):**
-  `DropWordmark`'s logotype, the schedule Final-view header/footer wordmarks
+  `OpsHubWordmark`'s logotype, the schedule Final-view header/footer wordmarks
   (`final_schedule_sheet.dart`, `final_schedule_mobile_view.dart`) and the
-  exported PDF header/footer (`schedule_final_pdf.dart`). The `DropLogo` PNG
-  artwork, the "DROP OPERATIONS SYSTEM" auth tagline, and the **DROP THE SHOP**
+  exported PDF header/footer (`schedule_final_pdf.dart`). The `OpsHubLogo` PNG
+  artwork, the "OpsHub SYSTEM" auth tagline, and the **OpsHub**
   company name are unchanged.
-- **User-facing copy:** login ("Sign in to your Drop Operations account"),
+- **User-facing copy:** login ("Sign in to your OpsHub account"),
   onboarding welcome, splash could-not-start + a11y labels, broadcast fallback
   sender.
 - **Platform display names:** iOS `CFBundleDisplayName`/`CFBundleName`, Android
@@ -651,7 +814,7 @@ schema/rules/server change, strictly monochrome (ADR-004).
   shown now are: **`coverImage`** (uploadable from Edit Profile since it shipped,
   visible nowhere) and **`bio`** (editable, never rendered). A photo sits under a
   top-to-bottom scrim; with no photo the band is the shared neutral wash + the
-  quiet DROP mark, so it is a finished surface rather than a hole.
+  quiet OpsHub mark, so it is a finished surface rather than a hole.
 - **Incomplete is a status, not a link.** The old bare *"Complete your profile"*
   text became the card's semantic warning edge, an explicit line saying what is
   missing, and a CTA relabelled *Complete profile* — same destination, one CTA.
@@ -1477,7 +1640,7 @@ reasons, one mechanism:
 **The suppression check exposed a real reader bug.** "Don't show it if the user
 is already on Chat" cannot be answered by `currentLocationOrNull`: that reads the
 match list's own `uri`, which go_router does not rewrite for an imperative
-`push` — and **every** chat destination in DROP is reached by `push`. After the
+`push` — and **every** chat destination in OpsHub is reached by `push`. After the
 cold-start chat deep link (`go(home) → push(/chat) → push(thread)`) it still
 reports `/manager` while the thread fills the screen, so the hint would have
 announced unread messages over the conversation the user was reading. Added an
@@ -1634,7 +1797,7 @@ actual push is the next step, and the store is the seam it will read.
 
 **Appearance is intentionally inert for v1:** no screen, no theme switching, a
 quiet monochrome **COMING SOON** trailing label instead of a chevron, and a tap
-that does nothing. DROP is dark-only (ADR-004); a theme toggle would be a
+that does nothing. OpsHub is dark-only (ADR-004); a theme toggle would be a
 decision, not a row.
 
 No new visual language: `settings_page.dart`'s private row widgets were
@@ -1844,7 +2007,7 @@ describe`) — three doc claims were wrong and are corrected:
 - **The version string is hardcoded** in `settings_page.dart:422` (`'1.0.0 (1)'`)
   and `about_page.dart:368` — both lie from 1.0.1 onward.
 - **iOS `Info.plist` carries dev-only and dead config**: a Google Sign-In URL
-  scheme for an auth method DROP does not have, a localhost ATS exemption, and a
+  scheme for an auth method OpsHub does not have, a localhost ATS exemption, and a
   **missing `NSPhotoLibraryAddUsageDescription`** — the export share sheet offers
   *Save Image*, which crashes without it.
 - **5,825 `node_modules/` files are tracked in git**, plus
@@ -1883,7 +2046,7 @@ yet.**
   throws `Bad state: No element` while that list is empty. Both tap paths read it,
   so the handler died before navigating.
 - **"Sometimes it doesn't open at all."** A cold start resolves the tap *before*
-  the routed app mounts — DROP holds it behind the bootstrap **and** the ~2s
+  the routed app mounts — OpsHub holds it behind the bootstrap **and** the ~2s
   splash intro, while `getInitialMessage()` returns in milliseconds. `push` onto
   an unattached router is dropped; `go` still works, which is exactly why the
   dead-end fallback was the one path that ever landed.
@@ -1974,7 +2137,7 @@ all rather than greying them.
 **Naming corrected: the target is the branch's, not the viewer's.** Every role's
 destination is now **Branch Sales** and the employee page says "TEAM TARGET" —
 "My Sales" mis-stated what the feature measures. Where a surface carries brand it
-is the DROP **logo artwork** at low opacity, never a typographic "DROP".
+is the OpsHub **logo artwork** at low opacity, never a typographic "OpsHub".
 
 Verified on device: iOS simulator (Home card + employee page, green tone with
 today's close covering the requirement); macOS build produced for the admin side.
@@ -2018,7 +2181,7 @@ What was broken:
    including the submitting employee (the callable refused — it read as a broken
    button). Decision actions are now manager/admin-only, reopen admin-only, and a
    manager can no longer steer `/sales?branchId=` off their own branch.
-7. **Employee Home.** The card's no-target state was a 180px `DropEmptyState`
+7. **Employee Home.** The card's no-target state was a 180px `OpsHubEmptyState`
    medallion — the "oversized icon" — and "today submitted" was computed from the
    **device** date, not Cairo, and always read "pending" regardless of actual status.
    Now compact (today · achieved · remaining · bar), Cairo-correct, showing the real
@@ -2208,7 +2371,7 @@ deploy.**
 ## 2026-08-05 — Mobile role-home bar gains premium grouped chrome (polish; LOW risk)
 
 Refined the shared admin/manager/employee home AppBar without changing its
-navigation. The DROP mark now sits over a restrained gradient and bottom
+navigation. The OpsHub mark now sits over a restrained gradient and bottom
 hairline; role-specific actions are grouped in one flat glass command capsule;
 the account avatar is a separate surfaced control. Every action keeps a ≥44px
 target and tooltip, notifications announce the unread count, and the account
@@ -2311,7 +2474,7 @@ one. `firebase deploy --only functions:approveSwap` rolled production to
 > records who decided, so there is no backfill source. Those history cards will
 > always show no approver — which is the correct behaviour, not a bug.
 
-## 2026-08-05 — Project identity aligned to Drop Operation (refactor; MED risk)
+## 2026-08-05 — Project identity aligned to OpsHub (refactor; MED risk)
 
 Renamed the repository folder from its legacy name to **`Drop-operations`** and
 removed the legacy identifier from source, project metadata, documentation, and
@@ -2609,7 +2772,7 @@ Hosting exists for exactly one reason: App Store Connect requires a public
 Privacy Policy URL. It now serves that page and nothing else.
 
 - New `hosting/index.html` — a single self-contained page (inline CSS, no assets,
-  no build step): DROP wordmark, light/dark via `prefers-color-scheme`, responsive
+  no build step): OpsHub wordmark, light/dark via `prefers-color-scheme`, responsive
   down to 375px, print styles, and the eight sections App review looks for
   (Introduction · Information We Collect · How We Use Information · Data Storage &
   Security · Third-Party Services · User Rights · Contact · Last Updated). The
@@ -2730,7 +2893,7 @@ Fixed alongside, all found on device:
 - **`RoleScaffold`: the role word truncated to "Mana…" (polish).** It was the
   first thing the manager's crowded action cluster ate, and it is redundant now
   that every home opens with a hero that greets by name and names its scope.
-  The mobile app bar leads with the DROP mark alone; `title` survives as the
+  The mobile app bar leads with the OpsHub mark alone; `title` survives as the
   bar's accessible label and the desktop page-header title.
 
 New `test/manager_home_test.dart` (7 tests) pins the ladder on **both** tiers,
@@ -2900,7 +3063,7 @@ patched. The through-line: chat had grown two of everything — two delivery pat
   thread resolves its own name/avatar/role from the inbox summary + session
   directory, so *every* entry point renders a real identity — including ones
   that never carried args. Presence/online is still deliberately absent; the
-  backend has none and DROP does not fabricate it.
+  backend has none and OpsHub does not fabricate it.
 - **Deep link re-initialized repeatedly (bug).** Two causes. The tap always
   `push`ed, so tapping a notification for the thread already on screen stacked a
   second screen **and a second cubit**, doubling loads, subscriptions and
@@ -3080,7 +3243,7 @@ change.
 - **Empty states are one crafted object (polish).** New
   `core/widgets/empty_state_medallion.dart` — halo, two concentric hairlines and
   a top-lit disc, strictly monochrome — replaces the flat grey glyph in
-  `AppEmptyState` and the bare faded mark in `DropEmptyState`. New public
+  `AppEmptyState` and the bare faded mark in `OpsHubEmptyState`. New public
   `EmptyStateBody` holds the shared title/message/action rhythm and a 264px
   measure. Because the two core states kept their APIs, all **~39** call sites
   (task lists, pending review, My Tasks tabs, inbox, cases, requests, branch
@@ -3366,8 +3529,8 @@ none of this exists there.
 
 | Run | Config | `getAPNSToken()` |
 | --- | --- | --- |
-| 1 | DROP, scenes ON | null ×10 |
-| 2 | brand-new `flutter create` 3.44.2 + fbm 15.2.10, scenes ON | null ×10 — identical, so **not DROP-specific** |
+| 1 | OpsHub, scenes ON | null ×10 |
+| 2 | brand-new `flutter create` 3.44.2 + fbm 15.2.10, scenes ON | null ×10 — identical, so **not OpsHub-specific** |
 | 3 | same control, **scenes OFF** (only variable changed) | **token on attempt 1**, FCM token minted |
 | 4 | same control, scenes ON + manual `Messaging.apnsToken` in AppDelegate | null ×10 — the AppDelegate override is **not** sufficient |
 
@@ -3378,7 +3541,7 @@ is nothing to forward.
 - **Fix:** removed `UIApplicationSceneManifest` from `ios/Runner/Info.plist`.
   `SceneDelegate.swift` is left on disk but is never instantiated without the
   manifest, so it is inert — that is exactly how run 3 was configured.
-- **Trade-off:** DROP opts out of iOS 26 multi-window / multi-scene. It was
+- **Trade-off:** OpsHub opts out of iOS 26 multi-window / multi-scene. It was
   already opted out functionally (`UIApplicationSupportsMultipleScenes: false`)
   and is a single-window app, so nothing observable is lost. Revisit when
   firebase_messaging adopts `addSceneDelegate:`.
@@ -3590,7 +3753,7 @@ under an empty-state that blames the filters.
   "Overtime" is asking about a record, so gaps drop out rather than padding a
   filtered list with rows that cannot match it.
 
-**Removed "Payroll blockers"** from the summary strip. DROP does no payroll — it is
+**Removed "Payroll blockers"** from the summary strip. OpsHub does no payroll — it is
 a named scope guardrail (ADR-009/ADR-010) — so putting the word on a ledger the
 owner reads daily promised something the product does not do. The same count now
 reads **"Needs a decision"** and appears only when it is non-zero.
@@ -3891,7 +4054,7 @@ closed.
 > through to the list, not a restatement. `_EmptyTaskState` ("No tasks yet") is
 > untouched: never-assigned is a different case from finished.
 
-**Its space went to the clock state.** DROP has a full GPS attendance engine,
+**Its space went to the clock state.** OpsHub has a full GPS attendance engine,
 and clocking in/out is the thing an employee does twice a day at a fixed time —
 yet Home showed *"TODAY'S SHIFT · Morning shift"* and then never said whether
 they were on it. The only way in was an **unlabelled fingerprint icon** in the
@@ -3953,7 +4116,7 @@ Two more silent failures in the same file:
 - **`catch (_)` swallowed every exception** on all three pick paths. They now
   log the real error (`AppLog.error`) and map `image_picker`'s actionable
   `PlatformException` codes to something a user can act on —
-  `camera_access_denied` → *"Camera access is off. Enable it for DROP in
+  `camera_access_denied` → *"Camera access is off. Enable it for OpsHub in
   Settings."*, `no_available_camera` → *"No camera on this device."* — instead
   of a flat "Could not take a photo."
 - **`_rejectReason` called `file.length()` unguarded**, so one unreadable pick
@@ -4415,7 +4578,7 @@ Verified: **1335 pass / 2 pre-existing**, analyze clean, build succeeds.
 ## 2026-08-01 — Exports become operational documents; a week is reviewed, not locked
 
 [ADR-019](docs/decisions/ADR-019-operational-exports-and-week-review.md), after
-the owner retired the premise Phase 4 was built on: **DROP is an operations
+the owner retired the premise Phase 4 was built on: **OpsHub is an operations
 management system, not a payroll system, and payroll integration is not
 planned.**
 
@@ -4556,7 +4719,7 @@ failures**, +7 tests.
 
 The two open product decisions, decided and recorded.
 
-**Overtime threshold: there is none.** Confirming overtime in DROP changes no
+**Overtime threshold: there is none.** Confirming overtime in OpsHub changes no
 record, no payment and no export — ADR-017 keeps pay out of scope and R17
 already says overtime is never fed anywhere — so an approval step fails ADR-017's
 own metric bar. The queue exists for shifts whose record is *wrong or missing*;
@@ -5510,7 +5673,7 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
     name · position/role · branch (resolved from the Firebase directory +
     `BranchCubit`), shared **media** / **documents** counts, and the same
     actions. **Online/last-seen is deliberately omitted** — the backend exposes
-    no presence and DROP does not fabricate it.
+    no presence and OpsHub does not fabricate it.
   - **In-conversation search** — AppBar search field, live (200 ms debounce),
     monochrome tone-aware match highlighting inside bubbles, an emphasized
     active match auto-scrolled into view, `n/total` counter with prev/next
@@ -6011,7 +6174,7 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   has ended → `requestCorrection` / `requestMissedPunch`. **Manager** (board-row
   detail sheet, now tappable for record-less rows): *Resolve shift* on a
   needs-review record, *Add record* + *Excuse absence* on an absent/late row →
-  `resolveDirectly` / `addRecord` / `excuseAbsence`. Monochrome DROP design
+  `resolveDirectly` / `addRecord` / `excuseAbsence`. Monochrome OpsHub design
   (`PremiumButton`, existing sheet shape); overnight clock-outs handled. +3 widget
   tests; 939 pass / 2 pre-existing splash; analyze clean. Only deploy + on-device
   GPS QA remain before the module closes.
@@ -6132,7 +6295,7 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   CSV/PDF export and payroll were declined (the ledger is shaped to feed them
   later), and Metadata shows only recorded fields — no invented
   timezone/appVersion/syncStatus. +22 tests (query · status filter · cubit ·
-  widget render). The list uses a plain `ListView` (the pattern every other DROP
+  widget render). The list uses a plain `ListView` (the pattern every other OpsHub
   list screen uses).
 
 ### 2026-07-16
@@ -6157,7 +6320,7 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   (`Tomorrow`, `2 days`, `Week`) that start at creation time and set the due
   window without opening the date/time pickers; the presets now use a compact
   duration rail with an animated thumb and animated duration line.
-- **Create Task sheet visual polish.** Kept DROP's strict monochrome direction,
+- **Create Task sheet visual polish.** Kept OpsHub's strict monochrome direction,
   then added neutral tonal depth, a composed animated header, softer picker hover
   lift, richer segmented controls, and a staggered final CTA. All new motion
   collapses under reduced-motion settings; task save/data flow is unchanged.
@@ -6183,7 +6346,7 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   verification but is never GPS-blocked.
 - **Removed: attendance breaks** — descoped for MVP; `AttendanceBreak` and the
   calculator's netting kept as dormant extension points.
-- **Removed: Community Hub / DROP Events** — the feature, 4 tests, 3 enums, all
+- **Removed: Community Hub / OpsHub Events** — the feature, 4 tests, 3 enums, all
   routes/nav/DI wiring, and its Firestore + Storage rules. Live data untouched.
 
 ### 2026-07-14
@@ -6236,7 +6399,7 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
 - **Task Scheduling V2** — additive `startsAt`/`dueAt`, derived `TaskSchedulePhase`
   (not a persisted status), roster-aware smart shift defaults, never locked.
 - **Work Details design system** — one language, composed per work type.
-- Community Hub / DROP Events shipped (removed a week later, 2026-07-15).
+- Community Hub / OpsHub Events shipped (removed a week later, 2026-07-15).
 
 ### 2026-07-07
 
@@ -6290,7 +6453,7 @@ changes: `python3 .nav/gen_atlas.py`. Docs-only; no code behavior changed.
   `AnimatedSwitcher`, duplicating go_router's shell Navigator `GlobalKey`. Never do
   this; the desktop fade lives at the page level instead.
 - Schedule 4.0 (overflow · mobile actions · undo · validation) and 3.1
-  (drag-to-switch). macOS app icon. DROP logo rollout. Production audit + beta plan
+  (drag-to-switch). macOS app icon. OpsHub logo rollout. Production audit + beta plan
   + auto-schedule design exploration.
 
 ### 2026-07-01
@@ -6312,7 +6475,7 @@ Summarized. Detail is in git.
 
 ### 2026-06-30
 - ✓ Full rebrand: legacy Dart package → `drop` (the remaining platform identifiers were
-  later aligned with Drop Operation).
+  later aligned with OpsHub).
 - ✓ Desktop-first UI — `ShellRoute` + persistent role-aware sidebar. *(Its indigo accent was reverted the next day.)*
 - ✓ Premium macOS desktop foundation + polish (schedule grid, task ticket, comms command-center).
 - ✓ Fixed macOS login "No internet connection" (sandbox networking).
@@ -6334,7 +6497,7 @@ Summarized. Detail is in git.
 - ✓ Admin-editable user contact details. Token-leak audit. Activity timeline V2.
 
 ### 2026-06-25
-- ✓ **Premium UX/Logic Refactor** (slices 1–2b, §5, §8–§9b) — correctness fixes, the premium component system (`AppGlassCard`, `MetricPill`, `PremiumButton`), branch media + `BranchAvatar`, brand primitives (`DropWordmark`, `DropEmptyState`, `DropLoadingState`), and the notification **operational inbox**.
+- ✓ **Premium UX/Logic Refactor** (slices 1–2b, §5, §8–§9b) — correctness fixes, the premium component system (`AppGlassCard`, `MetricPill`, `PremiumButton`), branch media + `BranchAvatar`, brand primitives (`OpsHubWordmark`, `OpsHubEmptyState`, `OpsHubLoadingState`), and the notification **operational inbox**.
 - ✓ Shift Swap System — exchange model + swap notifications.
 - ✓ **De-flash: premium ≠ flashy** — owner ruling; monochrome + subtle status glows only.
 - ✓ Realtime polish — animated counters, smooth Pending Review list. Release stabilization + FCM routing audit.
@@ -6373,7 +6536,7 @@ Summarized. Detail is in git.
 - ✓ Task UX overhaul — monochrome cards, "Assigned by", username removed as a legacy social field.
 
 ### 2026-06-17
-- ✓ DROP THE SHOP UI redesign + Tasks crash fix.
+- ✓ OpsHub UI redesign + Tasks crash fix.
 - ✓ Shared component system — `StatusBadge`, `AppCard`, context helpers, form & layout primitives.
 - ✓ Architecture de-duplication & shared utilities. Stability & UX audit.
 
@@ -6387,7 +6550,7 @@ Summarized. Detail is in git.
 - ✓ **Phase 2** — Shift Management foundation *(later deleted as dead code)*.
 - ✓ **Phase 3** — Task Management foundation. **Phase 4** — Task Workflow & Review System.
 - ✓ **Phase 5** — Admin Management module. **Phase 6** — Operations Dashboards & Notifications.
-- ✓ Rebrand to DROP.
+- ✓ Rebrand to OpsHub.
 
 ### 2026-06-14
 - ✓ **Phase 1 — Roles & Foundation**: `UserRole`, role-based routing + guards, role shells, security rules.

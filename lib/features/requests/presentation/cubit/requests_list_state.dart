@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
 
 part 'requests_list_state.freezed.dart';
 

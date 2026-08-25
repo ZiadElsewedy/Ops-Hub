@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/branch_avatar.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
 
 class AttendanceReportScopeBar extends StatelessWidget {
   const AttendanceReportScopeBar({

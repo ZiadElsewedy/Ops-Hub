@@ -1,18 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/recurrence_frequency.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_cancel_reason.dart';
-import 'package:drop/core/enums/task_type.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/features/task/domain/entities/activity_entry.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/recurrence_config.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/recurrence_frequency.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_cancel_reason.dart';
+import 'package:opshub/core/enums/task_type.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/features/task/domain/entities/activity_entry.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/recurrence_config.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// Firestore (de)serialization for [TaskEntity] — collection `tasks/{taskId}`.
 ///

@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
 
 part 'notification_state.freezed.dart';
 

@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/task_status.dart';
+import 'package:opshub/core/enums/task_status.dart';
 
 /// A Flutter-free, **entity-decoupled snapshot** of a live task that a
 /// [WorkTypeDefinition] reasons over. Validation, progress, review disposition

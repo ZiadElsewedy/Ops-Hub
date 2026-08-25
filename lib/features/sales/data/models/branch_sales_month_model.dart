@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
 
 class BranchSalesMonthModel {
   const BranchSalesMonthModel({

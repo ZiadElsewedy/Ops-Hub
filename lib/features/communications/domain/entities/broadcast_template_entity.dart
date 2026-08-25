@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/broadcast_category.dart';
-import 'package:drop/features/communications/domain/template_renderer.dart';
+import 'package:opshub/core/enums/broadcast_category.dart';
+import 'package:opshub/features/communications/domain/template_renderer.dart';
 
 part 'broadcast_template_entity.freezed.dart';
 

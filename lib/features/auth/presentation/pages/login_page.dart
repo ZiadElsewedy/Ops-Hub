@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/routes/route_names.dart';
+import 'package:opshub/core/routes/route_names.dart';
 
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/drop_auth_mark.dart';
-import 'package:drop/core/widgets/animated_drop_logo.dart';
-import 'package:drop/features/auth/presentation/animations/fade_slide_transition.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/auth/presentation/widgets/app_text_field.dart';
-import 'package:drop/features/auth/presentation/widgets/app_password_field.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/opshub_auth_mark.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/features/auth/presentation/animations/fade_slide_transition.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_text_field.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_password_field.dart';
 
-/// The DROP sign-in screen. DROP is **admin-provisioned**: there is no public
+/// The OpsHub sign-in screen. OpsHub is **admin-provisioned**: there is no public
 /// registration, Google sign-in, or phone/OTP — only email + password, plus a
 /// Forgot Password path. Premium, strictly monochrome (white accent, no indigo).
 class LoginPage extends StatefulWidget {
@@ -120,7 +120,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: AppSpacing.xxxl),
                 const FadeSlideTransition(
                   delay: Duration(milliseconds: 30),
-                  child: Center(child: DropAuthMark()),
+                  child: Center(child: OpsHubAuthMark()),
                 ),
                 const SizedBox(height: AppSpacing.xxxl),
                 FadeSlideTransition(
@@ -138,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                 const FadeSlideTransition(
                   delay: Duration(milliseconds: 140),
                   child: Text(
-                    'Sign in to your Drop Operations account',
+                    'Sign in to your OpsHub account',
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyLarge,
                   ),
@@ -180,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                     const Text('Welcome back', style: AppTypography.h1),
                     const SizedBox(height: AppSpacing.sm),
                     const Text(
-                      'Sign in to your Drop Operations account',
+                      'Sign in to your OpsHub account',
                       style: AppTypography.body,
                     ),
                     const SizedBox(height: AppSpacing.xxxl),
@@ -213,9 +213,9 @@ class _LoginPageState extends State<LoginPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // The DROP brand logo artwork (assets/drop_logo.png), tinted
+            // The OpsHub brand logo artwork (assets/opshub_icon.svg), tinted
             // white, with the shimmer sweep — the brand hero of the panel.
-            const AnimatedDropLogo(height: 88),
+            const AnimatedOpsHubLogo(height: 88),
             const SizedBox(height: AppSpacing.lg),
             Text(
               'Operations Management System',
@@ -227,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
               child: const Text(
                 'Run daily branch operations end to end — tasks, schedules, '
                 'shift swaps and team communications — from one premium control '
-                'surface for DROP THE SHOP.',
+                'surface for OpsHub.',
                 style: AppTypography.bodyLarge,
               ),
             ),

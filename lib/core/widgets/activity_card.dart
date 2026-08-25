@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/glass_container.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
 
-/// **ActivityCard** — one clean, premium row in a vertical activity feed (DROP
+/// **ActivityCard** — one clean, premium row in a vertical activity feed (OpsHub
 /// Design System V2). The V2 replacement for the horizontal "spreadsheet" feed:
 /// a `[leading] Title / subtitle …… trailing / meta` card the eye reads
 /// top-to-bottom, not left-to-right across many columns.

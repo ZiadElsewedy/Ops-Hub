@@ -1,4 +1,4 @@
-# DROP Attendance — Official Product Specification (LOCKED)
+# OpsHub Attendance — Official Product Specification (LOCKED)
 
 > **Status:** Product decisions locked 2026-07-18. This document is the source of
 > truth for the Attendance module. Every future implementation follows it. It

@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/admin/domain/entities/user_compensation.dart';
-import 'package:drop/features/auth/data/models/user_model.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/admin/domain/entities/user_compensation.dart';
+import 'package:opshub/features/auth/data/models/user_model.dart';
 
 /// Admin-side access to the `users` collection (reuses the auth [UserModel]).
 /// Reads + field updates require an admin caller (enforced by `firestore.rules`).

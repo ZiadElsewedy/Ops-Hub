@@ -3,7 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// Ambient context stamped onto every crash report. Fed passively by the
 /// systems that already see everything:
@@ -32,7 +32,7 @@ class CrashContext {
   }
 }
 
-/// Global crash capture for DROP. One funnel for every class of uncaught
+/// Global crash capture for OpsHub. One funnel for every class of uncaught
 /// error:
 /// - **Flutter framework errors** → `FlutterError.onError`;
 /// - **platform / engine + uncaught async errors** →

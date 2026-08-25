@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/animated_drop_logo.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
-import 'package:drop/features/auth/presentation/pages/splash_page.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/features/auth/presentation/pages/splash_page.dart';
 
 /// The mobile cold-start splash (phone widths < 600) — the local, Lottie-free
 /// intro. These prove the premium mobile treatment: the animated light-sweep
@@ -32,12 +32,12 @@ void main() {
             SplashPage(onAnimationComplete: () {}, isBootstrapping: true),
       );
 
-      // AnimatedDropLogo is the hero (desktop-consistent premium treatment);
+      // AnimatedOpsHubLogo is the hero (desktop-consistent premium treatment);
       // the desktop splash uses the Lottie instead, so its presence also proves
       // the mobile branch was taken.
-      expect(find.byType(AnimatedDropLogo), findsOneWidget);
-      // AnimatedDropLogo renders a DropLogo internally.
-      expect(find.byType(DropLogo), findsWidgets);
+      expect(find.byType(AnimatedOpsHubLogo), findsOneWidget);
+      // AnimatedOpsHubLogo renders a OpsHubLogo internally.
+      expect(find.byType(OpsHubLogo), findsWidgets);
       expect(find.text('OPERATIONS'), findsOneWidget);
 
       // Let the intro + ambient controllers settle for a clean teardown.

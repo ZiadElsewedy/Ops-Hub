@@ -1,9 +1,9 @@
 /// Pure branch-level coverage rules for the admin's Today schedule landing.
 library;
 
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/today_roster.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/today_roster.dart';
 
 /// One branch's answer to "is today covered?".
 class TodayCoverage {

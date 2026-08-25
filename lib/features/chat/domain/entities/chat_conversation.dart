@@ -1,4 +1,4 @@
-/// A direct (1:1) chat conversation between two DROP users — the client mirror
+/// A direct (1:1) chat conversation between two OpsHub users — the client mirror
 /// of the backend's `ConversationResponseDto` (`drop-api` ·
 /// `chat/conversations/interface/http/dto/conversation-response.dto.ts`).
 ///
@@ -57,7 +57,7 @@ class ChatConversationSummary {
   /// [counterpartExternalId] to look up the real profile.
   final String counterpartUserId;
 
-  /// The counterpart's DROP user id (Firebase uid), so the client can resolve
+  /// The counterpart's OpsHub user id (Firebase uid), so the client can resolve
   /// the real name/avatar/role from its own directory. Null if the backend
   /// hasn't provisioned the counterpart yet.
   final String? counterpartExternalId;

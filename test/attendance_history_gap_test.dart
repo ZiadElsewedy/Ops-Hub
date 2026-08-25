@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_status_filter.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_history_gap.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/core/enums/attendance_status_filter.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_gap.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
 
 /// The reported bug, exactly: an admin searched "ziad", the summary strip said
 /// **1 Absent**, and the list underneath said **"No matches — try widening the

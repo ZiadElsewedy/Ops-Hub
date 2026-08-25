@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/animated_drop_logo.dart';
-import 'package:drop/core/widgets/app_sidebar.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
-import 'package:drop/core/widgets/role_scaffold.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/core/widgets/app_sidebar.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
+import 'package:opshub/core/widgets/opshub_wordmark.dart';
+import 'package:opshub/core/widgets/role_scaffold.dart';
+import 'package:opshub/features/auth/presentation/widgets/auth_scaffold.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
-/// Brand-rollout chrome checks (2026-07-02): the real DROP artwork
-/// (`assets/drop_logo.png`, via [DropLogo]) must lead the role-home app bar,
+/// Brand-rollout chrome checks (2026-07-02): the real OpsHub artwork
+/// (`assets/opshub_icon.svg`, via [OpsHubLogo]) must lead the role-home app bar,
 /// the desktop sidebar lockup, and close every mobile [AdaptiveScaffold] app
 /// bar — so the brand is present on the homepage and all migrated screens.
 
@@ -43,14 +46,14 @@ UserEntity _employee() => const UserEntity(
 void main() {
   // The default 800×600 test surface is below the 1024 desktop breakpoint,
   // so AdaptiveScaffold/RoleScaffold render their MOBILE chrome here.
-  testWidgets('AdaptiveScaffold mobile app bar carries the DROP mark',
+  testWidgets('AdaptiveScaffold mobile app bar carries the OpsHub mark',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: AdaptiveScaffold(title: 'Tasks', body: SizedBox()),
     ));
 
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.byType(DropLogo)),
+      find.descendant(of: find.byType(AppBar), matching: find.byType(OpsHubLogo)),
       findsOneWidget,
     );
   });
@@ -64,7 +67,28 @@ void main() {
       ),
     ));
 
-    expect(find.byType(DropLogo), findsNothing);
+    expect(find.byType(OpsHubLogo), findsNothing);
+  });
+
+  testWidgets(
+      'AuthScaffold gate pages carry the OpsHub lockup (mark + name) in the app bar',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: AuthScaffold(child: SizedBox()),
+    ));
+
+    // The lockup carries both the glyph and the written "OpsHub" wordmark.
+    final lockup = find.descendant(
+        of: find.byType(AppBar), matching: find.byType(OpsHubLockup));
+    expect(lockup, findsOneWidget);
+    expect(
+      find.descendant(of: lockup, matching: find.byType(OpsHubLogo)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: lockup, matching: find.byType(OpsHubWordmark)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('AppSidebar brand header uses the static real logo artwork',
@@ -88,26 +112,26 @@ void main() {
       ),
     ));
 
-    expect(find.byType(DropLogo), findsOneWidget);
-    expect(find.byType(AnimatedDropLogo), findsNothing);
+    expect(find.byType(OpsHubLogo), findsOneWidget);
+    expect(find.byType(AnimatedOpsHubLogo), findsNothing);
   });
 
-  testWidgets('AnimatedDropLogo renders the artwork and loops without error',
+  testWidgets('AnimatedOpsHubLogo renders the artwork and loops without error',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(
-      home: Scaffold(body: Center(child: AnimatedDropLogo(height: 60))),
+      home: Scaffold(body: Center(child: AnimatedOpsHubLogo(height: 60))),
     ));
 
-    expect(find.byType(DropLogo), findsOneWidget);
+    expect(find.byType(OpsHubLogo), findsOneWidget);
     // The shimmer repeats forever (pumpAndSettle would hang) — step through
     // more than one full 3200ms cycle to prove the loop is well-behaved.
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 1500));
     await tester.pump(const Duration(milliseconds: 3300));
-    expect(find.byType(AnimatedDropLogo), findsOneWidget);
+    expect(find.byType(AnimatedOpsHubLogo), findsOneWidget);
   });
 
-  testWidgets('RoleScaffold home app bar leads with the DROP lockup',
+  testWidgets('RoleScaffold home app bar leads with the OpsHub lockup',
       (tester) async {
     final auth = _FakeAuthCubit(_employee());
     final notifications = _FakeNotificationCubit();
@@ -126,22 +150,21 @@ void main() {
       ),
     ));
 
+    // The home app bar leads with the brand lockup — glyph + "OpsHub" name.
+    final lockup = find.descendant(
+        of: find.byType(AppBar), matching: find.byType(OpsHubLockup));
+    expect(lockup, findsOneWidget);
     expect(
-      find.descendant(of: find.byType(AppBar), matching: find.byType(DropLogo)),
+      find.descendant(of: lockup, matching: find.byType(OpsHubLogo)),
       findsOneWidget,
     );
-    // The role word is no longer drawn beside the mark — it was the first thing
-    // a crowded action cluster truncated ("Mana…") and each home's hero already
-    // names the user and their scope. It survives as the bar's accessible label.
-    expect(find.text('Dashboard'), findsNothing);
     expect(
-      tester.getSemantics(
-        find.descendant(
-          of: find.byType(AppBar),
-          matching: find.byType(DropLogo),
-        ),
-      ),
-      matchesSemantics(label: 'Dashboard', isHeader: true, isImage: true),
+      find.descendant(of: lockup, matching: find.byType(OpsHubWordmark)),
+      findsOneWidget,
     );
+    // The role word is not drawn as visible text (the wordmark reads "OpsHub"),
+    // but it survives as the bar's accessible label for screen readers.
+    expect(find.text('Dashboard'), findsNothing);
+    expect(find.bySemanticsLabel('Dashboard'), findsOneWidget);
   });
 }

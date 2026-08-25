@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/branch/domain/branch_geofence.dart';
-import 'package:drop/features/schedule/domain/swap_policy.dart';
+import 'package:opshub/features/branch/domain/branch_geofence.dart';
+import 'package:opshub/features/schedule/domain/swap_policy.dart';
 
 part 'branch_entity.freezed.dart';
 

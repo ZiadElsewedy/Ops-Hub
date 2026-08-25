@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/features/cases/domain/repositories/case_repository.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/features/cases/domain/repositories/case_repository.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 /// Uploads one media file (image / video) for a case and returns the resolved
 /// [TaskAttachment] (id, download url, type, uploader, time).

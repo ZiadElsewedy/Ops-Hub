@@ -1,7 +1,7 @@
-import 'package:drop/core/enums/attendance_location_policy.dart';
-import 'package:drop/features/attendance/domain/attendance_config.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/core/enums/attendance_location_policy.dart';
+import 'package:opshub/features/attendance/domain/attendance_config.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
 
 /// The attendance module's **policy seam** — the single place that answers
 /// "*is attendance on for this user, and with what rules?*". Pure + framework-free.

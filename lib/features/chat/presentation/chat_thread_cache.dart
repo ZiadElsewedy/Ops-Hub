@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:drop/core/enums/chat_message_type.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/chat/data/local/chat_local_datasource.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/core/enums/chat_message_type.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/chat/data/local/chat_local_datasource.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
 
 /// The confirmed, server-authoritative state of one thread, kept for instant
 /// re-open. [messages] holds only what has actually come back from the backend

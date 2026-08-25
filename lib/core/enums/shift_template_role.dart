@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
 
 /// The standing role a shift template plays in a branch's week (Schedule V2 ·
 /// Pillar 5). The three non-[custom] roles map exactly onto the slots the old

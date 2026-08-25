@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/animated_count.dart';
-import 'package:drop/core/widgets/app_empty_state.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/core/widgets/live_list_item.dart';
-import 'package:drop/core/widgets/responsive_card_grid.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/work_types/task_work_x.dart';
-import 'package:drop/features/task/domain/work_types/work_review.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/widgets/manager_task_card.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/animated_count.dart';
+import 'package:opshub/core/widgets/app_empty_state.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/list_skeleton.dart';
+import 'package:opshub/core/widgets/live_list_item.dart';
+import 'package:opshub/core/widgets/responsive_card_grid.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/work_types/task_work_x.dart';
+import 'package:opshub/features/task/domain/work_types/work_review.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/cubit/task_state.dart';
+import 'package:opshub/features/task/presentation/widgets/manager_task_card.dart';
 
 /// The admin **Pending Review** flow (refactor §1).
 ///

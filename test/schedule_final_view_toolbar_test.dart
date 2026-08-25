@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/presentation/pages/schedule_final_view.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/presentation/pages/schedule_final_view.dart';
 
 /// The Final View is a **desktop PNG export preview** — a 1600px-wide landscape
 /// print canvas — but it is reachable on a phone, where its toolbar used to lay

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// DROP THE SHOP color system — strictly **monochrome**: black, white and
+/// OpsHub color system — strictly **monochrome**: black, white and
 /// neutral greys. There is **no chromatic brand color**; the "accent"
 /// ([primary]) is white on the near-black UI, used for primary actions, focus
 /// states, the active bottom-nav tab, and small highlights. The only colored

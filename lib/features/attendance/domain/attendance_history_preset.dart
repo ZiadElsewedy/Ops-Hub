@@ -1,11 +1,11 @@
-import 'package:drop/core/enums/attendance_status_filter.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/core/enums/attendance_status_filter.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
 
 /// A curated one-tap **quick view** over the attendance ledger — the answer to a
 /// question a manager (or an employee, on their own history) asks often, as a
 /// single chip instead of setting a date range and status facets by hand.
 ///
-/// Deliberately curated, not user-saved: DROP favours *signal over volume*
+/// Deliberately curated, not user-saved: OpsHub favours *signal over volume*
 /// ([ADR-010](../../../docs/decisions/ADR-010-lean-over-enterprise.md)), so this
 /// is a short, fixed set of the views that actually get used, not a filter-builder
 /// with persistence. A preset only ever sets a **date range** and a **status set**

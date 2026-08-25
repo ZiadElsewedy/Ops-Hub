@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// Visual weight of a [PremiumButton].
 enum PremiumButtonStyle {
@@ -16,7 +16,7 @@ enum PremiumButtonStyle {
 }
 
 /// **PremiumButton** — the canonical **compact, inline** action button of the
-/// DROP component system (label + optional icon, press-scale feedback). It fills
+/// OpsHub component system (label + optional icon, press-scale feedback). It fills
 /// the niche previously served by ad-hoc per-card buttons (`TaskActionButton`,
 /// the employee-home `_ActionButton`, …) so card actions share one button
 /// instead of re-declaring `TextButton.styleFrom` everywhere.

@@ -5,7 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// **ConnectivityService** — is there a *usable* connection right now?
 ///
-/// DROP is an online-first operations tool: the app refuses to open without a
+/// OpsHub is an online-first operations tool: the app refuses to open without a
 /// connection (see `ConnectivityGate`). That makes a false "online" the
 /// expensive answer, so this deliberately does **not** trust
 /// `connectivity_plus` on its own — that reports the network *interface*, so a

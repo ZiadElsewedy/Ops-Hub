@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/domain/entities/case_identity.dart';
-import 'package:drop/features/cases/domain/entities/case_message.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_identity.dart';
+import 'package:opshub/features/cases/domain/entities/case_message.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 /// Contract for Case Management data access. The branch/role access model is
 /// enforced server-side by `firestore.rules` (admin: all cases · manager: own

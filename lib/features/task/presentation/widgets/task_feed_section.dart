@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/services/usage_tracker.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_count.dart';
-import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/live_list_item.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/active_window.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/widgets/task_feed_expansion.dart';
-import 'package:drop/features/task/presentation/widgets/task_feed_row.dart';
-import 'package:drop/features/task/presentation/widgets/task_preview_sheet.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/services/usage_tracker.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/animated_count.dart';
+import 'package:opshub/core/widgets/app_search_field.dart';
+import 'package:opshub/core/widgets/live_list_item.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/active_window.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/cubit/task_state.dart';
+import 'package:opshub/features/task/presentation/widgets/task_feed_expansion.dart';
+import 'package:opshub/features/task/presentation/widgets/task_feed_row.dart';
+import 'package:opshub/features/task/presentation/widgets/task_preview_sheet.dart';
 
 /// The **global active-task feed** on the homepage (Home Dashboard redesign,
 /// P2). A self-contained widget over the app-wide [TaskCubit] stream — no new

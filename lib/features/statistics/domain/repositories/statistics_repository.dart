@@ -1,4 +1,4 @@
-import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
+import 'package:opshub/features/statistics/domain/entities/statistics_entity.dart';
 
 /// Contract for operational statistics (Phase 6). Each method is scoped to a
 /// role: admin = global, manager = own branch, employee = own data.

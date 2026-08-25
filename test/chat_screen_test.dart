@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/widgets/app_empty_state.dart';
-import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/domain/entities/chat_read_receipt.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
-import 'package:drop/features/chat/domain/usecases/get_conversations.dart';
-import 'package:drop/features/chat/domain/usecases/start_conversation.dart';
-import 'package:drop/features/chat/presentation/chat_format.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_list_cubit.dart';
-import 'package:drop/features/chat/presentation/pages/chat_screen.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_conversation_tile.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/widgets/app_empty_state.dart';
+import 'package:opshub/core/widgets/app_search_field.dart';
+import 'package:opshub/features/chat/domain/entities/chat_attachment_download.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/domain/entities/chat_read_receipt.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/usecases/get_conversations.dart';
+import 'package:opshub/features/chat/domain/usecases/start_conversation.dart';
+import 'package:opshub/features/chat/presentation/chat_format.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_list_cubit.dart';
+import 'package:opshub/features/chat/presentation/pages/chat_screen.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_conversation_tile.dart';
 
 /// List-endpoint-only fake — every other repository call is out of scope for
 /// the inbox screen and throws if reached.

@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="assets/drop_wordmark.png" alt="DROP" width="160" />
+<img src="assets/icon/opshub_app_icon.png" alt="OpsHub" width="120" />
 
-# Drop Operations
+# OpsHub
 
-**Role-based branch &amp; shift operations for _DROP THE SHOP_.**
+**Role-based, multi-branch operations management — for any business.**
 
 Task assignment with proof · GPS attendance · weekly scheduling &amp; shift swaps · approvals · branch administration · live operations dashboards.
 
@@ -12,11 +12,11 @@ Task assignment with proof · GPS attendance · weekly scheduling &amp; shift sw
 
 ![Platforms](https://img.shields.io/badge/Platforms-iOS%20%C2%B7%20Android%20%C2%B7%20macOS-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Flutter](https://img.shields.io/badge/Flutter-Dart%20%5E3.12-1E1E24?style=flat-square&labelColor=0A0A0B)
-![State](https://img.shields.io/badge/State-flutter__bloc%20%28Cubits%29-1E1E24?style=flat-square&labelColor=0A0A0B)
+![State](https://img.shields.io/badge/State-flutter__bloc%20(Cubits)-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Backend](https://img.shields.io/badge/Backend-Firebase-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Architecture](https://img.shields.io/badge/Architecture-Clean%20%C2%B7%20feature--sliced-1E1E24?style=flat-square&labelColor=0A0A0B)
-![Design](https://img.shields.io/badge/Design-Monochrome%20%C2%B7%20dark-1E1E24?style=flat-square&labelColor=0A0A0B)
-![Tests](https://img.shields.io/badge/Tests-1665%20%C2%B7%20~40s-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Design](https://img.shields.io/badge/Design-Monochrome%20%C2%B7%20dark%20%C2%B7%20animated-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Tests](https://img.shields.io/badge/Tests-1963%20%C2%B7%20~40s-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Access](https://img.shields.io/badge/Access-Private%20%C2%B7%20internal-1E1E24?style=flat-square&labelColor=0A0A0B)
 
 </div>
@@ -25,9 +25,10 @@ Task assignment with proof · GPS attendance · weekly scheduling &amp; shift sw
 
 ## Overview
 
-**Drop Operations** is an internal, **role-based operations tool** — not a SaaS product. It has
-no public sign-up and no buyers, only a small, known set of staff across a handful of
-branches. Three roles run the whole system:
+**OpsHub** is a **role-based operations management platform for multi-branch
+businesses** — one app to run tasks, attendance, scheduling, approvals, and
+communications across every branch. It is deployed as an internal tool: access is
+**admin-provisioned**, with no public sign-up. Three roles run the whole system:
 
 | Role | Scope |
 | --- | --- |
@@ -48,24 +49,22 @@ role home**.
 
 <table>
   <tr>
-    <td width="33%" align="center"><img src="docs/screenshots/splash.png" alt="Splash" /><br/><sub><b>Launch</b> · branded intro</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/login.png" alt="Login" /><br/><sub><b>Login</b> · admin-provisioned sign-in</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/employee-home.png" alt="Employee Home" /><br/><sub><b>Employee Home</b> · shift, tasks & clock-in</sub></td>
-  </tr>
-  <tr>
+    <td width="33%" align="center"><img src="docs/screenshots/splash.png" alt="Splash" /><br/><sub><b>Launch</b> · the branded cold start</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/employee-home.png" alt="Employee Home" /><br/><sub><b>Employee Home</b> · shift, tasks &amp; clock-in</sub></td>
     <td width="33%" align="center"><img src="docs/screenshots/my-tasks.png" alt="My Tasks" /><br/><sub><b>My Tasks</b> · active · late · missed · done</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/task-detail.png" alt="Task detail" /><br/><sub><b>Task Detail</b> · status timeline & activity</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/attendance.png" alt="Attendance" /><br/><sub><b>Attendance</b> · GPS-gated clock in/out</sub></td>
   </tr>
   <tr>
-    <td width="33%" align="center"><img src="docs/screenshots/new-request.png" alt="New Request" /><br/><sub><b>New Request</b> · pick an approval type</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/requests.png" alt="Requests" /><br/><sub><b>Requests</b> · pending / approved / rejected</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/branch-sales.png" alt="Branch sales" /><br/><sub><b>Branch Sales</b> · monthly target & pace</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/branch-sales.png" alt="Branch sales" /><br/><sub><b>Branch Sales</b> · monthly target &amp; pace</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/manager-home.png" alt="Manager Home" /><br/><sub><b>Manager Home</b> · today at a glance</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/new-task.png" alt="New Task" /><br/><sub><b>New Task</b> · compose the work</sub></td>
   </tr>
   <tr>
-    <td width="33%" align="center"><img src="docs/screenshots/admin-home.png" alt="Admin Home" /><br/><sub><b>Admin Command Center</b> · cross-branch</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/attendance-board.png" alt="Attendance board" /><br/><sub><b>Attendance Board</b> · present · late · absent</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/activity-feed.png" alt="Activity feed" /><br/><sub><b>Recent Activity</b> · live operations feed</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/admin-tasks.png" alt="Task Management" /><br/><sub><b>Task Management</b> · cross-branch command</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/branch-schedules.png" alt="Branch Schedules" /><br/><sub><b>Branch Schedules</b> · weekly roster &amp; swaps</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/admin-home.png" alt="Admin Home" /><br/><sub><b>Admin Command Center</b> · manage everything</sub></td>
+  </tr>
+  <tr>
+    <td width="33%" align="center"><img src="docs/screenshots/my-schedule.png" alt="My Schedule" /><br/><sub><b>My Schedule</b> · the week ahead</sub></td>
   </tr>
 </table>
 
@@ -73,7 +72,7 @@ role home**.
 
 ## Design philosophy
 
-DROP is deliberately **lean but premium**. The rules below are load-bearing — most are
+OpsHub is deliberately **lean but premium**. The rules below are load-bearing — most are
 backed by an [Architecture Decision Record](docs/decisions/).
 
 - **Workflow over architecture. UX over feature count.** Default to *deletion* — the burden
@@ -82,6 +81,11 @@ backed by an [Architecture Decision Record](docs/decisions/).
 - **Premium, not minimal.** Strictly **monochrome, dark-mode-only**. White is the only
   accent; colour is reserved for `success` / `error` / `warning` / `info` **status**. Calm
   comes from a 4-step grey ramp and hierarchy, not from stripping things out.
+- **The brand is an experience, not a logo.** A cinematic cold start — splash, then the
+  pre-login **landing page** (hero mark, positioning, live app showcase) — sets the tone
+  before any credentials appear. The hub mark, the tracked `OPERATIONS` line, and restrained
+  light-sweep motion carry through every surface: launcher icon, auth, chrome, and page
+  entrances.
 - **Simple &gt; clever. Stability &gt; perfection.** No abstraction without a second caller; 90%
   done with **zero regressions** beats 100% done with risk.
 - **Every state is a finished state.** Empty, loading, error, and offline each have a
@@ -132,7 +136,7 @@ backed by an [Architecture Decision Record](docs/decisions/).
 
 **Clean Architecture, sliced by feature.** The dependency rule always points **inward** —
 `presentation → domain ← data`. `domain/` is pure Dart and imports neither Flutter nor
-Firebase, which is why the full **1665-test** suite runs in **~40s** with no Firebase and no
+Firebase, which is why the full **1963-test** suite runs in **~40s** with no Firebase and no
 live backend: the business rules are pure functions.
 
 ```mermaid
@@ -178,8 +182,12 @@ dart run build_runner build --delete-conflicting-outputs
 
 ```bash
 flutter analyze     # expect: clean (1 pre-existing info)
-flutter test        # expect: 1665 pass, 0 fail — any red is a real regression
+flutter test        # expect: 1963 tests, all green
 ```
+
+> A handful of sales-dashboard / overlay widget tests are **date-sensitive** (they judge
+> month pace) and can read red in the final days of a month — confirm they fail on a clean
+> checkout too before treating a red as your regression.
 
 If you touch `firestore.rules`, also run the rules suite (the Dart tests never evaluate a
 rule):
@@ -234,20 +242,18 @@ in the same task.
 
 ## Project identity
 
-The repository folder is **`Drop-operations`**; the Dart package is **`drop`** (every import
-is `package:drop/…`). Two user-facing names, split by surface:
+The repository folder on disk is **`OpsHub-operations`**; the Dart package is
+**`opshub`** (every import is `package:opshub/…`). The product has a single user-facing
+name, **`OpsHub`**, used everywhere — the OS launcher/window label on every platform,
+the in-app wordmark, splash, About, notifications, and all in-app copy.
 
-- **`Drop Ops`** — the short **OS label** the operating system shows (launcher, window title,
-  app-switcher).
-- **`Drop Operations`** — the full name used **everywhere inside** the app (wordmark, splash,
-  About, notifications, in-app copy).
-
-Platform bundle identifier is **`com.ziad.drop`** (iOS/macOS); Android/Linux use the
-`dropoperation` form.
+Platform **bundle identifiers are deliberately unchanged** — `com.ziad.drop` (iOS/macOS)
+and `com.example.dropoperation` (Android) — because they are registered with Firebase;
+renaming them requires re-registering the apps in the Firebase console first.
 
 > This is a private package (`publish_to: none`) and is **not** distributed on pub.dev.
 
 <div align="center">
 <br/>
-<sub>Built with Flutter · Firebase · Clean Architecture — for DROP THE SHOP.</sub>
+<sub>Built with Flutter · Firebase · Clean Architecture.</sub>
 </div>

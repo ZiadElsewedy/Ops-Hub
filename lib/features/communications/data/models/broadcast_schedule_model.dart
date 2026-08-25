@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/enums/broadcast_audience.dart';
-import 'package:drop/core/enums/broadcast_category.dart';
-import 'package:drop/core/enums/broadcast_recurrence.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_schedule_entity.dart';
+import 'package:opshub/core/enums/broadcast_audience.dart';
+import 'package:opshub/core/enums/broadcast_category.dart';
+import 'package:opshub/core/enums/broadcast_recurrence.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_schedule_entity.dart';
 
 /// Firestore (de)serialization for [BroadcastScheduleEntity] — collection
 /// `broadcastSchedules/{id}`. Hand-written like the project's other models.

@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/core/extensions/firestore_extensions.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/core/extensions/firestore_extensions.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
 
 class DailySalesSubmissionModel {
   const DailySalesSubmissionModel({

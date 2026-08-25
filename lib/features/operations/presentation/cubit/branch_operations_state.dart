@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/operations/domain/branch_workload.dart';
-import 'package:drop/features/operations/domain/shift_filter.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/operations/domain/branch_workload.dart';
+import 'package:opshub/features/operations/domain/shift_filter.dart';
 
 part 'branch_operations_state.freezed.dart';
 

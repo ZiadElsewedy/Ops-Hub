@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/rolling_number.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/sales_branch_scope.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_admin_overview_cubit.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_progress_ring.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/rolling_number.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/sales_branch_scope.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_admin_overview_cubit.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_progress_ring.dart';
 
 /// Admin Home: how much each opted-in branch has achieved this month.
 ///

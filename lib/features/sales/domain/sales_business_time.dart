@@ -1,4 +1,4 @@
-/// DROP's pinned business timezone for sales accounting keys.
+/// OpsHub's pinned business timezone for sales accounting keys.
 const salesBusinessTimeZone = 'Africa/Cairo';
 
 /// Converts an instant to Cairo civil time without a timezone package. Egypt's

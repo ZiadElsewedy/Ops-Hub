@@ -1,18 +1,18 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/shift_hours_scope.dart';
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/repositories/shift_template_repository.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/shift_hours_scope.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/repositories/shift_template_repository.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
 import 'schedule_state.dart';
 
 /// Drives the weekly-schedule view for managers (own branch), admins (any
@@ -166,8 +166,10 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   }
 
   /// Drag-to-move (Schedule 3.0): reassign [uid] from one slot to another in
-  /// a single busy cycle. Assign to the target FIRST, then release the source
-  /// — if the assign fails the person never leaves their original shift.
+  /// a single busy cycle, **atomically** — the repository moves the person in one
+  /// commit, so a failure can never leave them in both slots (double-booked) or
+  /// in neither. (This replaced a separate assign-then-remove pair whose partial
+  /// failure double-booked the person while the UI reported failure.)
   Future<bool> move({
     required ScheduleDay fromDay,
     required ScheduleShift fromShift,
@@ -178,20 +180,14 @@ class ScheduleCubit extends Cubit<ScheduleState> {
   }) async {
     if (fromDay == toDay && fromShift == toShift) return false;
     final scheduleId = ScheduleWeek.docId(_branchId, _weekStart);
-    final ok = await _mutate(() async {
-      await _repository.assignEmployee(
-        scheduleId: scheduleId,
-        day: toDay,
-        shift: toShift,
-        employeeId: uid,
-      );
-      await _repository.removeEmployee(
-        scheduleId: scheduleId,
-        day: fromDay,
-        shift: fromShift,
-        employeeId: uid,
-      );
-    });
+    final ok = await _mutate(() => _repository.moveEmployee(
+          scheduleId: scheduleId,
+          fromDay: fromDay,
+          fromShift: fromShift,
+          toDay: toDay,
+          toShift: toShift,
+          employeeId: uid,
+        ));
     if (ok && recordUndo) {
       _recordUndo(() => move(
             fromDay: toDay,
@@ -207,9 +203,9 @@ class ScheduleCubit extends Cubit<ScheduleState> {
 
   /// Chip-onto-chip drag (Schedule 3.1): two people trade slots in a single
   /// busy cycle — [uidA] (from A's slot) takes B's slot and [uidB] takes A's.
-  /// Same safety order as [move]: both are assigned to their NEW slots first,
-  /// then released from the old ones — a failed assign never strands anyone
-  /// off the schedule.
+  /// **Atomic** in the repository (all-or-nothing): the previous version issued
+  /// four separate writes whose mid-sequence failure could double-book either
+  /// person in two slots while the UI reported failure.
   Future<bool> exchange({
     required ScheduleDay dayA,
     required ScheduleShift shiftA,
@@ -223,16 +219,15 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     if (uidA == uidB) return false;
     if (dayA == dayB && shiftA == shiftB) return false;
     final scheduleId = ScheduleWeek.docId(_branchId, _weekStart);
-    final ok = await _mutate(() async {
-      await _repository.assignEmployee(
-          scheduleId: scheduleId, day: dayB, shift: shiftB, employeeId: uidA);
-      await _repository.assignEmployee(
-          scheduleId: scheduleId, day: dayA, shift: shiftA, employeeId: uidB);
-      await _repository.removeEmployee(
-          scheduleId: scheduleId, day: dayA, shift: shiftA, employeeId: uidA);
-      await _repository.removeEmployee(
-          scheduleId: scheduleId, day: dayB, shift: shiftB, employeeId: uidB);
-    });
+    final ok = await _mutate(() => _repository.exchangeEmployees(
+          scheduleId: scheduleId,
+          dayA: dayA,
+          shiftA: shiftA,
+          uidA: uidA,
+          dayB: dayB,
+          shiftB: shiftB,
+          uidB: uidB,
+        ));
     if (ok && recordUndo) {
       // An exchange is self-inverse: trade the (now swapped) slots back.
       _recordUndo(() => exchange(
@@ -374,8 +369,13 @@ class ScheduleCubit extends Cubit<ScheduleState> {
     } on Failure catch (e) {
       _loadedAt = null;
       emit(ScheduleState.error(e.message));
-    } catch (_) {
+    } catch (e, st) {
+      // Don't swallow the diagnostic: an UNEXPECTED load failure (a model-parse
+      // bug, a type error) used to vanish behind the generic message with no
+      // trace. Keep the friendly message for the user, but log the real cause +
+      // stack so it is debuggable.
       _loadedAt = null;
+      AppLog.error('schedule', 'unexpected error loading the schedule', e, st);
       emit(const ScheduleState.error('Failed to load the schedule.'));
     }
   }
@@ -418,7 +418,11 @@ class ScheduleCubit extends Cubit<ScheduleState> {
       emit(ScheduleState.error(e.message));
       emit(prev);
       return false;
-    } catch (_) {
+    } catch (e, st) {
+      // As in [_emitLoaded]: surface a friendly message but log the real cause +
+      // stack instead of discarding it, so an unexpected write failure is not
+      // invisible to diagnostics.
+      AppLog.error('schedule', 'unexpected error during a roster edit', e, st);
       emit(const ScheduleState.error('Something went wrong. Please try again.'));
       emit(prev);
       return false;

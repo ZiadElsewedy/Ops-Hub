@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_template_entity.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_template_entity.dart';
 
 part 'broadcast_template_state.freezed.dart';
 

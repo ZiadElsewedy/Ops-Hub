@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
 
 /// The shift lens applied on the Branch Operations cockpit — `[ All ][ Morning ]
 /// [ Night ]`. It is *not* a navigation step (no shift screen); it's a filter

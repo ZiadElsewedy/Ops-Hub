@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/communications/domain/template_renderer.dart';
+import 'package:opshub/features/communications/domain/template_renderer.dart';
 
 /// Phase 2 — the pure `{{placeholder}}` rendering engine.
 void main() {

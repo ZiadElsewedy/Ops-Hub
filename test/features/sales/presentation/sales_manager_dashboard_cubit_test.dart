@@ -1,20 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/entities/sales_record_result.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
-import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/edit_approved_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/record_daily_sales.dart';
-import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/request_sales_correction.dart';
-import 'package:drop/features/sales/domain/usecases/set_branch_monthly_target.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/entities/sales_record_result.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/features/sales/domain/usecases/approve_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/edit_approved_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/record_daily_sales.dart';
+import 'package:opshub/features/sales/domain/usecases/reject_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/request_sales_correction.dart';
+import 'package:opshub/features/sales/domain/usecases/set_branch_monthly_target.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
 
 /// A minimal [SalesRepository] fake: controllable read streams + call recording
 /// on the write path. The dashboard cubit only touches these members.

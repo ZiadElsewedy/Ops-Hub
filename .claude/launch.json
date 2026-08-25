@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "DROP-web",
+      "name": "OpsHub-web",
       "runtimeExecutable": "flutter",
       "runtimeArgs": ["run", "-d", "web-server", "--web-port", "8099", "--web-hostname", "127.0.0.1"],
       "port": 8099

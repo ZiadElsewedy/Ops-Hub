@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// A realtime-list item wrapper: it **enters once** (fade + a slight rise) when
 /// it first appears and never replays on a parent rebuild — so a stream emit that

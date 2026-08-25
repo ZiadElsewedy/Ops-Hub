@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/live_list_item.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/task/domain/active_window.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/widgets/task_activity_card.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/live_list_item.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/task/domain/active_window.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/cubit/task_state.dart';
+import 'package:opshub/features/task/presentation/widgets/task_activity_card.dart';
 
-/// **RecentActivityFeed** — the dashboard's "what's happening" layer (DROP Design
+/// **RecentActivityFeed** — the dashboard's "what's happening" layer (OpsHub Design
 /// System V2). The calm, vertical replacement for the dense/filtered task feed on
 /// the home screen: the most recently-touched active tasks rendered as clean
 /// [TaskActivityCard]s, newest first, capped at [limit]. No filter chips, no

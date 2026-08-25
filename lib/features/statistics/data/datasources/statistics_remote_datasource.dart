@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/statistics/data/models/statistics_model.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/statistics/data/models/statistics_model.dart';
 
 typedef _Doc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
@@ -124,7 +124,7 @@ class StatisticsRemoteDataSourceImpl implements StatisticsRemoteDataSource {
 
       // Pure counts via server-side aggregation — no document downloads. All
       // are single-field filters (automatic indexes; no composite index).
-      // (The old user-approval `pendingApprovals` count was removed — DROP is
+      // (The old user-approval `pendingApprovals` count was removed — OpsHub is
       // admin-provisioned, so there is no approval queue.)
       final counts = await Future.wait([
         _aggCount(_users.where('role', isEqualTo: 'employee')),

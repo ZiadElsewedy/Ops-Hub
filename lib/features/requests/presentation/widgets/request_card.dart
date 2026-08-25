@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
-import 'package:drop/features/requests/presentation/request_format.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/presentation/request_format.dart';
 
 /// A single request row in the inbox — communicates, at a glance: type (icon +
 /// name), status, requester, branch, time, and the one-line message. Premium

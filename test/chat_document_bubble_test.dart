@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/chat/presentation/chat_message_preview.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_message_list.dart';
+import 'package:opshub/features/chat/presentation/chat_message_preview.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_message_list.dart';
 
 /// Pure-function coverage for the document-bubble helpers: the format → icon
 /// mapping (Part 6) and the human-readable size line.

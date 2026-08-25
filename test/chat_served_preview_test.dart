@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/chat/data/models/chat_conversation_model.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/presentation/chat_format.dart';
+import 'package:opshub/features/chat/data/models/chat_conversation_model.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/presentation/chat_format.dart';
 
 /// **The served last-message preview (FR-021).**
 ///

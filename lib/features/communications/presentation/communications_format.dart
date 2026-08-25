@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/broadcast_audience.dart';
-import 'package:drop/core/enums/broadcast_category.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
+import 'package:opshub/core/enums/broadcast_audience.dart';
+import 'package:opshub/core/enums/broadcast_category.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_entity.dart';
 
 /// Shared presentation formatting for the Communications Center — keeps the
 /// label / icon / colour mapping (and the monochrome "colour only for status"

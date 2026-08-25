@@ -3,11 +3,11 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/reporting/final_schedule_grid.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/reporting/final_schedule_grid.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
 
 /// The final weekly schedule as a **vector PDF** a manager can save and send —
 /// the print-native sibling of the on-screen `FinalScheduleSheet` and the Excel
@@ -42,7 +42,7 @@ Future<Uint8List> buildScheduleFinalPdf({
         alignment: pw.Alignment.centerRight,
         margin: const pw.EdgeInsets.only(top: 10),
         child: pw.Text(
-          'Drop Operations  ·  Page ${context.pageNumber} of ${context.pagesCount}',
+          'OpsHub  ·  Page ${context.pageNumber} of ${context.pagesCount}',
           style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
         ),
       ),
@@ -84,7 +84,7 @@ pw.Widget _header({
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
       pw.Text(
-        'Drop Operations',
+        'OpsHub',
         style: pw.TextStyle(
           fontSize: 9,
           fontWeight: pw.FontWeight.bold,

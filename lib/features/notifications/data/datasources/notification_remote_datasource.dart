@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/notifications/data/datasources/notification_sweep.dart';
-import 'package:drop/features/notifications/data/models/notification_model.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/notifications/data/datasources/notification_sweep.dart';
+import 'package:opshub/features/notifications/data/models/notification_model.dart';
 
 abstract class NotificationRemoteDataSource {
   /// Creates notifications via the validated `sendNotification` callable

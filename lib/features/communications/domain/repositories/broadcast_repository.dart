@@ -1,4 +1,4 @@
-import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_entity.dart';
 
 /// Contract for the Communications Center (Phase 1). The branch/role access
 /// model is enforced server-side by `firestore.rules` (`broadcasts/{id}`): admin

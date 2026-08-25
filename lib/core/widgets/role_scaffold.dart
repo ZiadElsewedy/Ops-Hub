@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/theme/phosphor_icons.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_bottom_nav.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/phosphor_icons.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_bottom_nav.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Shared chrome for every role's home dashboard (admin / manager / employee).
 ///
@@ -22,7 +22,7 @@ import 'package:drop/features/notifications/presentation/cubit/notification_stat
 ///   [AdaptiveScaffold] page header. No app bar, no bottom nav.
 /// * **Mobile / tablet** → the original chrome: a compact app bar
 ///   (notification bell + tappable avatar → the More/Settings hub, which holds
-///   Profile · Change Password · Sign Out) and the DROP bottom navigation bar
+///   Profile · Change Password · Sign Out) and the OpsHub bottom navigation bar
 ///   (Home · Tasks · Schedule · Chat). Chat opens the conversation inbox; the
 ///   list self-scopes and access is enforced server-side.
 class RoleScaffold extends StatelessWidget {
@@ -89,17 +89,17 @@ class RoleScaffold extends StatelessWidget {
         backgroundColor: AppColors.darkBg,
         elevation: 0,
         titleSpacing: 24,
-        // Brand lockup only — the real DROP artwork leads every role's home.
-        // The role word used to sit beside it and was the first thing the
-        // action cluster ate on a phone ("Mana…" on the manager, which has the
-        // most actions of any role). It was also redundant: each home opens
-        // with a hero that greets the user by name and names their scope, so
-        // the mark alone reads cleaner and never truncates. [title] still
-        // labels the bar for screen readers and titles the desktop header.
-        title: Semantics(
-          header: true,
-          label: title,
-          child: const DropLogo(height: 22),
+        // Brand lockup (mark + "OpsHub" name) leads every role's home. It is
+        // wrapped in a scale-down FittedBox so on a crowded bar (the manager has
+        // the most actions of any role) it shrinks as one unit rather than
+        // truncating the name to "OpsH…" — the exact failure the plain role
+        // word had here before. [title] (the role) is the lockup's accessible
+        // label and still titles the desktop header; each home's hero greets the
+        // user by name, so the bar never needs to spell the role visibly.
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: OpsHubLockup(height: 22, semanticLabel: title),
         ),
         actions: [
           // Communications Center — admin + manager only (employees can't access).
@@ -134,10 +134,11 @@ class RoleScaffold extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 16, left: 4),
             child: GestureDetector(
-              // The account hub (More/Settings) — Profile now lives here
-              // alongside Change Password and Sign Out, since the bottom nav's
-              // fourth slot became Chat.
-              onTap: () => context.push(RouteNames.settings),
+              // Tapping your picture opens your Profile directly. Settings
+              // (Change Password / Sign Out) stays one tap away via the gear in
+              // the Profile app bar — so nothing is stranded on mobile, where
+              // this avatar is the only entry into the account area.
+              onTap: () => context.push(RouteNames.profile),
               child: user != null
                   ? UserAvatar.fromUser(user,
                       size: 36,

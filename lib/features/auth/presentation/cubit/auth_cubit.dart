@@ -1,20 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/services/session_store.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/auth/domain/session_id.dart';
-import 'package:drop/features/auth/domain/usecases/sign_in_with_email.dart';
-import 'package:drop/features/auth/domain/usecases/sign_out.dart';
-import 'package:drop/features/auth/domain/usecases/get_user.dart';
-import 'package:drop/features/auth/domain/usecases/forgot_password.dart';
-import 'package:drop/features/auth/domain/usecases/change_password.dart';
-import 'package:drop/features/auth/domain/repositories/auth_repository.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/services/session_store.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/auth/domain/session_id.dart';
+import 'package:opshub/features/auth/domain/usecases/sign_in_with_email.dart';
+import 'package:opshub/features/auth/domain/usecases/sign_out.dart';
+import 'package:opshub/features/auth/domain/usecases/get_user.dart';
+import 'package:opshub/features/auth/domain/usecases/forgot_password.dart';
+import 'package:opshub/features/auth/domain/usecases/change_password.dart';
+import 'package:opshub/features/auth/domain/repositories/auth_repository.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 import 'auth_state.dart';
 
-/// Shown when a signed-in account has been deactivated by an admin. DROP is
+/// Shown when a signed-in account has been deactivated by an admin. OpsHub is
 /// admin-provisioned: access is gated solely by `isActive`.
 const String _disabledMessage =
     'This account has been disabled. Contact your administrator.';

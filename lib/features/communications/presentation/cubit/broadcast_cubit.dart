@@ -1,18 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/enums/broadcast_audience.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/communications/domain/broadcast_permissions.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
-import 'package:drop/features/communications/domain/repositories/broadcast_repository.dart';
-import 'package:drop/features/communications/domain/usecases/send_broadcast.dart';
-import 'package:drop/features/communications/presentation/cubit/broadcast_state.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/broadcast_audience.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/communications/domain/broadcast_permissions.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_entity.dart';
+import 'package:opshub/features/communications/domain/repositories/broadcast_repository.dart';
+import 'package:opshub/features/communications/domain/usecases/send_broadcast.dart';
+import 'package:opshub/features/communications/presentation/cubit/broadcast_state.dart';
 
 /// Drives the Communications Center. A **hybrid** cubit, matching `TaskCubit`:
 /// the write (`send`) goes through the [SendBroadcast] use case (→ the callable
@@ -287,7 +287,7 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     final name = user.displayName?.trim();
     if (name != null && name.isNotEmpty) return name;
     final email = user.email.trim();
-    return email.isNotEmpty ? email : 'Drop Operations';
+    return email.isNotEmpty ? email : 'OpsHub';
   }
 
   String _message(Object e) =>
@@ -313,6 +313,18 @@ class BroadcastCubit extends Cubit<BroadcastState> {
     } catch (_) {
       return const [];
     }
+  }
+
+  /// Drops the live broadcast feed and returns to [BroadcastState.initial]. This
+  /// cubit is an app-wide singleton (it outlives the session), so on sign-out /
+  /// single-active-session eviction its `watchBroadcasts` listener would keep
+  /// running against a signed-out user. Wired into
+  /// `AppDependencies.clearUserScopedState()`.
+  void reset() {
+    _sub?.cancel();
+    _sub = null;
+    _hasSnapshot = false;
+    if (!isClosed) emit(const BroadcastState.initial());
   }
 
   @override

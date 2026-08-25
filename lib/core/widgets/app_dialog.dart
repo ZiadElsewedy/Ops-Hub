@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// Shared confirmation dialog used for destructive / irreversible actions
 /// (delete, sign out, …). Centralises the chrome that was copy-pasted across

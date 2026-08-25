@@ -1,32 +1,32 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/enums/attendance_correction_kind.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/attendance/domain/attendance_board.dart';
-import 'package:drop/features/attendance/domain/attendance_config.dart';
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/attendance/domain/attendance_resolution.dart';
-import 'package:drop/features/attendance/domain/attendance_service.dart';
-import 'package:drop/features/attendance/domain/attendance_validation.dart';
-import 'package:drop/features/attendance/domain/attendance_write_outcome.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
-import 'package:drop/features/attendance/domain/usecases/decide_correction.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/domain/repositories/branch_repository.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/shift_window.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/attendance_correction_kind.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/attendance/domain/attendance_board.dart';
+import 'package:opshub/features/attendance/domain/attendance_config.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/attendance/domain/attendance_resolution.dart';
+import 'package:opshub/features/attendance/domain/attendance_service.dart';
+import 'package:opshub/features/attendance/domain/attendance_validation.dart';
+import 'package:opshub/features/attendance/domain/attendance_write_outcome.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/features/attendance/domain/usecases/decide_correction.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/repositories/branch_repository.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/shift_window.dart';
 import 'attendance_admin_state.dart';
 
 /// The **admin attendance dashboard** cubit — the schedule × attendance join for
@@ -589,6 +589,32 @@ class AttendanceAdminCubit extends Cubit<AttendanceAdminState> {
   bool _isReviewerRole(String uid) {
     final role = _roleByUid[uid];
     return role == UserRole.manager || role == UserRole.admin;
+  }
+
+  /// Drops both live streams + the minute tick and returns to
+  /// [AttendanceAdminState.initial]. This cubit is an app-wide singleton (it
+  /// outlives the session), so on sign-out / single-active-session eviction its
+  /// `watchBranchDay` + `watchBranchPendingCorrections` listeners would keep
+  /// running against a signed-out user — permission-denied noise and the
+  /// previous admin's roster leaking into the next session. Wired into
+  /// `AppDependencies.clearUserScopedState()`.
+  void reset() {
+    _tick?.cancel();
+    _tick = null;
+    _recordsSub?.cancel();
+    _recordsSub = null;
+    _correctionsSub?.cancel();
+    _correctionsSub = null;
+    _admin = null;
+    _branchId = null;
+    _businessDate = null;
+    _branches = const [];
+    _roster = const [];
+    _roleByUid = const {};
+    _records = const [];
+    _corrections = const [];
+    _deciding = false;
+    if (!isClosed) emit(const AttendanceAdminState.initial());
   }
 
   @override

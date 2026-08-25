@@ -1,15 +1,15 @@
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/chat/data/datasources/chat_remote_datasource.dart';
-import 'package:drop/features/chat/data/local/chat_local_datasource.dart';
-import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/domain/entities/chat_read_receipt.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/chat/data/datasources/chat_remote_datasource.dart';
+import 'package:opshub/features/chat/data/local/chat_local_datasource.dart';
+import 'package:opshub/features/chat/domain/entities/chat_attachment_download.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/domain/entities/chat_read_receipt.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
 
 /// [ChatRepository] backed by the NestJS API, with an optional Drift-backed
 /// offline cache ([ChatLocalDataSource]).

@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:socket_io_client/socket_io_client.dart' as io;
-import 'package:drop/core/network/api_client.dart' show AuthTokenProvider;
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/chat/data/realtime/chat_realtime_payloads.dart';
-import 'package:drop/features/chat/domain/chat_realtime.dart';
+import 'package:opshub/core/network/api_client.dart' show AuthTokenProvider;
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/chat/data/realtime/chat_realtime_payloads.dart';
+import 'package:opshub/features/chat/domain/chat_realtime.dart';
 
 /// [ChatRealtime] over Socket.IO — the client half of the backend's
 /// `ChatGateway` (`drop-api` · `chat/realtime/interface/socket/`, namespace

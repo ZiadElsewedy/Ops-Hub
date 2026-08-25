@@ -1,4 +1,4 @@
-# DROP — v1.0 Stable Release Plan
+# OpsHub — v1.0 Stable Release Plan
 
 > **The runbook for shipping v1.** Everything that must be true before the first
 > stable build reaches a real user, in the order it must happen.
@@ -231,7 +231,7 @@ deploy and did not. It now needs a rules deploy of its own: fix the rule, add a
 
 | Key | Problem |
 | --- | --- |
-| `CFBundleURLTypes` | Declares a **Google Sign-In** reversed-client-id URL scheme. DROP has no Google sign-in — auth is admin-provisioned email/password only. Dead config a reviewer may ask about. Delete. |
+| `CFBundleURLTypes` | Declares a **Google Sign-In** reversed-client-id URL scheme. OpsHub has no Google sign-in — auth is admin-provisioned email/password only. Dead config a reviewer may ask about. Delete. |
 | `NSAppTransportSecurity` | Allows `NSAllowsLocalNetworking` and insecure HTTP loads to `localhost` — the dev chat backend. Release builds are hard-locked to Railway HTTPS by `AppEnvironment`, so this buys nothing in production and weakens ATS. Remove for release. |
 | `NSPhotoLibraryAddUsageDescription` | **Missing.** The schedule and attendance exports hand a PNG/PDF to the iOS share sheet, where *Save Image* is offered — saving without this key **crashes the app**. Add it. |
 | `ITSAppUsesNonExemptEncryption` | Missing. Not a blocker; App Store Connect will prompt on every single upload until you set it (`false` for standard HTTPS-only use). |
@@ -252,18 +252,18 @@ deploy and did not. It now needs a rules deploy of its own: fix the rule, add a
 
 ### H6 · Decide the distribution channel — this changes the work
 
-DROP is an internal tool for one company: **no public registration, no demo
+OpsHub is an internal tool for one company: **no public registration, no demo
 account, nothing a reviewer can do without credentials.** A straight public App
 Store submission is very likely to be rejected under Guideline 2.1 unless you
 supply a working demo account in the App Review notes.
 
 | Option | iOS | Android | Fit |
 | --- | --- | --- | --- |
-| **Private/managed** *(recommended)* | Apple Business Manager **custom app** | **Managed Google Play** private app | Matches what DROP is. No public listing, no review theatre. |
+| **Private/managed** *(recommended)* | Apple Business Manager **custom app** | **Managed Google Play** private app | Matches what OpsHub is. No public listing, no review theatre. |
 | **Testing tracks** | TestFlight | Play **internal testing** | Fastest to first install. Fine if the team is small; TestFlight builds expire in 90 days. |
-| **Public stores** | App Store | Play production | Only if DROP will ever have outside users. Requires a demo account, full privacy/data-safety declarations, and public listing copy. |
+| **Public stores** | App Store | Play production | Only if OpsHub will ever have outside users. Requires a demo account, full privacy/data-safety declarations, and public listing copy. |
 
-Also note Apple **5.1.1(v)** (in-app account deletion): DROP has no in-app
+Also note Apple **5.1.1(v)** (in-app account deletion): OpsHub has no in-app
 account creation, which is the stated exemption — be ready to say so in review
 notes rather than being surprised by it.
 

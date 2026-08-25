@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/cases/domain/case_participation.dart';
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/domain/entities/case_message.dart';
-import 'package:drop/features/cases/presentation/case_format.dart';
-import 'package:drop/features/cases/presentation/cubit/case_conversation_cubit.dart';
-import 'package:drop/features/cases/presentation/cubit/case_conversation_state.dart';
-import 'package:drop/features/cases/presentation/cubit/case_list_cubit.dart';
-import 'package:drop/features/cases/presentation/widgets/case_composer.dart';
-import 'package:drop/features/cases/presentation/widgets/case_message_list.dart';
-import 'package:drop/features/cases/presentation/widgets/case_status_control.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/cases/domain/case_participation.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_message.dart';
+import 'package:opshub/features/cases/presentation/case_format.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_conversation_cubit.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_conversation_state.dart';
+import 'package:opshub/features/cases/presentation/cubit/case_list_cubit.dart';
+import 'package:opshub/features/cases/presentation/widgets/case_composer.dart';
+import 'package:opshub/features/cases/presentation/widgets/case_message_list.dart';
+import 'package:opshub/features/cases/presentation/widgets/case_status_control.dart';
 
 /// The shared conversation body — used identically by the desktop split-pane
 /// right side and the mobile detail screen. A top header (subject · sender ·

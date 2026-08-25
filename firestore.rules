@@ -112,7 +112,7 @@ service cloud.firestore {
     }
 
     // ── Users ──────────────────────────────────────────────────────
-    // DROP is ADMIN-PROVISIONED — there is no public registration. Accounts are
+    // OpsHub is ADMIN-PROVISIONED — there is no public registration. Accounts are
     // created server-side by the `createUserAccount` Cloud Function (Admin SDK,
     // which bypasses these rules), so clients can NEVER create a user document.
     // Self: read own doc + limited self-update (profile fields + the first-login
@@ -123,7 +123,7 @@ service cloud.firestore {
     // Admin: read/write everything — role, branch, (de)activation, position,
     //   employment status, password-reset flag.
     match /users/{uid} {
-      // READ IS FLAT: any signed-in user may read any user document. DROP is a
+      // READ IS FLAT: any signed-in user may read any user document. OpsHub is a
       // small internal roster and every member is directory-visible to every
       // other — chat's access model (anyone may message anyone) is the same
       // model, so it needs no rule of its own. This deliberately REPLACES the

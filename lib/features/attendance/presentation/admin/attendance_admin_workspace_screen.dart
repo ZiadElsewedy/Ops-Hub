@@ -2,24 +2,24 @@ import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/page_hero.dart';
-import 'package:drop/features/attendance/domain/reporting/admin_attendance_overview.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
-import 'package:drop/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart';
-import 'package:drop/features/attendance/presentation/admin/widgets/attendance_evidence_table.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
-import 'package:drop/core/widgets/skeleton.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/page_hero.dart';
+import 'package:opshub/features/attendance/domain/reporting/admin_attendance_overview.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/attendance/presentation/admin/admin_attendance_overview_cubit.dart';
+import 'package:opshub/features/attendance/presentation/admin/widgets/attendance_evidence_table.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
 
 /// **Admin Workspace** — where the attendance record is proved rather than
 /// operated (`ATTENDANCE_PRODUCT_REDESIGN_PLAN` §8).
@@ -523,7 +523,7 @@ class _Fact extends StatelessWidget {
 }
 
 // The payroll hand-off section lived here. ADR-019 removed it with the rest of
-// the payroll machinery: DROP is an operations system, nothing ingests a payroll
+// the payroll machinery: OpsHub is an operations system, nothing ingests a payroll
 // file, and an export nobody reads is worse than none. Managers export the
 // timesheet and the PDF from the weekly report itself.
 

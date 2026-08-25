@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/network/api_client.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/network/api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Scripted HTTP adapter — answers each request from [handler] without any

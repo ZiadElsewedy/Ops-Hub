@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_count.dart';
-import 'package:drop/core/widgets/glass_container.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/animated_count.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
 
 /// A small premium metric tile — an icon chip, a big value, a label and an
 /// optional trend/status footnote. Used across the dashboards (admin overview,

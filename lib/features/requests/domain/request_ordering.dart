@@ -1,4 +1,4 @@
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
 
 /// Inbox ordering for the requests list — an approval inbox, not a task board.
 /// Pure Dart, deterministic given the same inputs.

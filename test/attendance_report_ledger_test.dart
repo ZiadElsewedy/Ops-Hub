@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_calculator.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_exception.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_expectation.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_calculator.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_exception.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_expectation.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_report.dart';
 
 AttendanceLedgerRow _ledger({
   required String id,

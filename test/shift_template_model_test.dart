@@ -1,13 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/features/schedule/data/models/shift_template_model.dart';
-import 'package:drop/features/schedule/data/models/weekly_schedule_model.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/features/schedule/data/models/shift_template_model.dart';
+import 'package:opshub/features/schedule/data/models/weekly_schedule_model.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
 
 /// Schedule V2 · Pillar 5 — persistence: template (de)serialization and the
 /// **additive, backward-compatible** week snapshot (a legacy doc with no

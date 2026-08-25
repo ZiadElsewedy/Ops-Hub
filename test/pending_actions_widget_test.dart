@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/admin/presentation/widgets/pending_actions.dart';
+import 'package:opshub/features/admin/presentation/widgets/pending_actions.dart';
 
 /// Renders the Admin Home Pending Actions panel headlessly to prove it actually
 /// shows up (the earlier `if (count > 0)` gate made it vanish on empty data) and
 /// that each queue row is tappable and routes through its callback. (Employee
-/// approvals were removed — DROP is admin-provisioned, so there's no queue.)
+/// approvals were removed — OpsHub is admin-provisioned, so there's no queue.)
 void main() {
   Widget host(PendingActions p) => MaterialApp(
         home: Scaffold(body: SingleChildScrollView(child: p)),

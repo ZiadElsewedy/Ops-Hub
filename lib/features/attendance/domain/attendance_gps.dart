@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:drop/features/attendance/domain/attendance_location.dart';
+import 'package:opshub/features/attendance/domain/attendance_location.dart';
 
 /// Great-circle distance between two lat/lng points in **metres** (Haversine).
 /// Pure + framework-free, so the geofence decision is unit-testable and doesn't

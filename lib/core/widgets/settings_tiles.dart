@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/app_motion.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
 
 /// The **account-surface row vocabulary** — one grouped glass card, rows
 /// separated by an inset hairline, each row a 40px medallion + label +

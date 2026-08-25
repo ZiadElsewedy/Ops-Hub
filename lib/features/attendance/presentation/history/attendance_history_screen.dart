@@ -1,33 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/status_badge.dart';
-import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
-import 'package:drop/features/attendance/domain/attendance_history_gap.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
-import 'package:drop/features/attendance/presentation/history/attendance_history_cubit.dart';
-import 'package:drop/features/attendance/presentation/history/attendance_history_state.dart';
-import 'package:drop/features/attendance/presentation/history/widgets/attendance_history_filters.dart';
-import 'package:drop/features/attendance/presentation/history/widgets/attendance_history_summary.dart';
-import 'package:drop/features/attendance/presentation/reporting/attendance_report_cubit.dart';
-import 'package:drop/features/attendance/presentation/history/widgets/attendance_record_card.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/list_skeleton.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/status_badge.dart';
+import 'package:opshub/features/attendance/domain/attendance_directory_match.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_gap.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/attendance/presentation/history/attendance_history_cubit.dart';
+import 'package:opshub/features/attendance/presentation/history/attendance_history_state.dart';
+import 'package:opshub/features/attendance/presentation/history/widgets/attendance_history_filters.dart';
+import 'package:opshub/features/attendance/presentation/history/widgets/attendance_history_summary.dart';
+import 'package:opshub/features/attendance/presentation/reporting/attendance_report_cubit.dart';
+import 'package:opshub/features/attendance/presentation/history/widgets/attendance_record_card.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
 
 /// The **Attendance History** ledger. Two entry points share one screen:
 ///
@@ -175,7 +175,7 @@ class _Loaded extends StatelessWidget {
   Widget build(BuildContext context) {
     final cubit = context.read<AttendanceHistoryCubit>();
 
-    // A plain ListView (the pattern every other DROP list screen uses) — the
+    // A plain ListView (the pattern every other OpsHub list screen uses) — the
     // header widgets first, then the record cards or a calm empty message.
     return RefreshIndicator(
       onRefresh: cubit.refresh,

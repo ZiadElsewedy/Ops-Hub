@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 
 part 'admin_users_state.freezed.dart';
 

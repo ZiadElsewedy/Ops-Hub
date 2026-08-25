@@ -1,11 +1,11 @@
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
-import 'package:drop/features/notifications/domain/repositories/notification_repository.dart';
-import 'package:drop/features/notifications/domain/usecases/notify_task_event.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:opshub/features/notifications/domain/usecases/notify_task_event.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The **copy** a task notification carries, in particular the due label.

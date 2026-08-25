@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/presentation/schedule_insights.dart';
-import 'package:drop/features/schedule/presentation/widgets/assignment_chip.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
-import 'package:drop/features/schedule/presentation/widgets/shift_cell.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/presentation/schedule_insights.dart';
+import 'package:opshub/features/schedule/presentation/widgets/assignment_chip.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:opshub/features/schedule/presentation/widgets/shift_cell.dart';
 
 /// The weekly assignment grid (Schedule 3.0) — days are columns (Sun→Sat),
 /// shifts are two rows (Morning / Night). The shift rail and the day headers

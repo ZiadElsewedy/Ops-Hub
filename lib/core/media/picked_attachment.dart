@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:drop/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
 
 /// A media file the user has picked (and possibly edited / compressed) but not
 /// yet uploaded — the input to every upload flow (task submission, case reply,

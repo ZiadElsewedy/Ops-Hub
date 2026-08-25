@@ -1,9 +1,9 @@
-import 'package:drop/core/enums/audit_entity_type.dart';
-import 'package:drop/core/enums/audit_event_type.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/audit/domain/entities/audit_actor.dart';
-import 'package:drop/features/audit/domain/entities/audit_log_entry.dart';
-import 'package:drop/features/audit/domain/repositories/audit_repository.dart';
+import 'package:opshub/core/enums/audit_entity_type.dart';
+import 'package:opshub/core/enums/audit_event_type.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/audit/domain/entities/audit_actor.dart';
+import 'package:opshub/features/audit/domain/entities/audit_log_entry.dart';
+import 'package:opshub/features/audit/domain/repositories/audit_repository.dart';
 
 /// The **one seam** through which every feature records an audit event. A
 /// business action calls [trackEvent] and nothing else — the service owns the

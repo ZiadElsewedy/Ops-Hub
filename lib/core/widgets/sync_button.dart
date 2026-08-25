@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// Relative "last synced" label for a dashboard [SyncButton]. Pure with an
 /// injectable clock so the freshness copy is unit-testable without pumping a
@@ -16,7 +16,7 @@ String syncLabel(DateTime? lastSynced, {DateTime? now}) {
   return 'Synced ${d.inDays}d ago';
 }
 
-/// A premium **Sync** control for a dashboard header (DROP Design System V2).
+/// A premium **Sync** control for a dashboard header (OpsHub Design System V2).
 /// Rotates while a refresh is in flight and otherwise shows how long ago the
 /// live data was last pulled; tapping force-refreshes the caller's sources.
 /// Desktop shows a labelled pill; [compact] shows an icon-only 40pt tap target

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/media/picked_attachment.dart';
-import 'package:drop/features/task/presentation/widgets/attachment_picker.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/media/picked_attachment.dart';
+import 'package:opshub/features/task/presentation/widgets/attachment_picker.dart';
 
 /// The comment composer pinned at the bottom of a request detail. Text + optional
 /// attachments. When the request is terminal ([locked]) it becomes a read-only

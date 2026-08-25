@@ -2,18 +2,18 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/media/media_upload_service.dart';
-import 'package:drop/features/task/data/models/automation_run_model.dart';
-import 'package:drop/features/task/data/models/recurring_task_template_model.dart';
-import 'package:drop/features/task/data/models/task_model.dart';
-import 'package:drop/features/task/data/models/task_template_model.dart';
-import 'package:drop/features/task/domain/entities/activity_entry.dart';
-import 'package:drop/features/task/domain/entities/automation_run_entity.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/media/media_upload_service.dart';
+import 'package:opshub/features/task/data/models/automation_run_model.dart';
+import 'package:opshub/features/task/data/models/recurring_task_template_model.dart';
+import 'package:opshub/features/task/data/models/task_model.dart';
+import 'package:opshub/features/task/data/models/task_template_model.dart';
+import 'package:opshub/features/task/domain/entities/activity_entry.dart';
+import 'package:opshub/features/task/domain/entities/automation_run_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 abstract class TaskRemoteDataSource {
   Future<List<TaskModel>> getAllTasks();

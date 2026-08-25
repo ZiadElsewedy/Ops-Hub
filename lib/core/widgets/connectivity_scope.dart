@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:drop/core/network/connectivity_service.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/network/connectivity_service.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
 
 /// **ConnectivityScope** — app-wide "is there a usable connection", plus the
 /// honest bar that says so.

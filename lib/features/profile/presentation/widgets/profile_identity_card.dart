@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/brand_watermark.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/presentation/widgets/profile_avatar.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/core/widgets/brand_watermark.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/presentation/widgets/profile_avatar.dart';
 
 /// The identity lockup that opens the Profile screen — cover, avatar, name,
 /// who the person is in the org, their bio, and the screen's **one** primary
@@ -17,7 +17,7 @@ import 'package:drop/features/profile/presentation/widgets/profile_avatar.dart';
 /// The cover image was already uploadable from Edit Profile but had nowhere to
 /// be seen; it renders here under a scrim so the avatar and name stay legible
 /// over any photo. With no cover the band falls back to the shared neutral wash
-/// plus the quiet DROP mark — a finished surface, not a hole where an image
+/// plus the quiet OpsHub mark — a finished surface, not a hole where an image
 /// failed to load.
 ///
 /// An incomplete profile is a **status**, so the card carries the semantic
@@ -194,7 +194,7 @@ class ProfileIdentityCard extends StatelessWidget {
 
 /// The cover strip. A photo is always scrimmed towards the card surface so the
 /// avatar's ring and the name below never fight a bright image; with no photo
-/// the band is the shared neutral wash carrying the quiet DROP mark.
+/// the band is the shared neutral wash carrying the quiet OpsHub mark.
 class _CoverBand extends StatelessWidget {
   const _CoverBand({required this.imageUrl});
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/shift_hours_scope.dart';
-import 'package:drop/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart';
+import 'package:opshub/core/enums/shift_hours_scope.dart';
+import 'package:opshub/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart';
 
 /// Schedule V2 · Pillar 5 — the "apply changes to…" scope picker.
 void main() {

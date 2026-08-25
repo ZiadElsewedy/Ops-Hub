@@ -1,9 +1,9 @@
-import 'package:drop/features/task/domain/work_types/work_context.dart';
-import 'package:drop/features/task/domain/work_types/work_draft.dart';
-import 'package:drop/features/task/domain/work_types/work_event.dart';
-import 'package:drop/features/task/domain/work_types/work_field_spec.dart';
-import 'package:drop/features/task/domain/work_types/work_review.dart';
-import 'package:drop/features/task/domain/work_types/work_validation.dart';
+import 'package:opshub/features/task/domain/work_types/work_context.dart';
+import 'package:opshub/features/task/domain/work_types/work_draft.dart';
+import 'package:opshub/features/task/domain/work_types/work_event.dart';
+import 'package:opshub/features/task/domain/work_types/work_field_spec.dart';
+import 'package:opshub/features/task/domain/work_types/work_review.dart';
+import 'package:opshub/features/task/domain/work_types/work_validation.dart';
 
 /// The behaviour contract for **one kind of operational work** (the Strategy).
 ///

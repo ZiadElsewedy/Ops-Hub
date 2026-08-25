@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
 import 'support/fake_shift_template_repository.dart';
 
 /// Schedule 4.0 — undo. After a move / exchange / remove the cubit records
@@ -33,6 +33,33 @@ class _RecordingRepo implements ScheduleRepository {
     required String employeeId,
   }) async {
     calls.add('remove:$employeeId:${day.name}:${shift.name}');
+  }
+
+  @override
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  }) async {
+    calls.add('move:$employeeId:${fromDay.name}:${fromShift.name}'
+        '->${toDay.name}:${toShift.name}');
+  }
+
+  @override
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
+  }) async {
+    calls.add('exchange:$uidA:${dayA.name}:${shiftA.name}'
+        '<->$uidB:${dayB.name}:${shiftB.name}');
   }
 
   @override
@@ -79,10 +106,8 @@ void main() {
 
     await cubit.undoLast();
 
-    expect(repo.calls, [
-      'assign:ziad:monday:morning',
-      'remove:ziad:tuesday:night',
-    ]);
+    // The inverse move is one atomic call back to the original slot.
+    expect(repo.calls, ['move:ziad:tuesday:night->monday:morning']);
     expect(cubit.canUndo, isFalse, reason: 'an undo is single-use');
   });
 
@@ -100,12 +125,9 @@ void main() {
 
     await cubit.undoLast();
 
-    expect(repo.calls, [
-      'assign:ziad:monday:morning',
-      'assign:richard:tuesday:night',
-      'remove:ziad:tuesday:night',
-      'remove:richard:monday:morning',
-    ]);
+    // The inverse exchange is one atomic call trading the two back.
+    expect(repo.calls,
+        ['exchange:ziad:tuesday:night<->richard:monday:morning']);
   });
 
   test('undo of a remove re-assigns the person', () async {

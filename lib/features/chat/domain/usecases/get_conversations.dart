@@ -1,5 +1,5 @@
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/repositories/chat_repository.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/repositories/chat_repository.dart';
 
 /// Loads a page of the caller's conversation list, most-recent-activity first.
 /// Pass the previous page's `nextCursor` to load the next page.

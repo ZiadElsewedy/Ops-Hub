@@ -1,5 +1,5 @@
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/features/requests/domain/repositories/request_repository.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/features/requests/domain/repositories/request_repository.dart';
 
 /// Moves a request to a new [RequestStatus] — a single targeted doc update. The
 /// `onRequestUpdated` Cloud Function appends the lifecycle event + notifies.

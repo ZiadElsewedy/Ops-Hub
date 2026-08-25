@@ -1,10 +1,10 @@
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/communications/data/datasources/broadcast_template_remote_datasource.dart';
-import 'package:drop/features/communications/data/models/broadcast_template_model.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_template_entity.dart';
-import 'package:drop/features/communications/domain/repositories/broadcast_template_repository.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/communications/data/datasources/broadcast_template_remote_datasource.dart';
+import 'package:opshub/features/communications/data/models/broadcast_template_model.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_template_entity.dart';
+import 'package:opshub/features/communications/domain/repositories/broadcast_template_repository.dart';
 
 class BroadcastTemplateRepositoryImpl implements BroadcastTemplateRepository {
   final BroadcastTemplateRemoteDataSource _remote;

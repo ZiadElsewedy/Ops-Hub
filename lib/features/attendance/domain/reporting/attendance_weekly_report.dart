@@ -1,8 +1,8 @@
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_coverage_status.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_report.dart';
 
 class WeeklyAttendanceReport {
   WeeklyAttendanceReport._({

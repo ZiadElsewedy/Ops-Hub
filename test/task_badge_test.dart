@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/presentation/widgets/task_badge.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/presentation/widgets/task_badge.dart';
 
 /// Verifies the task lifecycle badge mapping after the P1 dedupe (2026-07-03):
 /// the badge now carries ONLY NEW (monochrome) and REWORK #n (amber). Approved

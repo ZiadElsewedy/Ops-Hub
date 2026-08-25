@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/services/notification_service.dart';
-import 'package:drop/core/utils/platform_capabilities.dart';
-import 'package:drop/features/notifications/domain/notification_deep_link.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/services/notification_service.dart';
+import 'package:opshub/core/utils/platform_capabilities.dart';
+import 'package:opshub/features/notifications/domain/notification_deep_link.dart';
 
 /// The single deep-link resolver shared by the in-app inbox tap and the FCM push
 /// tap (Notifications V2). Every notification must resolve to the SAME safe

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/features/operations/presentation/pages/branch_operations_screen.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/features/operations/presentation/pages/branch_operations_screen.dart';
 
 /// The manager's Operations tab — the Branch Operations cockpit scoped to their
 /// own branch. A thin wrapper that resolves the signed-in manager's `branchId`

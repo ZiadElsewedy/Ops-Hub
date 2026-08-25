@@ -1,8 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/template_repeat_mode.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/template_repeat_mode.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
 
 part 'recurring_task_template_entity.freezed.dart';
 

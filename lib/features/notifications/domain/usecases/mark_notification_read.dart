@@ -1,4 +1,4 @@
-import 'package:drop/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:opshub/features/notifications/domain/repositories/notification_repository.dart';
 
 /// Marks a single notification read.
 class MarkNotificationRead {

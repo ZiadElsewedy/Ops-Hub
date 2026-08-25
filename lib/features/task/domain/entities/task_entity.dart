@@ -1,18 +1,18 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
-import 'package:drop/core/enums/task_cancel_reason.dart';
-import 'package:drop/core/enums/task_type.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/enums/task_priority.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/task/domain/entities/activity_entry.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/recurrence_config.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_cancel_reason.dart';
+import 'package:opshub/core/enums/task_type.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/enums/task_priority.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/task/domain/entities/activity_entry.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/recurrence_config.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 part 'task_entity.freezed.dart';
 
-/// A unit of work in DROP (Phase 3) — the core operations workflow: a
+/// A unit of work in OpsHub (Phase 3) — the core operations workflow: a
 /// manager/admin creates and assigns a task, one or more employees execute it
 /// (start → complete, with optional notes + proof image), and a manager/admin
 /// reviews it (approve / reject).

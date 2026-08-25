@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/services/notification_preferences_store.dart';
+import 'package:opshub/core/services/notification_preferences_store.dart';
 
 /// The pure half of the notification switches — no file I/O, no widgets.
 void main() {

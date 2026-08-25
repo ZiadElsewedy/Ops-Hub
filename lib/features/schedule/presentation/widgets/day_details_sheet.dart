@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_state.dart';
-import 'package:drop/features/schedule/presentation/widgets/employee_picker_sheet.dart';
-import 'package:drop/features/schedule/presentation/widgets/employee_row.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
-import 'package:drop/features/schedule/presentation/widgets/sheet_chrome.dart';
-import 'package:drop/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart';
-import 'package:drop/features/schedule/presentation/widgets/shift_templates_sheet.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_state.dart';
+import 'package:opshub/features/schedule/presentation/widgets/employee_picker_sheet.dart';
+import 'package:opshub/features/schedule/presentation/widgets/employee_row.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:opshub/features/schedule/presentation/widgets/sheet_chrome.dart';
+import 'package:opshub/features/schedule/presentation/widgets/shift_hours_scope_dialog.dart';
+import 'package:opshub/features/schedule/presentation/widgets/shift_templates_sheet.dart';
 
 /// Opens the day sheet for a schedule day — the home of the day's **note**
 /// (Inventory · Big delivery · …) and its **leave entries** (annual / sick /

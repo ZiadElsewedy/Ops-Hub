@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/schedule/domain/repositories/shift_template_repository.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/schedule/domain/repositories/shift_template_repository.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
 import 'shift_template_state.dart';
 
 /// Drives the shift-template manager (Schedule V2 · Pillar 5) — a realtime view

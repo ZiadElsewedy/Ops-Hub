@@ -1,8 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/attendance/domain/attendance_analytics.dart';
-import 'package:drop/features/attendance/domain/attendance_directory_match.dart';
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/attendance_analytics.dart';
+import 'package:opshub/features/attendance/domain/attendance_directory_match.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 part 'attendance_history_state.freezed.dart';
 

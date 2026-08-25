@@ -61,7 +61,7 @@ Pure: `request_access.dart` · `request_ordering.dart` · `request_metrics.dart`
 **Routes:** `/requests` · `/requests/create` · `/request/:requestId`
 
 > The empty state once froze the screen with an infinite-height layout — fixed in
-> `DropEmptyState` / `AppEmptyState`. If a list screen hangs on open, suspect the
+> `OpsHubEmptyState` / `AppEmptyState`. If a list screen hangs on open, suspect the
 > empty state.
 
 ## The same shape elsewhere

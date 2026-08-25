@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/dashboard_mood.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/dashboard_mood.dart';
 
-/// **HeroMood** — a dashboard hero's contextual subtitle (DROP Design System
+/// **HeroMood** — a dashboard hero's contextual subtitle (OpsHub Design System
 /// V2): a breathing "system live" pulse dot, the [DashboardMood] sentence
 /// (white + bold when it wants the eye, a relaxed light grey when the board is
 /// calm), and the quiet operational [scope] beneath it.

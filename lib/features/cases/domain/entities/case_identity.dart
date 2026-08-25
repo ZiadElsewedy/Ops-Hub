@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/case_privacy.dart';
+import 'package:opshub/core/enums/case_privacy.dart';
 
 /// The reporter's identity for one case — stored in the **private** subdoc
 /// `cases/{caseId}/reporter/identity`, readable ONLY by the reporter and an

@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/schedule/data/models/shift_template_model.dart';
-import 'package:drop/features/schedule/domain/shift_template.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/schedule/data/models/shift_template_model.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
 
 /// Firestore access for shift templates (Schedule V2 · Pillar 5), collection
 /// `shift_templates/{id}`. Branch/role access is enforced server-side in

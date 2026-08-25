@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/communications/data/models/broadcast_schedule_model.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/communications/data/models/broadcast_schedule_model.dart';
 
 abstract class BroadcastScheduleRemoteDataSource {
   /// All schedules for an admin; an own-created subset for a manager

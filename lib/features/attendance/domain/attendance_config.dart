@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/attendance_location_policy.dart';
+import 'package:opshub/core/enums/attendance_location_policy.dart';
 
 /// The tunable rules of the attendance module — grace windows, clock-in window,
 /// overtime + auto-close thresholds, and the (default-off) GPS / photo policies.

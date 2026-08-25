@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/operations/domain/employee_workload.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/operations/domain/employee_workload.dart';
 
 /// One employee's workload as a **slim row** — the core of the Branch
 /// Operations cockpit. Identity (avatar · name · role · today's shift), an

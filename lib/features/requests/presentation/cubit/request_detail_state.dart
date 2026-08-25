@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
-import 'package:drop/features/requests/domain/entities/request_event.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_event.dart';
 
 part 'request_detail_state.freezed.dart';
 

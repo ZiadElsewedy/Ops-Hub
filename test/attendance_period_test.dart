@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
 
 void main() {
   group('AttendancePeriodWindow', () {

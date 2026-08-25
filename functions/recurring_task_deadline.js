@@ -19,7 +19,7 @@
 
 const MINUTE_MS = 60 * 1000;
 
-// Automated Tasks spec §12.2: DROP operates in Egypt only, on one timezone.
+// Automated Tasks spec §12.2: OpsHub operates in Egypt only, on one timezone.
 // A multi-timezone estate must revisit this constant and the deterministic key
 // convention before expanding.
 const BUSINESS_TIME_ZONE = "Africa/Cairo";

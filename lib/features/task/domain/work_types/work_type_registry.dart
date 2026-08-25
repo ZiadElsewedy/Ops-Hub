@@ -1,9 +1,9 @@
-import 'package:drop/features/task/domain/work_types/definitions/general_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/inspection_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/inventory_count_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/purchase_errand_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/transfer_work_type.dart';
-import 'package:drop/features/task/domain/work_types/work_type_definition.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/general_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/inspection_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/inventory_count_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/purchase_errand_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/transfer_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_definition.dart';
 
 /// Resolves a [WorkTypeDefinition] by its persisted [WorkTypeDefinition.id]
 /// (Registry / Factory). This is the single indirection every screen goes

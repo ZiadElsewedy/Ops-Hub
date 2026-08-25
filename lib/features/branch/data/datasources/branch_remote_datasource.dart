@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/branch/data/models/branch_model.dart';
-import 'package:drop/features/branch/domain/branch_geofence.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/branch/data/models/branch_model.dart';
+import 'package:opshub/features/branch/domain/branch_geofence.dart';
 
 abstract class BranchRemoteDataSource {
   /// All branches; soft-deleted ones are excluded unless [includeDeleted].

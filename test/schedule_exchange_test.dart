@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_grid.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_grid.dart';
 import 'support/fake_shift_template_repository.dart';
 
 /// Schedule 3.1 — drag one person ONTO another and the two trade slots.
@@ -37,6 +37,33 @@ class _RecordingRepo implements ScheduleRepository {
     required String employeeId,
   }) async {
     calls.add('remove:$employeeId:${day.name}:${shift.name}');
+  }
+
+  @override
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  }) async {
+    calls.add('move:$employeeId:${fromDay.name}:${fromShift.name}'
+        '->${toDay.name}:${toShift.name}');
+  }
+
+  @override
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
+  }) async {
+    calls.add('exchange:$uidA:${dayA.name}:${shiftA.name}'
+        '<->$uidB:${dayB.name}:${shiftB.name}');
   }
 
   @override
@@ -79,8 +106,7 @@ void main() {
 
     tearDown(() => cubit.close());
 
-    test('assigns both to their new slots FIRST, then releases the old ones',
-        () async {
+    test('trades the two slots in ONE atomic repository call', () async {
       await cubit.exchange(
         dayA: ScheduleDay.monday,
         shiftA: ScheduleShift.morning,
@@ -90,11 +116,10 @@ void main() {
         uidB: 'richard',
       );
 
+      // A single atomic exchange, not four separate assign/remove writes whose
+      // partial failure could double-book either person.
       expect(repo.calls, [
-        'assign:ziad:tuesday:night',
-        'assign:richard:monday:morning',
-        'remove:ziad:monday:morning',
-        'remove:richard:tuesday:night',
+        'exchange:ziad:monday:morning<->richard:tuesday:night',
       ]);
     });
 

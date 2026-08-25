@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/features/sales/domain/sales_calculator.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/features/sales/domain/sales_calculator.dart';
 
 /// The **status** tint for the achievement figures — the ACHIEVED amount, the
 /// progress ring and the chart's "today" bar.

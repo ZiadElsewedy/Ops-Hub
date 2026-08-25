@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/auth/presentation/widgets/app_button.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/work_types/definitions/inspection_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/inventory_count_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/purchase_errand_work_type.dart';
-import 'package:drop/features/task/domain/work_types/definitions/transfer_work_type.dart';
-import 'package:drop/features/task/domain/work_types/task_work_x.dart';
-import 'package:drop/features/task/domain/work_types/work_context.dart';
-import 'package:drop/features/task/domain/work_types/work_field_spec.dart';
-import 'package:drop/features/task/domain/work_types/work_review.dart';
-import 'package:drop/features/task/domain/work_types/work_type_definition.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/widgets/dynamic_work_form.dart';
-import 'package:drop/features/task/presentation/widgets/work_detail_sections.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/auth/presentation/widgets/app_button.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/inspection_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/inventory_count_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/purchase_errand_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/definitions/transfer_work_type.dart';
+import 'package:opshub/features/task/domain/work_types/task_work_x.dart';
+import 'package:opshub/features/task/domain/work_types/work_context.dart';
+import 'package:opshub/features/task/domain/work_types/work_field_spec.dart';
+import 'package:opshub/features/task/domain/work_types/work_review.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_definition.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/widgets/dynamic_work_form.dart';
+import 'package:opshub/features/task/presentation/widgets/work_detail_sections.dart';
 
 /// The **adaptive** section of the task-details screen — everything specific to
 /// the task's work type, expressed entirely in the shared

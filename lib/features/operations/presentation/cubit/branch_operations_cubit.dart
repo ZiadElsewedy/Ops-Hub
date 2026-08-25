@@ -1,18 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
-import 'package:drop/features/operations/domain/branch_workload.dart';
-import 'package:drop/features/operations/domain/shift_filter.dart';
-import 'package:drop/features/operations/presentation/cubit/branch_operations_state.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/repositories/task_repository.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/features/operations/domain/branch_workload.dart';
+import 'package:opshub/features/operations/domain/shift_filter.dart';
+import 'package:opshub/features/operations/presentation/cubit/branch_operations_state.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/repositories/task_repository.dart';
 
 /// Drives the Branch Operations cockpit (admin: any branch · manager: own).
 /// **Read/derive only** — it composes three sources for one branch:
@@ -124,6 +124,27 @@ class BranchOperationsCubit extends Cubit<BranchOperationsState> {
   String _message(Object e) => e is Failure
       ? e.message
       : 'Could not load branch operations. Pull to retry.';
+
+  /// Drops the live branch task stream and every cached input, returning to
+  /// [BranchOperationsState.initial]. This cubit is an app-wide singleton (it
+  /// outlives the session), so on sign-out / single-active-session eviction its
+  /// `watchTasksByBranch` listener would otherwise keep running against a
+  /// signed-out user — permission-denied noise now, the previous user's branch
+  /// still on screen for the next one. Wired into
+  /// `AppDependencies.clearUserScopedState()`.
+  void reset() {
+    _sub?.cancel();
+    _sub = null;
+    _branchId = '';
+    _branchName = null;
+    _filter = ShiftFilter.all;
+    _employees = const [];
+    _directory = const {};
+    _schedule = null;
+    _tasks = const [];
+    _hasTasks = false;
+    if (!isClosed) emit(const BranchOperationsState.initial());
+  }
 
   @override
   Future<void> close() {

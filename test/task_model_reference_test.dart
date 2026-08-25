@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/features/task/data/models/task_model.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/features/task/data/models/task_model.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// Verifies the manager/admin `referenceAttachments` round-trip through
 /// serialization and the entity boundary, and that absence reads as an empty

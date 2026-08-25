@@ -109,7 +109,7 @@ function reminderInQuietHours(hour, startHour, endHour) {
  *
  * Returns null when nothing is owed, else `due24h` | `due1h` | `overdue`.
  */
-function reminderDueKind(deadline, now, lastKind, count, cfg, businessHour) {
+function reminderDueKind(deadline, now, lastKind, count, cfg, businessHour, windowMinutes = null) {
   if (!cfg.enabled) return null;
   if (count >= cfg.maxReminders) return null;
   if (
@@ -122,8 +122,18 @@ function reminderDueKind(deadline, now, lastKind, count, cfg, businessHour) {
   let kind;
   if (diffMs < 0) kind = "overdue";
   else if (diffMs <= 60 * 60 * 1000) kind = "due1h";
-  else if (diffMs <= 24 * 60 * 60 * 1000) kind = "due24h";
-  else return null;
+  else if (diffMs <= 24 * 60 * 60 * 1000) {
+    // The 24h rung is a full DAY'S advance notice, meaningful only for a task
+    // whose window spans more than a day ("due tomorrow", "due next week"). A
+    // shift-bounded / same-day task ([windowMinutes] = dueAt − startsAt ≤ 24h)
+    // is created INSIDE its own window, so this rung fired "due within 24 hours"
+    // the moment it was created and misread the shift as a day — the reported
+    // bug. Suppress it for such tasks: they still get `due1h` near the deadline
+    // (e.g. an hour before the shift ends) and `overdue` after. A task with no
+    // known window (no startsAt) keeps the 24h rung — its horizon is open.
+    if (windowMinutes != null && windowMinutes <= 24 * 60) return null;
+    kind = "due24h";
+  } else return null;
   // Only escalate forward.
   if (lastKind && REMINDER_ORDER.indexOf(kind) <= REMINDER_ORDER.indexOf(lastKind)) {
     return null;

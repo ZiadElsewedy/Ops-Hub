@@ -1,5 +1,5 @@
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/sales/domain/sales_branch_scope.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/sales/domain/sales_branch_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 BranchEntity _branch(

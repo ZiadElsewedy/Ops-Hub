@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
 
 /// The long-press context menu for one chat message — a bottom sheet in the
 /// house style (`chip_action_sheet` chrome), followed by a Cases-style

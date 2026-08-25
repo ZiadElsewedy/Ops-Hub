@@ -2,7 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'statistics_entity.freezed.dart';
 
-/// Operational statistics for a DROP THE SHOP dashboard (Phase 6). A single bag
+/// Operational statistics for a OpsHub dashboard (Phase 6). A single bag
 /// of counts populated per role — admin (global), manager (own branch) and
 /// employee (own data) each read the fields relevant to their dashboard. Counts
 /// are computed from branch-scoped Firestore queries (no analytics engine).
@@ -13,7 +13,7 @@ class StatisticsEntity with _$StatisticsEntity {
     @Default(0) int totalBranches,
     @Default(0) int totalManagers,
     @Default(0) int totalEmployees,
-    /// Deprecated — DROP is admin-provisioned (no approval queue). Always 0; kept
+    /// Deprecated — OpsHub is admin-provisioned (no approval queue). Always 0; kept
     /// only to avoid a codegen churn, slated for removal on the next build_runner.
     @Default(0) int pendingApprovals,
     @Default(0) int branchesWithoutManagers,

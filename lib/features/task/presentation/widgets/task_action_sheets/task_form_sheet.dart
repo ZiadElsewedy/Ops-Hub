@@ -495,7 +495,7 @@ class _TaskFormSheetState extends State<_TaskFormSheet> {
   /// Pick a full date **and** time (Task Scheduling V2 — start/due carry a time,
   /// not just a date). Presentation-only change: this uses a monochrome
   /// Cupertino wheel picker instead of the Material calendar/clock dialogs, so
-  /// scheduling stays inside the DROP design language. The value range and the
+  /// scheduling stays inside the OpsHub design language. The value range and the
   /// returned `DateTime` are unchanged — the scheduling engine is untouched.
   /// (Cancel makes no change; Done commits date + time in one step.)
   Future<DateTime?> _pickDateTime(DateTime? current) async {

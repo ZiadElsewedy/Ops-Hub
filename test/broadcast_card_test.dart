@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/broadcast_audience.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
-import 'package:drop/features/communications/presentation/widgets/broadcast_card.dart';
+import 'package:opshub/core/enums/broadcast_audience.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_entity.dart';
+import 'package:opshub/features/communications/presentation/widgets/broadcast_card.dart';
 
 /// Headless render test for the Communications Center feed item — proves it
 /// surfaces the required fields (title, body preview, sender, audience, category,

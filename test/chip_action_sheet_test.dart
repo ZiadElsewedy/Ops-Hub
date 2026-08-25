@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/presentation/widgets/chip_action_sheet.dart';
-import 'package:drop/features/schedule/presentation/widgets/shift_cell.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/presentation/widgets/chip_action_sheet.dart';
+import 'package:opshub/features/schedule/presentation/widgets/shift_cell.dart';
 
 /// Schedule 4.0 — the mobile chip action sheet (move · switch · remove with
 /// preview + confirm) and the crowded-cell "+N more" rule.

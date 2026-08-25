@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:drop/features/chat/domain/chat_realtime.dart';
+import 'package:opshub/features/chat/domain/chat_realtime.dart';
 
 /// Keeps the server's conversation-room membership aligned with whether this
 /// thread is actually visible to the user. The room controls server-side chat

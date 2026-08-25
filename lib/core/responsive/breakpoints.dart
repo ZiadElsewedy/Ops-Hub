@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// The four layout classes DROP OPERATIONS targets. The product is a macOS-first
+/// The four layout classes OpsHub targets. The product is a macOS-first
 /// desktop app, so the desktop/ultrawide tiers are first-class — not an
 /// afterthought stretched up from mobile.
 enum DeviceType { mobile, tablet, desktop, ultrawide }

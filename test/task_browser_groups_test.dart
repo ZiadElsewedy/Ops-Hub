@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/presentation/widgets/task_browser_groups.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/presentation/widgets/task_browser_groups.dart';
 
 /// The record browser's date sectioning. Pure Dart — `task_feed.dart` still owns
 /// every forward-looking bucket, and this only decides where **finished** work
@@ -9,7 +9,7 @@ import 'package:drop/features/task/presentation/widgets/task_browser_groups.dart
 /// about the live feed's active window, not about the record.
 void main() {
   // A fixed Wednesday, so "earlier this week" and "last week" are unambiguous
-  // against DROP's Sunday→Saturday schedule week.
+  // against OpsHub's Sunday→Saturday schedule week.
   final now = DateTime(2026, 8, 5, 14, 0);
 
   TaskEntity approved(String id, DateTime at) => TaskEntity(

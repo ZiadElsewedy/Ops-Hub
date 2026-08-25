@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_dialog.dart';
-import 'package:drop/core/widgets/drop_loading_state.dart';
-import 'package:drop/core/widgets/premium_button.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
-import 'package:drop/features/requests/domain/entities/request_event.dart';
-import 'package:drop/features/requests/domain/request_access.dart';
-import 'package:drop/features/requests/domain/request_thread.dart';
-import 'package:drop/features/requests/presentation/cubit/request_detail_cubit.dart';
-import 'package:drop/features/requests/presentation/cubit/request_detail_state.dart';
-import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
-import 'package:drop/features/requests/presentation/request_format.dart';
-import 'package:drop/features/requests/presentation/widgets/request_composer.dart';
-import 'package:drop/features/requests/presentation/widgets/request_timeline.dart';
-import 'package:drop/features/task/presentation/widgets/attachment_gallery.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_dialog.dart';
+import 'package:opshub/core/widgets/opshub_loading_state.dart';
+import 'package:opshub/core/widgets/premium_button.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_event.dart';
+import 'package:opshub/features/requests/domain/request_access.dart';
+import 'package:opshub/features/requests/domain/request_thread.dart';
+import 'package:opshub/features/requests/presentation/cubit/request_detail_cubit.dart';
+import 'package:opshub/features/requests/presentation/cubit/request_detail_state.dart';
+import 'package:opshub/features/requests/presentation/cubit/requests_list_cubit.dart';
+import 'package:opshub/features/requests/presentation/request_format.dart';
+import 'package:opshub/features/requests/presentation/widgets/request_composer.dart';
+import 'package:opshub/features/requests/presentation/widgets/request_timeline.dart';
+import 'package:opshub/features/task/presentation/widgets/attachment_gallery.dart';
 
 /// The full request detail — header, status, requester/branch/time, the dynamic
 /// request information, the activity timeline + comments, and the role-scoped
@@ -55,7 +55,7 @@ class _RequestDetailView extends StatelessWidget {
         return state.when(
           loading: () => const AdaptiveScaffold(
             title: 'Request',
-            body: DropLoadingState(message: 'Loading request…'),
+            body: OpsHubLoadingState(message: 'Loading request…'),
           ),
           unavailable: () => AdaptiveScaffold(
             title: 'Request',
@@ -65,7 +65,7 @@ class _RequestDetailView extends StatelessWidget {
           ),
           error: (_) => const AdaptiveScaffold(
             title: 'Request',
-            body: DropLoadingState(message: 'Loading request…'),
+            body: OpsHubLoadingState(message: 'Loading request…'),
           ),
           loaded: (request, events, busy) =>
               _Loaded(request: request, events: events, busy: busy, user: user),

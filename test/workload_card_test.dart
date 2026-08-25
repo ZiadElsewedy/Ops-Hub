@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/operations/domain/employee_workload.dart';
-import 'package:drop/features/operations/presentation/widgets/workload_card.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/operations/domain/employee_workload.dart';
+import 'package:opshub/features/operations/presentation/widgets/workload_card.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// Headless render test for the Branch Operations employee row — proves it
 /// surfaces identity, the workload figures, the shift and the current task

@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/network/network_config.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/network/network_config.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// Resolves the caller's bearer token for the NestJS API. Returns null when no
 /// one is signed in (the request then goes out unauthenticated and the server

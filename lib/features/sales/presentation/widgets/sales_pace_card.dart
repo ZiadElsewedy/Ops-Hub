@@ -1,16 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/features/sales/domain/sales_calculator.dart';
-import 'package:drop/features/sales/domain/sales_trend.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/sales_outlook_tint.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/features/sales/domain/sales_calculator.dart';
+import 'package:opshub/features/sales/domain/sales_trend.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
+import 'package:opshub/features/sales/presentation/sales_outlook_tint.dart';
 
 /// **Pace** — how the month is trending, in one card: the target verdict up top
 /// (are we going to make it?), then the last-7-days approved-takings chart that

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/task_assignment_type.dart';
+import 'package:opshub/core/enums/task_assignment_type.dart';
 
 /// The task assignment mode. The UI wording moved from "Employee / Team" to
 /// "Individual / Group" (Group is an ad-hoc set of hand-picked people, not a

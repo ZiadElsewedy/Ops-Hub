@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/media/media_upload_service.dart';
+import 'package:opshub/core/media/media_upload_service.dart';
 
 void main() {
   group('UploadCanceller', () {

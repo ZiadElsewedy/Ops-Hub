@@ -1,19 +1,19 @@
-import 'package:drop/core/enums/leave_type.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/core/enums/swap_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/schedule/data/datasources/schedule_remote_datasource.dart';
-import 'package:drop/features/schedule/data/models/shift_swap_model.dart';
-import 'package:drop/features/schedule/data/models/weekly_schedule_model.dart';
-import 'package:drop/features/schedule/domain/entities/shift_swap_entity.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/repositories/schedule_repository.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/core/enums/leave_type.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/core/enums/swap_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/schedule/data/datasources/schedule_remote_datasource.dart';
+import 'package:opshub/features/schedule/data/models/shift_swap_model.dart';
+import 'package:opshub/features/schedule/data/models/weekly_schedule_model.dart';
+import 'package:opshub/features/schedule/domain/entities/shift_swap_entity.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/repositories/schedule_repository.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
 
 class ScheduleRepositoryImpl implements ScheduleRepository {
   final ScheduleRemoteDataSource _remote;
@@ -138,6 +138,56 @@ class ScheduleRepositoryImpl implements ScheduleRepository {
         day: day,
         shift: shift,
         employeeId: employeeId,
+      );
+    } on ServerException catch (e) {
+      throw ServerFailure(e.message);
+    }
+  }
+
+  @override
+  Future<void> moveEmployee({
+    required String scheduleId,
+    required ScheduleDay fromDay,
+    required ScheduleShift fromShift,
+    required ScheduleDay toDay,
+    required ScheduleShift toShift,
+    required String employeeId,
+  }) async {
+    NetworkGuard.ensureWritable();
+    try {
+      await _remote.moveEmployee(
+        scheduleId: scheduleId,
+        fromDay: fromDay,
+        fromShift: fromShift,
+        toDay: toDay,
+        toShift: toShift,
+        employeeId: employeeId,
+      );
+    } on ServerException catch (e) {
+      throw ServerFailure(e.message);
+    }
+  }
+
+  @override
+  Future<void> exchangeEmployees({
+    required String scheduleId,
+    required ScheduleDay dayA,
+    required ScheduleShift shiftA,
+    required String uidA,
+    required ScheduleDay dayB,
+    required ScheduleShift shiftB,
+    required String uidB,
+  }) async {
+    NetworkGuard.ensureWritable();
+    try {
+      await _remote.exchangeEmployees(
+        scheduleId: scheduleId,
+        dayA: dayA,
+        shiftA: shiftA,
+        uidA: uidA,
+        dayB: dayB,
+        shiftB: shiftB,
+        uidB: uidB,
       );
     } on ServerException catch (e) {
       throw ServerFailure(e.message);

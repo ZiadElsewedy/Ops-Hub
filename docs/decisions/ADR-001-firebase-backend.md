@@ -4,7 +4,7 @@
 
 ## Context
 
-DROP is an internal operations tool for a small, known set of users across a
+OpsHub is an internal operations tool for a small, known set of users across a
 handful of branches. It needs auth, a realtime document store, file storage, push
 notifications, and a little server-side logic. It has no dedicated backend team.
 

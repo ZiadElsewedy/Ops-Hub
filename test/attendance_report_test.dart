@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_expectation.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_expectation.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
 
 void main() {
   group('AttendanceRate', () {

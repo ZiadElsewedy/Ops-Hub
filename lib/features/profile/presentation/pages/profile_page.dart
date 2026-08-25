@@ -1,38 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
-import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/settings_tiles.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/features/profile/domain/entities/profile_entity.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_cubit.dart';
-import 'package:drop/features/profile/presentation/cubit/profile_state.dart';
-import 'package:drop/features/profile/presentation/widgets/profile_detail_row.dart';
-import 'package:drop/features/profile/presentation/widgets/profile_identity_card.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
+import 'package:opshub/core/widgets/branch_avatar.dart';
+import 'package:opshub/core/widgets/settings_tiles.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/features/profile/domain/entities/profile_entity.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:opshub/features/profile/presentation/cubit/profile_state.dart';
+import 'package:opshub/features/profile/presentation/widgets/profile_detail_row.dart';
+import 'package:opshub/features/profile/presentation/widgets/profile_identity_card.dart';
 
 /// The signed-in user's own profile — who they are, where they work, how the
 /// company reaches them, and how their account is set up.
 ///
-/// **Settings is the account hub; Profile is a leaf of it.** One door in (the
-/// mobile app-bar avatar and the desktop sidebar footer both open Settings),
-/// and Settings' identity card is the only route to this screen. So Profile
-/// answers *who am I and what are my details*, and **nothing else** — it
-/// carries no Settings row and no Sign out.
+/// **Settings and Profile are peers of the account area.** On mobile the
+/// app-bar avatar opens Profile directly, and a Settings gear in this screen's
+/// app bar reaches the hub (Change Password / Sign Out); on desktop the sidebar
+/// footer still opens Settings, whose identity card opens Profile. So Profile
+/// answers *who am I and what are my details*, and **nothing else** in its body
+/// — it carries no Settings *row* and no Sign out inline; the account hub is the
+/// app-bar gear, not a body row.
 ///
-/// That is a correction, not a preference: this screen used to offer both, so
-/// Settings → Profile → Settings was a closed loop and the one destructive
-/// action in the app existed on two different screens. Do not re-add a
-/// navigation row here; add it to Settings.
+/// That body rule is a correction, not a preference: this screen used to offer
+/// both inline, so the one destructive action in the app lived on two different
+/// screens. Do not re-add a Sign-out / Settings *row* to the body; the gear is
+/// the single account-hub entry from here.
 ///
 /// It borrows Settings' grouped glass rows (`core/widgets/settings_tiles.dart`)
 /// and entrance stagger so the two read as one system. What is specific to a
@@ -72,6 +74,18 @@ class _ProfilePageState extends State<ProfilePage> {
     return AdaptiveScaffold(
       title: 'Profile',
       contentMaxWidth: 680,
+      // The account picture now opens Profile directly (role_scaffold), so
+      // Settings — Change Password / Sign Out — is reachable from here via this
+      // gear. On mobile the avatar is the only door into the account area, so
+      // this action is what keeps Sign Out reachable.
+      actions: [
+        IconButton(
+          tooltip: 'Settings',
+          icon: const Icon(Icons.settings_outlined,
+              color: AppColors.textSecondary),
+          onPressed: () => context.push(RouteNames.settings),
+        ),
+      ],
       body: BlocBuilder<ProfileCubit, ProfileState>(
         builder: (context, state) {
           return state.maybeWhen(

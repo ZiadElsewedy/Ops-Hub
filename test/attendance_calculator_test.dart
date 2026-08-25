@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/attendance/domain/attendance_break.dart';
-import 'package:drop/features/attendance/domain/attendance_calculator.dart';
+import 'package:opshub/features/attendance/domain/attendance_break.dart';
+import 'package:opshub/features/attendance/domain/attendance_calculator.dart';
 
 void main() {
   // A standard day shift on 2026-07-11: 08:30 → 16:30.

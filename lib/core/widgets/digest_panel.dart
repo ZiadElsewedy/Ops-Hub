@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/glass_container.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
 
 /// One row in a [DigestPanel] — a module's live headline figure and the door
 /// into it.
@@ -31,7 +31,7 @@ class DigestEntry {
   final Color? accent;
 }
 
-/// **DigestPanel** — the quiet "everything else, at a glance" layer of a DROP
+/// **DigestPanel** — the quiet "everything else, at a glance" layer of a OpsHub
 /// dashboard (Design System V2): one grouped surface of module rows
 /// (requests · cases · schedule · attendance), each a door rather than a
 /// destination in the nav.

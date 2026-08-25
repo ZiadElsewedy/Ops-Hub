@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
 
-/// The shared premium surface for every DROP card — a subtle elevated→surface
+/// The shared premium surface for every OpsHub card — a subtle elevated→surface
 /// gradient, a hairline border, soft depth shadow and a large radius. Dashboard
 /// cards, action tiles and metric cards all build on this so the whole app
 /// shares **one** "glass" treatment instead of re-declaring the same

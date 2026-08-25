@@ -2,46 +2,46 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/branch_avatar.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
-import 'package:drop/core/widgets/drop_loading_state.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_cubit.dart';
-import 'package:drop/features/branch/presentation/cubit/branch_state.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/widgets/app_dialog.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/schedule/domain/move_validation.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
-import 'package:drop/features/schedule/domain/swap_policy.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/schedule_state.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_cubit.dart';
-import 'package:drop/features/schedule/presentation/cubit/shift_swap_state.dart';
-import 'package:drop/features/schedule/presentation/schedule_insights.dart';
-import 'package:drop/features/schedule/presentation/pages/schedule_final_view.dart';
-import 'package:drop/features/schedule/presentation/widgets/assignment_chip.dart'
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/branch_avatar.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/opshub_loading_state.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_cubit.dart';
+import 'package:opshub/features/branch/presentation/cubit/branch_state.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/widgets/app_dialog.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/schedule/domain/move_validation.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/schedule/domain/swap_policy.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/schedule_state.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_cubit.dart';
+import 'package:opshub/features/schedule/presentation/cubit/shift_swap_state.dart';
+import 'package:opshub/features/schedule/presentation/schedule_insights.dart';
+import 'package:opshub/features/schedule/presentation/pages/schedule_final_view.dart';
+import 'package:opshub/features/schedule/presentation/widgets/assignment_chip.dart'
     show ChipDragData;
-import 'package:drop/features/schedule/presentation/widgets/broken_assignment_banner.dart';
-import 'package:drop/features/schedule/presentation/widgets/chip_action_sheet.dart';
-import 'package:drop/features/schedule/presentation/widgets/day_details_sheet.dart';
-import 'package:drop/features/schedule/presentation/widgets/employee_picker_sheet.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_day_editor.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_grid.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_helpers.dart';
-import 'package:drop/features/schedule/presentation/widgets/schedule_inspector_drawer.dart';
-import 'package:drop/features/schedule/presentation/widgets/shift_details_sheet.dart';
-import 'package:drop/features/schedule/presentation/widgets/swap_roster_sync.dart';
-import 'package:drop/features/schedule/presentation/widgets/swap_alert_card.dart'
+import 'package:opshub/features/schedule/presentation/widgets/broken_assignment_banner.dart';
+import 'package:opshub/features/schedule/presentation/widgets/chip_action_sheet.dart';
+import 'package:opshub/features/schedule/presentation/widgets/day_details_sheet.dart';
+import 'package:opshub/features/schedule/presentation/widgets/employee_picker_sheet.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_day_editor.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_grid.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_helpers.dart';
+import 'package:opshub/features/schedule/presentation/widgets/schedule_inspector_drawer.dart';
+import 'package:opshub/features/schedule/presentation/widgets/shift_details_sheet.dart';
+import 'package:opshub/features/schedule/presentation/widgets/swap_roster_sync.dart';
+import 'package:opshub/features/schedule/presentation/widgets/swap_alert_card.dart'
     show showSwapQueueSheet;
 
 /// The operations-control schedule surface (Phase 7 redesign), shared by the
@@ -148,7 +148,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
         listener: (context, state) =>
             state.whenOrNull(error: (m) => AppSnackbar.error(context, m)),
         builder: (context, state) => state.maybeWhen(
-          loading: () => const DropLoadingState(message: 'Loading schedule…'),
+          loading: () => const OpsHubLoadingState(message: 'Loading schedule…'),
           loaded: (branchId, weekStart, schedule, members, busy) =>
               _body(branchId, weekStart, schedule, members, busy),
           orElse: () => const SizedBox.shrink(),
@@ -595,7 +595,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
     List<UserEntity> members,
   ) {
     if (branchId.isEmpty) {
-      return const DropEmptyState(
+      return const OpsHubEmptyState(
         title: 'Pick a branch',
         message: 'Select a branch to view its schedule.',
       );
@@ -1134,7 +1134,7 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
   }
 
   /// One-line affordance hint under the grid — drag / switch / right-click /
-  /// tap are invisible until named. Signed off with a quiet DROP mark.
+  /// tap are invisible until named. Signed off with a quiet OpsHub mark.
   // ── Insight strip ──────────────────────────────────────────────
   /// Fact chips derived from the roster (open · one-person · double-booked)
   /// plus the pending-swap queue. Clicking a fact chip highlights its slots in
@@ -1327,10 +1327,10 @@ class _ManagerScheduleViewState extends State<ManagerScheduleView> {
   }
 
   // ── Empty / placeholder states ─────────────────────────────────
-  // Brand-led (§9b): the DROP mark leads the empty moments instead of a
+  // Brand-led (§9b): the OpsHub mark leads the empty moments instead of a
   // generic grey glyph.
   Widget _emptySchedule() {
-    return DropEmptyState(
+    return OpsHubEmptyState(
       title: 'No schedule for this week yet',
       message: 'Create one to start assigning shifts.',
       action: FilledButton.icon(

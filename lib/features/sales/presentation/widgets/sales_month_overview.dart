@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/rolling_number.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_progress_ring.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/rolling_number.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_progress_ring.dart';
 
 /// The month hero: **achieved · progress ring · remaining** across the top, a
 /// hairline, then the **target** it is all measured against.

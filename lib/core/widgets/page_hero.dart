@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
 
 /// **PageHero** — the reusable header lockup that opens a module surface
-/// (DROP Design System V2). An eyebrow (context/date), a strong title, an
+/// (OpsHub Design System V2). An eyebrow (context/date), a strong title, an
 /// optional subtitle line, an optional row of quiet [trailing] controls, and at
 /// most **one** [primaryAction] — the single call-to-action the screen exists to
 /// drive.

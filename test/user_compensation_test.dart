@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/admin/domain/entities/user_compensation.dart';
-import 'package:drop/features/admin/presentation/widgets/compensation_fields.dart';
-import 'package:drop/features/auth/data/models/user_model.dart';
-import 'package:drop/features/profile/data/models/profile_model.dart';
+import 'package:opshub/features/admin/domain/entities/user_compensation.dart';
+import 'package:opshub/features/admin/presentation/widgets/compensation_fields.dart';
+import 'package:opshub/features/auth/data/models/user_model.dart';
+import 'package:opshub/features/profile/data/models/profile_model.dart';
 
 /// C2 fix (2026-07-03): compensation lives in the PRIVATE subdocument
 /// `users/{uid}/private/compensation` (see [UserCompensation]) — the

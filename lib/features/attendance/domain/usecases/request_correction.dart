@@ -1,5 +1,5 @@
-import 'package:drop/features/attendance/domain/entities/attendance_correction.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_correction.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_repository.dart';
 
 /// Files an attendance correction — persists a freshly built `pending`
 /// [AttendanceCorrectionEntity] for the employee's own record. The caller (the

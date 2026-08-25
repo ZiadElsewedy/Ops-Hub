@@ -1,14 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/repositories/sales_repository.dart';
-import 'package:drop/features/sales/domain/usecases/approve_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/edit_approved_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/reject_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/reopen_sales_submission.dart';
-import 'package:drop/features/sales/domain/usecases/request_sales_correction.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_submission_detail_cubit.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/repositories/sales_repository.dart';
+import 'package:opshub/features/sales/domain/usecases/approve_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/edit_approved_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/reject_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/reopen_sales_submission.dart';
+import 'package:opshub/features/sales/domain/usecases/request_sales_correction.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_submission_detail_cubit.dart';
 
 class _FakeSalesRepository implements SalesRepository {
   final submission = StreamController<DailySalesSubmissionEntity?>.broadcast();

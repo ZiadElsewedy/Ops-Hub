@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/attendance_source.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/status_badge.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/core/enums/attendance_source.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/status_badge.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 /// One day in the Attendance History ledger — a compact, tappable record card.
 /// Shows the date/weekday (or the employee name in a reviewer list), the status

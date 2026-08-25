@@ -1127,7 +1127,7 @@ Cards can survive on mobile. Desktop should use a data table and side panel.
 
 ### 15.1 What "payroll-ready" means
 
-DROP should not become a payroll processor.
+OpsHub should not become a payroll processor.
 
 Payroll-ready means:
 
@@ -1139,7 +1139,7 @@ Payroll-ready means:
 - Corrections/restatements are versioned.
 - The file is auditable: who requested it, when, scope, period, version.
 
-DROP responsibility ends at handing off a reconciled attendance ledger. Pay rates, deductions, tax, payroll approval, and payout remain outside DROP.
+OpsHub responsibility ends at handing off a reconciled attendance ledger. Pay rates, deductions, tax, payroll approval, and payout remain outside OpsHub.
 
 ### 15.2 CSV schema
 
@@ -1206,7 +1206,7 @@ PDF period report:
 5. Exception queue summary.
 6. Employee table.
 7. Export/restatement log.
-8. Footer: "DROP attendance ledger, not payroll calculation."
+8. Footer: "OpsHub attendance ledger, not payroll calculation."
 
 The PDF should be readable in monochrome and printable. No color legend should be required to understand it.
 

@@ -95,7 +95,7 @@ function canDecideSubmission(actorId, submittedById) {
  *
  * **An admin has no `branchId`** (the role is global — see PROJECT_CONTEXT §8),
  * so no `where("branchId", ...)` query can ever return one. Every other
- * reviewer set in DROP therefore resolves as *the branch's managers **plus**
+ * reviewer set in OpsHub therefore resolves as *the branch's managers **plus**
  * every active admin* (`resolveRequestApprovers`, `resolveAttendanceReviewers`).
  * Sales was the one that treated admins as a **fallback** — consulted only when
  * the branch query came back empty — which meant an admin received nothing at

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/broadcast_category.dart';
+import 'package:opshub/core/enums/broadcast_category.dart';
 
 /// The Communications Center category enum (Phase 3) — used by the Compose
 /// screen's category selector and the feed/detail styling.

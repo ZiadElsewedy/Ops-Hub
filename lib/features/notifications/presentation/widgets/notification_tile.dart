@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
-import 'package:drop/features/notifications/presentation/notification_format.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/presentation/notification_format.dart';
 
 /// A single notification in the inbox — a **subject-led two-line row**: a type
 /// glyph, a small event kicker with the age in the right corner, and the

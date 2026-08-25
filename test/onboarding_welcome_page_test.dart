@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/widgets/animated_drop_logo.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/auth/presentation/pages/onboarding_welcome_page.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/widgets/animated_opshub_logo.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/auth/presentation/pages/onboarding_welcome_page.dart';
 
 /// A stand-in AuthCubit that records the one dismiss call the page makes and
 /// otherwise just holds an authenticated state.
@@ -37,7 +37,7 @@ void main() {
     WidgetTester tester, {
     String? name,
   }) async {
-    // Phone width → the hero uses AnimatedDropLogo (no 13MB Lottie in tests).
+    // Phone width → the hero uses AnimatedOpsHubLogo (no 13MB Lottie in tests).
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -50,7 +50,7 @@ void main() {
       ),
     );
     // Run the staggered FadeSlideTransition delays (up to ~0.9s + 0.5s each).
-    // Explicit pumps, never pumpAndSettle — AnimatedDropLogo repeats forever.
+    // Explicit pumps, never pumpAndSettle — AnimatedOpsHubLogo repeats forever.
     await tester.pump(const Duration(milliseconds: 1600));
     return auth;
   }
@@ -60,14 +60,14 @@ void main() {
   ) async {
     await pumpWelcome(tester, name: 'Ahmed Ali');
 
-    expect(find.text('Welcome to Drop Operations, Ahmed.'), findsOneWidget);
+    expect(find.text('Welcome to OpsHub, Ahmed.'), findsOneWidget);
     expect(find.text("You're part of the team now."), findsOneWidget);
     // The three expectations — accountability · teamwork · clarity.
     expect(find.text('Own your shifts and tasks.'), findsOneWidget);
     expect(find.text('Back each other up.'), findsOneWidget);
     expect(find.text('One place for everything.'), findsOneWidget);
     // Phone hero is the animated light-sweep logo, not the Lottie.
-    expect(find.byType(AnimatedDropLogo), findsOneWidget);
+    expect(find.byType(AnimatedOpsHubLogo), findsOneWidget);
     expect(find.text('Get started'), findsOneWidget);
   });
 
@@ -75,7 +75,7 @@ void main() {
     tester,
   ) async {
     await pumpWelcome(tester);
-    expect(find.text('Welcome to Drop Operations.'), findsOneWidget);
+    expect(find.text('Welcome to OpsHub.'), findsOneWidget);
   });
 
   testWidgets('Get started dismisses onboarding via the cubit', (tester) async {

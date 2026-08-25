@@ -1,7 +1,7 @@
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/domain/sales_trend.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/domain/sales_trend.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 DailySalesSubmissionEntity _sub(

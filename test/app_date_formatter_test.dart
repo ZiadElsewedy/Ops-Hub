@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/utils/app_date_formatter.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
 
 /// Locks the exact user-visible output of the single app date formatter. The
 /// expected strings mirror the formats that used to be re-implemented across

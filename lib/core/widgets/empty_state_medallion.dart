@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// **EmptyStateMedallion** — the shared "nothing here" mark.
 ///
@@ -11,7 +11,7 @@ import 'package:drop/core/theme/app_colors.dart';
 /// Strictly monochrome, per the owner-locked stance: the craft comes from
 /// light, radius and hairline weight, never from colour.
 ///
-/// Both [AppEmptyState] (glyph-led) and [DropEmptyState] (brand-led) render
+/// Both [AppEmptyState] (glyph-led) and [OpsHubEmptyState] (brand-led) render
 /// their mark through this, so every empty surface in the app shares one
 /// silhouette. [size] shrinks the whole assembly proportionally for in-card
 /// use, where a full-page medallion would overwhelm the card.

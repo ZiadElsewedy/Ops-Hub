@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/brand_watermark.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/brand_watermark.dart';
+import 'package:opshub/core/widgets/opshub_logo.dart';
 
-/// What DROP is, and how to reach a human about it.
+/// What OpsHub is, and how to reach a human about it.
 ///
 /// Composed from the design-system primitives rather than hand-rolled boxes:
 /// [AppGlassCard] for the surfaces (gradient + two-layer depth), the real
-/// [DropLogo] artwork behind a [BrandWatermark] so the lockup matches the
+/// [OpsHubLogo] artwork behind a [BrandWatermark] so the lockup matches the
 /// splash, and [EntranceFade] so the page assembles with the same stagger as
 /// every other screen.
 ///
@@ -173,7 +173,7 @@ class _BrandCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const DropLogo(height: 36),
+              const OpsHubLogo(height: 36),
               const SizedBox(height: 10),
               Text(
                 'OPERATIONS',
@@ -191,7 +191,7 @@ class _BrandCard extends StatelessWidget {
               Container(width: 44, height: 1, color: AppColors.darkBorder),
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'Drop Operations runs the day-to-day of a multi-branch operation. '
+                'OpsHub runs the day-to-day of a multi-branch operation. '
                 'Tasks, shifts, attendance and approvals live in one place, '
                 'so every branch opens and closes the same way — and a manager '
                 'can see that it did, without asking.',

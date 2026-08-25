@@ -1,6 +1,6 @@
 # Auth & Profile — admin-provisioned identity
 
-DROP has **no public registration**. An admin creates every account. There is no
+OpsHub has **no public registration**. An admin creates every account. There is no
 sign-up, no Google sign-in, no phone/OTP, no email-verification gate, and no
 approval queue — all of those existed once and were removed (2026-06-26).
 

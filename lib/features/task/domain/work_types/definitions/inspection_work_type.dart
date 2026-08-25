@@ -1,8 +1,8 @@
-import 'package:drop/features/task/domain/work_types/work_context.dart';
-import 'package:drop/features/task/domain/work_types/work_type_definition.dart';
-import 'package:drop/features/task/domain/work_types/work_draft.dart';
-import 'package:drop/features/task/domain/work_types/work_review.dart';
-import 'package:drop/features/task/domain/work_types/work_validation.dart';
+import 'package:opshub/features/task/domain/work_types/work_context.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_definition.dart';
+import 'package:opshub/features/task/domain/work_types/work_draft.dart';
+import 'package:opshub/features/task/domain/work_types/work_review.dart';
+import 'package:opshub/features/task/domain/work_types/work_validation.dart';
 
 /// The outcome of one inspection point.
 enum InspectionResult {

@@ -3,8 +3,8 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/errors/exceptions.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/errors/exceptions.dart';
 
 /// The result of one successful media upload — the Storage object id (the
 /// filename stem) and its download URL. Deliberately minimal: the uploader

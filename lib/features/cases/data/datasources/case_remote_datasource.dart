@@ -3,16 +3,16 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:drop/core/constants/app_constants.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/media/media_upload_service.dart';
-import 'package:drop/features/cases/data/models/case_model.dart';
-import 'package:drop/features/cases/domain/entities/case_identity.dart';
-import 'package:drop/features/cases/domain/entities/case_message.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/constants/app_constants.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/media/media_upload_service.dart';
+import 'package:opshub/features/cases/data/models/case_model.dart';
+import 'package:opshub/features/cases/domain/entities/case_identity.dart';
+import 'package:opshub/features/cases/domain/entities/case_message.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 abstract class CaseRemoteDataSource {
   Stream<List<CaseModel>> watchAllCases();

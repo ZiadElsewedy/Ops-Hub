@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_exception.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_timesheet_csv.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_exception.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_timesheet_csv.dart';
 
 void main() {
   AttendanceLedgerRow row({
@@ -168,10 +168,10 @@ void main() {
 
   test('the filename is findable and safe', () {
     final name = attendanceTimesheetFilename(
-      'Drop The Shop | Arkan',
+      'OpsHub | Arkan',
       DateTime(2026, 7, 26),
     );
-    expect(name, 'attendance-Drop-The-Shop-Arkan-20260726.csv');
+    expect(name, 'attendance-OpsHub-Arkan-20260726.csv');
     expect(
       attendanceTimesheetFilename('   ', DateTime(2026, 7, 26)),
       'attendance-branch-20260726.csv',

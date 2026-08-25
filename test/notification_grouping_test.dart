@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/notification_type.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
-import 'package:drop/features/notifications/presentation/notification_format.dart';
+import 'package:opshub/core/enums/notification_type.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/presentation/notification_format.dart';
 
 /// Notification Center pure helpers (§5a operations inbox): the priority model,
 /// the category model, and the Today/Yesterday/Earlier time grouping.
@@ -167,22 +167,25 @@ void main() {
           ['Today', 'Yesterday', 'Earlier']);
     });
 
-    test('within a day, higher priority sorts above newer-but-lower', () {
+    test('within a day, strictly newest-first regardless of priority', () {
+      // Owner ruling (2026-08-11): the timeline is purely chronological. A
+      // newer normal-priority row now sits ABOVE an older critical one — the
+      // most recent notification is always at the top of its day.
       final items = [
-        // Newer, but only normal priority.
-        _n('approvedNew',
-            at: DateTime(2026, 6, 22, 11), type: NotificationType.taskApproved),
-        // Older, but critical → must come first.
+        // Older, critical — used to float to the top; now stays below.
         _n('overdueOld',
             at: DateTime(2026, 6, 22, 8), type: NotificationType.taskOverdue),
+        // Newer, only normal priority — now leads.
+        _n('approvedNew',
+            at: DateTime(2026, 6, 22, 11), type: NotificationType.taskApproved),
       ];
       final today = groupByTime(items, now).single;
       expect(today.title, 'Today');
       expect(today.items.map((n) => n.id).toList(),
-          ['overdueOld', 'approvedNew']);
+          ['approvedNew', 'overdueOld']);
     });
 
-    test('same priority falls back to newest-first', () {
+    test('newest-first', () {
       final items = [
         _n('older', at: DateTime(2026, 6, 22, 8)),
         _n('newer', at: DateTime(2026, 6, 22, 10)),

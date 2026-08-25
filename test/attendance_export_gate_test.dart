@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_export_gate.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_export_gate.dart';
 
 void main() {
   AttendanceExportAvailability gate({
@@ -55,7 +55,7 @@ void main() {
   });
 
   test('payroll is gone — the enum carries only operational artifacts', () {
-    // ADR-019: DROP is an operations system, nothing ingests a payroll file.
+    // ADR-019: OpsHub is an operations system, nothing ingests a payroll file.
     expect(AttendanceExportKind.values, hasLength(2));
     expect(
       AttendanceExportKind.values.map((k) => k.label),

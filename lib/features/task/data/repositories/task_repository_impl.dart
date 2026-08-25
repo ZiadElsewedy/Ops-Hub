@@ -1,23 +1,23 @@
 import 'dart:io';
 
-import 'package:drop/core/enums/attachment_type.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/media/media_upload_service.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/network/network_guard.dart';
-import 'package:drop/features/task/data/datasources/task_remote_datasource.dart';
-import 'package:drop/features/task/data/models/recurring_task_template_model.dart';
-import 'package:drop/features/task/data/models/task_model.dart';
-import 'package:drop/features/task/data/models/task_template_model.dart';
-import 'package:drop/features/task/domain/entities/activity_entry.dart';
-import 'package:drop/features/task/domain/entities/automation_run_entity.dart';
-import 'package:drop/features/task/domain/entities/recurring_task_template_entity.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/entities/task_template_entity.dart';
-import 'package:drop/features/task/domain/repositories/task_repository.dart';
-import 'package:drop/features/task/domain/task_ordering.dart';
+import 'package:opshub/core/enums/attachment_type.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/media/media_upload_service.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/network/network_guard.dart';
+import 'package:opshub/features/task/data/datasources/task_remote_datasource.dart';
+import 'package:opshub/features/task/data/models/recurring_task_template_model.dart';
+import 'package:opshub/features/task/data/models/task_model.dart';
+import 'package:opshub/features/task/data/models/task_template_model.dart';
+import 'package:opshub/features/task/domain/entities/activity_entry.dart';
+import 'package:opshub/features/task/domain/entities/automation_run_entity.dart';
+import 'package:opshub/features/task/domain/entities/recurring_task_template_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_template_entity.dart';
+import 'package:opshub/features/task/domain/repositories/task_repository.dart';
+import 'package:opshub/features/task/domain/task_ordering.dart';
 
 class TaskRepositoryImpl implements TaskRepository {
   final TaskRemoteDataSource _remote;

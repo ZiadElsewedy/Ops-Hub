@@ -24,7 +24,7 @@
       "Bash(xargs kill)",
       "mcp__Claude_Preview__preview_start",
       "Bash(pkill -f \"flutter run -d macos\")",
-      "Bash(pkill -f \"DROP.app\")",
+      "Bash(pkill -f \"OpsHub.app\")",
       "Bash(git checkout *)",
       "Bash(rm -f macos/Podfile.lock)",
       "Bash(python3 -)",
@@ -43,7 +43,12 @@
       "Bash(node \"/Users/ziad/.claude/skills/codex-delegate/scripts/relay.mjs\" --brief \"/private/tmp/claude-501/-Users-ziad-Desktop-Developer-Projects-Flutter-Projects-fbro/5f9c004a-f5b0-4720-8ca3-84a911e2e468/scratchpad/brief-notifications-audit.txt\" --cd \"/Users/ziad/Desktop/Developer/Projects/Flutter Projects/fbro\" --read-only --timeout 90m)",
       "Bash(node \"/Users/ziad/.claude/skills/codex-delegate/scripts/relay.mjs\" --brief \"/private/tmp/claude-501/-Users-ziad-Desktop-Developer-Projects-Flutter-Projects-fbro/955f9061-6a8a-4468-96ba-15b37fb9fd7d/scratchpad/brief-01-task-notifications-audit.txt\" --cd \"/Users/ziad/Desktop/Developer/Projects/Flutter Projects/fbro\" --read-only --timeout 2h)",
       "Bash(firebase --version)",
-      "Bash(node /Users/ziad/.claude/skills/codex-delegate/scripts/relay.mjs --brief /private/tmp/claude-501/-Users-ziad-Desktop-Developer-Projects-Flutter-Projects-Drop-operations/f5b0a1e9-0d47-4389-97da-60263d797fdc/scratchpad/brief.txt --cd '/Users/ziad/Desktop/Developer/Projects/Flutter Projects/Drop-operations' --read-only --timeout 2h)"
+      "Bash(node /Users/ziad/.claude/skills/codex-delegate/scripts/relay.mjs --brief /private/tmp/claude-501/-Users-ziad-Desktop-Developer-Projects-Flutter-Projects-Drop-operations/f5b0a1e9-0d47-4389-97da-60263d797fdc/scratchpad/brief.txt --cd '/Users/ziad/Desktop/Developer/Projects/Flutter Projects/Drop-operations' --read-only --timeout 2h)",
+      "Bash(xargs ls)",
+      "Bash(awk '/match \\\\/tasks\\\\/\\\\{taskId\\\\}/,0' firestore.rules)",
+      "Bash(npm outdated *)",
+      "Bash(grep -E \"\\\\.dart$\")",
+      "Artifact"
     ]
   }
 }

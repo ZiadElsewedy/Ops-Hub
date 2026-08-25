@@ -1,5 +1,5 @@
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// **Who is told that a task is waiting for review.** Pure, so the rule is
 /// unit-tested and cannot drift from the access model it mirrors.

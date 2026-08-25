@@ -1,4 +1,4 @@
-import 'package:drop/core/enums/chat_attachment_kind.dart';
+import 'package:opshub/core/enums/chat_attachment_kind.dart';
 
 /// The concrete file format of an **outgoing** chat attachment — mirrors the
 /// backend's `AttachmentFormat` enum and its kind/format agreement rule

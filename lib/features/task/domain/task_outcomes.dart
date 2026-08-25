@@ -26,9 +26,9 @@
 /// spec §13).
 library;
 
-import 'package:drop/core/enums/task_cancel_reason.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/task_cancel_reason.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// A branch's (or the estate's) task outcomes over some set of tasks.
 ///

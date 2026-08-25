@@ -1,5 +1,5 @@
-import 'package:drop/features/attendance/domain/attendance_calculator.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/attendance_calculator.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 /// Derived reporting exception facts. These are not persisted attendance
 /// lifecycle states and must not be added to `AttendanceStatus`.

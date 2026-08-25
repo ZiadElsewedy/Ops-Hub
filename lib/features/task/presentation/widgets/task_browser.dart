@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_empty_state.dart';
-import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/task_feed.dart';
-import 'package:drop/features/task/presentation/cubit/task_cubit.dart';
-import 'package:drop/features/task/presentation/cubit/task_state.dart';
-import 'package:drop/features/task/presentation/widgets/task_feed_row.dart';
-import 'package:drop/features/task/presentation/widgets/task_preview_sheet.dart';
-import 'package:drop/features/task/presentation/widgets/task_section_list.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_empty_state.dart';
+import 'package:opshub/core/widgets/app_search_field.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/task_feed.dart';
+import 'package:opshub/features/task/presentation/cubit/task_cubit.dart';
+import 'package:opshub/features/task/presentation/cubit/task_state.dart';
+import 'package:opshub/features/task/presentation/widgets/task_feed_row.dart';
+import 'package:opshub/features/task/presentation/widgets/task_preview_sheet.dart';
+import 'package:opshub/features/task/presentation/widgets/task_section_list.dart';
 
 /// The shared manager/admin task browser. It filters the already-live task
 /// stream in memory; no list surface is allowed to issue its own task read.
@@ -319,7 +319,7 @@ class _TaskBrowserState extends State<TaskBrowser> {
     }
 
     return Expanded(
-      child: DropEmptyState(
+      child: OpsHubEmptyState(
         title: widget.emptyTitle,
         message: widget.emptyMessage,
       ),

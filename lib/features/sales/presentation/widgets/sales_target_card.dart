@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/rolling_number.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
-import 'package:drop/core/widgets/glass_container.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
-import 'package:drop/features/sales/presentation/sales_format.dart';
-import 'package:drop/features/sales/presentation/widgets/sales_progress_ring.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/rolling_number.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:opshub/features/sales/presentation/sales_format.dart';
+import 'package:opshub/features/sales/presentation/widgets/sales_progress_ring.dart';
 
 /// The employee Home sales module: the **branch's** month at a glance — a small
 /// progress ring, the achieved figure over the target, and the remainder — with
@@ -19,7 +19,7 @@ import 'package:drop/features/sales/presentation/widgets/sales_progress_ring.dar
 ///
 /// A Home module is one row in a dashboard: the ring answers "how far?" at a
 /// glance, `achieved / target` states it in figures, and everything heavier
-/// (pace, history, the DROP mark) lives one tap away on `/sales/mine`. The
+/// (pace, history, the OpsHub mark) lives one tap away on `/sales/mine`. The
 /// achieved figure and the ring read [AppColors.salesEmerald]; the achieved
 /// figure is a [RollingNumber] odometer because it is the number that moves.
 class SalesTargetCard extends StatelessWidget {

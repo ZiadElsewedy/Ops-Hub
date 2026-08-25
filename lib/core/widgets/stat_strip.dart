@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/animated_count.dart';
-import 'package:drop/core/widgets/glass_container.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/animated_count.dart';
+import 'package:opshub/core/widgets/glass_container.dart';
 
 /// One cell in a [StatStrip] — a label + a glanceable value, optionally tinted.
 ///
@@ -50,7 +50,7 @@ class Stat {
   final VoidCallback? onTap;
 }
 
-/// **StatStrip** — a calm, single-surface row of small facts (DROP Design System
+/// **StatStrip** — a calm, single-surface row of small facts (OpsHub Design System
 /// V2). The lightweight "here's today" layer: a few `value / label` stats inside
 /// one quiet [GlassContainer], no charts. The small sibling of a metric-card
 /// grid, for the supporting numbers that inform without demanding action.

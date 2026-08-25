@@ -1,11 +1,11 @@
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/routes/router_extensions.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/chat/presentation/chat_thread_args.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/routes/router_extensions.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/chat/presentation/chat_thread_args.dart';
 
 /// The counterpart identity for [conversationId], resolved from the inbox
 /// summary + the session directory — the two sources both notification tap

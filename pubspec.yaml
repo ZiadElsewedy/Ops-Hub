@@ -1,5 +1,5 @@
-name: drop
-description: "DROP OPERATIONS — role-based branch / shift operations management for DROP THE SHOP."
+name: opshub
+description: "OpsHub — role-based branch / shift operations management."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -44,7 +44,7 @@ dependencies:
   # import dio directly.
   dio: ^5.7.0
 
-  # Connectivity — DROP requires a live connection to open (see
+  # Connectivity — OpsHub requires a live connection to open (see
   # `core/network/connectivity_service.dart`). Reports the *interface* only,
   # which is why the service pairs it with a real reachability probe.
   connectivity_plus: ^6.1.0
@@ -154,11 +154,12 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/E22CA445-D611-4A31-8EE5-BB661032E09C.png"
+  image_path: "assets/icon/opshub_app_icon.png"
+  remove_alpha_ios: true
   min_sdk_android: 21
-  # macOS Dock/Finder icon — Big Sur squircle composed from assets/drop_logo.png
-  # (dark monochrome gradient + white DROP wordmark). The iconset under
-  # macos/Runner/Assets.xcassets was generated from this master.
+  # macOS Dock/Finder icon — Big Sur squircle composed from a navy master with
+  # the OpsHub hub mark. The iconset under macos/Runner/Assets.xcassets was
+  # generated from this master.
   macos:
     generate: true
     image_path: "assets/icon/app_icon_macos.png"
@@ -175,11 +176,13 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/drop_logo.png
+    - assets/opshub_icon.svg
     - assets/gmail.svg
     - assets/whatsapp.svg
-    - assets/0704.json
     - assets/submission_loading.json
+    # Landing-page showcase — curated, downscaled captures of the real app
+    # (regenerated from `docs/screenshots`, see LandingPage).
+    - assets/showcase/
 
   fonts:
     - family: Inter

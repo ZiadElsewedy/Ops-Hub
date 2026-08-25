@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/network/connectivity_service.dart';
-import 'package:drop/core/theme/app_theme.dart';
-import 'package:drop/core/widgets/connectivity_scope.dart';
+import 'package:opshub/core/network/connectivity_service.dart';
+import 'package:opshub/core/theme/app_theme.dart';
+import 'package:opshub/core/widgets/connectivity_scope.dart';
 
 /// **The offline rule: gate the actions, never the app.**
 ///

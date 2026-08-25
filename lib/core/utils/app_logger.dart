@@ -3,9 +3,9 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/observability/crash_reporter.dart';
+import 'package:opshub/core/observability/crash_reporter.dart';
 
-/// Global structured logging for DROP — the single entry point for every log
+/// Global structured logging for OpsHub — the single entry point for every log
 /// line in the app (no scattered `print`s).
 ///
 /// Categories:

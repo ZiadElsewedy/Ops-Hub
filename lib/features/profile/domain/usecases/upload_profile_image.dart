@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:drop/features/profile/domain/repositories/profile_repository.dart';
+import 'package:opshub/features/profile/domain/repositories/profile_repository.dart';
 
 class UploadProfileImage {
   final ProfileRepository _repository;

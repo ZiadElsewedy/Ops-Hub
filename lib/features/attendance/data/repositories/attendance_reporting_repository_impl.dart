@@ -1,9 +1,9 @@
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/attendance/data/datasources/attendance_reporting_datasource.dart';
-import 'package:drop/features/attendance/data/models/attendance_ledger_model.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/attendance/data/datasources/attendance_reporting_datasource.dart';
+import 'package:opshub/features/attendance/data/models/attendance_ledger_model.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_reporting_repository.dart';
 
 class AttendanceReportingRepositoryImpl
     implements AttendanceReportingRepository {

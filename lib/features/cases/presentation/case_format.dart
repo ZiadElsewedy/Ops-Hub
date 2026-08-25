@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/enums/case_category.dart';
-import 'package:drop/core/enums/case_status.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/enums/case_category.dart';
+import 'package:opshub/core/enums/case_status.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// Shared, **pure** presentation helpers for Case Management — the single source
 /// for a category glyph, a status colour, and the system-message markers.

@@ -1,15 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/attendance/domain/repositories/attendance_reporting_repository.dart';
-import 'package:drop/features/auth/domain/usecases/get_users_by_branch.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/attendance/domain/repositories/attendance_reporting_repository.dart';
+import 'package:opshub/features/auth/domain/usecases/get_users_by_branch.dart';
 import 'attendance_report_state.dart';
 
 class AttendanceReportCubit extends Cubit<AttendanceReportState> {

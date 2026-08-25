@@ -1,20 +1,20 @@
 import 'dart:io';
 
 import 'package:drift/native.dart';
-import 'package:drop/core/enums/chat_attachment_kind.dart';
-import 'package:drop/core/enums/chat_message_type.dart';
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/chat/data/datasources/chat_remote_datasource.dart';
-import 'package:drop/features/chat/data/local/chat_database.dart';
-import 'package:drop/features/chat/data/local/chat_local_datasource.dart';
-import 'package:drop/features/chat/data/repositories/chat_repository_impl.dart';
-import 'package:drop/features/chat/domain/entities/chat_attachment_download.dart';
-import 'package:drop/features/chat/domain/entities/chat_conversation.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/domain/entities/chat_read_receipt.dart';
-import 'package:drop/features/chat/presentation/chat_thread_cache.dart';
+import 'package:opshub/core/enums/chat_attachment_kind.dart';
+import 'package:opshub/core/enums/chat_message_type.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/chat/data/datasources/chat_remote_datasource.dart';
+import 'package:opshub/features/chat/data/local/chat_database.dart';
+import 'package:opshub/features/chat/data/local/chat_local_datasource.dart';
+import 'package:opshub/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:opshub/features/chat/domain/entities/chat_attachment_download.dart';
+import 'package:opshub/features/chat/domain/entities/chat_conversation.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/domain/entities/chat_read_receipt.dart';
+import 'package:opshub/features/chat/presentation/chat_thread_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Verifies the Drift offline cache: the [ChatLocalDataSource] on its own, and

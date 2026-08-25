@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// A lightweight shimmering placeholder block for loading states.
 /// No external package — uses a single looping gradient sweep.

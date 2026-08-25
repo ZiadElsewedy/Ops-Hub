@@ -2,30 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_dialog.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
-import 'package:drop/core/widgets/app_motion.dart';
-import 'package:drop/core/widgets/list_skeleton.dart';
-import 'package:drop/features/notifications/domain/entities/notification_entity.dart';
-import 'package:drop/features/notifications/domain/notification_deep_link.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_cubit.dart';
-import 'package:drop/features/notifications/presentation/cubit/notification_state.dart';
-import 'package:drop/features/notifications/presentation/notification_format.dart';
-import 'package:drop/features/notifications/presentation/widgets/notification_tile.dart';
-import 'package:drop/core/widgets/app_error_state.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_dialog.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/app_motion.dart';
+import 'package:opshub/core/widgets/list_skeleton.dart';
+import 'package:opshub/features/notifications/domain/entities/notification_entity.dart';
+import 'package:opshub/features/notifications/domain/notification_deep_link.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_cubit.dart';
+import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
+import 'package:opshub/features/notifications/presentation/notification_format.dart';
+import 'package:opshub/features/notifications/presentation/widgets/notification_tile.dart';
+import 'package:opshub/core/widgets/app_error_state.dart';
 
-/// The in-app Notification Center — an **operations workflow inbox** (§5). Not a
+/// The in-app Notification Center — an **operations inbox** (§5). Not a
 /// flat feed: notifications are **grouped by time** (Today / Yesterday / Earlier),
 /// **filtered by category** (All / Tasks / Reviews / Requests / Cases / Schedule
-/// / Sales / Broadcast), and **ordered by priority** within each section so what
-/// needs acting on floats up. Swipe right
+/// / Sales / Broadcast), and **ordered newest-first** within each section so it
+/// reads as a timeline (owner ruling 2026-08-11; priority still drives a tile's
+/// unread emphasis, not the feed order). Swipe right
 /// to mark read, swipe left to archive (delete in the Archived view); bulk
 /// Mark-all-read / Clear-archived; every tile deep-links to its destination.
 class NotificationsScreen extends StatefulWidget {
@@ -351,18 +352,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _empty() {
     if (_showArchived) {
-      return const DropEmptyState(
+      return const OpsHubEmptyState(
         title: 'Nothing archived',
         message: 'Archived notifications will collect here.',
       );
     }
     if (_category != NotificationCategory.all) {
-      return DropEmptyState(
+      return OpsHubEmptyState(
         title: 'No ${_category.label.toLowerCase()} notifications',
         message: 'Nothing here right now.',
       );
     }
-    return const DropEmptyState(
+    return const OpsHubEmptyState(
       title: "You're all caught up",
       message: 'Task updates and announcements will show up here.',
     );

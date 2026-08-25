@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_search_field.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
-import 'package:drop/core/widgets/drop_loading_state.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/requests/domain/entities/request_entity.dart';
-import 'package:drop/features/requests/domain/request_metrics.dart';
-import 'package:drop/features/requests/presentation/cubit/requests_list_cubit.dart';
-import 'package:drop/features/requests/presentation/cubit/requests_list_state.dart';
-import 'package:drop/features/requests/presentation/request_format.dart';
-import 'package:drop/features/requests/presentation/widgets/request_card.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_search_field.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
+import 'package:opshub/core/widgets/opshub_loading_state.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/requests/domain/entities/request_entity.dart';
+import 'package:opshub/features/requests/domain/request_metrics.dart';
+import 'package:opshub/features/requests/presentation/cubit/requests_list_cubit.dart';
+import 'package:opshub/features/requests/presentation/cubit/requests_list_state.dart';
+import 'package:opshub/features/requests/presentation/request_format.dart';
+import 'package:opshub/features/requests/presentation/widgets/request_card.dart';
 
 /// The employee approval-requests inbox — shared by every role, self-scoping
 /// (admin: all branches · manager: own branch · employee: own requests).
@@ -76,7 +76,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
             ),
       body: BlocBuilder<RequestsListCubit, RequestsListState>(
         builder: (context, state) => state.maybeWhen(
-          loading: () => const DropLoadingState(message: 'Loading requests…'),
+          loading: () => const OpsHubLoadingState(message: 'Loading requests…'),
           loaded: (requests, branchNames) => _Body(
             requests: requests,
             branchNames: branchNames,
@@ -95,7 +95,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
               if (u != null) context.read<RequestsListCubit>().refresh();
             },
           ),
-          orElse: () => const DropLoadingState(message: 'Loading requests…'),
+          orElse: () => const OpsHubLoadingState(message: 'Loading requests…'),
         ),
       ),
     );
@@ -326,7 +326,7 @@ class _EmptyState extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xxxl),
-      child: DropEmptyState(
+      child: OpsHubEmptyState(
         title: hasAny ? 'Nothing here' : 'No requests yet',
         message: message,
       ),

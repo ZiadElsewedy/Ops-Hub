@@ -11,7 +11,7 @@
 /// is the one place that distinction is made.
 library;
 
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// How a task came into existence.
 enum TaskOrigin {

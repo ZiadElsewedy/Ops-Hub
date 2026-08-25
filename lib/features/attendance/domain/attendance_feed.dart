@@ -1,4 +1,4 @@
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 /// A snapshot of a user's attendance history **plus its Firestore sync state**.
 ///

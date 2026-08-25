@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/di/injection.dart';
-import 'package:drop/core/services/notification_preferences_store.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/settings_tiles.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/core/di/injection.dart';
+import 'package:opshub/core/services/notification_preferences_store.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/settings_tiles.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
 
 /// Notification preferences for the signed-in user, **on this device**.
 ///
@@ -142,7 +142,7 @@ class _NotificationsSettingsScreenState
       SettingsSwitchRow(
         icon: Icons.notifications_active_outlined,
         label: 'Enable Notifications',
-        subtitle: 'Turn every Drop Operations notification on or off',
+        subtitle: 'Turn every OpsHub notification on or off',
         value: _prefs.enabled,
         onChanged: (v) => _update(_prefs.copyWith(enabled: v)),
         isFirst: true,

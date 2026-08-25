@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/widgets/segmented_tab_bar.dart';
+import 'package:opshub/core/widgets/segmented_tab_bar.dart';
 
 void main() {
   Widget host({
@@ -90,7 +90,7 @@ void main() {
   testWidgets('four counted segments fit a small phone without overflowing', (
     tester,
   ) async {
-    // The narrowest phone DROP targets. Four segments plus counts is the
+    // The narrowest phone OpsHub targets. Four segments plus counts is the
     // densest the control ever gets — if it fits here it fits everywhere.
     tester.view.physicalSize = const Size(320, 800);
     tester.view.devicePixelRatio = 1;

@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/adaptive_scaffold.dart';
-import 'package:drop/core/widgets/app_glass_card.dart';
-import 'package:drop/core/widgets/brand_watermark.dart';
-import 'package:drop/core/widgets/user_avatar.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/core/widgets/settings_tiles.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/adaptive_scaffold.dart';
+import 'package:opshub/core/widgets/app_glass_card.dart';
+import 'package:opshub/core/widgets/brand_watermark.dart';
+import 'package:opshub/core/widgets/user_avatar.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/core/widgets/settings_tiles.dart';
 
 /// The signed-in user's account hub.
 ///
 /// Identity leads, operational shortcuts sit in clear groups, and destructive
 /// sign-out is deliberately separated from ordinary navigation. All surfaces
-/// reuse the shared glass/motion system so Settings feels like part of DROP,
+/// reuse the shared glass/motion system so Settings feels like part of OpsHub,
 /// not a platform preferences form.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -88,7 +88,7 @@ class SettingsPage extends StatelessWidget {
                         isLast: true,
                         // Deliberately inert for v1: the row states that the
                         // destination is coming rather than opening an empty
-                        // screen or pretending to switch a theme DROP does not
+                        // screen or pretending to switch a theme OpsHub does not
                         // have yet (it is dark-only — ADR-004).
                         onTap: null,
                         trailing: SettingsComingSoonLabel(),
@@ -141,7 +141,7 @@ class SettingsPage extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xxl),
                 const SettingsReveal(
                   index: 8,
-                  child: SettingsSectionHeader(label: 'Drop Operation'),
+                  child: SettingsSectionHeader(label: 'OpsHub'),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 SettingsReveal(
@@ -150,7 +150,7 @@ class SettingsPage extends StatelessWidget {
                     children: [
                       SettingsRow(
                         icon: Icons.info_outline_rounded,
-                        label: 'About Drop Operation',
+                        label: 'About OpsHub',
                         subtitle: 'Product details and human support',
                         isFirst: true,
                         onTap: () => context.push(RouteNames.about),
@@ -169,7 +169,7 @@ class SettingsPage extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
                 Center(
                   child: Text(
-                    'DROP THE SHOP · OPERATIONS',
+                    'OPSHUB · OPERATIONS',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.textQuaternary,
                       letterSpacing: 1.4,

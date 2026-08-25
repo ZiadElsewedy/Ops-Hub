@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 /// The trap both helpers exist for: `createRouter` returns a usable object
 /// immediately, but the router has no *stack* until the `Router` widget mounts
 /// and parses `initialLocation`. A cold-start tap lands squarely in that
-/// window — DROP holds the routed app behind BOTH the bootstrap and the splash
+/// window — OpsHub holds the routed app behind BOTH the bootstrap and the splash
 /// intro (~2s), while `getInitialMessage()` resolves in milliseconds — so at
 /// cold start the tap handler almost always runs against an unattached router.
 ///
@@ -37,7 +37,7 @@ extension GoRouterSafeNavigation on GoRouter {
   /// `push` appends a match without rewriting that uri, so after the ordinary
   /// `go('/manager') → push('/chat')` the two disagree: `currentLocationOrNull`
   /// still says `/manager` while the inbox is on screen. Every chat destination
-  /// in DROP is reached by `push` (the bottom nav, the notification deep link),
+  /// in OpsHub is reached by `push` (the bottom nav, the notification deep link),
   /// so "is the user on Chat right now?" can only be answered here.
   ///
   /// Use [currentLocationOrNull] for the duplicate-push guard it was written

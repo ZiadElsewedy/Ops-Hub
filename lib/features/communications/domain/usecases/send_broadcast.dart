@@ -1,5 +1,5 @@
-import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
-import 'package:drop/features/communications/domain/repositories/broadcast_repository.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_entity.dart';
+import 'package:opshub/features/communications/domain/repositories/broadcast_repository.dart';
 
 /// Sends a broadcast (manager / admin) and returns it with its generated id.
 ///

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/attendance/domain/attendance_break.dart';
+import 'package:opshub/features/attendance/domain/attendance_break.dart';
 
 void main() {
   final base = DateTime(2026, 7, 11, 10);

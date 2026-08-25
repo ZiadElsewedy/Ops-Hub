@@ -1,4 +1,4 @@
-# DROP — Auto-Generate Weekly Schedule: Feasibility & Architecture (2026-07-02)
+# OpsHub — Auto-Generate Weekly Schedule: Feasibility & Architecture (2026-07-02)
 
 > **Design exploration only — no implementation.** The next major feature
 > after beta: one tap turns an empty week into a publishable draft roster.
@@ -9,7 +9,7 @@
 
 ## 1 · Problem size (this decides everything)
 
-A DROP week is **14 slots** (7 days × Morning/Night) per branch, staffed from
+A OpsHub week is **14 slots** (7 days × Morning/Night) per branch, staffed from
 a branch roster of realistically **5–25 employees**. That is a *tiny* search
 space by scheduling-literature standards (hospital rostering solves thousands
 of slots). Every architectural decision below follows from this: **the
@@ -81,7 +81,7 @@ class GeneratorResult {
 
 ## 4 · UX shape (reuses Schedule 4.0 wholesale)
 
-1. Empty week → the existing `DropEmptyState` gains a second action:
+1. Empty week → the existing `OpsHubEmptyState` gains a second action:
    **"Generate draft"** (next to Create Schedule).
 2. The grid renders the draft in a **review mode** — a quiet "DRAFT — not
    published" banner; chips carry a small ✨ marker; tapping a chip's reason

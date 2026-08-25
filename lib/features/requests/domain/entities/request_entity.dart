@@ -1,8 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/request_status.dart';
-import 'package:drop/core/enums/request_type.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/features/task/domain/entities/task_attachment.dart';
+import 'package:opshub/core/enums/request_status.dart';
+import 'package:opshub/core/enums/request_type.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/features/task/domain/entities/task_attachment.dart';
 
 part 'request_entity.freezed.dart';
 

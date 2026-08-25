@@ -1,4 +1,4 @@
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
 
 /// Inbox ordering for the case list (the left split-pane) — a conversation
 /// inbox in the Slack / Intercom sense, **not** a task board. Pure Dart, no

@@ -1,8 +1,8 @@
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/work_types/work_context.dart';
-import 'package:drop/features/task/domain/work_types/work_draft.dart';
-import 'package:drop/features/task/domain/work_types/work_type_definition.dart';
-import 'package:drop/features/task/domain/work_types/work_type_registry.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/work_types/work_context.dart';
+import 'package:opshub/features/task/domain/work_types/work_draft.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_definition.dart';
+import 'package:opshub/features/task/domain/work_types/work_type_registry.dart';
 
 /// The **single seam** between a `TaskEntity` and the work-type kernel.
 ///

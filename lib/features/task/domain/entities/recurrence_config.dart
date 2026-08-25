@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:drop/core/enums/recurrence_frequency.dart';
+import 'package:opshub/core/enums/recurrence_frequency.dart';
 
 part 'recurrence_config.freezed.dart';
 

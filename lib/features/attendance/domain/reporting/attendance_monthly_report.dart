@@ -1,9 +1,9 @@
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_period.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_coverage_status.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_report.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_weekly_report.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_period.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_coverage_status.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_report.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_weekly_report.dart';
 
 /// A calendar month of the `attendance_expectations` ledger, folded into the
 /// facts a payroll/accounting handoff needs.

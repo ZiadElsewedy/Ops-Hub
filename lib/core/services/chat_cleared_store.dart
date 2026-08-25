@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:drop/core/utils/app_logger.dart';
+import 'package:opshub/core/utils/app_logger.dart';
 
 /// Pure decision — is a conversation still **fully cleared** (nothing new since
 /// the viewer last cleared/deleted it)? True when the viewer has a clear

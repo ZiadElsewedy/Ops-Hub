@@ -1,4 +1,4 @@
-import 'package:drop/features/attendance/domain/attendance_history_query.dart';
+import 'package:opshub/features/attendance/domain/attendance_history_query.dart';
 
 /// One person in the branch directory, reduced to what the reviewer search needs.
 /// The cubit maps a `UserEntity` to this so the pure resolver (and the state that

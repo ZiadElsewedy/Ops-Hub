@@ -1,5 +1,5 @@
-import 'package:drop/features/cases/domain/entities/case_entity.dart';
-import 'package:drop/features/cases/domain/entities/case_message.dart';
+import 'package:opshub/features/cases/domain/entities/case_entity.dart';
+import 'package:opshub/features/cases/domain/entities/case_message.dart';
 
 /// Sentinel id for a **client-synthesized** opening message. Never written to
 /// Firestore — it only exists so the conversation is self-contained on screen.

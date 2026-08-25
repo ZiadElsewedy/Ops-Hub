@@ -1,5 +1,5 @@
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/schedule/domain/schedule_week.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/schedule/domain/schedule_week.dart';
 
 /// The reporting period shape. These values are pure-domain classifications for
 /// the future reporting ledger; this task does not persist them.

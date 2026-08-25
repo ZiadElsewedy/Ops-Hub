@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/task/data/models/task_model.dart';
-import 'package:drop/features/task/domain/entities/checklist_item.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
-import 'package:drop/features/task/domain/entities/task_template_entity.dart';
+import 'package:opshub/features/task/data/models/task_model.dart';
+import 'package:opshub/features/task/domain/entities/checklist_item.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_template_entity.dart';
 
 /// Pure-logic verification for the Phase 9 task changes (no Firebase needed):
 /// checklist completion rules, multi-assignee, and (de)serialization.

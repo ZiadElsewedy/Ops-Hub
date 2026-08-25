@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_state.dart';
-import 'package:drop/features/settings/presentation/pages/settings_page.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_state.dart';
+import 'package:opshub/features/settings/presentation/pages/settings_page.dart';
 
 class _FakeAuthCubit extends Cubit<AuthState> implements AuthCubit {
   _FakeAuthCubit()
@@ -90,7 +90,7 @@ void main() {
       expect(find.text('ADMIN'), findsOneWidget);
       expect(find.text('Change password'), findsOneWidget);
       expect(find.text('Cases'), findsOneWidget);
-      expect(find.text('About Drop Operation'), findsOneWidget);
+      expect(find.text('About OpsHub'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('View and edit profile'));

@@ -1,9 +1,9 @@
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/core/errors/failures.dart';
-import 'package:drop/features/statistics/data/datasources/statistics_remote_datasource.dart';
-import 'package:drop/features/statistics/data/models/statistics_model.dart';
-import 'package:drop/features/statistics/domain/entities/statistics_entity.dart';
-import 'package:drop/features/statistics/domain/repositories/statistics_repository.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/core/errors/failures.dart';
+import 'package:opshub/features/statistics/data/datasources/statistics_remote_datasource.dart';
+import 'package:opshub/features/statistics/data/models/statistics_model.dart';
+import 'package:opshub/features/statistics/domain/entities/statistics_entity.dart';
+import 'package:opshub/features/statistics/domain/repositories/statistics_repository.dart';
 
 class StatisticsRepositoryImpl implements StatisticsRepository {
   final StatisticsRemoteDataSource _remote;

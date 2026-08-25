@@ -5,7 +5,7 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = Drop Operations
+PRODUCT_NAME = OpsHub
 
 // The application's bundle identifier.
 // NOTE: kept as com.ziad.drop on purpose — this identifier is registered with
@@ -14,4 +14,4 @@ PRODUCT_NAME = Drop Operations
 PRODUCT_BUNDLE_IDENTIFIER = com.ziad.drop
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 DROP THE SHOP. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 OpsHub. All rights reserved.

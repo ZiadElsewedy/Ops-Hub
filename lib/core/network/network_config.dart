@@ -1,4 +1,4 @@
-import 'package:drop/core/config/app_environment.dart';
+import 'package:opshub/core/config/app_environment.dart';
 
 /// Configuration for the external NestJS API (chat backend).
 ///

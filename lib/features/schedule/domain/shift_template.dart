@@ -1,6 +1,6 @@
-import 'package:drop/core/enums/shift_template_role.dart';
-import 'package:drop/features/schedule/domain/shift_hours.dart';
-import 'package:drop/features/schedule/domain/shift_plan.dart';
+import 'package:opshub/core/enums/shift_template_role.dart';
+import 'package:opshub/features/schedule/domain/shift_hours.dart';
+import 'package:opshub/features/schedule/domain/shift_plan.dart';
 
 /// A named, reusable shift-hours definition for a branch (Schedule V2 · Pillar
 /// 5) — e.g. *Morning 08:30 → 16:30*, *Weekday night 15:00 → 23:00*, *Weekend

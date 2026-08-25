@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/widgets/drop_empty_state.dart';
+import 'package:opshub/core/widgets/opshub_empty_state.dart';
 
 /// Centered, **brand-led** empty placeholder for a task list (§9b) — delegates
-/// to [DropEmptyState] so a cleared/empty list reads as a quiet DROP touchpoint
+/// to [OpsHubEmptyState] so a cleared/empty list reads as a quiet OpsHub touchpoint
 /// (the faded mark leads instead of a grey glyph). Full-screen empties only;
 /// never a list row.
 class TaskEmptyState extends StatelessWidget {
@@ -13,5 +13,5 @@ class TaskEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      DropEmptyState(title: title, message: message);
+      OpsHubEmptyState(title: title, message: message);
 }

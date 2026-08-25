@@ -1,4 +1,4 @@
-import 'package:drop/features/schedule/domain/shift_template.dart';
+import 'package:opshub/features/schedule/domain/shift_template.dart';
 
 /// Branch-scoped shift-template store (Schedule V2 · Pillar 5), collection
 /// `shift_templates/{id}`. Manager + admin own their branch's templates

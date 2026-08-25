@@ -1,4 +1,4 @@
-import 'package:drop/features/task/domain/entities/recurring_task_template_entity.dart';
+import 'package:opshub/features/task/domain/entities/recurring_task_template_entity.dart';
 
 /// Derived health of one automation, computed on read from the cumulative
 /// counters the Cloud Function maintains on the template (ADR-011). Nothing here

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/enums/user_role.dart';
-import 'package:drop/core/routes/route_names.dart';
-import 'package:drop/core/routes/router_extensions.dart';
-import 'package:drop/features/notifications/presentation/notification_navigation.dart';
+import 'package:opshub/core/enums/user_role.dart';
+import 'package:opshub/core/routes/route_names.dart';
+import 'package:opshub/core/routes/router_extensions.dart';
+import 'package:opshub/features/notifications/presentation/notification_navigation.dart';
 
 /// **What happens when a push notification is tapped.**
 ///
@@ -22,7 +22,7 @@ import 'package:drop/features/notifications/presentation/notification_navigation
 ///   so there was no back button on any platform and, since the iOS chevron
 ///   was dropped, no back gesture either. A hard dead end.
 ///
-/// A cold start sits squarely in that window: DROP holds the routed app behind
+/// A cold start sits squarely in that window: OpsHub holds the routed app behind
 /// the bootstrap *and* the ~2s splash intro, while `getInitialMessage()`
 /// resolves in milliseconds.
 ///

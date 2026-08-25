@@ -18,13 +18,13 @@ Three forces shape the architecture:
   the same class of fact as attendance minutes, and firmly inside
   [ADR-005](ADR-005-server-authoritative-writes.md).
 - **The spec is explicit that remaining / progress / percentage are derived**, not
-  stored. That instinct matches DROP's ethos and removes a whole class of drift bug.
-- **DROP is small and lean.** A handful of branches, a month is ≤ ~31 daily
+  stored. That instinct matches OpsHub's ethos and removes a whole class of drift bug.
+- **OpsHub is small and lean.** A handful of branches, a month is ≤ ~31 daily
   documents per branch. [ADR-009](ADR-009-no-analytics-pipeline.md) and
   [ADR-010](ADR-010-lean-over-enterprise.md) still bind: no analytics pipeline, no
   rollup tables, no scoreboards.
 
-DROP already solved a structurally identical problem — a period-scoped, timezone-
+OpsHub already solved a structurally identical problem — a period-scoped, timezone-
 pinned, server-closed record with derived summaries — in attendance
 ([ADR-017](ADR-017-attendance-reporting-ledger.md),
 `functions/attendance_expectation.js`). The relevant question is which parts of that
@@ -102,7 +102,7 @@ that is a **new ADR decision**, not licence to prebuild one now.
 - **Lowering a target below already-approved sales is allowed** (mandatory reason,
   audited): remaining shows `0`, textual progress may read `> 100%`, the visual bar
   caps at 100%. It is never blocked and progress is never silently capped in the data.
-- **A Cloud Functions deploy must precede the client build that calls it.** DROP has a
+- **A Cloud Functions deploy must precede the client build that calls it.** OpsHub has a
   documented deploy-lag hazard (stale production functions while the client shipped
   ahead — see CURRENT_STATE); sales inherits it. Deploy order is functions → rules +
   indexes → verify revisions → release client.

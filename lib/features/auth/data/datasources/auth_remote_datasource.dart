@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart' show PlatformException;
-import 'package:drop/core/errors/exceptions.dart';
-import 'package:drop/features/auth/data/models/user_model.dart';
+import 'package:opshub/core/errors/exceptions.dart';
+import 'package:opshub/features/auth/data/models/user_model.dart';
 
-/// Firebase Auth access. DROP is **admin-provisioned** — there is no public
+/// Firebase Auth access. OpsHub is **admin-provisioned** — there is no public
 /// registration, Google sign-in, or phone/OTP path here. Accounts are created
 /// server-side by the `createUserAccount` Cloud Function; clients only sign in
 /// with email/password, reset/change their password, and keep the Auth profile

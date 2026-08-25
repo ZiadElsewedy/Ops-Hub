@@ -4,10 +4,10 @@
 
 ## Context
 
-DROP's state is overwhelmingly "load some documents, stream them, expose a few
+OpsHub's state is overwhelmingly "load some documents, stream them, expose a few
 actions". The event-driven Bloc pattern adds an event class per action and an
 indirection between the call site and the handler, buying replay and event
-transformers that DROP has never needed.
+transformers that OpsHub has never needed.
 
 ## Decision
 

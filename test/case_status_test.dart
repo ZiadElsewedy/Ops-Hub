@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/case_status.dart';
+import 'package:opshub/core/enums/case_status.dart';
 
 void main() {
   group('CaseStatus lifecycle (Open → In Discussion → Waiting Response → Closed)',

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/features/task/data/models/task_model.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/features/task/data/models/task_model.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// Verifies the rework-distinction fields (`revisionNumber` / `requiresRework` /
 /// `rejectionReason`, Notification System Phase 1 — Part 2) round-trip through

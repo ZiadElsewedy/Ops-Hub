@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:image_cropper/image_cropper.dart';
 import 'package:video_compress/video_compress.dart';
-import 'package:drop/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_colors.dart';
 
 /// Pre-upload media processing (Phase 10 · P1): the on-device **image editor**
 /// (crop / rotate / flip / aspect) and **video compression** that run between

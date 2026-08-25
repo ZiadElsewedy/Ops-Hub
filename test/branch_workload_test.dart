@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/schedule_day.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/core/enums/task_status.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/operations/domain/branch_workload.dart';
-import 'package:drop/features/operations/domain/employee_workload.dart';
-import 'package:drop/features/operations/domain/shift_filter.dart';
-import 'package:drop/features/schedule/domain/entities/weekly_schedule_entity.dart';
-import 'package:drop/features/task/domain/entities/task_entity.dart';
+import 'package:opshub/core/enums/schedule_day.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/core/enums/task_status.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/operations/domain/branch_workload.dart';
+import 'package:opshub/features/operations/domain/employee_workload.dart';
+import 'package:opshub/features/operations/domain/shift_filter.dart';
+import 'package:opshub/features/schedule/domain/entities/weekly_schedule_entity.dart';
+import 'package:opshub/features/task/domain/entities/task_entity.dart';
 
 /// Pure-logic verification for the Branch Operations aggregation — derived from
 /// the task stream joined with today's roster (no Firebase). `day` + `now` are

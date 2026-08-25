@@ -1,8 +1,8 @@
-import 'package:drop/core/enums/attendance_status.dart';
-import 'package:drop/core/enums/attendance_status_filter.dart';
-import 'package:drop/core/enums/schedule_shift.dart';
-import 'package:drop/features/attendance/domain/attendance_id.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/core/enums/attendance_status.dart';
+import 'package:opshub/core/enums/attendance_status_filter.dart';
+import 'package:opshub/core/enums/schedule_shift.dart';
+import 'package:opshub/features/attendance/domain/attendance_id.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
 
 /// The date window a history view is scoped to. `custom` carries an explicit
 /// start/end; the presets are resolved against `now` in [AttendanceHistoryQuery].

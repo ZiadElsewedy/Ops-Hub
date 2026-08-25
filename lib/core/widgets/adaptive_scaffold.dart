@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drop/core/responsive/breakpoints.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/drop_logo.dart';
+import 'package:opshub/core/responsive/breakpoints.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/opshub_lockup.dart';
 
 /// A scaffold that adapts its chrome to the platform width.
 ///
@@ -73,7 +73,7 @@ class AdaptiveScaffold extends StatelessWidget {
   /// a screen has many actions on a narrow desktop window).
   final bool scrollableHeaderActions;
 
-  /// Quiet DROP brand mark at the trailing edge of the **mobile** app bar
+  /// Quiet OpsHub brand mark at the trailing edge of the **mobile** app bar
   /// (desktop is already branded by the persistent [AppSidebar] lockup).
   /// Non-interactive and tinted tertiary so it never competes with actions.
   final bool showBrandMark;
@@ -138,16 +138,27 @@ class AdaptiveScaffold extends StatelessWidget {
   }
 }
 
-/// The quiet DROP mark closing every mobile app bar — brand presence on all
-/// migrated screens without competing with the actionable icons beside it.
+/// The quiet OpsHub brand lockup (mark + name) closing every mobile app bar —
+/// brand presence on all migrated screens without competing with the actionable
+/// icons beside it. Capped and scale-down-fitted so a crowded bar shrinks the
+/// lockup as one unit rather than ever truncating the name.
 class _AppBarBrandMark extends StatelessWidget {
   const _AppBarBrandMark();
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(left: 6, right: 16),
-      child: Center(child: DropLogo(height: 16, color: AppColors.textTertiary)),
+    return Padding(
+      padding: const EdgeInsets.only(left: 6, right: 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 104),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: OpsHubLockup(
+                height: 16, color: AppColors.textTertiary),
+          ),
+        ),
+      ),
     );
   }
 }

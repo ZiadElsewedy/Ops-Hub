@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drop/core/enums/sales_submission_status.dart';
-import 'package:drop/features/sales/domain/entities/branch_sales_month_entity.dart';
-import 'package:drop/features/sales/domain/entities/daily_sales_submission_entity.dart';
-import 'package:drop/features/sales/domain/entities/sales_month_snapshot.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
-import 'package:drop/features/sales/presentation/cubit/sales_month_state.dart';
+import 'package:opshub/core/enums/sales_submission_status.dart';
+import 'package:opshub/features/sales/domain/entities/branch_sales_month_entity.dart';
+import 'package:opshub/features/sales/domain/entities/daily_sales_submission_entity.dart';
+import 'package:opshub/features/sales/domain/entities/sales_month_snapshot.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_manager_dashboard_cubit.dart';
+import 'package:opshub/features/sales/presentation/cubit/sales_month_state.dart';
 
 // A rejected daily sales close must (1) be recoverable — its submitter can fix
 // and resubmit it — and (2) NOT count as a valid close for "today's" amount.

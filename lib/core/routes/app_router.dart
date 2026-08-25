@@ -2,75 +2,76 @@ import 'package:flutter/cupertino.dart' show CupertinoPage;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drop/core/routes/app_page_route.dart';
-import 'package:drop/core/utils/app_logger.dart';
-import 'package:drop/core/widgets/app_shell.dart';
-import 'package:drop/features/auth/domain/entities/user_entity.dart';
-import 'package:drop/features/auth/presentation/cubit/auth_cubit.dart';
-import 'package:drop/features/auth/presentation/pages/splash_page.dart';
-import 'package:drop/features/auth/presentation/pages/login_page.dart';
-import 'package:drop/features/auth/presentation/pages/forgot_password_page.dart';
-import 'package:drop/features/auth/presentation/pages/force_password_change_page.dart';
-import 'package:drop/features/auth/presentation/pages/profile_completion_page.dart';
-import 'package:drop/features/auth/presentation/pages/onboarding_welcome_page.dart';
-import 'package:drop/features/admin/presentation/pages/admin_shell.dart';
-import 'package:drop/features/manager/presentation/pages/manager_shell.dart';
-import 'package:drop/features/employee/presentation/pages/employee_shell.dart';
-import 'package:drop/features/task/presentation/pages/task_management_screen.dart';
-import 'package:drop/features/task/presentation/pages/pending_review_screen.dart';
-import 'package:drop/features/task/presentation/pages/my_tasks_screen.dart';
-import 'package:drop/features/task/presentation/pages/task_detail_loader_screen.dart';
-import 'package:drop/features/operations/presentation/pages/manager_operations_screen.dart';
-import 'package:drop/features/schedule/presentation/pages/schedule_management_screen.dart';
-import 'package:drop/features/schedule/presentation/pages/branch_schedule_screen.dart';
-import 'package:drop/features/schedule/presentation/pages/my_schedule_screen.dart';
-import 'package:drop/features/branch/presentation/pages/branch_management_screen.dart';
-import 'package:drop/features/admin/presentation/pages/manager_management_screen.dart';
-import 'package:drop/features/admin/presentation/pages/employee_management_screen.dart';
-import 'package:drop/features/admin/presentation/pages/admin_analytics_screen.dart';
-import 'package:drop/features/admin/presentation/pages/create_account_screen.dart';
-import 'package:drop/features/profile/presentation/pages/profile_page.dart';
-import 'package:drop/features/profile/presentation/pages/edit_profile_page.dart';
-import 'package:drop/features/settings/presentation/pages/settings_page.dart';
-import 'package:drop/features/settings/presentation/pages/change_password_page.dart';
-import 'package:drop/features/settings/presentation/pages/about_page.dart';
-import 'package:drop/features/settings/presentation/pages/notifications_settings_screen.dart';
-import 'package:drop/features/communications/domain/entities/broadcast_entity.dart';
-import 'package:drop/features/communications/presentation/pages/communications_screen.dart';
-import 'package:drop/features/communications/presentation/pages/compose_broadcast_screen.dart';
-import 'package:drop/features/communications/presentation/pages/broadcast_detail_screen.dart';
-import 'package:drop/features/communications/presentation/pages/broadcast_templates_screen.dart';
-import 'package:drop/features/communications/presentation/pages/broadcast_schedules_screen.dart';
-import 'package:drop/features/notifications/presentation/pages/notifications_screen.dart';
-import 'package:drop/features/cases/presentation/pages/cases_screen.dart';
-import 'package:drop/features/cases/presentation/pages/create_case_screen.dart';
-import 'package:drop/features/cases/presentation/pages/case_conversation_screen.dart';
-import 'package:drop/features/chat/presentation/pages/chat_screen.dart';
-import 'package:drop/features/chat/presentation/pages/chat_conversation_screen.dart';
-import 'package:drop/features/chat/presentation/chat_thread_args.dart';
-import 'package:drop/features/chat/presentation/pages/new_chat_screen.dart';
-import 'package:drop/features/attendance/domain/attendance_review_link.dart';
-import 'package:drop/features/attendance/domain/entities/attendance_entity.dart';
-import 'package:drop/features/attendance/presentation/pages/attendance_screen.dart';
-import 'package:drop/features/sales/presentation/pages/sales_submission_screen.dart';
-import 'package:drop/features/sales/presentation/pages/sales_manager_dashboard_screen.dart';
-import 'package:drop/features/sales/presentation/pages/sales_history_screen.dart';
-import 'package:drop/features/sales/presentation/pages/sales_submission_detail_screen.dart';
-import 'package:drop/features/sales/presentation/pages/sales_admin_overview_screen.dart';
-import 'package:drop/features/sales/presentation/pages/employee_sales_screen.dart';
-import 'package:drop/core/di/injection.dart';
+import 'package:opshub/core/routes/app_page_route.dart';
+import 'package:opshub/core/utils/app_logger.dart';
+import 'package:opshub/core/widgets/app_shell.dart';
+import 'package:opshub/features/auth/domain/entities/user_entity.dart';
+import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:opshub/features/auth/presentation/pages/splash_page.dart';
+import 'package:opshub/features/auth/presentation/pages/login_page.dart';
+import 'package:opshub/features/auth/presentation/pages/landing_page.dart';
+import 'package:opshub/features/auth/presentation/pages/forgot_password_page.dart';
+import 'package:opshub/features/auth/presentation/pages/force_password_change_page.dart';
+import 'package:opshub/features/auth/presentation/pages/profile_completion_page.dart';
+import 'package:opshub/features/auth/presentation/pages/onboarding_welcome_page.dart';
+import 'package:opshub/features/admin/presentation/pages/admin_shell.dart';
+import 'package:opshub/features/manager/presentation/pages/manager_shell.dart';
+import 'package:opshub/features/employee/presentation/pages/employee_shell.dart';
+import 'package:opshub/features/task/presentation/pages/task_management_screen.dart';
+import 'package:opshub/features/task/presentation/pages/pending_review_screen.dart';
+import 'package:opshub/features/task/presentation/pages/my_tasks_screen.dart';
+import 'package:opshub/features/task/presentation/pages/task_detail_loader_screen.dart';
+import 'package:opshub/features/operations/presentation/pages/manager_operations_screen.dart';
+import 'package:opshub/features/schedule/presentation/pages/schedule_management_screen.dart';
+import 'package:opshub/features/schedule/presentation/pages/branch_schedule_screen.dart';
+import 'package:opshub/features/schedule/presentation/pages/my_schedule_screen.dart';
+import 'package:opshub/features/branch/presentation/pages/branch_management_screen.dart';
+import 'package:opshub/features/admin/presentation/pages/manager_management_screen.dart';
+import 'package:opshub/features/admin/presentation/pages/employee_management_screen.dart';
+import 'package:opshub/features/admin/presentation/pages/admin_analytics_screen.dart';
+import 'package:opshub/features/admin/presentation/pages/create_account_screen.dart';
+import 'package:opshub/features/profile/presentation/pages/profile_page.dart';
+import 'package:opshub/features/profile/presentation/pages/edit_profile_page.dart';
+import 'package:opshub/features/settings/presentation/pages/settings_page.dart';
+import 'package:opshub/features/settings/presentation/pages/change_password_page.dart';
+import 'package:opshub/features/settings/presentation/pages/about_page.dart';
+import 'package:opshub/features/settings/presentation/pages/notifications_settings_screen.dart';
+import 'package:opshub/features/communications/domain/entities/broadcast_entity.dart';
+import 'package:opshub/features/communications/presentation/pages/communications_screen.dart';
+import 'package:opshub/features/communications/presentation/pages/compose_broadcast_screen.dart';
+import 'package:opshub/features/communications/presentation/pages/broadcast_detail_screen.dart';
+import 'package:opshub/features/communications/presentation/pages/broadcast_templates_screen.dart';
+import 'package:opshub/features/communications/presentation/pages/broadcast_schedules_screen.dart';
+import 'package:opshub/features/notifications/presentation/pages/notifications_screen.dart';
+import 'package:opshub/features/cases/presentation/pages/cases_screen.dart';
+import 'package:opshub/features/cases/presentation/pages/create_case_screen.dart';
+import 'package:opshub/features/cases/presentation/pages/case_conversation_screen.dart';
+import 'package:opshub/features/chat/presentation/pages/chat_screen.dart';
+import 'package:opshub/features/chat/presentation/pages/chat_conversation_screen.dart';
+import 'package:opshub/features/chat/presentation/chat_thread_args.dart';
+import 'package:opshub/features/chat/presentation/pages/new_chat_screen.dart';
+import 'package:opshub/features/attendance/domain/attendance_review_link.dart';
+import 'package:opshub/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:opshub/features/attendance/presentation/pages/attendance_screen.dart';
+import 'package:opshub/features/sales/presentation/pages/sales_submission_screen.dart';
+import 'package:opshub/features/sales/presentation/pages/sales_manager_dashboard_screen.dart';
+import 'package:opshub/features/sales/presentation/pages/sales_history_screen.dart';
+import 'package:opshub/features/sales/presentation/pages/sales_submission_detail_screen.dart';
+import 'package:opshub/features/sales/presentation/pages/sales_admin_overview_screen.dart';
+import 'package:opshub/features/sales/presentation/pages/employee_sales_screen.dart';
+import 'package:opshub/core/di/injection.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/features/attendance/presentation/pages/admin_attendance_screen.dart';
-import 'package:drop/features/attendance/presentation/reporting/attendance_reports_screen.dart';
-import 'package:drop/features/attendance/presentation/history/attendance_history_screen.dart';
-import 'package:drop/features/attendance/presentation/details/attendance_details_screen.dart';
-import 'package:drop/features/attendance/presentation/admin/attendance_admin_workspace_screen.dart';
-import 'package:drop/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
-import 'package:drop/features/attendance/presentation/reporting/attendance_monthly_report_screen.dart';
-import 'package:drop/features/attendance/presentation/reporting/attendance_weekly_report_screen.dart';
-import 'package:drop/features/requests/presentation/pages/requests_screen.dart';
-import 'package:drop/features/requests/presentation/pages/create_request_screen.dart';
-import 'package:drop/features/requests/presentation/pages/request_detail_screen.dart';
+import 'package:opshub/features/attendance/presentation/pages/admin_attendance_screen.dart';
+import 'package:opshub/features/attendance/presentation/reporting/attendance_reports_screen.dart';
+import 'package:opshub/features/attendance/presentation/history/attendance_history_screen.dart';
+import 'package:opshub/features/attendance/presentation/details/attendance_details_screen.dart';
+import 'package:opshub/features/attendance/presentation/admin/attendance_admin_workspace_screen.dart';
+import 'package:opshub/features/attendance/presentation/daily/attendance_daily_review_screen.dart';
+import 'package:opshub/features/attendance/presentation/reporting/attendance_monthly_report_screen.dart';
+import 'package:opshub/features/attendance/presentation/reporting/attendance_weekly_report_screen.dart';
+import 'package:opshub/features/requests/presentation/pages/requests_screen.dart';
+import 'package:opshub/features/requests/presentation/pages/create_request_screen.dart';
+import 'package:opshub/features/requests/presentation/pages/request_detail_screen.dart';
 import 'route_names.dart';
 
 GoRouter createRouter(
@@ -112,6 +113,11 @@ GoRouter createRouter(
         pageBuilder: (context, state) => NoTransitionPage(
           child: SplashPage(onAnimationComplete: () {}, isBootstrapping: false),
         ),
+      ),
+      GoRoute(
+        path: RouteNames.landing,
+        pageBuilder: (context, state) =>
+            _fadeTransition(state, const LandingPage()),
       ),
       GoRoute(
         path: RouteNames.login,
@@ -530,8 +536,9 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
 
   final user = authState.maybeWhen(authenticated: (u) => u, orElse: () => null);
 
-  final isOnAuthFlow =
-      loc == RouteNames.login || loc == RouteNames.forgotPassword;
+  final isOnAuthFlow = loc == RouteNames.landing ||
+      loc == RouteNames.login ||
+      loc == RouteNames.forgotPassword;
 
   if (user != null) {
     // ── First-login gate (admin-provisioned accounts) ──
@@ -588,7 +595,6 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
         loc == RouteNames.welcome) {
       return roleHome;
     }
-
     return null;
   }
 

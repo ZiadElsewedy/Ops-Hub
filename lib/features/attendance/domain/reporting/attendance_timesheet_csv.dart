@@ -1,5 +1,5 @@
-import 'package:drop/core/utils/app_date_formatter.dart';
-import 'package:drop/features/attendance/domain/reporting/attendance_ledger_row.dart';
+import 'package:opshub/core/utils/app_date_formatter.dart';
+import 'package:opshub/features/attendance/domain/reporting/attendance_ledger_row.dart';
 
 /// The timesheet a manager opens in a spreadsheet ([ADR-019]).
 ///

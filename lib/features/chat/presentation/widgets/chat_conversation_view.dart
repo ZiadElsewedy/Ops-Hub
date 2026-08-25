@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:drop/core/extensions/context_extensions.dart';
-import 'package:drop/core/theme/app_colors.dart';
-import 'package:drop/core/theme/app_radius.dart';
-import 'package:drop/core/theme/app_spacing.dart';
-import 'package:drop/core/theme/app_typography.dart';
-import 'package:drop/core/widgets/app_snackbar.dart';
-import 'package:drop/core/widgets/skeleton.dart';
-import 'package:drop/features/chat/domain/entities/chat_message.dart';
-import 'package:drop/features/chat/domain/entities/chat_outgoing_attachment.dart';
-import 'package:drop/features/chat/presentation/chat_attachment_picker.dart';
-import 'package:drop/features/chat/presentation/chat_document_service.dart';
-import 'package:drop/features/chat/presentation/chat_message_preview.dart';
-import 'package:drop/features/chat/presentation/pages/image_viewer_screen.dart';
-import 'package:drop/features/chat/presentation/pages/message_info_screen.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_conversation_cubit.dart';
-import 'package:drop/features/chat/presentation/cubit/chat_conversation_state.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_composer.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_message_actions.dart';
-import 'package:drop/features/chat/presentation/widgets/chat_message_list.dart';
+import 'package:opshub/core/extensions/context_extensions.dart';
+import 'package:opshub/core/theme/app_colors.dart';
+import 'package:opshub/core/theme/app_radius.dart';
+import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/theme/app_typography.dart';
+import 'package:opshub/core/widgets/app_snackbar.dart';
+import 'package:opshub/core/widgets/skeleton.dart';
+import 'package:opshub/features/chat/domain/entities/chat_message.dart';
+import 'package:opshub/features/chat/domain/entities/chat_outgoing_attachment.dart';
+import 'package:opshub/features/chat/presentation/chat_attachment_picker.dart';
+import 'package:opshub/features/chat/presentation/chat_document_service.dart';
+import 'package:opshub/features/chat/presentation/chat_message_preview.dart';
+import 'package:opshub/features/chat/presentation/pages/image_viewer_screen.dart';
+import 'package:opshub/features/chat/presentation/pages/message_info_screen.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_conversation_cubit.dart';
+import 'package:opshub/features/chat/presentation/cubit/chat_conversation_state.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_composer.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_message_actions.dart';
+import 'package:opshub/features/chat/presentation/widgets/chat_message_list.dart';
 
 /// The conversation body — thread + composer over [ChatConversationCubit],
 /// the [CaseConversationView] sibling (no header bar: the screen's app bar

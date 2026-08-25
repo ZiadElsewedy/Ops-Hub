@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:drop/features/branch/domain/branch_geofence.dart';
-import 'package:drop/features/branch/domain/entities/branch_entity.dart';
+import 'package:opshub/features/branch/domain/branch_geofence.dart';
+import 'package:opshub/features/branch/domain/entities/branch_entity.dart';
 
 /// Contract for branch data access (Phase 5). Admin-only writes are enforced
 /// server-side in `firestore.rules` (`branches/{branchId}`).
