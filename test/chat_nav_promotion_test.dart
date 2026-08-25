@@ -12,8 +12,10 @@ import 'package:opshub/features/notifications/presentation/cubit/notification_cu
 import 'package:opshub/features/notifications/presentation/cubit/notification_state.dart';
 
 /// Navigation promotion (2026-07-22): Chat replaced Profile as the fourth
-/// bottom-nav destination, and Profile moved into the More/Settings hub reached
-/// by the app-bar avatar.
+/// bottom-nav destination. The app-bar avatar opens Profile directly; Settings
+/// (Change Password · Sign Out) stays one tap away via the gear in the Profile
+/// app bar, so nothing is stranded on mobile where this avatar is the only
+/// entry into the account area.
 
 class _FakeAuthCubit extends Cubit<AuthState> implements AuthCubit {
   _FakeAuthCubit(UserEntity user) : super(AuthState.authenticated(user));
@@ -52,8 +54,8 @@ Widget _harness(_FakeAuthCubit auth, _FakeNotificationCubit notifications) {
         builder: (context, state) => const Scaffold(body: Text('CHAT INBOX')),
       ),
       GoRoute(
-        path: RouteNames.settings,
-        builder: (context, state) => const Scaffold(body: Text('SETTINGS HUB')),
+        path: RouteNames.profile,
+        builder: (context, state) => const Scaffold(body: Text('PROFILE')),
       ),
     ],
   );
@@ -99,13 +101,13 @@ void main() {
     expect(find.text('CHAT INBOX'), findsOneWidget);
   });
 
-  testWidgets('tapping the app-bar avatar opens the More/Settings hub',
-      (tester) async {
+  testWidgets('tapping the app-bar avatar opens Profile', (tester) async {
     await tester.pumpWidget(_harness(auth, notifications));
     // The trailing app-bar avatar is wrapped in the GestureDetector that routes
-    // to the account hub; tapping the avatar hits it.
+    // to Profile; tapping the avatar hits it. Settings stays reachable via the
+    // gear in the Profile app bar.
     await tester.tap(find.byType(UserAvatar));
     await tester.pumpAndSettle();
-    expect(find.text('SETTINGS HUB'), findsOneWidget);
+    expect(find.text('PROFILE'), findsOneWidget);
   });
 }

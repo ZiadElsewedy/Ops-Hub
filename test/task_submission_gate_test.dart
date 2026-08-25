@@ -50,7 +50,7 @@ void main() {
         data: {
           InventoryCountWorkType.kArea: 'Stockroom',
           InventoryCountWorkType.kExpectedQty: 20,
-          if (counted != null) InventoryCountWorkType.kCountedQty: counted,
+          InventoryCountWorkType.kCountedQty: ?counted,
         },
       );
 

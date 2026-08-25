@@ -18,10 +18,11 @@ import 'package:opshub/features/attendance/domain/entities/attendance_entity.dar
 /// nobody receives it, and it lands an hour later. `NetworkGuard` is what turns
 /// that into an honest refusal.
 ///
-/// The one deliberate exception is **clock in / out**: it happens at a branch,
-/// which is where signal is worst, and `attendance/{uid}_{yyyyMMdd}_{shift}` is
-/// deterministic, so a write that replays late cannot duplicate. That exemption
-/// is a product decision, so it is pinned here rather than left to a comment.
+/// **Every write is guarded, including clock in / out** — they were once the
+/// one exemption, but an offline clock-in is the worst offender of all: the
+/// server-timestamped `clockIn` resolves to the RECONNECT time, silently
+/// corrupting pay data while the UI says "clocked in". Failing fast tells the
+/// person to reconnect instead.
 class _RecordingDataSource implements AttendanceRemoteDataSource {
   final calls = <String>[];
 
@@ -81,14 +82,19 @@ void main() {
     expect(remote.calls, isEmpty);
   });
 
-  test('clock-in is exempt and still writes while offline', () async {
+  test('clock-in fails fast offline — no silent replay of pay data', () async {
     NetworkGuard.setOnline(false);
     final remote = _RecordingDataSource();
     final repo = AttendanceRepositoryImpl(remote);
 
-    await repo.clockIn(_record());
+    await expectLater(
+      repo.clockIn(_record()),
+      throwsA(isA<OfflineFailure>()),
+    );
 
-    expect(remote.calls, ['clockIn']);
+    // The point: it never reached the datasource, so nothing can replay later
+    // with a reconnect-time server timestamp.
+    expect(remote.calls, isEmpty);
   });
 
   test('back online, the guarded write goes through again', () async {

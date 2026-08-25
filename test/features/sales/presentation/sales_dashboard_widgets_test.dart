@@ -1,5 +1,6 @@
 import 'package:opshub/core/theme/app_colors.dart';
 import 'package:opshub/core/theme/app_spacing.dart';
+import 'package:opshub/core/widgets/rolling_number.dart';
 import 'package:opshub/features/sales/domain/sales_calculator.dart';
 import 'package:opshub/features/sales/domain/sales_trend.dart';
 import 'package:opshub/features/sales/presentation/sales_outlook_tint.dart';
@@ -57,15 +58,18 @@ void main() {
       ),
     );
     expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle(); // reels + ring land on their final figures
     expect(find.text('ACHIEVED'), findsOneWidget);
     expect(find.text('REMAINING'), findsOneWidget);
     expect(find.text('TARGET'), findsOneWidget);
+    // Progress reads in the ring; remaining carries the "% left" footnote.
     expect(find.text('40.1%'), findsOneWidget);
+    expect(find.text('59.9% left'), findsOneWidget);
   });
 
-  test('outlook tint is green ahead, amber behind, white too-early', () {
-    expect(salesOutlookTint(SalesTargetOutlook.ahead), AppColors.success);
-    expect(salesOutlookTint(SalesTargetOutlook.behind), AppColors.warning);
+  test('outlook tint is emerald ahead, gold behind, white too-early', () {
+    expect(salesOutlookTint(SalesTargetOutlook.ahead), AppColors.salesEmerald);
+    expect(salesOutlookTint(SalesTargetOutlook.behind), AppColors.salesAmber);
     expect(salesOutlookTint(SalesTargetOutlook.tooEarly), AppColors.primary);
   });
 
@@ -80,8 +84,14 @@ void main() {
         tint: salesOutlookTint(SalesTargetOutlook.ahead),
       ),
     );
-    final achieved = tester.widget<Text>(find.text('401,332'));
-    expect(achieved.style?.color, AppColors.success);
+    await tester.pumpAndSettle();
+    // The ACHIEVED figure is the first rolling figure in the hero row (then
+    // REMAINING, then TARGET); its style carries the outlook tint down to the
+    // digit reels.
+    final figures =
+        tester.widgetList<RollingNumber>(find.byType(RollingNumber)).toList();
+    expect(figures, isNotEmpty);
+    expect(figures.first.style.color, AppColors.salesEmerald);
   });
 
   testWidgets('progress ring shows a capped whole at over-target', (
@@ -89,6 +99,7 @@ void main() {
   ) async {
     await _pumpPhone(tester, const SalesProgressRing(ratio: 1.4));
     expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle(); // the sweep lands on the capped value
     expect(find.text('100%'), findsOneWidget);
   });
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:opshub/core/widgets/rolling_number.dart';
 import 'package:opshub/features/sales/domain/entities/sales_record_result.dart';
 import 'package:opshub/features/sales/presentation/widgets/sales_record_added_overlay.dart';
 
@@ -40,9 +41,16 @@ void main() {
       ),
     );
 
-    expect(find.text('+ 59,000 EGP'), findsOneWidget);
+    // The amount rolls on per-digit reels, so the figure is asserted on the
+    // RollingNumber itself rather than as one Text.
+    final amounts =
+        tester.widgetList<RollingNumber>(find.byType(RollingNumber)).toList();
+    expect(amounts, isNotEmpty);
+    expect(amounts.first.value, 5900000);
+    expect(amounts.first.formatter(5900000), '+ 59,000 EGP');
     expect(find.text('added to the branch total'), findsOneWidget);
-    expect(find.textContaining('359,000 EGP of 1,000,000 EGP'), findsOneWidget);
+    // The achieved-of-target grounding line beneath the progress bar.
+    expect(find.textContaining('of 1,000,000 EGP'), findsOneWidget);
     expect(find.text('Monthly target reached 🎉'), findsNothing);
 
     // Tap to dismiss so no auto-dismiss timer is left pending.

@@ -107,14 +107,20 @@ class _SalesRecordAddedCardState extends State<_SalesRecordAddedCard> {
                 _Medallion(crossed: crossed, accent: accent),
                 const SizedBox(height: AppSpacing.lg),
                 // Rolls in briefly (settles well before the 2.6 s auto-dismiss).
-                RollingNumber(
-                  value: result.amountPiastres,
-                  formatter: (v) => '+ ${formatEgp(v.round(), withSuffix: true)}',
-                  animateOnMount: true,
-                  duration: const Duration(milliseconds: 850),
-                  perPlaceStep: const Duration(milliseconds: 55),
-                  maxExtra: const Duration(milliseconds: 380),
-                  style: AppTypography.displayMedium.copyWith(color: accent),
+                // FittedBox guards narrow phones: a long figure at display size
+                // must shrink as one unit, never overflow the card.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: RollingNumber(
+                    value: result.amountPiastres,
+                    formatter: (v) =>
+                        '+ ${formatEgp(v.round(), withSuffix: true)}',
+                    animateOnMount: true,
+                    duration: const Duration(milliseconds: 850),
+                    perPlaceStep: const Duration(milliseconds: 55),
+                    maxExtra: const Duration(milliseconds: 380),
+                    style: AppTypography.displayMedium.copyWith(color: accent),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
@@ -195,30 +201,36 @@ class _AchievedLine extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            RollingNumber(
-              value: achievedPiastres,
-              formatter: (v) => formatEgp(v.round(), withSuffix: true),
-              animateOnMount: true,
-              duration: const Duration(milliseconds: 850),
-              perPlaceStep: const Duration(milliseconds: 45),
-              maxExtra: const Duration(milliseconds: 340),
-              style: AppTypography.caption.copyWith(
-                color: accent,
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
+        // Scale down as one unit — "359,000 EGP of 1,000,000 EGP" can exceed a
+        // narrow card, and the row must never overflow.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              RollingNumber(
+                value: achievedPiastres,
+                formatter: (v) => formatEgp(v.round(), withSuffix: true),
+                animateOnMount: true,
+                duration: const Duration(milliseconds: 850),
+                perPlaceStep: const Duration(milliseconds: 45),
+                maxExtra: const Duration(milliseconds: 340),
+                style: AppTypography.caption.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
-            ),
-            Text(
-              ' of ${formatEgp(targetPiastres, withSuffix: true)}',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textTertiary,
+              Text(
+                ' of ${formatEgp(targetPiastres, withSuffix: true)}',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textTertiary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

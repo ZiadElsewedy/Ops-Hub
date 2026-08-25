@@ -21,10 +21,11 @@ import 'package:opshub/features/notifications/presentation/cubit/notification_st
 ///   sidebar, so here we only render the dashboard under a clean
 ///   [AdaptiveScaffold] page header. No app bar, no bottom nav.
 /// * **Mobile / tablet** → the original chrome: a compact app bar
-///   (notification bell + tappable avatar → the More/Settings hub, which holds
-///   Profile · Change Password · Sign Out) and the OpsHub bottom navigation bar
-///   (Home · Tasks · Schedule · Chat). Chat opens the conversation inbox; the
-///   list self-scopes and access is enforced server-side.
+///   (notification bell + tappable avatar → Profile, whose gear opens the
+///   account hub with Change Password · Sign Out) and the OpsHub bottom
+///   navigation bar (Home · Tasks · Schedule · Chat). Chat opens the
+///   conversation inbox; the list self-scopes and access is enforced
+///   server-side.
 class RoleScaffold extends StatelessWidget {
   const RoleScaffold({super.key, required this.title, required this.child});
 
