@@ -256,7 +256,12 @@ String _initialLocationFor(AuthState state) => state.maybeWhen(
     if (!user.isProfileCompleted) return RouteNames.profileCompletion;
     return RouteNames.homeForRole(user.role);
   },
-  orElse: () => RouteNames.login,
+  // No session → the landing page (the product's front door), not Login
+  // directly: the landing brands the product first, then hands off to the
+  // sign-in form via its CTA. An explicit sign-out still lands on Login (the
+  // router's unauthenticated redirect), which is the right surface when the
+  // session the user was inside has just ended.
+  orElse: () => RouteNames.landing,
 );
 
 void _configureNotificationService() {

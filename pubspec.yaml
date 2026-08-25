@@ -180,6 +180,9 @@ flutter:
     - assets/gmail.svg
     - assets/whatsapp.svg
     - assets/submission_loading.json
+    # Landing-page showcase — curated, downscaled captures of the real app
+    # (regenerated from `docs/screenshots`, see LandingPage).
+    - assets/showcase/
 
   fonts:
     - family: Inter

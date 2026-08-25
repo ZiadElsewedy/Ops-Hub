@@ -4,6 +4,12 @@ class RouteNames {
   RouteNames._();
 
   static const String splash = '/splash';
+
+  /// The pre-login landing page — the product's front door: brand hero,
+  /// features and the app showcase. An unauthenticated cold start lands here;
+  /// the only way forward is [login] (access is admin-provisioned).
+  static const String landing = '/landing';
+
   static const String home = '/';
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';

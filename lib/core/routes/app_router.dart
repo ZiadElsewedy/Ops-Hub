@@ -9,6 +9,7 @@ import 'package:opshub/features/auth/domain/entities/user_entity.dart';
 import 'package:opshub/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:opshub/features/auth/presentation/pages/splash_page.dart';
 import 'package:opshub/features/auth/presentation/pages/login_page.dart';
+import 'package:opshub/features/auth/presentation/pages/landing_page.dart';
 import 'package:opshub/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:opshub/features/auth/presentation/pages/force_password_change_page.dart';
 import 'package:opshub/features/auth/presentation/pages/profile_completion_page.dart';
@@ -112,6 +113,11 @@ GoRouter createRouter(
         pageBuilder: (context, state) => NoTransitionPage(
           child: SplashPage(onAnimationComplete: () {}, isBootstrapping: false),
         ),
+      ),
+      GoRoute(
+        path: RouteNames.landing,
+        pageBuilder: (context, state) =>
+            _fadeTransition(state, const LandingPage()),
       ),
       GoRoute(
         path: RouteNames.login,
@@ -530,8 +536,9 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
 
   final user = authState.maybeWhen(authenticated: (u) => u, orElse: () => null);
 
-  final isOnAuthFlow =
-      loc == RouteNames.login || loc == RouteNames.forgotPassword;
+  final isOnAuthFlow = loc == RouteNames.landing ||
+      loc == RouteNames.login ||
+      loc == RouteNames.forgotPassword;
 
   if (user != null) {
     // ── First-login gate (admin-provisioned accounts) ──
@@ -588,7 +595,6 @@ String? _redirect(AuthCubit authCubit, GoRouterState state) {
         loc == RouteNames.welcome) {
       return roleHome;
     }
-
     return null;
   }
 

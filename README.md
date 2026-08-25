@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/opshub_wordmark.png" alt="OpsHub" width="160" />
+<img src="assets/icon/opshub_app_icon.png" alt="OpsHub" width="120" />
 
 # OpsHub
 
@@ -12,10 +12,10 @@ Task assignment with proof · GPS attendance · weekly scheduling &amp; shift sw
 
 ![Platforms](https://img.shields.io/badge/Platforms-iOS%20%C2%B7%20Android%20%C2%B7%20macOS-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Flutter](https://img.shields.io/badge/Flutter-Dart%20%5E3.12-1E1E24?style=flat-square&labelColor=0A0A0B)
-![State](https://img.shields.io/badge/State-flutter__bloc%20%28Cubits%29-1E1E24?style=flat-square&labelColor=0A0A0B)
+![State](https://img.shields.io/badge/State-flutter__bloc%20(Cubits)-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Backend](https://img.shields.io/badge/Backend-Firebase-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Architecture](https://img.shields.io/badge/Architecture-Clean%20%C2%B7%20feature--sliced-1E1E24?style=flat-square&labelColor=0A0A0B)
-![Design](https://img.shields.io/badge/Design-Monochrome%20%C2%B7%20dark-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Design](https://img.shields.io/badge/Design-Monochrome%20%C2%B7%20dark%20%C2%B7%20animated-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Tests](https://img.shields.io/badge/Tests-1665%20%C2%B7%20~40s-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Access](https://img.shields.io/badge/Access-Private%20%C2%B7%20internal-1E1E24?style=flat-square&labelColor=0A0A0B)
 
@@ -49,24 +49,22 @@ role home**.
 
 <table>
   <tr>
-    <td width="33%" align="center"><img src="docs/screenshots/splash.png" alt="Splash" /><br/><sub><b>Launch</b> · branded intro</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/login.png" alt="Login" /><br/><sub><b>Login</b> · admin-provisioned sign-in</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/employee-home.png" alt="Employee Home" /><br/><sub><b>Employee Home</b> · shift, tasks & clock-in</sub></td>
-  </tr>
-  <tr>
+    <td width="33%" align="center"><img src="docs/screenshots/splash.png" alt="Splash" /><br/><sub><b>Launch</b> · the branded cold start</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/employee-home.png" alt="Employee Home" /><br/><sub><b>Employee Home</b> · shift, tasks &amp; clock-in</sub></td>
     <td width="33%" align="center"><img src="docs/screenshots/my-tasks.png" alt="My Tasks" /><br/><sub><b>My Tasks</b> · active · late · missed · done</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/task-detail.png" alt="Task detail" /><br/><sub><b>Task Detail</b> · status timeline & activity</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/attendance.png" alt="Attendance" /><br/><sub><b>Attendance</b> · GPS-gated clock in/out</sub></td>
   </tr>
   <tr>
-    <td width="33%" align="center"><img src="docs/screenshots/new-request.png" alt="New Request" /><br/><sub><b>New Request</b> · pick an approval type</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/requests.png" alt="Requests" /><br/><sub><b>Requests</b> · pending / approved / rejected</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/branch-sales.png" alt="Branch sales" /><br/><sub><b>Branch Sales</b> · monthly target & pace</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/branch-sales.png" alt="Branch sales" /><br/><sub><b>Branch Sales</b> · monthly target &amp; pace</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/manager-home.png" alt="Manager Home" /><br/><sub><b>Manager Home</b> · today at a glance</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/new-task.png" alt="New Task" /><br/><sub><b>New Task</b> · compose the work</sub></td>
   </tr>
   <tr>
-    <td width="33%" align="center"><img src="docs/screenshots/admin-home.png" alt="Admin Home" /><br/><sub><b>Admin Command Center</b> · cross-branch</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/attendance-board.png" alt="Attendance board" /><br/><sub><b>Attendance Board</b> · present · late · absent</sub></td>
-    <td width="33%" align="center"><img src="docs/screenshots/activity-feed.png" alt="Activity feed" /><br/><sub><b>Recent Activity</b> · live operations feed</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/admin-tasks.png" alt="Task Management" /><br/><sub><b>Task Management</b> · cross-branch command</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/branch-schedules.png" alt="Branch Schedules" /><br/><sub><b>Branch Schedules</b> · weekly roster &amp; swaps</sub></td>
+    <td width="33%" align="center"><img src="docs/screenshots/admin-home.png" alt="Admin Home" /><br/><sub><b>Admin Command Center</b> · manage everything</sub></td>
+  </tr>
+  <tr>
+    <td width="33%" align="center"><img src="docs/screenshots/my-schedule.png" alt="My Schedule" /><br/><sub><b>My Schedule</b> · the week ahead</sub></td>
   </tr>
 </table>
 
@@ -83,6 +81,11 @@ backed by an [Architecture Decision Record](docs/decisions/).
 - **Premium, not minimal.** Strictly **monochrome, dark-mode-only**. White is the only
   accent; colour is reserved for `success` / `error` / `warning` / `info` **status**. Calm
   comes from a 4-step grey ramp and hierarchy, not from stripping things out.
+- **The brand is an experience, not a logo.** A cinematic cold start — splash, then the
+  pre-login **landing page** (hero mark, positioning, live app showcase) — sets the tone
+  before any credentials appear. The hub mark, the tracked `OPERATIONS` line, and restrained
+  light-sweep motion carry through every surface: launcher icon, auth, chrome, and page
+  entrances.
 - **Simple &gt; clever. Stability &gt; perfection.** No abstraction without a second caller; 90%
   done with **zero regressions** beats 100% done with risk.
 - **Every state is a finished state.** Empty, loading, error, and offline each have a
