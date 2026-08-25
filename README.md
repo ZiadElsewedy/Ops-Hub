@@ -16,7 +16,7 @@ Task assignment with proof · GPS attendance · weekly scheduling &amp; shift sw
 ![Backend](https://img.shields.io/badge/Backend-Firebase-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Architecture](https://img.shields.io/badge/Architecture-Clean%20%C2%B7%20feature--sliced-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Design](https://img.shields.io/badge/Design-Monochrome%20%C2%B7%20dark%20%C2%B7%20animated-1E1E24?style=flat-square&labelColor=0A0A0B)
-![Tests](https://img.shields.io/badge/Tests-1665%20%C2%B7%20~40s-1E1E24?style=flat-square&labelColor=0A0A0B)
+![Tests](https://img.shields.io/badge/Tests-1963%20%C2%B7%20~40s-1E1E24?style=flat-square&labelColor=0A0A0B)
 ![Access](https://img.shields.io/badge/Access-Private%20%C2%B7%20internal-1E1E24?style=flat-square&labelColor=0A0A0B)
 
 </div>
@@ -136,7 +136,7 @@ backed by an [Architecture Decision Record](docs/decisions/).
 
 **Clean Architecture, sliced by feature.** The dependency rule always points **inward** —
 `presentation → domain ← data`. `domain/` is pure Dart and imports neither Flutter nor
-Firebase, which is why the full **1665-test** suite runs in **~40s** with no Firebase and no
+Firebase, which is why the full **1963-test** suite runs in **~40s** with no Firebase and no
 live backend: the business rules are pure functions.
 
 ```mermaid
@@ -182,8 +182,12 @@ dart run build_runner build --delete-conflicting-outputs
 
 ```bash
 flutter analyze     # expect: clean (1 pre-existing info)
-flutter test        # expect: 1665 pass, 0 fail — any red is a real regression
+flutter test        # expect: 1963 tests, all green
 ```
+
+> A handful of sales-dashboard / overlay widget tests are **date-sensitive** (they judge
+> month pace) and can read red in the final days of a month — confirm they fail on a clean
+> checkout too before treating a red as your regression.
 
 If you touch `firestore.rules`, also run the rules suite (the Dart tests never evaluate a
 rule):
