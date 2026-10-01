@@ -3,7 +3,33 @@
 > **Today's snapshot. Nothing historical.** The moment something here becomes
 > history, it moves to [CHANGELOG.md](CHANGELOG.md) and leaves this file.
 >
-> **Last verified against the code:** 2026-08-08.
+> **Last verified against the code:** 2026-09-29.
+
+> **macOS 12 deployment-target alignment (2026-09-29, bug, LOW risk):** Newer
+> Xcode rejects the Runner and generated Firebase/plugin pod targets that still
+> declared macOS 10.11–10.15. The Runner project and Podfile now use macOS 12.0,
+> and the Podfile post-install hook pins every generated pod configuration to
+> 12.0 so `pod install` cannot restore the mismatch. `Podfile.lock` regenerated;
+> the exact emulator-enabled debug command now builds `OpsHub.app` successfully.
+
+> **Realistic Firebase mock estate (2026-09-29, developer tooling, LOW risk):**
+> OpsHub can now run against an explicitly opted-in local Firebase Emulator
+> Suite. `functions/scripts/seed_mock_data.js` creates 10 reusable admin,
+> manager, and employee Auth accounts plus 210 linked, date-relative Firestore
+> documents covering branches, users/compensation, tasks/templates/automation,
+> schedules/swaps, attendance/audit/corrections, requests, cases, sales,
+> broadcasts, notifications, reminders, and audit history. Stable IDs make the
+> seed safe to rerun without deleting unrelated emulator data. `main.dart`
+> switches Auth, Firestore, Functions, and Storage only when
+> `USE_FIREBASE_EMULATORS=true`; ordinary builds remain unchanged. Firestore
+> uses project-local port 8088 to avoid the other local Firebase project already
+> occupying the conventional 8080 port. Full commands and credentials live in
+> [docs/MOCK_DATA.md](docs/MOCK_DATA.md). Dry-run + actual Auth/Firestore seeding
+> verified; `flutter analyze` clean, Dart 1963/1963, Cloud Functions 160/160,
+> and Firestore rules 93/93 green. Chat is deliberately excluded because its
+> source of truth is the separate NestJS service. The default preview also
+> leaves Functions off, so server-authoritative actions are unavailable while
+> browsing the local estate; Functions testing uses the declared Node 22 runtime.
 
 > **OpsHub brand lockup (mark + name) is now the app-wide brand mark (2026-08-21,
 > polish, client-only, auth page iOS-verified):** The `OpsHubLockup`

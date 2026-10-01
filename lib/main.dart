@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -51,6 +54,7 @@ GoRouter? _router;
 /// frame. This keeps retries idempotent if startup fails before the router is
 /// ready.
 bool _dependenciesInitialized = false;
+bool _emulatorsConfigured = false;
 
 void main() {
   // Everything — including ensureInitialized and runApp — lives inside ONE
@@ -181,6 +185,8 @@ Future<GoRouter> _initializeRuntime() async {
     ).timeout(_firebaseInitTimeout);
   }
 
+  await _configureFirebaseEmulators();
+
   if (!_dependenciesInitialized) {
     // Must be configured before the first Firestore operation.
     FirebaseFirestore.instance.settings = const Settings(
@@ -247,6 +253,27 @@ Future<GoRouter> _initializeRuntime() async {
   _configureNotificationService();
   _handleAuthState(AppDependencies.authCubit.state);
   return router;
+}
+
+/// Opt-in local Firebase wiring for the realistic demo dataset.
+///
+/// Production and ordinary debug builds keep using the configured Firebase
+/// project. Pass `--dart-define=USE_FIREBASE_EMULATORS=true` to use the local
+/// suite, and override [FIREBASE_EMULATOR_HOST] for a physical device.
+Future<void> _configureFirebaseEmulators() async {
+  const enabled = bool.fromEnvironment('USE_FIREBASE_EMULATORS');
+  if (!enabled || _emulatorsConfigured) return;
+
+  const host = String.fromEnvironment(
+    'FIREBASE_EMULATOR_HOST',
+    defaultValue: 'localhost',
+  );
+  await FirebaseAuth.instance.useAuthEmulator(host, 9099);
+  FirebaseFirestore.instance.useFirestoreEmulator(host, 8088);
+  FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
+  await FirebaseStorage.instance.useStorageEmulator(host, 9199);
+  _emulatorsConfigured = true;
+  debugPrint('Firebase emulator suite: $host');
 }
 
 String _initialLocationFor(AuthState state) => state.maybeWhen(

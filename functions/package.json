@@ -8,7 +8,9 @@
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
-    "test": "node --test"
+    "test": "node --test",
+    "seed:mock": "node scripts/seed_mock_data.js",
+    "seed:mock:dry": "node scripts/seed_mock_data.js --dry-run"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",

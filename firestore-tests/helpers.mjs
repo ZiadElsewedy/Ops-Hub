@@ -20,7 +20,7 @@ export const RULES = fs.readFileSync(
 export async function makeEnv(projectId) {
   const env = await initializeTestEnvironment({
     projectId,
-    firestore: { rules: RULES, host: "127.0.0.1", port: 8080 },
+    firestore: { rules: RULES, host: "127.0.0.1", port: 8088 },
   });
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();

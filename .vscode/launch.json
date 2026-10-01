@@ -1,7 +1,8 @@
 {
   // The backend is chosen automatically by build mode (see
   // lib/core/config/app_environment.dart), so there are no per-environment
-  // launch profiles and no dart-defines to remember:
+  // launch profiles needed for the normal development/production backend. The
+  // explicit mock-data profile below is the only exception:
   //
   //   Debug   (these configs / `flutter run`)      → Development → localhost
   //   Release (`flutter build … --release`)         → Production  → Railway
@@ -14,6 +15,15 @@
       "name": "OpsHub (Development)",
       "request": "launch",
       "type": "dart"
+    },
+    {
+      "name": "OpsHub (Mock data / Firebase emulators)",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=USE_FIREBASE_EMULATORS=true",
+        "--dart-define=FIREBASE_EMULATOR_HOST=localhost"
+      ]
     },
     {
       "name": "OpsHub (device on LAN)",

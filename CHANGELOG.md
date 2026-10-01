@@ -14,6 +14,42 @@ released — OpsHub ships from branches and has no version tags.
 
 ---
 
+## 2026-09-29 — macOS deployment target raised consistently to 12.0 (bug; LOW risk)
+
+- Raised the Runner's Debug/Profile/Release deployment target and the Podfile
+  platform from macOS 10.15 to 12.0, matching the minimum accepted by the
+  installed Xcode toolchain.
+- Added a Podfile post-install override that applies macOS 12.0 to every pod
+  build configuration. This covers dependencies that otherwise regenerate with
+  10.11–10.15 targets and fail before Flutter assembly.
+- Regenerated `Podfile.lock`. Verified all 222 generated pod deployment-target
+  settings and all three Runner settings resolve to 12.0. The emulator-enabled
+  debug build completes and produces `OpsHub.app`; remaining third-party
+  deprecation and stale-cache messages are warnings only.
+
+## 2026-09-29 — Realistic local Firebase mock estate (developer tooling; LOW risk)
+
+- Added an emulator-only, idempotent seed with 10 login accounts and 210 linked,
+  date-relative documents across the Firebase-backed product workflows. Stable
+  IDs refresh the same estate without deleting unrelated emulator data, and the
+  command refuses to run unless both Auth and Firestore emulator hosts are set.
+- Added explicit Flutter emulator wiring behind
+  `USE_FIREBASE_EMULATORS=true` for Auth, Firestore, Functions, and Storage;
+  normal builds keep their existing Firebase configuration. Added a matching
+  VS Code launch profile and Firebase Emulator UI configuration. OpsHub uses
+  Firestore emulator port 8088 because another local Firebase project already
+  owns the conventional 8080 port; the rules-test harness was kept in sync.
+- Added cross-reference/workflow coverage tests and a complete run guide with
+  credentials in `docs/MOCK_DATA.md`. Chat remains out of scope because it is
+  backed by the separate NestJS service. The default preview starts Auth,
+  Firestore, and Storage only; server-authoritative Functions flows remain an
+  explicit Node 22 test mode rather than silently reaching non-emulated services.
+
+Verification: dry-run reports 10 accounts / 210 documents; real Auth +
+Firestore emulator seed completed and the admin credentials authenticated;
+`flutter analyze` clean, Dart 1963/1963, Cloud Functions 160/160, and Firestore
+rules 93/93 green.
+
 ## 2026-08-21 — OpsHub brand lockup (mark + name) rolled out app-wide (branch `rebrand-opshub`; polish, client-only, auth page iOS-verified)
 
 Follow-up to the entry below: by owner request the `OpsHubLockup` (hub glyph +

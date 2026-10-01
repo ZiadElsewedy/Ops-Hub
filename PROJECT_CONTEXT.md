@@ -90,7 +90,8 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Backend | Firebase: Auth · Firestore · Storage | [ADR-001](docs/decisions/ADR-001-firebase-backend.md) |
 | Chat API (in progress) | NestJS over `dio` + Socket.IO (`socket_io_client`) | HTTP seam `core/network/api_client.dart`; realtime seam `features/chat/data/realtime/`; Firebase ID token as Bearer / handshake auth |
 | Chat offline cache | `drift` (SQLite) + `sqlite3_flutter_libs` | The **only** SQLite in the app; confined to `features/chat/data/local/`. Never import `drift` elsewhere. Drift caches metadata; `ChatRepositoryImpl` session-caches brokered URLs until their server expiry; **never image bytes** |
-| Server logic | Cloud Functions (Node.js, `functions/`) | 31 functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
+| Server logic | Cloud Functions (Node.js, `functions/`) | 32 exported functions; see [DATA_MODEL](docs/design/DATA_MODEL.md) |
+| Local demo data | Firebase Emulator Suite + `functions/scripts/seed_mock_data.js` | Opt-in only; 10 reusable role accounts and date-relative linked fixtures. See [MOCK_DATA](docs/MOCK_DATA.md) |
 | Push | `firebase_messaging` | iOS app-side configuration is present; APNs credential remains — see CURRENT_STATE |
 | Device session id | `flutter_secure_storage` | Keychain (iOS/macOS) / `EncryptedSharedPreferences` (Android, `resetOnError: true`). Holds **one** value — this device's single-active-session claim. Seam: `core/services/session_store.dart`; never import it elsewhere, and it is still **not** a place for preferences (those stay JSON files) |
 | Android backup | disabled (`allowBackup=false`) | Firebase Auth persists its session in app SharedPreferences on Android (Keychain on iOS). Auto Backup would ship that store + the secure-storage claim — whose keystore master key can't be backed up — through backup/restore/Smart Switch, dropping the session on cold start (Samsung especially). See `android/app/src/main/AndroidManifest.xml` |
@@ -102,8 +103,10 @@ Classify every change (**bug / polish / refactor / feature**) and label its risk
 | Location | `geolocator` | Attendance GPS |
 | Codegen | `build_runner` | |
 
-**Platforms:** iOS · Android · macOS. Desktop is a first-class target, not an
-afterthought — see [§7](#7-ui-philosophy).
+**Platforms:** iOS · Android · macOS 12.0+. Desktop is a first-class target, not
+an afterthought — see [§7](#7-ui-philosophy). The macOS minimum is enforced in
+both `macos/Runner.xcodeproj` and `macos/Podfile`; the Podfile post-install hook
+also raises every generated pod target to the same minimum.
 
 ---
 
@@ -128,7 +131,7 @@ features/<feature>/
 └── presentation/    # Cubits, pages, widgets. Sees entities only.
 ```
 
-`domain/` depends on nothing. This is why the full 1665-test suite runs in ~40
+`domain/` depends on nothing. This is why the full 1963-test suite runs in ~40
 seconds with no Firebase and no live backend — business rules are pure functions.
 
 Full rationale and costs: [ADR-003](docs/decisions/ADR-003-clean-architecture.md).
@@ -494,6 +497,16 @@ datasource → repository (contract + impl) → use case → cubit/state → pag
 ```
 
 Then run codegen if any `freezed` file changed.
+
+### Running with realistic local data
+
+The normal app keeps its configured Firebase backend. A demo run opts into the
+local Firebase Emulator Suite explicitly with
+`--dart-define=USE_FIREBASE_EMULATORS=true`; the emulator wiring lives in
+`main.dart`, and the idempotent seed lives in
+`functions/scripts/seed_mock_data.js`. Follow [docs/MOCK_DATA.md](docs/MOCK_DATA.md)
+for the three-terminal start, seed, and run commands. The seed refuses to run
+unless both Auth and Firestore emulator host variables are present.
 
 ### Access model
 

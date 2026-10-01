@@ -172,6 +172,9 @@ flutter pub get
 flutter run
 ```
 
+For a safe, production-shaped local dataset with ready-to-use admin, manager,
+and employee accounts, see [Realistic local mock data](docs/MOCK_DATA.md).
+
 After changing any `freezed` entity or state, regenerate code:
 
 ```bash
